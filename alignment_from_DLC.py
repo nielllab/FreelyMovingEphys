@@ -12,10 +12,17 @@ last modified: May 14, 2020
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
-import math
+import xarray as xr
 
 def align_head_from_DLC(topdown_data, num_points=8, thresh=0.99): #default num_points set to 8; 9&10 would include cricket points in Angie's prey capture data
     # head points
+    print(topdown_data)
+    print(list(topdown_data.keys()))
+    read_data = topdown_data
+    print(read_data)
+    print(read_data.shape())
+
+    """
     points = pd.DataFrame([])
     for point_count in range(0,num_points):
         like_index = point_count * 3 + 3
@@ -33,7 +40,7 @@ def align_head_from_DLC(topdown_data, num_points=8, thresh=0.99): #default num_p
         elif point_count < (num_points - 1):
             points = pd.concat([points, this_point], axis=1)
         elif point_count == (num_points - 1):
-            key_set = ['point_set_' + str(i) for i in range(0, num_points)]
+
             points = pd.concat([points, this_point], axis=1, keys=key_set) # only adds keys to the two things in this concatonation attempt... how to fix?
 
     points.to_excel('/Users/dylanmartins/data/Niell/FreelyMovingEphys/code_outputs/initial_load_all_csv_work/points.xlsx', index=True)
@@ -89,3 +96,4 @@ def align_head_from_DLC(topdown_data, num_points=8, thresh=0.99): #default num_p
 
     return points
     #return aligned_x, aligned_y, aligned_speed, theta, dtheta,
+    """

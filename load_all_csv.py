@@ -7,39 +7,49 @@ Loads in top-down camera and right or left eye from DLC outputs and data are ali
 Requires alignment_from_DLC.py
 Adapted from /niell-lab-analysis/freely moving/loadAllCsv.m
 
-last modified: May 14, 2020
+last modified: May 17, 2020''
 """
 #####################################################################################
 from glob import glob
 import pandas as pd
 import os.path
+import h5py
+import numpy as np
+import xarray as xr
+import h5netcdf
 
+from utilities.find_function import find
 from alignment_from_DLC import align_head_from_DLC
 
-def check_and_read(file_input):
-    if file_input == 'none':
-        no_data = 0
-        return no_data
-    else:
-        read_data = pd.read_csv(file_input, skiprows=2)
-        return(read_data)
+def read_data(topdown_input=None, acc_input=None, time_input=None, lefteye_input=None, righteye_input=None):
+    if topdown_input != None:
+        print('top-down camera data read in: ' + topdown_input)
+        data = xr.open_dataset(topdown_input, engine='h5netcdf')
+    elif topdown_input == None:
+        print('no top-down data given')
 
-def read_data(topdown_input='none', acc_input='none', time_input='none', lefteye_input='none', righteye_input='none'):
-    topdown_data = check_and_read(topdown_input)
-    points = align_head_from_DLC(topdown_data)
+    if lefteye_input != None:
+        try:
+            with xr.open_dataset(lefteye_input, engine='h5netcdf') as le:
+                data = xr.concat([data, le], 'cam_input')
+        except NameError:
+            print('cannot add left eye because no top-down camera data were given')
+    elif lefteye_input == None:
+        print('no left eye data given')
 
-    # ... other things it does that aren't filled out yet...
+    # points = align_head_from_DLC(topdown_data)
 
-    return points
+    return data
 
+####################################
 # find list of all data
 main_path = '/Users/dylanmartins/data/Niell/PreyCapture/Cohort?/*/*/Approach/'
 
-topdown_file_list = glob(main_path + '*top*DeepCut*.csv')
-acc_file_list = glob(main_path + '*acc*DeepCut*.dat')
-time_file_list = glob(main_path + '*topTS*DeepCut*.csv')
-righteye_file_list = glob(main_path + '*eye1r*DeepCut*.csv')
-lefteye_file_list = glob(main_path + '*eye2l*DeepCut*.csv')
+topdown_file_list = glob(main_path + '*top*DeepCut*.h5')
+acc_file_list = glob(main_path + '*acc*.dat')
+time_file_list = glob(main_path + '*topTS*.h5')
+righteye_file_list = glob(main_path + '*eye1r*DeepCut*.h5')
+lefteye_file_list = glob(main_path + '*eye2l*DeepCut*.h5')
 
 loop_count = 0
 limit_of_loops = 1 # for testing purposes, limit to first file
