@@ -6,7 +6,7 @@ Reads in .csv file from deepLabCut, computes head position.
 
 Adapted from /niell-lab-analysis/freely moving/alignHead.m
 
-last modified: May 14, 2020
+last modified: May 18, 2020
 """
 #####################################################################################
 import pandas as pd
@@ -14,41 +14,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 import xarray as xr
 
-def align_head_from_DLC(topdown_data, num_points=8, thresh=0.99): #default num_points set to 8; 9&10 would include cricket points in Angie's prey capture data
-    # head points
-    print(topdown_data)
-    print(list(topdown_data.keys()))
-    read_data = topdown_data
-    print(read_data)
-    print(read_data.shape())
+def align_head_from_DLC(raw_data, num_points=8, thresh=0.99): #default num_points set to 8; 9&10 would include cricket points in Angie's prey capture data
 
-    """
-    points = pd.DataFrame([])
-    for point_count in range(0,num_points):
-        like_index = point_count * 3 + 3
-        x_index = point_count * 3 + 1
-        y_index = point_count * 3 + 2
-        likelihood = topdown_data.iloc[:, like_index]
-        x_points = topdown_data.iloc[:, x_index]
-        y_points_imgcoords = topdown_data.iloc[:, y_index]
-        y_points = 1200 - y_points_imgcoords
-        this_point = pd.concat([x_points, y_points, likelihood], axis=1)
-        this_point = pd.DataFrame([x_points, y_points, likelihood])
-        this_point = this_point.transpose()
-        if point_count == 0:
-            points = this_point
-        elif point_count < (num_points - 1):
-            points = pd.concat([points, this_point], axis=1)
-        elif point_count == (num_points - 1):
-
-            points = pd.concat([points, this_point], axis=1, keys=key_set) # only adds keys to the two things in this concatonation attempt... how to fix?
-
-    points.to_excel('/Users/dylanmartins/data/Niell/FreelyMovingEphys/code_outputs/initial_load_all_csv_work/points.xlsx', index=True)
-
-    # NOTHING BEYOND THIS IS VERY IRONED OUT
+    # select y head points and subtract them from 1200
 
     # threshold points using "thresh" (find times when all points are good); want high values only
-    good_points = np.where(points > thresh)
+    good_points = np.where(data > thresh)
     print(good_points)
     num_good_points = np.sum(good_points)
 
@@ -96,4 +67,3 @@ def align_head_from_DLC(topdown_data, num_points=8, thresh=0.99): #default num_p
 
     return points
     #return aligned_x, aligned_y, aligned_speed, theta, dtheta,
-    """

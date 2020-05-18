@@ -7,7 +7,7 @@ Loads in top-down camera and right or left eye from DLC outputs and data are ali
 Requires alignment_from_DLC.py
 Adapted from /niell-lab-analysis/freely moving/loadAllCsv.m
 
-last modified: May 17, 2020''
+last modified: May 18, 2020
 """
 #####################################################################################
 from glob import glob
@@ -21,23 +21,57 @@ import h5netcdf
 from utilities.find_function import find
 from alignment_from_DLC import align_head_from_DLC
 
+####################################
+def read_dlc(dlcfile):
+    pts = pd.read_hdf(dlcfile)
+    pts.columns = [' '.join(col[:][1:3]).strip() for col in pts.columns.values]
+    xarray = pts.to_xarray()
+    return xarray
+
+####################################
+def read_in_eye(total_data, data_input, side):
+    # create list of eye points that matches data variables in data xarray
+    eye_pts = []
+    for eye_pt in range(1, 9):
+        eye_pts.append('p' + str(eye_pt) + ' x')
+        eye_pts.append('p' + str(eye_pt) + ' y')
+        eye_pts.append('p' + str(eye_pt) + ' likelihood')
+
+    # create list of eye points labeled with which eye they come from
+    new_eye_pts = []
+    for old_eye_pt in eye_pts:
+        new_eye_pts.append(str(side) + ' eye ' + str(old_eye_pt))
+
+    # turn old and new lables into dictionary so that eye points can be renamed
+    eye_dict = {eye_pts[i]: new_eye_pts[i] for i in range(len(new_eye_pts))}
+
+    if data_input != None:
+        try:
+            eye_read_in = read_dlc(data_input)
+            eye_data = eye_read_in.rename(eye_dict)
+            print(eye_data)
+            total_data = xr.merge([total_data, eye_data])
+        except NameError:
+            print('cannot add ' + str(side) + ' eye because no top-down camera data were given')
+    elif data_input == None:
+        print('no ' + str(side) + ' eye data given')
+
+    return total_data
+
+####################################
 def read_data(topdown_input=None, acc_input=None, time_input=None, lefteye_input=None, righteye_input=None):
+
+    # read top-down camera data into xarray
     if topdown_input != None:
-        print('top-down camera data read in: ' + topdown_input)
-        data = xr.open_dataset(topdown_input, engine='h5netcdf')
+        data = read_dlc(topdown_input)
     elif topdown_input == None:
         print('no top-down data given')
 
-    if lefteye_input != None:
-        try:
-            with xr.open_dataset(lefteye_input, engine='h5netcdf') as le:
-                data = xr.concat([data, le], 'cam_input')
-        except NameError:
-            print('cannot add left eye because no top-down camera data were given')
-    elif lefteye_input == None:
-        print('no left eye data given')
+    # read in left eye
+    data = read_in_eye(data, lefteye_input, 'left')
+    data = read_in_eye(data, righteye_input, 'right')
 
-    # points = align_head_from_DLC(topdown_data)
+    # aligned = align_head_from_DLC(data)
 
     return data
 
@@ -63,5 +97,5 @@ for file in topdown_file_list:
         time_file = ', '.join([i for i in time_file_list if mouse_key and trial_key in i])
         righteye_file = ', '.join([i for i in righteye_file_list if mouse_key and trial_key in i])
         lefteye_file = ', '.join([i for i in lefteye_file_list if mouse_key and trial_key in i])
-        points = read_data(file, acc_file, time_file, righteye_file, lefteye_file)
+        data = read_data(file, acc_file, time_file, righteye_file, lefteye_file)
     loop_count = loop_count + 1
