@@ -7,7 +7,7 @@ Loads in top-down camera and right or left eye from DLC outputs and data are ali
 Requires alignment_from_DLC.py
 Adapted from /niell-lab-analysis/freely moving/loadAllCsv.m
 
-last modified: May 18, 2020
+last modified: May 19, 2020
 """
 #####################################################################################
 from glob import glob
@@ -23,8 +23,11 @@ from alignment_from_DLC import align_head_from_DLC
 
 ####################################
 def read_dlc(dlcfile):
+    # read in .h5 file
     pts = pd.read_hdf(dlcfile)
+    # organize columns of pts
     pts.columns = [' '.join(col[:][1:3]).strip() for col in pts.columns.values]
+    # convert to an xarray
     xarray = pts.to_xarray()
     return xarray
 
@@ -45,14 +48,16 @@ def read_in_eye(total_data, data_input, side):
     # turn old and new lables into dictionary so that eye points can be renamed
     eye_dict = {eye_pts[i]: new_eye_pts[i] for i in range(len(new_eye_pts))}
 
+    # if eye data input exists, read it in and rename the data variables using the eye_dict of side-specific names
     if data_input != None:
         try:
             eye_read_in = read_dlc(data_input)
             eye_data = eye_read_in.rename(eye_dict)
-            print(eye_data)
             total_data = xr.merge([total_data, eye_data])
+            # if the trial's main data file wasn't provided, raise error
         except NameError:
             print('cannot add ' + str(side) + ' eye because no top-down camera data were given')
+    # if eye data wasn't given, provide message (should still move forward with top-down or just one eye)
     elif data_input == None:
         print('no ' + str(side) + ' eye data given')
 

@@ -19,7 +19,7 @@ def align_head_from_DLC(raw_data, num_points=8, thresh=0.99): #default num_point
     # select y head points and subtract them from 1200
 
     # threshold points using "thresh" (find times when all points are good); want high values only
-    good_points = np.where(data > thresh)
+    good_points = np.where(raw_data > thresh)
     print(good_points)
     num_good_points = np.sum(good_points)
 
