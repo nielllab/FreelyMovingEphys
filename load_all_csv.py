@@ -7,7 +7,7 @@ Loads in top-down camera and right or left eye from DLC outputs and data are ali
 Requires alignment_from_DLC.py
 Adapted from /niell-lab-analysis/freely moving/loadAllCsv.m
 
-last modified: May 19, 2020
+last modified: May 29, 2020
 """
 #####################################################################################
 from glob import glob
@@ -27,12 +27,10 @@ def read_dlc(dlcfile):
     pts = pd.read_hdf(dlcfile)
     # organize columns of pts
     pts.columns = [' '.join(col[:][1:3]).strip() for col in pts.columns.values]
-    # convert to an xarray
-    xarray = pts.to_xarray()
-    return xarray
+    return pts
 
 ####################################
-def read_in_eye(total_data, data_input, side):
+def read_in_eye(data_input, side):
     # create list of eye points that matches data variables in data xarray
     eye_pts = []
     for eye_pt in range(1, 9):
@@ -45,40 +43,37 @@ def read_in_eye(total_data, data_input, side):
     for old_eye_pt in eye_pts:
         new_eye_pts.append(str(side) + ' eye ' + str(old_eye_pt))
 
-    # turn old and new lables into dictionary so that eye points can be renamed
-    eye_dict = {eye_pts[i]: new_eye_pts[i] for i in range(len(new_eye_pts))}
-
     # if eye data input exists, read it in and rename the data variables using the eye_dict of side-specific names
     if data_input != None:
         try:
-            eye_read_in = read_dlc(data_input)
-            eye_data = eye_read_in.rename(eye_dict)
-            total_data = xr.merge([total_data, eye_data])
-            # if the trial's main data file wasn't provided, raise error
+            # read in .h5 file
+            eye_data = read_dlc(data_input)
+            # turn old and new labels into dictionary so that eye points can be renamed
+            eye_data.rename(columns={eye_pts[i]: new_eye_pts[i] for i in range(len(new_eye_pts))})
+        # if the trial's main data file wasn't provided, raise error
         except NameError:
             print('cannot add ' + str(side) + ' eye because no top-down camera data were given')
     # if eye data wasn't given, provide message (should still move forward with top-down or just one eye)
     elif data_input == None:
         print('no ' + str(side) + ' eye data given')
+        eye_data = None
 
-    return total_data
+    return eye_data
 
 ####################################
-def read_data(topdown_input=None, acc_input=None, time_input=None, lefteye_input=None, righteye_input=None):
+def read_data(topdown_input=None, lefteye_input=None, righteye_input=None):
 
     # read top-down camera data into xarray
     if topdown_input != None:
-        data = read_dlc(topdown_input)
+        topdown_pts = read_dlc(topdown_input)
     elif topdown_input == None:
         print('no top-down data given')
 
-    # read in left eye
-    data = read_in_eye(data, lefteye_input, 'left')
-    data = read_in_eye(data, righteye_input, 'right')
+    # read in left and right eye (okay if not provided)
+    lefteye_pts = read_in_eye(lefteye_input, 'left')
+    righteye_pts = read_in_eye(righteye_input, 'right')
 
-    # aligned = align_head_from_DLC(data)
-
-    return data
+    return topdown_pts, lefteye_pts, righteye_pts
 
 ####################################
 # find list of all data
@@ -90,8 +85,10 @@ time_file_list = glob(main_path + '*topTS*.h5')
 righteye_file_list = glob(main_path + '*eye1r*DeepCut*.h5')
 lefteye_file_list = glob(main_path + '*eye2l*DeepCut*.h5')
 
+# loop through each topdown file and find the associated files
+# then, read the data in for each set, and build from it an xarray DataArray
 loop_count = 0
-limit_of_loops = 1 # for testing purposes, limit to first file
+limit_of_loops = 1 # for testing purposes, limit number of topdown files read in
 for file in topdown_file_list:
     if loop_count < limit_of_loops:
         split_path = os.path.split(file)
@@ -102,5 +99,26 @@ for file in topdown_file_list:
         time_file = ', '.join([i for i in time_file_list if mouse_key and trial_key in i])
         righteye_file = ', '.join([i for i in righteye_file_list if mouse_key and trial_key in i])
         lefteye_file = ', '.join([i for i in lefteye_file_list if mouse_key and trial_key in i])
-        data = read_data(file, acc_file, time_file, righteye_file, lefteye_file)
-    loop_count = loop_count + 1
+
+        topdown_pts, lefteye_pts, righteye_pts = read_data(file, righteye_file, lefteye_file)
+
+        trial_id = 'mouse_' + str(mouse_key) + '_trial_' + str(trial_key)
+        loop_label = 'trial_' + str(loop_count)
+
+        # PROBLEM
+        # intention here is to build one DataArray that stacks up all trials
+        # currently, it seems to be appending the frames, which is not what we want
+        if loop_count == 0:
+            topdown = xr.DataArray(topdown_pts)
+            topdown = xr.DataArray.rename(topdown, new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
+        elif loop_count > 0:
+            topdown_trial = xr.DataArray(topdown_pts)
+            topdown_trial = xr.DataArray.rename(topdown_trial, new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
+            topdown = xr.concat([topdown, topdown_trial], dim='frame', fill_value='NaN')
+
+        # TO DO: align by time files instead of by frames
+
+        # align topdown head points
+        good_aligned_topdown = align_head_from_DLC(topdown, figures=True)
+
+        loop_count = loop_count + 1
