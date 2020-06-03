@@ -17,6 +17,7 @@ import xarray as xr
 ####################################################
 def drop_leading_and_lagging_nans(data, loc_names):
     for loc_num in range(0, len(loc_names)):
+        # get name of each tagged point in 'data', then index into 'data' to get that tagged point
         this_loc_name = loc_names[loc_num]
         loc_data = data.sel(point_loc=this_loc_name)
         # find first and last non-NaN value and drop everything that comes before and after these
@@ -31,6 +32,19 @@ def drop_leading_and_lagging_nans(data, loc_names):
         elif index_of_valid == []:
             print('no NaNs could be found')
     return valid_data
+
+####################################################
+def xr_looped_append(loop_over_array, new_array, trial_or_loc_id, dim_concat_to, loop_num):
+    if loop_num == 0:
+        loop_over_array = xr.DataArray(new_array)
+        loop_over_array[dim_concat_to] = trial_or_loc_id
+    elif loop_num > 0:
+        new_array = xr.DataArray(new_array)
+        new_array[dim_concat_to] = trial_or_loc_id
+        loop_over_array = xr.concat([loop_over_array, new_array], dim=dim_concat_to, fill_value=np.nan)
+    else:
+        print('xr_looped_append issue with loop number')
+    return loop_over_array
 
 ####################################################
 def interp_nans_if_any(whole_data, loc_names):
@@ -52,16 +66,14 @@ def interp_nans_if_any(whole_data, loc_names):
 
         # rebuild the post-interpolation DataArray
         if loc_num == 0:
-            interp_data = xr.DataArray(interp_item)
-            interp_data['point_loc'] = this_loc_name
-        elif loc_num > 0:
-            interp_item_to_concat = xr.DataArray(interp_item)
-            interp_item_to_concat['point_loc'] = this_loc_name
-            interp_data = xr.concat([interp_data, interp_item_to_concat], dim='point_loc', fill_value='NaN')
+            interp_data = xr_looped_append(interp_item, interp_item, this_loc_name, 'point_loc', loc_num)
+        if loc_num > 0:
+            interp_data = xr_looped_append(interp_data, interp_item, this_loc_name, 'point_loc', loc_num)
+
     return interp_data
 
 ####################################################
-def align_head_from_DLC(all_topdown_data, trial_list, pt_names, coord_correction_val=1200, num_points=8, thresh=0.99, figures=False):
+def align_head_from_DLC(all_topdown_data, trial_list, pt_names, coord_correction_val=1200, num_points=8, thresh=0.99, figures=False, save_figs=True):
     '''
     Aligns the head of a mouse from DLC output files which are passed in from load_all_csv.py
 
@@ -85,18 +97,40 @@ def align_head_from_DLC(all_topdown_data, trial_list, pt_names, coord_correction
 
         with all_topdown_data.sel(trial=current_trial) as topdown_data:
 
-            # get all the point location names
-            coords_array = topdown_data.coords['point_loc']
-            del coords_array['point_loc'] # deletes the coordinates but retains the array of coord names
-
-            # for each point location in the topdown input data, select y head points and subtract them from 1200 to fix coordinates
-            for pt_loc in range(0, len(coords_array)):
-                pt_str = coords_array[pt_loc]
-                if ' y' in pt_str:
-                    topdown_data.pt_str = topdown_data.pt_str - coord_correction_val
-
             # interpolate across NaNs fro each point_loc, then piece dataset back together
             topdown_interp = interp_nans_if_any(topdown_data, pt_names)
+
+            # make a copy of topdown_interp so that corrected y values can be concated into it
+
+            # for each point location in the topdown input data, select y head points and subtract them from int to fix coordinates
+            for pt_num in range(0, len(pt_names)):
+                pt_str = pt_names[pt_num]
+                if ' x' in pt_str:
+                    orig_x_topdown = topdown_interp.sel(point_loc=pt_str)
+                    if pt_num == 0:
+                        topdown_coordcor = xr_looped_append(orig_x_topdown, orig_x_topdown, pt_str, 'point_loc', pt_num)
+                    if pt_num > 0:
+                        topdown_coordcor = xr_looped_append(topdown_coordcor, orig_x_topdown, pt_str, 'point_loc', pt_num)
+
+                if ' y' in pt_str:
+                    # select data from each y point and sutract from the values a coordinate correction int, default=1200
+                    orig_y_topdown = topdown_interp.sel(point_loc=pt_str)
+                    nonan_y_topdown = xr.DataArray.dropna(orig_y_topdown, dim='frame')
+                    cor_y_topdown = nonan_y_topdown - coord_correction_val
+                    # next block is a bit goofy... pass cor_y_topdown twice into xr_looped_append, it's only uesd the second time
+                    # this is becuse it's one funciton to both create a DataArray and concat to it
+                    # see above function, xr_looped_append, which works but remains inelegant
+                    if pt_num == 0:
+                        topdown_coordcor = xr_looped_append(cor_y_topdown, cor_y_topdown, pt_str, 'point_loc', pt_num)
+                    if pt_num > 0:
+                        topdown_coordcor = xr_looped_append(topdown_coordcor, cor_y_topdown, pt_str, 'point_loc', pt_num)
+
+                if 'likelihood' in pt_str:
+                    orig_lik_topdown = topdown_interp.sel(point_loc=pt_str)
+                    if pt_num == 0:
+                        topdown_coordcor = xr_looped_append(orig_lik_topdown, orig_lik_topdown, pt_str, 'point_loc', pt_num)
+                    if pt_num > 0:
+                        topdown_coordcor = xr_looped_append(topdown_coordcor, orig_lik_topdown, pt_str, 'point_loc', pt_num)
 
             # THOUGHT: eliminate NaNs at the start and end of each trial and point so that plots show true start and finish
             # topdown_interp_leadlagdrop = drop_leading_and_lagging_nans(topdown_interp, pt_names)
@@ -104,28 +138,102 @@ def align_head_from_DLC(all_topdown_data, trial_list, pt_names, coord_correction
             # make figure of nose position over time, with start and finish labeled in green and red respectively
             if figures==True:
                 # for now, just drop NaNs that remain in the topdown_interp xarray after interpolation
-                nose_x_pts = topdown_interp.sel(point_loc='nose x', drop='NaN')
-                nose_y_pts = topdown_interp.sel(point_loc='nose y', drop='NaN')
+                coordcor_pts_wout_nans = drop_leading_and_lagging_nans(topdown_coordcor, pt_names)
+                nose_x_pts = coordcor_pts_wout_nans.sel(point_loc='nose x')
+                nose_y_pts = coordcor_pts_wout_nans.sel(point_loc='nose y')
                 plt.figure()
+                plt.title('mouse nose x/y path before likelihood threshold')
                 plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
                 plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
                 plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
                 plt.show()
 
-            # threshold points using the input paramater, thresh, to find all times when all points are good (only want high values)
-            only_good_topdown_data = topdown_data
-            sum_of_bad_topdown_data = topdown_data
-            for pt_loc in range(0, len(coords_array)):
-                current_pt_loc = coords_array[pt_loc]
-                pt_str = current_pt_loc
-                if 'likelihood' in pt_str:
-                    # keep first argument, turn second argument to NaN, and drop second argument in bad_topdown_data_dropped
-                    only_good_topdown_data.pt_str = topdown_data.where(topdown_data.pt_str >= thresh, topdown_data.pt_str < thresh)
-                    sum_of_bad_topdown_data.pt_str = pd.nansum(only_good_topdown_data)
-                    print('only good')
-                    print(only_good_topdown_data)
-                    print('sum of bad')
-                    print(sum_of_bad_topdown_data)
+            # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
+            all_pt_loop_count = 0
+            for pt_num in range(0, len(pt_names)):
+                current_pt_loc = pt_names[pt_num]
+                likeli_loop_count = 0
+                if ' x' in current_pt_loc:
+                    print('found ' + current_pt_loc)
+                elif ' y' in current_pt_loc:
+                    print('found ' + current_pt_loc)
+                elif 'likelihood' in current_pt_loc:
+                    print('found ' + current_pt_loc)
+                    # find the associated x and y points of the selected liklihood
+                    # assumes order is x, y, likelihood, will cause problems if isn't true of data...
+                    assoc_x_pos = pt_names[pt_num - 2]
+                    assoc_x_pt = topdown_coordcor.sel(point_loc=assoc_x_pos)
+                    assoc_y_pos = pt_names[pt_num - 1]
+                    assoc_y_pt = topdown_coordcor.sel(point_loc=assoc_y_pos)
+
+                    # select only the liklihood data for this point
+                    likeli_pt = topdown_coordcor.sel(point_loc=current_pt_loc)
+
+                    # get number of frames to use for
+                    frame_coords = topdown_coordcor.coords['frame']
+                    frame_len = len(frame_coords)
+
+                    # go into each coordinate in the positinoal data that has been parced out; if the likelihood fell
+                    # below the threshold in 'likeli_thresh_pt', the x and y positions associated with that frame of the
+                    # video will be set to a np.nan
+                    print('running through individual positions in x, y, and likelihood')
+                    for row in range(0, frame_len):
+                        likeli_pos = likeli_pt[row]
+                        if likeli_pos < thresh or likeli_pos == np.nan: # threshold the likelihood
+                            x_out = np.nan
+                            y_out = np.nan
+                        assoc_x_pt[row] = x_out
+                        assoc_y_pt[row] = y_out
+                        print('concat')
+                        # concat together x, y, and likelihood
+                        thresh_1row = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pos], dim='frame')
+                        print('append1')
+                        # append 'thresh_1row' to a new DataArray along dim='frame'
+                        if row == 0:
+                            likeli_thresh_allrows = thresh_1row
+                        elif row > 0:
+                            likeli_thresh_allrows = xr.concat([likeli_thresh_allrows, thresh_1row], dim='frame', fill_value=np.nan)
+                    print('append2')
+                    if likeli_loop_count == 0:
+                        likeli_thresh_allpts = likeli_thresh_allrows
+                        all_pt_loop_count = all_pt_loop_count + 1
+                    elif likeli_loop_count > 0:
+                        likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_allrows], dim='point_loc', fill_value=np.nan)
+                    likeli_loop_count = likeli_loop_count + 1
+
+            print(likeli_thresh_allpts)
+
+            if figures == True:
+                # make a plot of the mouse's path, where positions that fall under threshold will be NaNs
+                nose_x_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose x')
+                nose_y_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose y')
+                # mask the NaNs, but only for the figure (don't want to lose time information for actual analysis)
+                nose_x_thresh_nonan_pts = nose_x_thresh_pts[np.isfinite(nose_x_thresh_pts)]
+                nose_y_thresh_nonan_pts = nose_y_thresh_pts[np.isfinite(nose_y_thresh_pts)]
+                plt.figure()
+                plt.title('mouse nose x/y path after likelihood threshold')
+                plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))
+                plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
+                plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
+                plt.show()
+
+            #
+            # del likeli_thresh_topdown['temp_pts']
+            # likeli_thresh_topdown.coords('point_loc')
+
+                #     only_good_topdown_data =
+                #     # get the number of NaNs to know how many bad timepoints there are
+                #     sum_of_bad_topdown_data.pt_str = pd.nansum(only_good_topdown_data)
+                #     print('only good')
+                #     print(only_good_topdown_data)
+                #     print('sum of bad')
+                #     print(sum_of_bad_topdown_data)
+                # elif ' x' in pt_str:
+                #     print('only an x location, no likelihood to extract')
+                # elif ' y' in pt_str:
+                #     print('only an y location, no likelihood to extract')
+                # else:
+                #     print('no locations passed')
 
     # # this block isn't working quite yet
     # only_good_pts = num_good_topdown_pts == num_points
@@ -148,7 +256,7 @@ def align_head_from_DLC(all_topdown_data, trial_list, pt_names, coord_correction
     #     plt.xlabel('point #')
     #     plt.show()
 
-    return topdown_data
+    return likeli_thresh_allpts
 
 ###############################################################
     # good_points = np.where(raw_data > thresh)

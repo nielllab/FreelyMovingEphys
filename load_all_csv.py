@@ -78,9 +78,12 @@ def read_data(topdown_input=None, lefteye_input=None, righteye_input=None):
     return topdown_pts, topdown_names, lefteye_pts, lefteye_names, righteye_pts, righteye_pts
 
 ####################################
+##          USER INPUTS           ##
+####################################
 # find list of all data
 main_path = '/Users/dylanmartins/data/Niell/PreyCapture/Cohort?/*/*/Approach/'
 
+# find the files wanted from the given main_path
 topdown_file_list = glob(main_path + '*top*DeepCut*.h5')
 acc_file_list = glob(main_path + '*acc*.dat')
 time_file_list = glob(main_path + '*topTS*.h5')
@@ -90,8 +93,13 @@ lefteye_file_list = glob(main_path + '*eye2l*DeepCut*.h5')
 # loop through each topdown file and find the associated files
 # then, read the data in for each set, and build from it an xarray DataArray
 loop_count = 0
-limit_of_loops = 4 # for testing purposes, limit number of topdown files read in
 
+# for testing purposes, limit number of topdown files read in. error will be raised if limit_of_loops is not 2 or
+# greater; align_head_from_DLC wants to index through trials and it can only do that if there is more than one
+limit_of_loops = 2
+
+
+####################################
 trial_id_list = []
 
 for file in topdown_file_list:
@@ -107,7 +115,7 @@ for file in topdown_file_list:
         righteye_file = ', '.join([i for i in righteye_file_list if mouse_key and trial_key in i])
         lefteye_file = ', '.join([i for i in lefteye_file_list if mouse_key and trial_key in i])
 
-        # run
+        # read in the data from file locations
         topdown_pts, topdown_names, lefteye_pts, lefteye_names, righteye_pts, righteye_pts = read_data(file, righteye_file, lefteye_file)
 
         # make a unique name for the mouse and the recording trial
@@ -123,7 +131,7 @@ for file in topdown_file_list:
             topdown_trial = xr.DataArray(topdown_pts)
             topdown_trial = xr.DataArray.rename(topdown_trial, new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
             topdown_trial['trial'] = trial_id
-            topdown = xr.concat([topdown, topdown_trial], dim='trial', fill_value='NaN')
+            topdown = xr.concat([topdown, topdown_trial], dim='trial', fill_value=np.nan)
 
         # TO DO: align by time files instead of by frames
 
