@@ -1,13 +1,28 @@
 #####################################################################################
 """
-load_all_csv.py of FreelyMovingEphys
+load_from_DLC.py of FreelyMovingEphys
+(formerly: load_all_csv.py)
 
-Loads in top-down camera and right or left eye from DLC outputs and data are aligned.
+Loads in top-down camera and right or left eye from DeepLabCut .h5 file outputs.
+Contains three helper functions: (1) read_dlc() opens .h5 files and organizes
+the column names of input data as a pandas DataFrame. (2) read_in_eye() reads in the
+left and right eye data passed to it from read_data(). Eye tag positions are renamed
+so that the side of the mouse's eye that the data comes from is in that column label.
+(3) read_data() is passed data files for as many cameras as user wants, and
+returns a pandas structure for all of them.
+The user provides to this script a file path for all of the data, collected by a
+glob function, and an xarray DataArray is built from each of these for each trial.
+The trials are then passed through functions to preen the data.
 
-Requires alignment_from_DLC.py
-Adapted from /niell-lab-analysis/freely moving/loadAllCsv.m
+Requires the functions in topdown_preening.py
+Adapted from GitHub repository /niell-lab-analysis/freely moving/loadAllCsv.m
 
-last modified: June 1, 2020
+TO DO:
+- align data by time instead of by video frame
+- interpret the right and left eye points using code in eye_tracking.py
+- transform worldcam with eye direction
+
+last modified: June 3, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 from glob import glob
@@ -19,7 +34,7 @@ import xarray as xr
 import h5netcdf
 
 from utilities.find_function import find
-from alignment_from_DLC import align_head_from_DLC
+from topdown_preening import preen_topdown_data
 
 ####################################
 def read_dlc(dlcfile):
@@ -51,14 +66,16 @@ def read_in_eye(data_input, side, num_points=8):
             # read in .h5 file
             eye_data, eye_names = read_dlc(data_input)
             # turn old and new labels into dictionary so that eye points can be renamed
-            eye_data.rename(columns={eye_pts[i]: new_eye_pts[i] for i in range(len(new_eye_pts))})
-        # if the trial's main data file wasn't provided, raise error
+            col_corrections = {eye_pts[i]: new_eye_pts[i] for i in range(0, len(new_eye_pts))}
+            eye_data = pd.DataFrame.rename(eye_data, columns=col_corrections)
         except NameError:
-            print('cannot add ' + str(side) + ' eye because no top-down camera data were given')
+            # if the trial's main data file wasn't provided, raise error
+            print('cannot add ' + str(side) + ' eye because no topdown camera data were given')
     # if eye data wasn't given, provide message (should still move forward with top-down or just one eye)
     elif data_input == None:
         print('no ' + str(side) + ' eye data given')
         eye_data = None
+        eye_names = None
 
     return eye_data, eye_names
 
@@ -122,7 +139,7 @@ for file in topdown_file_list:
         trial_id = 'mouse_' + str(mouse_key) + '_trial_' + str(trial_key)
         trial_id_list.append(trial_id)
 
-        # build one DataArray that stacks up all trials in separate dimensions
+        # build one DataArray that stacks up all topdown trials in separate dimensions
         if loop_count == 0:
             topdown = xr.DataArray(topdown_pts)
             topdown = xr.DataArray.rename(topdown, new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
@@ -133,9 +150,40 @@ for file in topdown_file_list:
             topdown_trial['trial'] = trial_id
             topdown = xr.concat([topdown, topdown_trial], dim='trial', fill_value=np.nan)
 
-        # TO DO: align by time files instead of by frames
+        # build one DataArray that stacks up all trials in separate dimensions for each of two possible eyes
+        if lefteye_pts is not None:
+            if loop_count == 0:
+                lefteye = xr.DataArray(lefteye_pts)
+                lefteye = xr.DataArray.rename(lefteye, new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
+                lefteye['trial'] = trial_id
+            elif loop_count > 0:
+                lefteye_trial = xr.DataArray(lefteye_pts)
+                lefteye_trial = xr.DataArray.rename(lefteye_trial, new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
+                lefteye_trial['trial'] = trial_id
+                lefteye = xr.concat([lefteye, lefteye_trial], dim='trial', fill_value=np.nan)
+        elif lefteye_pts is None:
+            print('trial ' + trial_id + ' has no left eye camera data')
+            lefteye = None
+        elif righteye_pts is not None:
+            if loop_count == 0:
+                righteye = xr.DataArray(righteye_pts)
+                righteye = xr.DataArray.rename(righteye,
+                                              new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
+                righteye['trial'] = trial_id
+            elif loop_count > 0:
+                righteye_trial = xr.DataArray(righteye_pts)
+                righteye_trial = xr.DataArray.rename(righteye_trial,
+                                                    new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
+                righteye_trial['trial'] = trial_id
+                righteye = xr.concat([righteye, righteye_trial], dim='trial', fill_value=np.nan)
+        elif righteye_pts is None:
+            print('trial ' + trial_id + ' has no right eye camera data')
+            righteye = None
 
         loop_count = loop_count + 1
 
-# align topdown head points
-topdown_aligned = align_head_from_DLC(topdown, trial_id_list, topdown_names, figures=True)
+# this will run through each trial, correct y-coordinates, and threshold point liklihoods
+preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, figures=False)
+
+# next, interpret the right and left eye points using code in eye_tracking.py
+# and, from there, transform worldcam with eye direction

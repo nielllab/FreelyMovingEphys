@@ -1,12 +1,42 @@
 #####################################################################################
 """
-alignment_from_DLC.py of FreelyMovingEphys
+topdown_preening.py of FreelyMovingEphys
+(formerly: topdown_preening.py)
 
-Reads in .csv file from deepLabCut, computes head position.
+Takes in data in the form of an xarray DataArray from mouse arena top-down camera.
+There ought to be DataArray coordinates for frame of video, experiment trial, and
+point location on the mouse. Within each point location there should be an x, y, and
+likelihood value (see example data structure below).
+In the function preen_topdown_data(), y-coordinates are corrected and x/y position
+values are thresholded so that the likelihood value next-door to the x/y positions
+falling below the threshold value, thresh, will result in the x/y positions being set
+to being NaN.
+There are three helper functions in this file: (1) drop_leading_and_lagging_nans() will
+eliminate the NaNs that come before and after the first and last real values in a
+particular trial and front so that plots can be mde without plotting NaNs for the
+start and finish points. (2) xr_looped_append() is a somewhat sloppy attempt to append
+xarray DataArrays together without there being an xr.append function in existence.
+There are inelegant consequences to this function's current structure, noted in
+in-line comments. (3) interp_nans_if_any interpolates across NaNs in the data.
+Two figures are produced for each trial (if figures=True): one tracing the mouse’s
+nose x/y before the x/y positions are changed to NaNs where the likelihood falls below
+threshold, and one after they are replaced with NaNs.
 
-Adapted from /niell-lab-analysis/freely moving/alignHead.m
+Example topdown input data layout:
 
-last modified: June 1, 2020
+<xarray.DataArray (trial: 2, frame: 4563, point_loc: 30)>
+array([...values of data here...])
+Coordinates:
+  * frame      (frame) int64 0 1 2 3 4 5 6 ... 4557 4558 4559 4560 4561 4562
+  * point_loc  (point_loc) object 'nose x' ... 'cricket Body likelihood'
+  * trial      (trial) object 'mouse_J462c_trial_2_090519_0' 'mouse_J462c_trial_1_090519_3'
+
+Code adapted from GitHub repository /niell-lab-analysis/freely moving/alignHead.m
+
+TO DO:
+- eliminate the xr_looped_append() function and write a replacement [low priority]
+
+last modified: June 3, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 import pandas as pd
@@ -16,6 +46,12 @@ import xarray as xr
 
 ####################################################
 def drop_leading_and_lagging_nans(data, loc_names):
+    '''
+    Drop the NaNs that start and end a time seris
+    :param data: xarray DataArray of all point locations
+    :param loc_names: list of names of each of the point locations
+    :return: xarray DataArray for individual points without NaNs at start and end (it will start and end with the first and last numbers)
+    '''
     for loc_num in range(0, len(loc_names)):
         # get name of each tagged point in 'data', then index into 'data' to get that tagged point
         this_loc_name = loc_names[loc_num]
@@ -73,9 +109,9 @@ def interp_nans_if_any(whole_data, loc_names):
     return interp_data
 
 ####################################################
-def align_head_from_DLC(all_topdown_data, trial_list, pt_names, coord_correction_val=1200, num_points=8, thresh=0.99, figures=False, save_figs=True):
+def preen_topdown_data(all_topdown_data, trial_list, pt_names, coord_correction_val=1200, num_points=8, thresh=0.99, figures=False, save_figs=True):
     '''
-    Aligns the head of a mouse from DLC output files which are passed in from load_all_csv.py
+    Aligns the head of a mouse from DLC output files which are passed in from load_from_DLC.py
 
     :param all_topdown_data: one xarray DataArray containing the coordinates of all points for all trials
     :param trial_list: list of unique strings identifying each trial in all_topdown_data
@@ -149,16 +185,10 @@ def align_head_from_DLC(all_topdown_data, trial_list, pt_names, coord_correction
                 plt.show()
 
             # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
-            all_pt_loop_count = 0
+            likeli_loop_count = 0
             for pt_num in range(0, len(pt_names)):
                 current_pt_loc = pt_names[pt_num]
-                likeli_loop_count = 0
-                if ' x' in current_pt_loc:
-                    print('found ' + current_pt_loc)
-                elif ' y' in current_pt_loc:
-                    print('found ' + current_pt_loc)
-                elif 'likelihood' in current_pt_loc:
-                    print('found ' + current_pt_loc)
+                if 'likelihood' in current_pt_loc:
                     # find the associated x and y points of the selected liklihood
                     # assumes order is x, y, likelihood, will cause problems if isn't true of data...
                     assoc_x_pos = pt_names[pt_num - 2]
@@ -169,39 +199,23 @@ def align_head_from_DLC(all_topdown_data, trial_list, pt_names, coord_correction
                     # select only the liklihood data for this point
                     likeli_pt = topdown_coordcor.sel(point_loc=current_pt_loc)
 
-                    # get number of frames to use for
+                    # get number of frames to use for indexing through all positions
                     frame_coords = topdown_coordcor.coords['frame']
                     frame_len = len(frame_coords)
 
-                    # go into each coordinate in the positinoal data that has been parced out; if the likelihood fell
-                    # below the threshold in 'likeli_thresh_pt', the x and y positions associated with that frame of the
-                    # video will be set to a np.nan
-                    print('running through individual positions in x, y, and likelihood')
-                    for row in range(0, frame_len):
-                        likeli_pos = likeli_pt[row]
-                        if likeli_pos < thresh or likeli_pos == np.nan: # threshold the likelihood
-                            x_out = np.nan
-                            y_out = np.nan
-                        assoc_x_pt[row] = x_out
-                        assoc_y_pt[row] = y_out
-                        print('concat')
-                        # concat together x, y, and likelihood
-                        thresh_1row = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pos], dim='frame')
-                        print('append1')
-                        # append 'thresh_1row' to a new DataArray along dim='frame'
-                        if row == 0:
-                            likeli_thresh_allrows = thresh_1row
-                        elif row > 0:
-                            likeli_thresh_allrows = xr.concat([likeli_thresh_allrows, thresh_1row], dim='frame', fill_value=np.nan)
-                    print('append2')
-                    if likeli_loop_count == 0:
-                        likeli_thresh_allpts = likeli_thresh_allrows
-                        all_pt_loop_count = all_pt_loop_count + 1
-                    elif likeli_loop_count > 0:
-                        likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_allrows], dim='point_loc', fill_value=np.nan)
-                    likeli_loop_count = likeli_loop_count + 1
+                    # set x/y coords to NaN where the liklihood is below threshold value
+                    assoc_x_pt[likeli_pt < thresh] = np.nan
+                    assoc_y_pt[likeli_pt < thresh] = np.nan
 
-            print(likeli_thresh_allpts)
+                    likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='point_loc')
+
+                    if likeli_loop_count == 0:
+                        likeli_thresh_allpts = likeli_thresh_1loc
+                    elif likeli_loop_count > 0:
+                        likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_1loc], dim='point_loc', fill_value=np.nan)
+
+
+                    likeli_loop_count = likeli_loop_count + 1
 
             if figures == True:
                 # make a plot of the mouse's path, where positions that fall under threshold will be NaNs
@@ -217,92 +231,15 @@ def align_head_from_DLC(all_topdown_data, trial_list, pt_names, coord_correction
                 plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
                 plt.show()
 
-            #
-            # del likeli_thresh_topdown['temp_pts']
-            # likeli_thresh_topdown.coords('point_loc')
+            # this trial's data with no NaNs both post-thresholding and post-y-coordinate correction
+            # mask the NaNs
+            topdown_likeli_thresh_nonan = xr.DataArray.dropna(likeli_thresh_allpts, dim='frame', how='all')
+            topdown_likeli_thresh_nonan['trial'] = current_trial
 
-                #     only_good_topdown_data =
-                #     # get the number of NaNs to know how many bad timepoints there are
-                #     sum_of_bad_topdown_data.pt_str = pd.nansum(only_good_topdown_data)
-                #     print('only good')
-                #     print(only_good_topdown_data)
-                #     print('sum of bad')
-                #     print(sum_of_bad_topdown_data)
-                # elif ' x' in pt_str:
-                #     print('only an x location, no likelihood to extract')
-                # elif ' y' in pt_str:
-                #     print('only an y location, no likelihood to extract')
-                # else:
-                #     print('no locations passed')
+            # append this trial to all others now that processing is done
+            if trial_num == 0:
+                all_topdown_output = topdown_likeli_thresh_nonan
+            elif trial_num > 0:
+                all_topdown_output = xr.concat([all_topdown_output, topdown_likeli_thresh_nonan], dim='trial', fill_value=np.nan)
 
-    # # this block isn't working quite yet
-    # only_good_pts = num_good_topdown_pts == num_points
-    # bad_frac = 1 - (num_good_topdown_pts / num_points)
-    # print(bad_frac)
-    #
-    # # NOTE: This figure doesn't work quite yet either
-    # if figures==True:
-    #     plt.subplots(1,2)
-    #     plt.subplot(121)
-    #     plt.plot(num_good_topdown_pts)
-    #     plt.title('number of good timepoints by frame')
-    #     plt.ylabel('# good points')
-    #     plt.xlabel('frame #')
-    #     plt.ylim([0, num_points])
-    #     plt.subplot(122)
-    #     plt.bar(x=range(0, num_points), height=bad_frac)
-    #     plt.title('fraction of timepoints below threshold')
-    #     plt.ylabel('fraction of bad timepoints')
-    #     plt.xlabel('point #')
-    #     plt.show()
-
-    return likeli_thresh_allpts
-
-###############################################################
-    # good_points = np.where(raw_data > thresh)
-    # print(good_points)
-    # num_good_points = np.sum(good_points)
-    #
-    # plt.figure(1)
-    # plt.plot(num_good_points)
-    # plt.ylabel('number of good frames')
-    # plt.xlabel('frame')
-    # plt.show()
-    #
-    # # find centroid at each time point
-    # centroid = pd.DataFrame.mean(points)
-    # centered = pd.DataFrame([])
-    # for point_count in range(0,num_points):
-    #     centered = [points - centroid for i in points]
-    #     frames = pd.DataFrame([point_count, centered])
-    #     centered.append([frames])
-    # print('centered shape: ' + str(np.shape(centered)))
-    #
-    # # choose a reference image; in the future: bootstrapping, choose 10 random ones and average the results
-    # reference_number = min(np.where(num_good_points == num_points))
-    # reference_frame = centered[reference_number]
-    # print(reference_frame)
-
-    # rotate all data to align to bootstrapped reference image
-        # select good points
-        # loop through range of thetas, rotate image by that much, and calculate how well it matches the reference
-        # find the smallest error, and rotate the image by that amount
-
-    # calculate head mean, rotate mean head to align to x-axis
-
-    # calculate centroid
-        # for each head point, calculate how far from mean head position
-        # calculate error of how far it is from where it should be, then add these up
-        # find minimum, get x and y, set as centroid
-        # center all points using calculated centroid
-
-    # align time
-    # find at least four good times
-        # loop over thetas, rotate points, calculate error
-        # sum good points
-        # loop over thetas, rotate points, calculate error (THIS CAN BE A SEPERATE CALLED FUNCTIONS)
-        # find minimum and rotate points accoridngly
-
-        # then a bunch of cricket things that don't apply to our freely moving ephys project (should this still be built in as an option in case prey capture is used?)
-
-    #return aligned_x, aligned_y, aligned_speed, theta, dtheta,
+    return all_topdown_output
