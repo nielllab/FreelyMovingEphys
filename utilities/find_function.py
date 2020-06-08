@@ -1,4 +1,7 @@
 # Creates a function to find file of a given type in a path and recursively searches subfolders
+import os
+import fnmatch
+
 def find(pattern, path):
     result = [] # initialize the list as empty
     for root, dirs, files in os.walk(path): # walk though the path directory, and files

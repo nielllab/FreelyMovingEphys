@@ -21,6 +21,7 @@ TO DO:
 - align data by time instead of by video frame
 - interpret the right and left eye points using code in eye_tracking.py
 - transform worldcam with eye direction
+- start using find() from fine_function.py
 
 last modified: June 3, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
@@ -33,10 +34,11 @@ import numpy as np
 import xarray as xr
 import h5netcdf
 
-from utilities.find_function import find
+# from utilities.find_function import find
 from topdown_preening import preen_topdown_data
+from eye_tracking import eye_angles
 
-####################################
+####################################################
 def read_dlc(dlcfile):
     # read in .h5 file
     pts = pd.read_hdf(dlcfile)
@@ -45,7 +47,7 @@ def read_dlc(dlcfile):
     pt_loc_names = pts.columns.values
     return pts, pt_loc_names
 
-####################################
+####################################################
 def read_in_eye(data_input, side, num_points=8):
     # create list of eye points that matches data variables in data xarray
     eye_pts = []
@@ -66,7 +68,7 @@ def read_in_eye(data_input, side, num_points=8):
             # read in .h5 file
             eye_data, eye_names = read_dlc(data_input)
             # turn old and new labels into dictionary so that eye points can be renamed
-            col_corrections = {eye_pts[i]: new_eye_pts[i] for i in range(0, len(new_eye_pts))}
+            col_corrections = {new_eye_pts[i]: eye_pts[i] for i in range(0, len(new_eye_pts))}
             eye_data = pd.DataFrame.rename(eye_data, columns=col_corrections)
         except NameError:
             # if the trial's main data file wasn't provided, raise error
@@ -79,7 +81,7 @@ def read_in_eye(data_input, side, num_points=8):
 
     return eye_data, eye_names
 
-####################################
+####################################################
 def read_data(topdown_input=None, lefteye_input=None, righteye_input=None):
 
     # read top-down camera data into xarray
@@ -92,7 +94,7 @@ def read_data(topdown_input=None, lefteye_input=None, righteye_input=None):
     lefteye_pts, lefteye_names = read_in_eye(lefteye_input, 'left')
     righteye_pts, righteye_names = read_in_eye(righteye_input, 'right')
 
-    return topdown_pts, topdown_names, lefteye_pts, lefteye_names, righteye_pts, righteye_pts
+    return topdown_pts, topdown_names, lefteye_pts, lefteye_names, righteye_pts, righteye_names
 
 ####################################
 ##          USER INPUTS           ##
@@ -101,11 +103,16 @@ def read_data(topdown_input=None, lefteye_input=None, righteye_input=None):
 main_path = '/Users/dylanmartins/data/Niell/PreyCapture/Cohort?/*/*/Approach/'
 
 # find the files wanted from the given main_path
+# first the DeepLabCut point locations
 topdown_file_list = glob(main_path + '*top*DeepCut*.h5')
 acc_file_list = glob(main_path + '*acc*.dat')
 time_file_list = glob(main_path + '*topTS*.h5')
 righteye_file_list = glob(main_path + '*eye1r*DeepCut*.h5')
 lefteye_file_list = glob(main_path + '*eye2l*DeepCut*.h5')
+# then video files that those points come from
+righteye_vid_list = glob(main_path + '*eye1r*.avi')
+lefteye_vid_list = glob(main_path + '*eye2l*.avi')
+topdown_vid_list = glob(main_path + '*top*.avi')
 
 # loop through each topdown file and find the associated files
 # then, read the data in for each set, and build from it an xarray DataArray
@@ -131,9 +138,12 @@ for file in topdown_file_list:
         time_file = ', '.join([i for i in time_file_list if mouse_key and trial_key in i])
         righteye_file = ', '.join([i for i in righteye_file_list if mouse_key and trial_key in i])
         lefteye_file = ', '.join([i for i in lefteye_file_list if mouse_key and trial_key in i])
+        righteye_vid = ', '.join([i for i in righteye_vid_list if mouse_key and trial_key in i])
+        lefteye_vid = ', '.join([i for i in lefteye_vid_list if mouse_key and trial_key in i])
+        topdown_vid_list = ', '.join([i for i in topdown_vid_list if mouse_key and trial_key in i])
 
         # read in the data from file locations
-        topdown_pts, topdown_names, lefteye_pts, lefteye_names, righteye_pts, righteye_pts = read_data(file, righteye_file, lefteye_file)
+        topdown_pts, topdown_names, lefteye_pts, lefteye_names, righteye_pts, righteye_names = read_data(file, lefteye_file, righteye_file)
 
         # make a unique name for the mouse and the recording trial
         trial_id = 'mouse_' + str(mouse_key) + '_trial_' + str(trial_key)
@@ -164,16 +174,15 @@ for file in topdown_file_list:
         elif lefteye_pts is None:
             print('trial ' + trial_id + ' has no left eye camera data')
             lefteye = None
-        elif righteye_pts is not None:
+
+        if righteye_pts is not None:
             if loop_count == 0:
                 righteye = xr.DataArray(righteye_pts)
-                righteye = xr.DataArray.rename(righteye,
-                                              new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
+                righteye = xr.DataArray.rename(righteye, new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
                 righteye['trial'] = trial_id
             elif loop_count > 0:
                 righteye_trial = xr.DataArray(righteye_pts)
-                righteye_trial = xr.DataArray.rename(righteye_trial,
-                                                    new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
+                righteye_trial = xr.DataArray.rename(righteye_trial, new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'point_loc'})
                 righteye_trial['trial'] = trial_id
                 righteye = xr.concat([righteye, righteye_trial], dim='trial', fill_value=np.nan)
         elif righteye_pts is None:
@@ -182,8 +191,9 @@ for file in topdown_file_list:
 
         loop_count = loop_count + 1
 
-# this will run through each trial, correct y-coordinates, and threshold point liklihoods
+# run through each topdown trial, correct y-coordinates, and threshold point liklihoods
 preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, figures=False)
 
-# next, interpret the right and left eye points using code in eye_tracking.py
-# and, from there, transform worldcam with eye direction
+eye_angles(lefteye, lefteye_names, trial_id_list, figures=True)
+# left_theta, left_phi, left_longaxis_all, left_shortaxis_all, left_CamCent = eye_angles(lefteye, lefteye_names, trial_id_list, figures=True)
+# right_theta, right_phi, right_longaxis_all, right_shortaxis_all, right_CamCent = eye_angles(righteye, righteye_names, trial_id_list, figures=True)
