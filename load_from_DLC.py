@@ -19,11 +19,10 @@ Adapted from GitHub repository /niell-lab-analysis/freely moving/loadAllCsv.m
 
 TO DO:
 - align data by time instead of by video frame
-- interpret the right and left eye points using code in eye_tracking.py
 - transform worldcam with eye direction
-- start using find() from fine_function.py
+- start using find() from find_function.py
 
-last modified: June 3, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 8, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 from glob import glob
@@ -194,6 +193,5 @@ for file in topdown_file_list:
 # run through each topdown trial, correct y-coordinates, and threshold point liklihoods
 preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, figures=False)
 
-eye_angles(lefteye, lefteye_names, trial_id_list, figures=True)
-# left_theta, left_phi, left_longaxis_all, left_shortaxis_all, left_CamCent = eye_angles(lefteye, lefteye_names, trial_id_list, figures=True)
-# right_theta, right_phi, right_longaxis_all, right_shortaxis_all, right_CamCent = eye_angles(righteye, righteye_names, trial_id_list, figures=True)
+left_ellipse = eye_angles(lefteye, lefteye_names, trial_id_list, figures=True, side='left')
+right_ellipse = eye_angles(righteye, righteye_names, trial_id_list, figures=True, side='right')
