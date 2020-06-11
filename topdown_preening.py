@@ -98,7 +98,7 @@ def interp_nans_if_any(whole_data, loc_names):
         del data_to_interp['point_loc'], data_to_interp['trial']
 
         # do the linear interpolation
-        interp_item = xr.DataArray.interpolate_na(data_to_interp, dim='frame', use_coordinate='frame', method='linear')
+        interp_item = xr.DataArray.interpolate_na(data_to_interp, dim='time', use_coordinate='time', method='linear')
 
         # rebuild the post-interpolation DataArray
         if loc_num == 0:
@@ -109,7 +109,18 @@ def interp_nans_if_any(whole_data, loc_names):
     return interp_data
 
 ####################################################
-def preen_topdown_data(all_topdown_data, trial_list, pt_names, coord_correction_val=1200, num_points=8, thresh=0.99, figures=False, save_figs=True):
+
+def test_presence(data, trial_name):
+    try:
+        data.sel(trial=trial_name)
+        exists = True
+    except ValueError:
+        exists = False
+    return exists
+
+####################################################
+
+def preen_topdown_data(all_topdown_data, trial_list, pt_names, coord_correction_val=1200, num_points=8, thresh=0.99, figures=False):
     '''
     Aligns the head of a mouse from DLC output files which are passed in from load_from_DLC.py
 
@@ -131,115 +142,119 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, coord_correction_
         # get the name of the current trial
         current_trial = trial_list[trial_num]
 
-        with all_topdown_data.sel(trial=current_trial) as topdown_data:
+        test_trial = test_presence(all_topdown_data, current_trial)
 
-            # interpolate across NaNs fro each point_loc, then piece dataset back together
-            topdown_interp = interp_nans_if_any(topdown_data, pt_names)
+        if test_trial is True:
 
-            # make a copy of topdown_interp so that corrected y values can be concated into it
+            with all_topdown_data.sel(trial=current_trial) as topdown_data:
 
-            # for each point location in the topdown input data, select y head points and subtract them from int to fix coordinates
-            for pt_num in range(0, len(pt_names)):
-                pt_str = pt_names[pt_num]
-                if ' x' in pt_str:
-                    orig_x_topdown = topdown_interp.sel(point_loc=pt_str)
-                    if pt_num == 0:
-                        topdown_coordcor = xr_looped_append(orig_x_topdown, orig_x_topdown, pt_str, 'point_loc', pt_num)
-                    if pt_num > 0:
-                        topdown_coordcor = xr_looped_append(topdown_coordcor, orig_x_topdown, pt_str, 'point_loc', pt_num)
+                # interpolate across NaNs fro each point_loc, then piece dataset back together
+                topdown_interp = interp_nans_if_any(topdown_data, pt_names)
 
-                if ' y' in pt_str:
-                    # select data from each y point and sutract from the values a coordinate correction int, default=1200
-                    orig_y_topdown = topdown_interp.sel(point_loc=pt_str)
-                    nonan_y_topdown = xr.DataArray.dropna(orig_y_topdown, dim='frame')
-                    cor_y_topdown = nonan_y_topdown - coord_correction_val
-                    # next block is a bit goofy... pass cor_y_topdown twice into xr_looped_append, it's only uesd the second time
-                    # this is becuse it's one funciton to both create a DataArray and concat to it
-                    # see above function, xr_looped_append, which works but remains inelegant
-                    if pt_num == 0:
-                        topdown_coordcor = xr_looped_append(cor_y_topdown, cor_y_topdown, pt_str, 'point_loc', pt_num)
-                    if pt_num > 0:
-                        topdown_coordcor = xr_looped_append(topdown_coordcor, cor_y_topdown, pt_str, 'point_loc', pt_num)
+                # make a copy of topdown_interp so that corrected y values can be concated into it
 
-                if 'likelihood' in pt_str:
-                    orig_lik_topdown = topdown_interp.sel(point_loc=pt_str)
-                    if pt_num == 0:
-                        topdown_coordcor = xr_looped_append(orig_lik_topdown, orig_lik_topdown, pt_str, 'point_loc', pt_num)
-                    if pt_num > 0:
-                        topdown_coordcor = xr_looped_append(topdown_coordcor, orig_lik_topdown, pt_str, 'point_loc', pt_num)
+                # for each point location in the topdown input data, select y head points and subtract them from int to fix coordinates
+                for pt_num in range(0, len(pt_names)):
+                    pt_str = pt_names[pt_num]
+                    if ' x' in pt_str:
+                        orig_x_topdown = topdown_interp.sel(point_loc=pt_str)
+                        if pt_num == 0:
+                            topdown_coordcor = xr_looped_append(orig_x_topdown, orig_x_topdown, pt_str, 'point_loc', pt_num)
+                        if pt_num > 0:
+                            topdown_coordcor = xr_looped_append(topdown_coordcor, orig_x_topdown, pt_str, 'point_loc', pt_num)
 
-            # THOUGHT: eliminate NaNs at the start and end of each trial and point so that plots show true start and finish
-            # topdown_interp_leadlagdrop = drop_leading_and_lagging_nans(topdown_interp, pt_names)
+                    if ' y' in pt_str:
+                        # select data from each y point and sutract from the values a coordinate correction int, default=1200
+                        orig_y_topdown = topdown_interp.sel(point_loc=pt_str)
+                        nonan_y_topdown = xr.DataArray.dropna(orig_y_topdown, dim='time')
+                        cor_y_topdown = nonan_y_topdown - coord_correction_val
+                        # next block is a bit goofy... pass cor_y_topdown twice into xr_looped_append, it's only uesd the second time
+                        # this is becuse it's one funciton to both create a DataArray and concat to it
+                        # see above function, xr_looped_append, which works but remains inelegant
+                        if pt_num == 0:
+                            topdown_coordcor = xr_looped_append(cor_y_topdown, cor_y_topdown, pt_str, 'point_loc', pt_num)
+                        if pt_num > 0:
+                            topdown_coordcor = xr_looped_append(topdown_coordcor, cor_y_topdown, pt_str, 'point_loc', pt_num)
 
-            # make figure of nose position over time, with start and finish labeled in green and red respectively
-            if figures==True:
-                # for now, just drop NaNs that remain in the topdown_interp xarray after interpolation
-                coordcor_pts_wout_nans = drop_leading_and_lagging_nans(topdown_coordcor, pt_names)
-                nose_x_pts = coordcor_pts_wout_nans.sel(point_loc='nose x')
-                nose_y_pts = coordcor_pts_wout_nans.sel(point_loc='nose y')
-                plt.figure()
-                plt.title('mouse nose x/y path before likelihood threshold')
-                plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
-                plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
-                plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
-                plt.show()
+                    if 'likelihood' in pt_str:
+                        orig_lik_topdown = topdown_interp.sel(point_loc=pt_str)
+                        if pt_num == 0:
+                            topdown_coordcor = xr_looped_append(orig_lik_topdown, orig_lik_topdown, pt_str, 'point_loc', pt_num)
+                        if pt_num > 0:
+                            topdown_coordcor = xr_looped_append(topdown_coordcor, orig_lik_topdown, pt_str, 'point_loc', pt_num)
 
-            # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
-            likeli_loop_count = 0
-            for pt_num in range(0, len(pt_names)):
-                current_pt_loc = pt_names[pt_num]
-                if 'likelihood' in current_pt_loc:
-                    # find the associated x and y points of the selected liklihood
-                    # assumes order is x, y, likelihood, will cause problems if isn't true of data...
-                    assoc_x_pos = pt_names[pt_num - 2]
-                    assoc_x_pt = topdown_coordcor.sel(point_loc=assoc_x_pos)
-                    assoc_y_pos = pt_names[pt_num - 1]
-                    assoc_y_pt = topdown_coordcor.sel(point_loc=assoc_y_pos)
+                # THOUGHT: eliminate NaNs at the start and end of each trial and point so that plots show true start and finish
+                # topdown_interp_leadlagdrop = drop_leading_and_lagging_nans(topdown_interp, pt_names)
 
-                    # select only the liklihood data for this point
-                    likeli_pt = topdown_coordcor.sel(point_loc=current_pt_loc)
+                # make figure of nose position over time, with start and finish labeled in green and red respectively
+                if figures==True:
+                    # for now, just drop NaNs that remain in the topdown_interp xarray after interpolation
+                    coordcor_pts_wout_nans = drop_leading_and_lagging_nans(topdown_coordcor, pt_names)
+                    nose_x_pts = coordcor_pts_wout_nans.sel(point_loc='nose x')
+                    nose_y_pts = coordcor_pts_wout_nans.sel(point_loc='nose y')
+                    plt.figure()
+                    plt.title('mouse nose x/y path before likelihood threshold')
+                    plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
+                    plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
+                    plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
+                    plt.show()
 
-                    # get number of frames to use for indexing through all positions
-                    frame_coords = topdown_coordcor.coords['frame']
-                    frame_len = len(frame_coords)
+                # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
+                likeli_loop_count = 0
+                for pt_num in range(0, len(pt_names)):
+                    current_pt_loc = pt_names[pt_num]
+                    if 'likelihood' in current_pt_loc:
+                        # find the associated x and y points of the selected liklihood
+                        # assumes order is x, y, likelihood, will cause problems if isn't true of data...
+                        assoc_x_pos = pt_names[pt_num - 2]
+                        assoc_x_pt = topdown_coordcor.sel(point_loc=assoc_x_pos)
+                        assoc_y_pos = pt_names[pt_num - 1]
+                        assoc_y_pt = topdown_coordcor.sel(point_loc=assoc_y_pos)
 
-                    # set x/y coords to NaN where the liklihood is below threshold value
-                    assoc_x_pt[likeli_pt < thresh] = np.nan
-                    assoc_y_pt[likeli_pt < thresh] = np.nan
+                        # select only the liklihood data for this point
+                        likeli_pt = topdown_coordcor.sel(point_loc=current_pt_loc)
 
-                    likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='point_loc')
+                        # get number of frames to use for indexing through all positions
+                        frame_coords = topdown_coordcor.coords['time']
+                        frame_len = len(frame_coords)
 
-                    if likeli_loop_count == 0:
-                        likeli_thresh_allpts = likeli_thresh_1loc
-                    elif likeli_loop_count > 0:
-                        likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_1loc], dim='point_loc', fill_value=np.nan)
+                        # set x/y coords to NaN where the liklihood is below threshold value
+                        assoc_x_pt[likeli_pt < thresh] = np.nan
+                        assoc_y_pt[likeli_pt < thresh] = np.nan
+
+                        likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='point_loc')
+
+                        if likeli_loop_count == 0:
+                            likeli_thresh_allpts = likeli_thresh_1loc
+                        elif likeli_loop_count > 0:
+                            likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_1loc], dim='point_loc', fill_value=np.nan)
 
 
-                    likeli_loop_count = likeli_loop_count + 1
+                        likeli_loop_count = likeli_loop_count + 1
 
-            if figures == True:
-                # make a plot of the mouse's path, where positions that fall under threshold will be NaNs
-                nose_x_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose x')
-                nose_y_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose y')
-                # mask the NaNs, but only for the figure (don't want to lose time information for actual analysis)
-                nose_x_thresh_nonan_pts = nose_x_thresh_pts[np.isfinite(nose_x_thresh_pts)]
-                nose_y_thresh_nonan_pts = nose_y_thresh_pts[np.isfinite(nose_y_thresh_pts)]
-                plt.figure()
-                plt.title('mouse nose x/y path after likelihood threshold')
-                plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))
-                plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
-                plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
-                plt.show()
+                if figures == True:
+                    # make a plot of the mouse's path, where positions that fall under threshold will be NaNs
+                    nose_x_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose x')
+                    nose_y_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose y')
+                    # mask the NaNs, but only for the figure (don't want to lose time information for actual analysis)
+                    nose_x_thresh_nonan_pts = nose_x_thresh_pts[np.isfinite(nose_x_thresh_pts)]
+                    nose_y_thresh_nonan_pts = nose_y_thresh_pts[np.isfinite(nose_y_thresh_pts)]
+                    plt.figure()
+                    plt.title('mouse nose x/y path after likelihood threshold')
+                    plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))
+                    plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
+                    plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
+                    plt.show()
 
-            # this trial's data with no NaNs both post-thresholding and post-y-coordinate correction
-            # mask the NaNs
-            topdown_likeli_thresh_nonan = xr.DataArray.dropna(likeli_thresh_allpts, dim='frame', how='all')
-            topdown_likeli_thresh_nonan['trial'] = current_trial
+                # this trial's data with no NaNs both post-thresholding and post-y-coordinate correction
+                # mask the NaNs
+                topdown_likeli_thresh_nonan = xr.DataArray.dropna(likeli_thresh_allpts, dim='time', how='all')
+                topdown_likeli_thresh_nonan['trial'] = current_trial
 
-            # append this trial to all others now that processing is done
-            if trial_num == 0:
-                all_topdown_output = topdown_likeli_thresh_nonan
-            elif trial_num > 0:
-                all_topdown_output = xr.concat([all_topdown_output, topdown_likeli_thresh_nonan], dim='trial', fill_value=np.nan)
+                # append this trial to all others now that processing is done
+                if trial_num == 0:
+                    all_topdown_output = topdown_likeli_thresh_nonan
+                elif trial_num > 0:
+                    all_topdown_output = xr.concat([all_topdown_output, topdown_likeli_thresh_nonan], dim='trial', fill_value=np.nan)
 
     return all_topdown_output

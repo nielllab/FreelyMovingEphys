@@ -12,10 +12,7 @@ to extract from the ellipse parameters the angle of the mouse's eye for each fra
 Adapted from code by Elliott Abe, DLCEyeVids.py, especially for the functions
 get_eye_angles(), preen_then_get_eye_angles(), and calc_ellipse().
 
-TO DO:
--
-
-last modified: June 9, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 11, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 
@@ -28,6 +25,7 @@ from skimage import draw, measure
 import xarray as xr
 import matplotlib.pyplot as plt
 
+####################################################
 def get_eye_angles(ellipseparams):
     R = np.linspace(0,2*np.pi,100)
     longaxis_all = np.maximum(ellipseparams[:,2],ellipseparams[:,3])
@@ -46,6 +44,7 @@ def get_eye_angles(ellipseparams):
     phi = np.arcsin((ellipseparams[:,1]-CamCent[1])/np.cos(theta)/scale)
     return theta, phi, longaxis_all, shortaxis_all, CamCent
 
+####################################################
 def preen_then_get_eye_angles(ellipseparams, pxl_thresh):
     bdfit2, temp = np.where(ellipseparams[:, 2:4] > pxl_thresh)
     eparams = pd.DataFrame(ellipseparams)
@@ -56,28 +55,33 @@ def preen_then_get_eye_angles(ellipseparams, pxl_thresh):
     theta, phi, longaxis_all, shortaxis_all, CamCent = get_eye_angles(ellipseparams)
     return theta, phi, longaxis_all, shortaxis_all, CamCent
 
+####################################################
 def calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh):
     emod = measure.EllipseModel()
     # create an empty array to be populated by the five outputs of EllipseModel()
     ellipseparams = np.empty((0, 5))
+    # get list of all timestamps
+    timestamp_list = x_vals.index.values
     # index through each frame and stack the ellipse parameters
-    for frame in range(0, num_frames):
+    for timestamp in timestamp_list:
         try:
             # first the ellipse
-            x_block = x_vals.loc[frame, :]
-            y_block = y_vals.loc[frame, :]
+            x_block = x_vals.loc[timestamp, :]
+            y_block = y_vals.loc[timestamp, :]
             xy = np.column_stack((x_block, y_block))
             if emod.estimate(xy) is True:
                 params_raw = np.array(emod.params)
                 params_expanded = np.expand_dims(params_raw, axis=0)
                 ellipseparams = np.append(ellipseparams, params_expanded, axis=0)
         except KeyError:
+            # if the timestamp cannot be found, add a filler entry of parameters
             ellipseparams = np.append(ellipseparams, np.empty((0, 5)), axis=0)
 
     theta, phi, longaxis_all, shortaxis_all, CamCent = preen_then_get_eye_angles(ellipseparams, pxl_thresh)
 
     return theta, phi, longaxis_all, shortaxis_all, CamCent
 
+####################################################
 def eye_angles(eye_data_input, eye_names, trial_id_list, figures=False, thresh=0.99, pxl_thresh=50, side='left'):
     # prepares data for use with Elliott's get_eye_angles
     # runs on one eye at a time, but can run on both if needed
@@ -86,7 +90,6 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, figures=False, thresh=0
     for trial_num in range(0, len(trial_id_list)):
         current_trial_name = trial_id_list[trial_num]
 
-        # run on left eye first
         if eye_data_input.sel(trial=current_trial_name) is not None:
             with eye_data_input.sel(trial=current_trial_name) as eye_data:
 
@@ -104,8 +107,6 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, figures=False, thresh=0
                         likeli_locs.append(loc)
                     elif loc is None:
                         print('loc is None')
-
-                # OBJECTIVE: try getting all eight eye points into the array passed to calc_ellipse()
 
                 # get the xarray split up into x, y,and likelihood
                 for loc_num in range(0, len(likeli_locs)):
