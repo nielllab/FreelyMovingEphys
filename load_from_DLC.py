@@ -165,9 +165,9 @@ for file in topdown_file_list:
 
 # run through each topdown trial, correct y-coordinates, and threshold point liklihoods
 print('preening top-down points')
-preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, figures=False)
+preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, figures=True)
 
 print('getting left eye angles')
-left_ellipse = eye_angles(lefteye, lefteye_names, trial_id_list, figures=False, side='left')
+left_ellipse = eye_angles(lefteye, lefteye_names, trial_id_list, figures=True, side='left')
 print('getting right eye angles')
-right_ellipse = eye_angles(righteye, righteye_names, trial_id_list, figures=False, side='right')
+right_ellipse = eye_angles(righteye, righteye_names, trial_id_list, figures=True, side='right')

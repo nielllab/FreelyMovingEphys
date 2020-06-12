@@ -43,11 +43,27 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import xarray as xr
+from datetime import datetime
+
+####################################################
+def round_msec(time_input):
+    # round off the extra 000 millisecond digits added at the end
+    # need to do this so they're recognized when indexing xarray later
+    rounded_time = []
+    for j in time_input:
+        i = str(j)
+        date = i.split()[0]
+        h, m, s, ms = [i.split()[1].split(':')[0], # hours
+                       i.split()[1].split(':')[1], # minutes
+                       i.split()[1].split(':')[2], # seconds
+                       str(round(float(i.split()[1].split(':')[-3])))] # milliseconds
+        rounded_time.append(date + ' ' + h + ':' + m + ':' + s + '.' + ms)
+    return rounded_time
 
 ####################################################
 def drop_leading_and_lagging_nans(data, loc_names):
     '''
-    Drop the NaNs that start and end a time seris
+    Drop the NaNs that start and end a time series
     :param data: xarray DataArray of all point locations
     :param loc_names: list of names of each of the point locations
     :return: xarray DataArray for individual points without NaNs at start and end (it will start and end with the first and last numbers)
@@ -60,13 +76,18 @@ def drop_leading_and_lagging_nans(data, loc_names):
         # ends up with an xarray with real start and end points instead of filled NaN values
         true_where_valid = pd.notna(loc_data)
         index_of_valid = [i for i, x in enumerate(true_where_valid) if x]
+        data_pd = xr.DataArray.to_pandas(data).T
+        # round times in the above list to cut off three zeros added at some point for reasons that are unclear
+        timestamp_list = data_pd.index.values
+        rounded_timestamps = round_msec(timestamp_list)
         if index_of_valid != []:
             # index into valid positions and select valid data
-            first_valid = index_of_valid[0]
-            last_valid = index_of_valid[-1]
-            valid_data = data.sel(frame=range(first_valid, last_valid))
+            first_valid = rounded_timestamps[index_of_valid[0]]
+            last_valid = rounded_timestamps[index_of_valid[-1]]
+            valid_data = data.loc[first_valid:last_valid, :]
         elif index_of_valid == []:
             print('no NaNs could be found')
+            valid_data = data
     return valid_data
 
 ####################################################

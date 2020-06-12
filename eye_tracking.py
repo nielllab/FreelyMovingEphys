@@ -146,12 +146,13 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, figures=False, thresh=0
                 # make a plot of an example frame, showing the points of the ellipse
                 # a way to make sure the data are somewhat elliptical
                 if figures is True:
-                    frame_slice = 3
+                    timestamp_list = x_vals.index.values
+                    frame_slice = timestamp_list[3]
                     x_to_plot = x_vals.loc[[frame_slice]]
                     y_to_plot = y_vals.loc[[frame_slice]]
                     plt.figure()
                     plt.scatter(x_to_plot, y_to_plot, color='r')
-                    plt.title('dlc points at frame ' + str(frame_slice) + ' of ' + str(side) + ' eye of ' + str(current_trial_name))
+                    plt.title('dlc points at time ' + str(frame_slice) + ' of ' + str(side) + ' eye of ' + str(current_trial_name))
                     plt.show()
 
                 # get the ellipse parameters out of the point positional data
