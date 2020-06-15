@@ -35,60 +35,66 @@ Code adapted from GitHub repository /niell-lab-analysis/freely moving/alignHead.
 
 TO DO:
 - eliminate the xr_looped_append() function and write a replacement [low priority]
+- add to description information about round_msec() function
 
-last modified: June 3, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 12, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import xarray as xr
-from datetime import datetime
+
+from utilities.data_reading import test_trial_presence
 
 ####################################################
-def round_msec(time_input):
-    # round off the extra 000 millisecond digits added at the end
-    # need to do this so they're recognized when indexing xarray later
-    rounded_time = []
-    for j in time_input:
-        i = str(j)
-        date = i.split()[0]
-        h, m, s, ms = [i.split()[1].split(':')[0], # hours
-                       i.split()[1].split(':')[1], # minutes
-                       i.split()[1].split(':')[2], # seconds
-                       str(round(float(i.split()[1].split(':')[-3])))] # milliseconds
-        rounded_time.append(date + ' ' + h + ':' + m + ':' + s + '.' + ms)
-    return rounded_time
+# def round_msec(time_input):
+#     # round off the extra 000 millisecond digits at the end
+#     # need to do this so they're recognized when indexing xarray later
+#     rounded_time = []
+#     for j in time_input:
+#         i = str(j)
+#         date = i.split('T')[0]
+#         time = i.split('T')[1]
+#
+#         h = time.split(':')[0] # hours
+#         m = time.split(':')[1] # minutes
+#         s = time.split(':')[2].split('.')[0] # seconds
+#         ms = time.split(':')[2].split('.')[1] # milliseconds
+#         round_ms = str(ms)[:-3]
+#         timepoint = date + 'T' + h + ':' + m + ':' + s + '.' + round_ms
+#         rounded_time.append(timepoint)
+#     return rounded_time
 
 ####################################################
-def drop_leading_and_lagging_nans(data, loc_names):
-    '''
-    Drop the NaNs that start and end a time series
-    :param data: xarray DataArray of all point locations
-    :param loc_names: list of names of each of the point locations
-    :return: xarray DataArray for individual points without NaNs at start and end (it will start and end with the first and last numbers)
-    '''
-    for loc_num in range(0, len(loc_names)):
-        # get name of each tagged point in 'data', then index into 'data' to get that tagged point
-        this_loc_name = loc_names[loc_num]
-        loc_data = data.sel(point_loc=this_loc_name)
-        # find first and last non-NaN value and drop everything that comes before and after these
-        # ends up with an xarray with real start and end points instead of filled NaN values
-        true_where_valid = pd.notna(loc_data)
-        index_of_valid = [i for i, x in enumerate(true_where_valid) if x]
-        data_pd = xr.DataArray.to_pandas(data).T
-        # round times in the above list to cut off three zeros added at some point for reasons that are unclear
-        timestamp_list = data_pd.index.values
-        rounded_timestamps = round_msec(timestamp_list)
-        if index_of_valid != []:
-            # index into valid positions and select valid data
-            first_valid = rounded_timestamps[index_of_valid[0]]
-            last_valid = rounded_timestamps[index_of_valid[-1]]
-            valid_data = data.loc[first_valid:last_valid, :]
-        elif index_of_valid == []:
-            print('no NaNs could be found')
-            valid_data = data
-    return valid_data
+# def drop_leading_and_lagging_nans(data, loc_names):
+#     '''
+#     Drop the NaNs that start and end a time series
+#     :param data: xarray DataArray of all point locations
+#     :param loc_names: list of names of each of the point locations
+#     :return: xarray DataArray for individual points without NaNs at start and end (it will start and end with the first and last numbers)
+#     '''
+#     for loc_num in range(0, len(loc_names)):
+#         # get name of each tagged point in 'data', then index into 'data' to get that tagged point
+#         this_loc_name = loc_names[loc_num]
+#         loc_data = data.sel(point_loc=this_loc_name)
+#         # find first and last non-NaN value and drop everything that comes before and after these
+#         # ends up with an xarray with real start and end points instead of filled NaN values
+#         true_where_valid = pd.notna(loc_data)
+#         index_of_valid = [i for i, x in enumerate(true_where_valid) if x]
+#         data_pd = xr.DataArray.to_pandas(data).T
+#         # round times in the above list to cut off three zeros added at some point for reasons that are unclear
+#         timestamp_list = data_pd.index.values
+#         rounded_timestamps = round_msec(timestamp_list)
+#         if index_of_valid != []:
+#             # index into valid positions and select valid data
+#             first_valid = rounded_timestamps[index_of_valid[0]]
+#             last_valid = rounded_timestamps[index_of_valid[-1]]
+#             valid_data = loc_data.loc[first_valid:last_valid, :]
+#         elif index_of_valid == []:
+#             print('no NaNs could be found')
+#             valid_data = data
+#     return valid_data
 
 ####################################################
 def xr_looped_append(loop_over_array, new_array, trial_or_loc_id, dim_concat_to, loop_num):
@@ -131,17 +137,7 @@ def interp_nans_if_any(whole_data, loc_names):
 
 ####################################################
 
-def test_presence(data, trial_name):
-    try:
-        data.sel(trial=trial_name)
-        exists = True
-    except ValueError:
-        exists = False
-    return exists
-
-####################################################
-
-def preen_topdown_data(all_topdown_data, trial_list, pt_names, coord_correction_val=1200, num_points=8, thresh=0.99, figures=False):
+def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, coord_correction_val=1200, num_points=8, thresh=0.99, figures=False):
     '''
     Aligns the head of a mouse from DLC output files which are passed in from load_from_DLC.py
 
@@ -163,7 +159,7 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, coord_correction_
         # get the name of the current trial
         current_trial = trial_list[trial_num]
 
-        test_trial = test_presence(all_topdown_data, current_trial)
+        test_trial = test_trial_presence(all_topdown_data, current_trial)
 
         if test_trial is True:
 
@@ -210,15 +206,17 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, coord_correction_
                 # make figure of nose position over time, with start and finish labeled in green and red respectively
                 if figures==True:
                     # for now, just drop NaNs that remain in the topdown_interp xarray after interpolation
-                    coordcor_pts_wout_nans = drop_leading_and_lagging_nans(topdown_coordcor, pt_names)
-                    nose_x_pts = coordcor_pts_wout_nans.sel(point_loc='nose x')
-                    nose_y_pts = coordcor_pts_wout_nans.sel(point_loc='nose y')
+                    # coordcor_pts_wout_nans = drop_leading_and_lagging_nans(topdown_coordcor, pt_names)
+                    nose_x_pts = topdown_coordcor.sel(point_loc='nose x')
+                    nose_y_pts = topdown_coordcor.sel(point_loc='nose y')
                     plt.figure()
                     plt.title('mouse nose x/y path before likelihood threshold')
                     plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
                     plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
                     plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
                     plt.show()
+                    plt.savefig(savepath_input + 'trial_' + current_trial + '_nose_position_over_time.png', dpi=300)
+
 
                 # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
                 likeli_loop_count = 0
@@ -250,7 +248,6 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, coord_correction_
                         elif likeli_loop_count > 0:
                             likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_1loc], dim='point_loc', fill_value=np.nan)
 
-
                         likeli_loop_count = likeli_loop_count + 1
 
                 if figures == True:
@@ -266,6 +263,7 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, coord_correction_
                     plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
                     plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
                     plt.show()
+                    plt.savefig(savepath_input + 'trial_' + current_trial + '_nose_position_over_time_thresh.png', dpi=300)
 
                 # this trial's data with no NaNs both post-thresholding and post-y-coordinate correction
                 # mask the NaNs

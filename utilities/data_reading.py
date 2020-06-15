@@ -1,6 +1,6 @@
 #####################################################################################
 """
-data_reading_utilities.py of FreelyMovingEphys
+data_reading.py of FreelyMovingEphys/utilities/
 (functions originally in the file load_from_DLC.py)
 
 Contains three helper functions: (1) read_dlc() opens .h5 files and organizes
@@ -83,3 +83,14 @@ def read_data(topdown_input=None, lefteye_input=None, righteye_input=None):
     righteye_pts, righteye_names = read_in_eye(righteye_input, 'right')
 
     return topdown_pts, topdown_names, lefteye_pts, lefteye_names, righteye_pts, righteye_names
+
+####################################################
+# test to make sure the trial exists before using it
+# this function is used in topdown_preening and check_tracking
+def test_trial_presence(data, trial_name):
+    try:
+        data.sel(trial=trial_name)
+        exists = True
+    except ValueError:
+        exists = False
+    return exists

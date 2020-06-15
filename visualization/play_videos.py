@@ -1,16 +1,8 @@
-import os, fnmatch
+# Quick script that opens videos for each trial and plays them in one window side-by-side.
+
+import os
 import cv2
-import pandas as pd
 import numpy as np
-from skimage import draw, measure
-from skvideo import io
-from itertools import product
-# from tqdm import tqdm_notebook as tqdm
-import matplotlib.pyplot as plt
-# from numba import jit
-from scipy import stats
-from skimage.feature import match_template
-import matplotlib as mpl
 from glob import glob
 
 ####################################
@@ -33,7 +25,7 @@ for topdown_vid in topdown_vid_list:
 
         # pull the right associated files out of the glob-created lists
         lefteye_vids = [i for i in lefteye_vid_list if mouse_key and trial_key in i]
-        lefteye_vid = lefteye_vids[0] # this turns it into a string from a list of only one string item
+        lefteye_vid = lefteye_vids[0]  # this turns it into a string from a list of only one string item
         worldcam_vids = [i for i in worldcam_vid_list if mouse_key and trial_key in i]
         worldcam_vid = worldcam_vids[0]
 

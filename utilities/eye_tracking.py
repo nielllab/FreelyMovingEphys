@@ -12,18 +12,17 @@ to extract from the ellipse parameters the angle of the mouse's eye for each fra
 Adapted from code by Elliott Abe, DLCEyeVids.py, especially for the functions
 get_eye_angles(), preen_then_get_eye_angles(), and calc_ellipse().
 
-last modified: June 11, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 12, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 
-import os
-import fnmatch
-import cv2
 import pandas as pd
 import numpy as np
-from skimage import draw, measure
+from skimage import measure
 import xarray as xr
 import matplotlib.pyplot as plt
+
+from utilities.data_cleaning import split_xyl
 
 ####################################################
 def get_eye_angles(ellipseparams):
@@ -82,7 +81,7 @@ def calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh):
     return theta, phi, longaxis_all, shortaxis_all, CamCent
 
 ####################################################
-def eye_angles(eye_data_input, eye_names, trial_id_list, figures=False, thresh=0.99, pxl_thresh=50, side='left'):
+def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, figures=False, thresh=0.99, pxl_thresh=50, side='left'):
     # prepares data for use with Elliott's get_eye_angles
     # runs on one eye at a time, but can run on both if needed
     # pxl_thresh is the max number of pixels for radius of pupil
@@ -93,52 +92,7 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, figures=False, thresh=0
         if eye_data_input.sel(trial=current_trial_name) is not None:
             with eye_data_input.sel(trial=current_trial_name) as eye_data:
 
-                # make list of x and y point_loc coords
-                x_locs = []
-                y_locs = []
-                likeli_locs = []
-                for loc_num in range(0, len(eye_names)):
-                    loc = eye_names[loc_num]
-                    if ' x' in loc:
-                        x_locs.append(loc)
-                    elif ' y' in loc:
-                        y_locs.append(loc)
-                    elif ' likeli' in loc:
-                        likeli_locs.append(loc)
-                    elif loc is None:
-                        print('loc is None')
-
-                # get the xarray split up into x, y,and likelihood
-                for loc_num in range(0, len(likeli_locs)):
-                    pt_loc = likeli_locs[loc_num]
-                    if loc_num == 0:
-                        likeli_pts = eye_data.sel(point_loc=pt_loc)
-                    elif loc_num > 0:
-                        likeli_pts = xr.concat([likeli_pts, eye_data.sel(point_loc=pt_loc)], dim='point_loc', fill_value=np.nan)
-                for loc_num in range(0, len(x_locs)):
-                    pt_loc = x_locs[loc_num]
-                    # threshold from likelihood
-                    eye_data.sel(point_loc=pt_loc)[eye_data.sel(point_loc=pt_loc) < thresh] = np.nan
-                    if loc_num == 0:
-                        x_pts = eye_data.sel(point_loc=pt_loc)
-                    elif loc_num > 0:
-                        x_pts = xr.concat([x_pts, eye_data.sel(point_loc=pt_loc)], dim='point_loc', fill_value=np.nan)
-                for loc_num in range(0, len(y_locs)):
-                    pt_loc = y_locs[loc_num]
-                    # threshold from likelihood
-                    eye_data.sel(point_loc=pt_loc)[eye_data.sel(point_loc=pt_loc) < thresh] = np.nan
-                    if loc_num == 0:
-                        y_pts = eye_data.sel(point_loc=pt_loc)
-                    elif loc_num > 0:
-                        y_pts = xr.concat([y_pts, eye_data.sel(point_loc=pt_loc)], dim='point_loc', fill_value=np.nan)
-
-                # drop len=1 dims
-                x_pts = xr.DataArray.squeeze(x_pts)
-                y_pts = xr.DataArray.squeeze(y_pts)
-
-                # convert to dataframe, tranpose so points are columns, and drop trailing NaNs
-                x_vals = pd.DataFrame.dropna(xr.DataArray.to_pandas(x_pts).T)
-                y_vals = pd.DataFrame.dropna(xr.DataArray.to_pandas(y_pts).T)
+                x_vals, y_vals, likeli_vals = split_xyl(eye_names, eye_data, thresh)
 
                 # get the number of frames
                 num_frames = len(x_vals)
@@ -154,6 +108,7 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, figures=False, thresh=0
                     plt.scatter(x_to_plot, y_to_plot, color='r')
                     plt.title('dlc points at time ' + str(frame_slice) + ' of ' + str(side) + ' eye of ' + str(current_trial_name))
                     plt.show()
+                    plt.savefig(savepath_input + 'trial_' + current_trial_name + '_dlc_eye_pts_at_timepoint_' + str(frame_slice) + '.png', dpi=300)
 
                 # get the ellipse parameters out of the point positional data
                 theta, phi, longaxis_all, shortaxis_all, CamCent = calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh)
@@ -171,6 +126,7 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, figures=False, thresh=0
                     plt.ylabel('angle')
                     plt.title('phi for ' + str(side) + ' eye of ' + str(current_trial_name))
                     plt.show()
+                    plt.savefig(savepath_input + 'trial_' + current_trial_name + '_theta_phi_traces_over_time_.png', dpi=300)
 
                 cam_center = [np.squeeze(CamCent[0]).tolist(), np.squeeze(CamCent[1]).tolist()]
 
