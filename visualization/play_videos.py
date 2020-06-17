@@ -4,8 +4,27 @@ import os
 import cv2
 import numpy as np
 from glob import glob
+from itertools import product
 
-####################################
+####################################################
+def set_colors(n_pts):
+    output_colors = np.column_stack((np.linspace(255, 0, num=n_pts, dtype=np.int),
+                                 np.linspace(0, 255, num=n_pts, dtype=np.int),
+                                 np.zeros((n_pts), dtype=np.int)))
+    return output_colors
+
+####################################################
+def draw_points(frame, x, y, ptsize):
+    color = set_colors(1)
+    point_adds = product(range(-ptsize,ptsize), range(-ptsize,ptsize))
+    for pt in point_adds:
+        try:
+            frame[x+pt[0], y+pt[1]] = color
+        except IndexError:
+            pass
+    return frame
+
+####################################################
 
 main_path = '/Users/dylanmartins/data/Niell/PreyCapture/WorldCamCohort/J475c/112219/Approach/'
 
@@ -44,9 +63,16 @@ for topdown_vid in topdown_vid_list:
             ret_wc, frame_wc = worldcam_vid_read.read()
             ret_td, frame_td = topdown_vid_read.read()
 
+            font = cv2.FONT_HERSHEY_SIMPLEX
+
+            txt_frame_td = cv2.putText(frame_td, 'topdown', (50, 50), font, 1, (255, 0, 0), 2, cv2.LINE_4)
+            txt_frame_wc = cv2.putText(frame_wc, 'worldcam', (50, 50), font, 1, (255, 0, 0), 2, cv2.LINE_4)
+
+            pt_frame_td = draw_points(txt_frame_td, 30, 30, 5)
+
             # resize videos to match
-            frame_td_resized = cv2.resize(frame_td, set_size)
-            frame_wc_resized = cv2.resize(frame_wc, set_size)
+            frame_td_resized = cv2.resize(pt_frame_td, set_size)
+            frame_wc_resized = cv2.resize(txt_frame_wc, set_size)
 
             # stitch all videos together, side-by-side
             all_vids = np.concatenate((frame_td_resized, frame_wc_resized, frame_le), axis=1)

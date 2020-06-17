@@ -33,26 +33,29 @@ TO DO:
 - transform worldcam with eye direction
 - start using find() from find.py instead of glob()
 - move the timestep correction into time_management.py
+- change figure=True/False parameter to two seperate ones: showfig=True to print it out in a window and makefig=True to
+save it out without running the line plt.show()
 
-last modified: June 15, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 16, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 from glob import glob
 import os.path
 import numpy as np
 import xarray as xr
+import pandas as pd
 
 from utilities.topdown_preening import preen_topdown_data
 from utilities.eye_tracking import eye_angles
 from utilities.time_management import read_time
 from utilities.data_reading import read_data
-from utilities.check_tracking import parce_data_for_playback
+from utilities.check_tracking import parse_data_for_playback
 
 ####################################
 ##          USER INPUTS           ##
 ####################################
 # set savepath for DLC points and videos
-savepath_input = '/Users/dylanmartins/data/Niell/PreyCapture/Cohort3Outputs/J463c(blue)_110719/analysis_test_00/'
+savepath_input = '/Users/dylanmartins/data/Niell/PreyCapture/Cohort3Outputs/J463c(blue)_110719/analysis_test_02/'
 
 # find list of all data
 main_path = '/Users/dylanmartins/data/Niell/PreyCapture/Cohort3/J463c(blue)/*/CorralledApproachData/'
@@ -161,10 +164,15 @@ for file in topdown_file_list:
             if loop_count == 0:
                 lefteye = xr.DataArray(lefteye_pts, coords=[lefteye_time, lefteye_pts.columns], dims=['time', 'point_loc'])
                 lefteye['trial'] = trial_id
+                # create a DaraFrame of all trial's timestamps for the left and right eye so that they can be added
+                # back to the theta, phi, etc. ellipse parameter DataArrays
+                lefteye_time_df = pd.DataFrame(lefteye_time,columns=[trial_id])
             elif loop_count > 0:
                 lefteye_trial = xr.DataArray(lefteye_pts, coords=[lefteye_time, lefteye_pts.columns], dims=['time', 'point_loc'])
                 lefteye_trial['trial'] = trial_id
                 lefteye = xr.concat([lefteye, lefteye_trial], dim='trial', fill_value=np.nan)
+                lefteye_time_df_to_append = pd.DataFrame(lefteye_time,columns=[trial_id])
+                lefteye_time_df = lefteye_time_df.join(lefteye_time_df_to_append)
         elif lefteye_pts is None or lefteye_time is None:
             print('trial ' + trial_id + ' has no left eye camera data')
 
@@ -172,10 +180,13 @@ for file in topdown_file_list:
             if loop_count == 0:
                 righteye = xr.DataArray(righteye_pts, coords=[righteye_time, righteye_pts.columns], dims=['time', 'point_loc'])
                 righteye['trial'] = trial_id
+                righteye_time_df = pd.DataFrame(righteye_time,columns=[trial_id])
             elif loop_count > 0:
                 righteye_trial = xr.DataArray(righteye_pts, coords=[righteye_time, righteye_pts.columns], dims=['time', 'point_loc'])
                 righteye_trial['trial'] = trial_id
                 righteye = xr.concat([righteye, righteye_trial], dim='trial', fill_value=np.nan)
+                righteye_time_df_to_append = pd.DataFrame(righteye_time,columns=[trial_id])
+                righteye_time_df = righteye_time_df.join(righteye_time_df_to_append)
         elif righteye_pts is None or righteye_time is None:
             print('trial ' + trial_id + ' has no right eye camera data')
 
@@ -183,19 +194,21 @@ for file in topdown_file_list:
 
 # run through each topdown trial, correct y-coordinates, and threshold point liklihoods
 print('preening top-down points')
-preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, savepath_input, figures=False)
+preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, savepath_input, figures=False, coord_correction_val=0)
 
 print('getting left eye angles')
-left_ellipse = eye_angles(lefteye, lefteye_names, trial_id_list, savepath_input, figures=False, side='left')
+left_ellipse = eye_angles(lefteye, lefteye_names, trial_id_list, savepath_input, lefteye_time_df, figures=False, side='left')
 print('getting right eye angles')
-right_ellipse = eye_angles(righteye, righteye_names, trial_id_list, savepath_input, figures=False, side='right')
+right_ellipse = eye_angles(righteye, righteye_names, trial_id_list, savepath_input, righteye_time_df, figures=False, side='right')
 
 # playback the videos and save out a combined alinged video with feeds stitched side-by-side
-parce_data_for_playback(savepath_input, trial_id_list, preened_topdown, left_ellipse, right_ellipse,
+print('parsing data and video files for plotting and playback')
+parse_data_for_playback(savepath_input, trial_id_list, preened_topdown, left_ellipse, right_ellipse,
                         topdown_vid_list, lefteye_vid_list, righteye_vid_list, worldcam_vid_list,
                         topdown_names, lefteye_names, righteye_names)
 
 # save out the xarrays as .nc files
-# preened_topdown.to_netcdf(savepath_input + 'topdown_points.nc')
-# left_ellipse.to_netcdf(savepath_input + 'leftellipse_points.nc')
-# right_ellipse.to_netcdf(savepath_input + 'right_ellipse_points.nc')
+print('saving out xarray data')
+preened_topdown.to_netcdf(savepath_input + 'topdown_points.nc')
+left_ellipse.to_netcdf(savepath_input + 'leftellipse_points.nc')
+right_ellipse.to_netcdf(savepath_input + 'right_ellipse_points.nc')

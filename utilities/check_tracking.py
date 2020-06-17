@@ -7,37 +7,15 @@ Opens videos for each trial and plays them in one window side-by-side.
 
 Function draw_points() comes from Elliott Abe's DLCEyeVids
 
-last modified: June 15, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 16, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 
 import cv2
 import numpy as np
-from itertools import product
-# from tqdm import tqdm_notebook as tqdm
-import matplotlib.pyplot as plt
-# from numba import jit
 import xarray as xr
 
 from utilities.data_reading import test_trial_presence
-from utilities.data_cleaning import split_xyl
-
-####################################################
-def draw_points(frame, x, y, color, ptsize):
-    point_adds = product(range(-ptsize,ptsize), range(-ptsize,ptsize))
-    for pt in point_adds:
-        try:
-            frame[x+pt[0],y+pt[1]] = color
-        except IndexError:
-            pass
-    return frame
-
-####################################################
-def set_colors(n_pts):
-    output_colors = np.column_stack((np.linspace(255, 0, num=n_pts, dtype=np.int),
-                                 np.linspace(0, 255, num=n_pts, dtype=np.int),
-                                 np.zeros((n_pts), dtype=np.int)))
-    return output_colors
 
 ####################################################
 def read_videos(current_trial, topdown_vid_path, lefteye_vid_path=None, righteye_vid_path=None, worldcam_vid_path=None):
@@ -110,6 +88,8 @@ def plot_pts_on_video(topdown_vid_read, worldcam_vid_read=None, lefteye_vid_read
     # get list of timestamps
     topdown_pd = xr.DataArray.to_pandas(topdown_data).T
     topdown_timestamp_list = topdown_pd.index.values
+    leftellipse_timestamp_list = left_ellipse['time'].values
+    rightellipse_timestamp_list = right_ellipse['time'].values
 
     # get ready to write the combined video file
     savepath = str(savepath_input) + '_' + str(trial_name) + '.avi'
@@ -127,33 +107,91 @@ def plot_pts_on_video(topdown_vid_read, worldcam_vid_read=None, lefteye_vid_read
         ret_wc, frame_wc = worldcam_vid_read.read()
         ret_td, frame_td = topdown_vid_read.read()
 
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        plot_color0 = (225, 255, 0)
+
+        frame_td = cv2.putText(frame_td, 'topdown', (50, 50), font, 3, plot_color0, 2, cv2.LINE_4)
+        frame_wc = cv2.putText(frame_wc, 'worldcam', (50, 50), font, 3, plot_color0, 2, cv2.LINE_4)
+        frame_le = cv2.putText(frame_le, 'left eye', (50, 50), font, 1, plot_color0, 2, cv2.LINE_4)
+        frame_re = cv2.putText(frame_re, 'right eye', (50, 50), font, 1, plot_color0, 2, cv2.LINE_4)
+
         # convert frame to timestamp
-        current_frame = topdown_vid_read.get(cv2.CAP_PROP_POS_FRAMES)
+        current_td_time = str(topdown_timestamp_list[int(topdown_vid_read.get(cv2.CAP_PROP_POS_FRAMES))])[:-3]
+        current_le_time = str(leftellipse_timestamp_list[int(lefteye_vid_read.get(cv2.CAP_PROP_POS_FRAMES))])[:-3]
+        current_re_time = str(rightellipse_timestamp_list[int(righteye_vid_read.get(cv2.CAP_PROP_POS_FRAMES))])[:-3]
+
+        point_size_to_plot = 7
+
+        # get topdown points for this timestamp and plot them on the current frame
         try:
-            current_time_long = topdown_timestamp_list[current_frame]
-            current_time = current_time_long[:-3]
-            # get points for this timestamp
-            for h in range(0, 30, 3):
-                td_pts_x = topdown_data.isel(point_loc=h, time=current_time)
-                td_pts_y = topdown_data.isel(point_loc=h+1, time=current_time)
-                td_ready_x_pts = td_pts_x[np.isfinite(td_pts_x)]
-                td_ready_y_pts = td_pts_y[np.isfinite(td_pts_y)]
-            # plot them as plt figure
-            # overlay them on the right frame
-        except IndexError:
-            print('skipped over topdown point gathering')
+            for k in range(0, 30, 3):
+                topdownTS = topdown_data.sel(time=current_td_time)
+                try:
+                    td_pts_x = topdownTS.isel(point_loc=k)
+                    td_pts_y = topdownTS.isel(point_loc=k+1)
+                    center_xy = (int(td_pts_x), int(td_pts_y))
+                    print(center_xy)
+                    if k == 0:
+                        # plot them on the fresh topdown frame
+                        pt_frame_td = cv2.circle(frame_td, center_xy, 10, plot_color0, -1)
+                    elif k >= 3:
+                        # plot them on the topdown frame with all past topdown points
+                        pt_frame_td = cv2.circle(pt_frame_td, center_xy, 10, plot_color0, -1)
+                except ValueError:
+                    print('a NAN stopped topdown from plotting')
+                    pt_frame_td = frame_td
+        except KeyError:
+            print('ran into key error for time: ' + str(current_le_time))
+            pt_frame_td = frame_td
+
+        if left_ellipse is not None:
+            try:
+                leftellipseTS = left_ellipse.sel(time=current_le_time)
+                try:
+                    ellipse_center = (int(leftellipseTS['cam_center_x'].values), int(leftellipseTS['cam_center_y'].values))
+                    ellipse_longaxis = int(leftellipseTS.sel(ellipse_params='longaxis_all').values)
+                    ellipse_shortaxis = int(leftellipseTS.sel(ellipse_params='shortaxis_all').values)
+                    ellipse_axes = (ellipse_longaxis, ellipse_shortaxis)
+                    ellipse_theta = int(leftellipseTS.sel(ellipse_params='theta').values)
+                    ellipse_phi = int(leftellipseTS.sel(ellipse_params='phi').values)
+                    plot_lellipse = cv2.ellipse(frame_le, ellipse_center, ellipse_axes, ellipse_theta, 0, 360, plot_color0, -1)
+                except ValueError:
+                    print('a NAN stopped from plotting')
+                    plot_lellipse = frame_le
+            except KeyError:
+                print('ran into key error for time: ' + str(current_le_time))
+                plot_lellipse = frame_le
+
+        if right_ellipse is not None:
+            try:
+                rightellipseTS = right_ellipse.sel(time=current_re_time)
+                try:
+                    ellipse_center = (int(rightellipseTS['cam_center_x'].values), int(rightellipseTS['cam_center_y'].values))
+                    ellipse_longaxis = int(rightellipseTS.sel(ellipse_params='longaxis_all').values)
+                    ellipse_shortaxis = int(rightellipseTS.sel(ellipse_params='shortaxis_all').values)
+                    ellipse_axes = (ellipse_longaxis, ellipse_shortaxis)
+                    ellipse_theta = int(rightellipseTS.sel(ellipse_params='theta').values)
+                    ellipse_phi = int(rightellipseTS.sel(ellipse_params='phi').values)
+                    plot_rellipse = cv2.ellipse(frame_re, ellipse_center, ellipse_axes, ellipse_theta, 0, 360, plot_color0, -1)
+                except ValueError:
+                    print('a NAN stopped from plotting')
+                    plot_rellipse = frame_re
+            except KeyError:
+                print('ran into key error for time: ' + str(current_le_time))
+                plot_rellipse = frame_re
 
         # resize videos to match
-        frame_td_resized = cv2.resize(frame_td, set_size)
+        frame_td_resized = cv2.resize(pt_frame_td, set_size)
         frame_wc_resized = cv2.resize(frame_wc, set_size)
-        frame_re_resized = cv2.resize(frame_re, set_size)
+        frame_re_resized = cv2.resize(plot_rellipse, set_size)
+        frame_le_resized = cv2.resize(plot_lellipse, set_size)
 
         # stitch all videos together, side-by-side
         top_row_vids = np.concatenate((frame_td_resized, frame_wc_resized), axis=1)
-        bottom_row_vids = np.concatenate((frame_le, frame_re_resized), axis=1)
+        bottom_row_vids = np.concatenate((frame_le_resized, frame_re_resized), axis=1)
         all_vids = np.concatenate((top_row_vids, bottom_row_vids), axis=0)
 
-        # display the frame
+        # display the frame with the window titled with the trial's name
         cv2.imshow(trial_name, all_vids)
         # save the frame into out_vid to be saved as a file
         out_vid.write(all_vids)
@@ -166,7 +204,7 @@ def plot_pts_on_video(topdown_vid_read, worldcam_vid_read=None, lefteye_vid_read
     cv2.destroyAllWindows()
 
 ####################################################
-def parce_data_for_playback(savepath_input, trial_list, preened_topdown, left_ellipse=None, right_ellipse=None,
+def parse_data_for_playback(savepath_input, trial_list, preened_topdown, left_ellipse=None, right_ellipse=None,
                             topdown_vid_list=None, lefteye_vid_list=None, righteye_vid_list=None, worldcam_vid_list=None,
                             topdown_names=None, lefteye_names=None, righteye_names=None, n_td_pts=8, n_le_pts=8, n_re_pts=8):
     # run through each trial individually

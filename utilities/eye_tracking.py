@@ -81,71 +81,83 @@ def calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh):
     return theta, phi, longaxis_all, shortaxis_all, CamCent
 
 ####################################################
-def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, figures=False, thresh=0.99, pxl_thresh=50, side='left'):
+def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_trial_time, figures=False, thresh=0.99, pxl_thresh=50, side='left'):
     # prepares data for use with Elliott's get_eye_angles
     # runs on one eye at a time, but can run on both if needed
     # pxl_thresh is the max number of pixels for radius of pupil
     # thresh is the liklihood threshold
     for trial_num in range(0, len(trial_id_list)):
         current_trial_name = trial_id_list[trial_num]
-
         if eye_data_input.sel(trial=current_trial_name) is not None:
-            with eye_data_input.sel(trial=current_trial_name) as eye_data:
+            eye_data = eye_data_input.sel(trial=current_trial_name)
 
-                x_vals, y_vals, likeli_vals = split_xyl(eye_names, eye_data, thresh)
+            x_vals, y_vals, likeli_vals = split_xyl(eye_names, eye_data, thresh)
 
-                # get the number of frames
-                num_frames = len(x_vals)
+            # get the number of frames
+            num_frames = len(x_vals)
 
-                # make a plot of an example frame, showing the points of the ellipse
-                # a way to make sure the data are somewhat elliptical
-                if figures is True:
-                    timestamp_list = x_vals.index.values
-                    frame_slice = timestamp_list[3]
-                    x_to_plot = x_vals.loc[[frame_slice]]
-                    y_to_plot = y_vals.loc[[frame_slice]]
-                    plt.figure()
-                    plt.scatter(x_to_plot, y_to_plot, color='r')
-                    plt.title('dlc points at time ' + str(frame_slice) + ' of ' + str(side) + ' eye of ' + str(current_trial_name))
-                    plt.show()
-                    plt.savefig(savepath_input + 'trial_' + current_trial_name + '_dlc_eye_pts_at_timepoint_' + str(frame_slice) + '.png', dpi=300)
+            # make a plot of an example frame, showing the points of the ellipse
+            # a way to make sure the data are somewhat elliptical
+            if figures is True:
+                timestamp_list = x_vals.index.values
+                frame_slice = timestamp_list[3]
+                x_to_plot = x_vals.loc[[frame_slice]]
+                y_to_plot = y_vals.loc[[frame_slice]]
+                plt.figure()
+                plt.scatter(x_to_plot, y_to_plot, color='r')
+                plt.title('dlc points at time ' + str(frame_slice) + ' of ' + str(side) + ' eye of ' + str(current_trial_name))
+                plt.show()
+                plt.savefig(savepath_input + 'trial_' + current_trial_name + '_dlc_eye_pts_at_timepoint_' + str(frame_slice) + '.png', dpi=300)
 
-                # get the ellipse parameters out of the point positional data
-                theta, phi, longaxis_all, shortaxis_all, CamCent = calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh)
+            # get the ellipse parameters out of the point positional data
+            theta, phi, longaxis_all, shortaxis_all, CamCent = calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh)
 
-                if figures is True:
-                    plt.subplots(2, 1, figsize=(10,10))
-                    plt.subplot(211)
-                    plt.plot(theta * 180 / np.pi)
-                    plt.xlabel('frame')
-                    plt.ylabel('angle')
-                    plt.title('theta for ' + str(side) + ' eye of ' + str(current_trial_name))
-                    plt.subplot(212)
-                    plt.plot(phi * 180 / np.pi)
-                    plt.xlabel('frame')
-                    plt.ylabel('angle')
-                    plt.title('phi for ' + str(side) + ' eye of ' + str(current_trial_name))
-                    plt.show()
-                    plt.savefig(savepath_input + 'trial_' + current_trial_name + '_theta_phi_traces_over_time_.png', dpi=300)
+            if figures is True:
+                plt.subplots(2, 1, figsize=(10,10))
+                plt.subplot(211)
+                plt.plot(theta * 180 / np.pi)
+                plt.xlabel('frame')
+                plt.ylabel('angle')
+                plt.title('theta for ' + str(side) + ' eye of ' + str(current_trial_name))
+                plt.subplot(212)
+                plt.plot(phi * 180 / np.pi)
+                plt.xlabel('frame')
+                plt.ylabel('angle')
+                plt.title('phi for ' + str(side) + ' eye of ' + str(current_trial_name))
+                plt.show()
+                plt.savefig(savepath_input + 'trial_' + current_trial_name + '_theta_phi_traces_over_time_.png', dpi=300)
 
-                cam_center = [np.squeeze(CamCent[0]).tolist(), np.squeeze(CamCent[1]).tolist()]
+            cam_center = [np.squeeze(CamCent[0]).tolist(), np.squeeze(CamCent[1]).tolist()]
 
-                # make a DataFrame of the data that calc_ellipse() outputs
-                trial_ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis_all':list(longaxis_all),
-                                                 'shortaxis_all':list(shortaxis_all)})
+            # make a DataFrame of the data that calc_ellipse() outputs
+            trial_ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis_all':list(longaxis_all),
+                                             'shortaxis_all':list(shortaxis_all)})
+            print(trial_ellipse_df)
 
-                # turn DataFrame into an xr DataArray, name the dims, fill in metadata like the trial and which eye it is
-                trial_ellipse_data = xr.DataArray(trial_ellipse_df)
-                trial_ellipse_data = xr.DataArray.rename(trial_ellipse_data, new_name_or_name_dict={'dim_0': 'frame', 'dim_1': 'ellipse_param'})
-                trial_ellipse_data['trial'] = current_trial_name
-                trial_ellipse_data['eye_side'] = side
-                trial_ellipse_data['cam_center_x'] = cam_center[0]
-                trial_ellipse_data['cam_center_y'] = cam_center[1]
+            # turn DataFrame into an xr DataArray, name the dims, fill in metadata (the trial name, which eye it is, etc.)
+            ellipse_params = ['theta', 'phi', 'longaxis_all', 'shortaxis_all']
+            len_index = len(x_vals.index.values)
+            len_data = len(trial_ellipse_df)
+            len_diff = len_index - len_data
+            if len_index > len_data:
+                time = x_vals.index.values[:-len_diff]
+            elif len_index < len_data:
+                step = x_vals.index.values[-1] - x_vals.index.values[-2]
+                time = x_vals.index.values
+                time.append(x_vals.index.values[-1] + step)
+            elif len_index == len_data:
+                time = x_vals.index.values
 
-                # append ellipse data from the current trial to a main xr DataArray to be saved out
-                if trial_num == 0:
-                    side_ellipse = trial_ellipse_data
-                elif trial_num > 0:
-                    side_ellipse = xr.concat([side_ellipse, trial_ellipse_data], dim='trial', fill_value=np.nan)
+            trial_ellipse_data = xr.DataArray(trial_ellipse_df, coords=[('time', time), ('ellipse_params', ellipse_params)])
+            trial_ellipse_data['trial'] = current_trial_name
+            trial_ellipse_data['eye_side'] = side
+            trial_ellipse_data['cam_center_x'] = cam_center[0]
+            trial_ellipse_data['cam_center_y'] = cam_center[1]
+
+            # append ellipse data from the current trial to a main xr DataArray to be saved out
+            if trial_num == 0:
+                side_ellipse = trial_ellipse_data
+            elif trial_num > 0:
+                side_ellipse = xr.concat([side_ellipse, trial_ellipse_data], dim='trial', fill_value=np.nan)
 
     return side_ellipse

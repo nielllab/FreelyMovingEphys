@@ -158,16 +158,11 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
     for trial_num in range(0, len(trial_list)):
         # get the name of the current trial
         current_trial = trial_list[trial_num]
-
         test_trial = test_trial_presence(all_topdown_data, current_trial)
-
         if test_trial is True:
-
             with all_topdown_data.sel(trial=current_trial) as topdown_data:
-
                 # interpolate across NaNs fro each point_loc, then piece dataset back together
                 topdown_interp = interp_nans_if_any(topdown_data, pt_names)
-
                 # make a copy of topdown_interp so that corrected y values can be concated into it
 
                 # for each point location in the topdown input data, select y head points and subtract them from int to fix coordinates
@@ -230,7 +225,7 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
                         assoc_y_pos = pt_names[pt_num - 1]
                         assoc_y_pt = topdown_coordcor.sel(point_loc=assoc_y_pos)
 
-                        # select only the liklihood data for this point
+                        # select only the likelihood data for this point
                         likeli_pt = topdown_coordcor.sel(point_loc=current_pt_loc)
 
                         # get number of frames to use for indexing through all positions
