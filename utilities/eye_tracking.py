@@ -12,7 +12,7 @@ to extract from the ellipse parameters the angle of the mouse's eye for each fra
 Adapted from code by Elliott Abe, DLCEyeVids.py, especially for the functions
 get_eye_angles(), preen_then_get_eye_angles(), and calc_ellipse().
 
-last modified: June 12, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 18, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 
@@ -132,7 +132,6 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
             # make a DataFrame of the data that calc_ellipse() outputs
             trial_ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis_all':list(longaxis_all),
                                              'shortaxis_all':list(shortaxis_all)})
-            print(trial_ellipse_df)
 
             # turn DataFrame into an xr DataArray, name the dims, fill in metadata (the trial name, which eye it is, etc.)
             ellipse_params = ['theta', 'phi', 'longaxis_all', 'shortaxis_all']
@@ -151,6 +150,8 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
             trial_ellipse_data = xr.DataArray(trial_ellipse_df, coords=[('time', time), ('ellipse_params', ellipse_params)])
             trial_ellipse_data['trial'] = current_trial_name
             trial_ellipse_data['eye_side'] = side
+            trial_ellipse_data['time_start'] = eye_data['time_start'].values
+            trial_ellipse_data['time_end'] = eye_data['time_end'].values
             trial_ellipse_data['cam_center_x'] = cam_center[0]
             trial_ellipse_data['cam_center_y'] = cam_center[1]
 

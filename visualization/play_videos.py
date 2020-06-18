@@ -4,34 +4,15 @@ import os
 import cv2
 import numpy as np
 from glob import glob
-from itertools import product
 
-####################################################
-def set_colors(n_pts):
-    output_colors = np.column_stack((np.linspace(255, 0, num=n_pts, dtype=np.int),
-                                 np.linspace(0, 255, num=n_pts, dtype=np.int),
-                                 np.zeros((n_pts), dtype=np.int)))
-    return output_colors
-
-####################################################
-def draw_points(frame, x, y, ptsize):
-    color = set_colors(1)
-    point_adds = product(range(-ptsize,ptsize), range(-ptsize,ptsize))
-    for pt in point_adds:
-        try:
-            frame[x+pt[0], y+pt[1]] = color
-        except IndexError:
-            pass
-    return frame
-
-####################################################
 
 main_path = '/Users/dylanmartins/data/Niell/PreyCapture/WorldCamCohort/J475c/112219/Approach/'
+save_path = '/Users/dylanmartins/data/Niell/PreyCapture/WorldCamOutputs/CuratedDataset_ObjectArena_J463b_112619_1_2/analysis_test_00/'
 
-topdown_vid_list = glob(main_path + '*top*.avi')
-righteye_vid_list = glob(main_path + '*eye1r*.avi')
-lefteye_vid_list = glob(main_path + '*eye2l*.avi')
-worldcam_vid_list = glob(main_path + '*world*.avi')
+topdown_vid_list = glob(main_path + '*top*1_112219_02*.avi')
+righteye_vid_list = glob(main_path + '*eye1r*1_112219_02*.avi')
+lefteye_vid_list = glob(main_path + '*eye2l*1_112219_02*.avi')
+worldcam_vid_list = glob(main_path + '*world*1_112219_02*.avi')
 
 loop_count = 0
 for topdown_vid in topdown_vid_list:
@@ -58,29 +39,29 @@ for topdown_vid in topdown_vid_list:
         max_height = int(lefteye_vid_read.get(cv2.CAP_PROP_FRAME_HEIGHT))
         set_size = (max_width, max_height)
 
+        savepath = str(save_path) + 'J463b_1_112219_02' + '.avi'
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, ((max_width * 3), max_height))
+
         while(1):
             ret_le, frame_le = lefteye_vid_read.read()
             ret_wc, frame_wc = worldcam_vid_read.read()
             ret_td, frame_td = topdown_vid_read.read()
 
-            font = cv2.FONT_HERSHEY_SIMPLEX
-
-            txt_frame_td = cv2.putText(frame_td, 'topdown', (50, 50), font, 1, (255, 0, 0), 2, cv2.LINE_4)
-            txt_frame_wc = cv2.putText(frame_wc, 'worldcam', (50, 50), font, 1, (255, 0, 0), 2, cv2.LINE_4)
-
-            pt_frame_td = draw_points(txt_frame_td, 30, 30, 5)
-
             # resize videos to match
-            frame_td_resized = cv2.resize(pt_frame_td, set_size)
-            frame_wc_resized = cv2.resize(txt_frame_wc, set_size)
+            frame_td_resized = cv2.resize(frame_td, set_size)
+            frame_wc_resized = cv2.resize(frame_wc, set_size)
 
             # stitch all videos together, side-by-side
             all_vids = np.concatenate((frame_td_resized, frame_wc_resized, frame_le), axis=1)
 
             cv2.imshow('frame', all_vids)
+            out_vid.write(all_vids)
+
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
         all_vids.release()
+        out_vid.release()
         cv2.destroyAllWindows()
         loop_count = loop_count + 1

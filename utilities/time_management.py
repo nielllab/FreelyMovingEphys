@@ -26,7 +26,8 @@ def read_time(data):
         TS_datetime = datetime.strptime(TS_row, '%H:%M:%S.%f')
         TS.append(TS_datetime)
         start = TS[0]
-    return TS, start
+        end = TS[-1]
+    return TS, start, end
 
 ####################################################
 
