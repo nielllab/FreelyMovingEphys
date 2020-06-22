@@ -3,26 +3,14 @@
 import numpy as np
 import cv2
 
-# sets the next frame to be read
-def getFrame(frame_nr):
-    global cap
-    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_nr)
-
-cap = cv2.VideoCapture('/Users/dylanmartins/data/Niell/PreyCapture/Cohort3Outputs/J463c(blue)_110719/analysis_test_03/mouse_J463c_trial_1_110719_07.avi')
-# cap = cv2.VideoCapture('/Users/dylanmartins/data/Niell/PreyCapture/Cohort3Outputs/J463c(blue)_110719/analysis_test_02/_mouse_J463c_trial_1_110719_11.avi')
-trial_name = 'mouse_J463c_trial_1_110719_07'
-cv2.namedWindow(trial_name)
-cv2.createTrackbar("frame_position", trial_name, 0, int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), getFrame)
+cap = cv2.VideoCapture('/home/dylan/data/Niell/PreyCapture/Cohort3Outputs/J463c(blue)_110719/analysis_test_U09/mouse_J463c_trial_3_110719_12/mouse_J463c_trial_3_110719_12.mp4')
+trial_name = 'mouse_J463c_trial_3_110719_12'
 
 while 1:
 
     ret, frame = cap.read()
-    if ret:
-        cv2.imshow(trial_name, frame)
-        cv2.setTrackbarPos("frame_position", trial_name, int(cap.get(cv2.CAP_PROP_POS_FRAMES)))
-    else:
-        break
-
+    cv2.imshow(trial_name, frame)
+    cv2.waitKey(60)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 

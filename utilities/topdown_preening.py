@@ -42,59 +42,15 @@ last modified: June 12, 2020 by Dylan Martins (dmartins@uoregon.edu)
 #####################################################################################
 import pandas as pd
 import numpy as np
-from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use('TkAgg')
 import xarray as xr
+import os
+from matplotlib import pyplot as plt
+import tkinter
 
 from utilities.data_reading import test_trial_presence
-
-####################################################
-# def round_msec(time_input):
-#     # round off the extra 000 millisecond digits at the end
-#     # need to do this so they're recognized when indexing xarray later
-#     rounded_time = []
-#     for j in time_input:
-#         i = str(j)
-#         date = i.split('T')[0]
-#         time = i.split('T')[1]
-#
-#         h = time.split(':')[0] # hours
-#         m = time.split(':')[1] # minutes
-#         s = time.split(':')[2].split('.')[0] # seconds
-#         ms = time.split(':')[2].split('.')[1] # milliseconds
-#         round_ms = str(ms)[:-3]
-#         timepoint = date + 'T' + h + ':' + m + ':' + s + '.' + round_ms
-#         rounded_time.append(timepoint)
-#     return rounded_time
-
-####################################################
-# def drop_leading_and_lagging_nans(data, loc_names):
-#     '''
-#     Drop the NaNs that start and end a time series
-#     :param data: xarray DataArray of all point locations
-#     :param loc_names: list of names of each of the point locations
-#     :return: xarray DataArray for individual points without NaNs at start and end (it will start and end with the first and last numbers)
-#     '''
-#     for loc_num in range(0, len(loc_names)):
-#         # get name of each tagged point in 'data', then index into 'data' to get that tagged point
-#         this_loc_name = loc_names[loc_num]
-#         loc_data = data.sel(point_loc=this_loc_name)
-#         # find first and last non-NaN value and drop everything that comes before and after these
-#         # ends up with an xarray with real start and end points instead of filled NaN values
-#         true_where_valid = pd.notna(loc_data)
-#         index_of_valid = [i for i, x in enumerate(true_where_valid) if x]
-#         data_pd = xr.DataArray.to_pandas(data).T
-#         # round times in the above list to cut off three zeros added at some point for reasons that are unclear
-#         timestamp_list = data_pd.index.values
-#         rounded_timestamps = round_msec(timestamp_list)
-#         if index_of_valid != []:
-#             # index into valid positions and select valid data
-#             first_valid = rounded_timestamps[index_of_valid[0]]
-#             last_valid = rounded_timestamps[index_of_valid[-1]]
-#             valid_data = loc_data.loc[first_valid:last_valid, :]
-#         elif index_of_valid == []:
-#             print('no NaNs could be found')
-#             valid_data = data
-#     return valid_data
+from utilities.data_cleaning import split_xyl
 
 ####################################################
 def xr_looped_append(loop_over_array, new_array, trial_or_loc_id, dim_concat_to, loop_num):
@@ -137,7 +93,7 @@ def interp_nans_if_any(whole_data, loc_names):
 
 ####################################################
 
-def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, coord_correction_val=1200, num_points=8, thresh=0.99, figures=False):
+def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, coord_correction_val=1200, num_points=8, thresh=0.99, showfig=False, savefig=False):
     '''
     Aligns the head of a mouse from DLC output files which are passed in from load_from_DLC.py
 
@@ -199,18 +155,24 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
                 # topdown_interp_leadlagdrop = drop_leading_and_lagging_nans(topdown_interp, pt_names)
 
                 # make figure of nose position over time, with start and finish labeled in green and red respectively
-                if figures==True:
+                if savefig is True:
+                    fig1_dir = savepath_input + '/' + current_trial + '/'
+                    if not os.path.exists(fig1_dir):
+                        os.makedirs(fig1_dir)
+                    fig1_path = fig1_dir + 'nose_position_over_time.png'
+
                     # for now, just drop NaNs that remain in the topdown_interp xarray after interpolation
                     # coordcor_pts_wout_nans = drop_leading_and_lagging_nans(topdown_coordcor, pt_names)
                     nose_x_pts = topdown_coordcor.sel(point_loc='nose x')
                     nose_y_pts = topdown_coordcor.sel(point_loc='nose y')
-                    plt.figure()
+                    plt.figure(figsize=(15, 15))
                     plt.title('mouse nose x/y path before likelihood threshold')
                     plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
                     plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
                     plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
-                    plt.show()
-                    plt.savefig(savepath_input + 'trial_' + current_trial + '_nose_position_over_time.png', dpi=300)
+                    plt.savefig(fig1_path, dpi=300)
+                    if showfig is True:
+                        plt.show()
 
 
                 # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
@@ -245,20 +207,51 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
 
                         likeli_loop_count = likeli_loop_count + 1
 
-                if figures == True:
+                if savefig is True:
+                    fig2_dir = savepath_input + '/' + current_trial + '/'
+                    if not os.path.exists(fig2_dir):
+                        os.makedirs(fig2_dir)
+                    fig2_path = fig2_dir + 'nose_position_over_time_thresh.png'
+
                     # make a plot of the mouse's path, where positions that fall under threshold will be NaNs
                     nose_x_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose x')
                     nose_y_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose y')
                     # mask the NaNs, but only for the figure (don't want to lose time information for actual analysis)
                     nose_x_thresh_nonan_pts = nose_x_thresh_pts[np.isfinite(nose_x_thresh_pts)]
                     nose_y_thresh_nonan_pts = nose_y_thresh_pts[np.isfinite(nose_y_thresh_pts)]
-                    plt.figure()
+                    plt.figure(figsize=(15, 15))
                     plt.title('mouse nose x/y path after likelihood threshold')
                     plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))
-                    plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
-                    plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
-                    plt.show()
-                    plt.savefig(savepath_input + 'trial_' + current_trial + '_nose_position_over_time_thresh.png', dpi=300)
+                    plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go') # starting point
+                    plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro') # ending point
+                    plt.savefig(fig2_path, dpi=300)
+                    if showfig is True:
+                        plt.show()
+
+                if savefig is True:
+                    x_vals, y_vals, likeli_pts = split_xyl(pt_names, topdown_coordcor, 0.99)
+                    timestamp_list = list(x_vals.index.values)
+                    frame_slice = timestamp_list[0]
+                    x_to_plot = x_vals.loc[[frame_slice]]
+                    y_to_plot = y_vals.loc[[frame_slice]]
+
+                    fig3_dir = savepath_input + '/' + current_trial + '/'
+                    if not os.path.exists(fig3_dir):
+                        os.makedirs(fig3_dir)
+                    fig3_path = fig3_dir + 'dlc_topdown_pts_at_time_' + str(frame_slice) + '.png'
+
+                    plt.figure(figsize=(15, 10))
+                    plt.plot(int(x_to_plot.iloc[0,0]), int(y_to_plot.iloc[0,0]), 'bo')
+                    plt.plot(int(x_to_plot.iloc[0,1]), int(y_to_plot.iloc[0,1]), 'go')
+                    plt.plot(int(x_to_plot.iloc[0,2]), int(y_to_plot.iloc[0,2]), 'ro')
+                    plt.plot(int(x_to_plot.iloc[0,3]), int(y_to_plot.iloc[0,3]), 'co')
+                    plt.plot(int(x_to_plot.iloc[0,4]), int(y_to_plot.iloc[0,4]), 'mo')
+                    plt.plot(int(x_to_plot.iloc[0,5]), int(y_to_plot.iloc[0,5]), 'yo')
+                    plt.plot(int(x_to_plot.iloc[0,6]), int(y_to_plot.iloc[0,6]), 'ko')
+                    plt.title('topdown dlc points at time ' + str(frame_slice) + ' of ' + str(current_trial))
+                    plt.savefig(fig3_path, dpi=300)
+                    if showfig is True:
+                        plt.show()
 
                 # this trial's data with no NaNs both post-thresholding and post-y-coordinate correction
                 # mask the NaNs

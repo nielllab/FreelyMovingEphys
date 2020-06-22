@@ -71,23 +71,3 @@ def split_xyl(eye_names, eye_data, thresh):
     return x_vals, y_vals, likeli_pts
 
 #############################################
-# def drop_leading_lagging_nans(data, pt_names):
-#     for pt_num in range(0, len(pt_names)):
-#         # get name of each tagged point in 'data', then index into 'data' to get that tagged point
-#         this_loc_name = pt_names[pt_num]
-#         loc_data = data.sel(point_loc=this_loc_name)
-#         # find first and last non-NaN value and drop everything that comes before and after these
-#         # ends up with an xarray with real start and end points instead of filled NaN values
-#         true_where_valid = pd.notna(loc_data)
-#         index_of_valid = [i for i, x in enumerate(true_where_valid) if x]
-#         data_pd = xr.DataArray.to_pandas(data).T
-#         timestamp_list = data_pd.index.values
-#         if index_of_valid != []:
-#             # index into valid positions and select valid data
-#             first_valid = timestamp_list[index_of_valid[0]]
-#             last_valid = timestamp_list[index_of_valid[-1]]
-#             valid_data = loc_data.loc[first_valid:last_valid]
-#         elif index_of_valid == []:
-#             print('no NaNs could be found')
-#             valid_data = data
-#     return valid_data

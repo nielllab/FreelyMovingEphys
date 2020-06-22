@@ -81,7 +81,7 @@ def calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh):
     return theta, phi, longaxis_all, shortaxis_all, CamCent
 
 ####################################################
-def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_trial_time, figures=False, thresh=0.99, pxl_thresh=50, side='left'):
+def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_trial_time, showfig=False, savefig=False, thresh=0.99, pxl_thresh=50, side='left'):
     # prepares data for use with Elliott's get_eye_angles
     # runs on one eye at a time, but can run on both if needed
     # pxl_thresh is the max number of pixels for radius of pupil
@@ -98,7 +98,7 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
 
             # make a plot of an example frame, showing the points of the ellipse
             # a way to make sure the data are somewhat elliptical
-            if figures is True:
+            if savefig is True:
                 timestamp_list = x_vals.index.values
                 frame_slice = timestamp_list[3]
                 x_to_plot = x_vals.loc[[frame_slice]]
@@ -106,13 +106,14 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
                 plt.figure()
                 plt.scatter(x_to_plot, y_to_plot, color='r')
                 plt.title('dlc points at time ' + str(frame_slice) + ' of ' + str(side) + ' eye of ' + str(current_trial_name))
-                plt.show()
-                plt.savefig(savepath_input + 'trial_' + current_trial_name + '_dlc_eye_pts_at_timepoint_' + str(frame_slice) + '.png', dpi=300)
+                plt.savefig(savepath_input + '/' + current_trial_name + '/' + 'dlc_eye_pts_at_time_' + str(frame_slice) + '.png', dpi=300)
+                if showfig is True:
+                    plt.show()
 
             # get the ellipse parameters out of the point positional data
             theta, phi, longaxis_all, shortaxis_all, CamCent = calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh)
 
-            if figures is True:
+            if savefig is True:
                 plt.subplots(2, 1, figsize=(10,10))
                 plt.subplot(211)
                 plt.plot(theta * 180 / np.pi)
@@ -124,8 +125,9 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
                 plt.xlabel('frame')
                 plt.ylabel('angle')
                 plt.title('phi for ' + str(side) + ' eye of ' + str(current_trial_name))
-                plt.show()
-                plt.savefig(savepath_input + 'trial_' + current_trial_name + '_theta_phi_traces_over_time_.png', dpi=300)
+                plt.savefig(savepath_input + '/' + current_trial_name + '/' + 'theta_phi_traces_over_time_.png', dpi=300)
+                if showfig is True:
+                    plt.show()
 
             cam_center = [np.squeeze(CamCent[0]).tolist(), np.squeeze(CamCent[1]).tolist()]
 

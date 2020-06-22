@@ -27,6 +27,10 @@ def read_time(data):
         TS.append(TS_datetime)
         start = TS[0]
         end = TS[-1]
+    # add an explapolated timestep to the end because the actual timesteps are always one too short
+    # not an ideal solution, but otherwise there are problems
+    topdown_timestep = TS[-1] - TS[-2]
+    TS.append(TS[-1] + topdown_timestep)
     return TS, start, end
 
 ####################################################
