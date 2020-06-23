@@ -46,7 +46,7 @@ TO DO:
 save it out without running the line plt.show()
 - get saving out point and ellipse data working--currently does not work because of dask-related issue
 
-last modified: June 18, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 23, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 from glob import glob
@@ -65,16 +65,18 @@ from utilities.check_tracking import parse_data_for_playback
 ##          USER INPUTS           ##
 ####################################
 # set savepath for ellipses, points, and videos
-savepath_input = '/home/dylan/data/Niell/PreyCapture/Cohort3Outputs/J463c(blue)_110719/analysis_test_U09/'
+savepath_input = '/home/dylan/data/Niell/PreyCapture/Cohort3Outputs/J463c(blue)_110719/analysis_test_U12/'
 
 # save out multiple figures for each trial into folders with the trial's name
 savefig_input = True
 # display multiple figures in separate window for every trial
 # it can only show figures that are going to be saved
 showfig_input = False
+# save out xarray DataArrays as .nc files?
+savedata_input = False
 
 # find list of all data for DLC points as .h5 files and videos as .avi files
-main_path = '/home/dylan/data/Niell/PreyCapture/Cohort3/J463c(blue)/110719/CorralledApproachData/'
+main_path = '/home/dylan/data/Niell/PreyCapture/Cohort3/J463c(blue)/110719/CorralledApproachDataDI/'
 vid_path = '/home/dylan/data/Niell/PreyCapture/Cohort3/J463c(blue)/110719/CorralledApproachVids/'
 
 ####################################
@@ -83,14 +85,14 @@ vid_path = '/home/dylan/data/Niell/PreyCapture/Cohort3/J463c(blue)/110719/Corral
 
 # find the files wanted from the given main_path
 # DeepLabCut point locations
-topdown_file_list = set(glob(main_path + '*top*DeepCut*.h5')) - set(glob(main_path + '*DeInter*.h5'))
-righteye_file_list = set(glob(main_path + '*eye1r*DeepCut*.h5')) - set(glob(main_path + '*DeInter*.h5'))
-lefteye_file_list = set(glob(main_path + '*eye2l*DeepCut*.h5')) - set(glob(main_path + '*DeInter*.h5'))
+topdown_file_list = glob(main_path + '*top*DeepCut*.h5')
+righteye_file_list = glob(main_path + '*eye1r*DeInter2*.h5')
+lefteye_file_list = glob(main_path + '*eye2l*DeInter2*.h5')
 # video files that those points come from
-righteye_vid_list = set(glob(vid_path + '*eye1r*.avi')) - set(glob(vid_path + '*DeInter*.avi'))
-lefteye_vid_list = set(glob(vid_path + '*eye2l*.avi')) - set(glob(vid_path + '*DeInter*.avi'))
-topdown_vid_list = set(glob(vid_path + '*top*.avi')) - set(glob(vid_path + '*DeInter*.avi'))
-worldcam_vid_list = set(glob(vid_path + '*world*.avi')) - set(glob(vid_path + '*DeInter*.avi'))
+righteye_vid_list = glob(vid_path + '*eye1r*.avi')
+lefteye_vid_list = glob(vid_path + '*eye2l*.avi')
+topdown_vid_list = glob(vid_path + '*top*.avi')
+worldcam_vid_list = glob(vid_path + '*world*.avi')
 # accelerometer files
 acc_file_list = glob(main_path + '*acc*.dat')
 # camera time files
@@ -109,6 +111,8 @@ loop_count = 0
 trial_id_list = []
 
 topdown_file_list = [i for i in topdown_file_list if '1_110719_01' not in i]
+topdown_file_list = [i for i in topdown_file_list if '2_110719_08' not in i]
+topdown_file_list = [i for i in topdown_file_list if '1_110719_11' not in i]
 
 for file in topdown_file_list:
     if loop_count < limit_of_loops:
@@ -148,17 +152,17 @@ for file in topdown_file_list:
         # also: extrapolate to what the last timepoint shoudl be, since time files always have one fewer length than point data
         # TO DO: move the timestep correction into time_management.py
         if topdown_time_file is not None:
-            topdown_time, topdown_start, topdown_end = read_time(topdown_time_file)
+            topdown_time, topdown_start, topdown_end = read_time(topdown_time_file, len(topdown_pts))
         elif topdown_time_file is None:
             topdown_time = None
 
         if lefteye_time_file is not None:
-            lefteye_time, lefteye_start, lefteye_end = read_time(lefteye_time_file)
+            lefteye_time, lefteye_start, lefteye_end = read_time(lefteye_time_file, len(lefteye_pts))
         elif lefteye_time_file is None:
             lefteye_time = None
 
         if righteye_time_file is not None:
-            righteye_time, righteye_start, righteye_end = read_time(righteye_time_file)
+            righteye_time, righteye_start, righteye_end = read_time(righteye_time_file, len(righteye_pts))
         elif righteye_time_file is None:
             righteye_time = None
 
@@ -223,19 +227,18 @@ for file in topdown_file_list:
 # run through each topdown trial, correct y-coordinates, and threshold point liklihoods
 print('preening top-down points')
 preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, savepath_input, showfig=showfig_input, savefig=savefig_input, coord_correction_val=0)
-# preened_topdown_y1200 = preen_topdown_data(topdown, trial_id_list, topdown_names, savepath_input, showfig=showfig_input, savefig=savefig_input, coord_correction_val=1200)
 
-# print('getting left eye angles')
+print('getting left eye angles')
 left_ellipse = eye_angles(lefteye, lefteye_names, trial_id_list, savepath_input, lefteye_time_df, showfig=showfig_input, savefig=savefig_input, side='left')
 print('getting right eye angles')
 right_ellipse = eye_angles(righteye, righteye_names, trial_id_list, savepath_input, righteye_time_df, showfig=showfig_input, savefig=savefig_input, side='right')
 
 # save out the xarrays as .nc files
-# print('saving out xarray data')
-# preened_topdown.to_netcdf(savepath_input + 'all_topdown_positions.nc')
-# preened_topdown_y1200.to_netcdf(savepath_input + 'all_topdown_positions_yminus1200.nc')
-# left_ellipse.to_netcdf(savepath_input + 'all_leftellipse_params.nc')
-# right_ellipse.to_netcdf(savepath_input + 'all_rightellipse_params.nc')
+if savedata_input is True:
+    print('saving out xarray data')
+    preened_topdown.to_netcdf(savepath_input + 'all_topdown_positions.nc')
+    left_ellipse.to_netcdf(savepath_input + 'all_leftellipse_params.nc')
+    right_ellipse.to_netcdf(savepath_input + 'all_rightellipse_params.nc')
 
 # playback the videos and save out a combined alinged video with feeds stitched side-by-side
 print('parsing data and video files for plotting and playback')

@@ -103,18 +103,17 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
                 frame_slice = timestamp_list[3]
                 x_to_plot = x_vals.loc[[frame_slice]]
                 y_to_plot = y_vals.loc[[frame_slice]]
-                plt.figure()
+                plt.figure(figsize=(15,10))
                 plt.scatter(x_to_plot, y_to_plot, color='r')
                 plt.title('dlc points at time ' + str(frame_slice) + ' of ' + str(side) + ' eye of ' + str(current_trial_name))
                 plt.savefig(savepath_input + '/' + current_trial_name + '/' + 'dlc_eye_pts_at_time_' + str(frame_slice) + '.png', dpi=300)
-                if showfig is True:
-                    plt.show()
+                plt.close()
 
             # get the ellipse parameters out of the point positional data
             theta, phi, longaxis_all, shortaxis_all, CamCent = calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh)
 
             if savefig is True:
-                plt.subplots(2, 1, figsize=(10,10))
+                plt.subplots(2, 1, figsize=(30,20))
                 plt.subplot(211)
                 plt.plot(theta * 180 / np.pi)
                 plt.xlabel('frame')
@@ -126,8 +125,7 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
                 plt.ylabel('angle')
                 plt.title('phi for ' + str(side) + ' eye of ' + str(current_trial_name))
                 plt.savefig(savepath_input + '/' + current_trial_name + '/' + 'theta_phi_traces_over_time_.png', dpi=300)
-                if showfig is True:
-                    plt.show()
+                plt.close()
 
             cam_center = [np.squeeze(CamCent[0]).tolist(), np.squeeze(CamCent[1]).tolist()]
 

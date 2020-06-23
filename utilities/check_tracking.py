@@ -65,6 +65,9 @@ def read_videos(current_trial, topdown_vid_path, lefteye_vid_path=None, righteye
         # if it doesn't exist, make a version fo it that matches the dimensions of the topdown feed
         lefteye_vid_read = topdown_vid_read
 
+    if worldcam_vid_path is None and lefteye_vid_path is None and righteye_vid_path is None:
+        set_size = (td_width, td_height)
+
     # check frame length of each video -- are they the same?
     td_frame_count = int(topdown_vid_read.get(cv2.CAP_PROP_FRAME_COUNT))
     try:

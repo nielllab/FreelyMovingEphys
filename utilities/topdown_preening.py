@@ -37,7 +37,7 @@ TO DO:
 - eliminate the xr_looped_append() function and write a replacement [low priority]
 - add to description information about round_msec() function
 
-last modified: June 12, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 23, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 import pandas as pd
@@ -48,6 +48,7 @@ import xarray as xr
 import os
 from matplotlib import pyplot as plt
 import tkinter
+import math
 
 from utilities.data_reading import test_trial_presence
 from utilities.data_cleaning import split_xyl
@@ -171,8 +172,7 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
                     plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
                     plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
                     plt.savefig(fig1_path, dpi=300)
-                    if showfig is True:
-                        plt.show()
+                    plt.close()
 
 
                 # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
@@ -225,12 +225,12 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
                     plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go') # starting point
                     plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro') # ending point
                     plt.savefig(fig2_path, dpi=300)
-                    if showfig is True:
-                        plt.show()
+                    plt.close()
+
+                x_vals, y_vals, likeli_pts = split_xyl(pt_names, topdown_coordcor, 0.99)
+                timestamp_list = list(x_vals.index.values)
 
                 if savefig is True:
-                    x_vals, y_vals, likeli_pts = split_xyl(pt_names, topdown_coordcor, 0.99)
-                    timestamp_list = list(x_vals.index.values)
                     frame_slice = timestamp_list[0]
                     x_to_plot = x_vals.loc[[frame_slice]]
                     y_to_plot = y_vals.loc[[frame_slice]]
@@ -250,18 +250,70 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
                     plt.plot(int(x_to_plot.iloc[0,6]), int(y_to_plot.iloc[0,6]), 'ko')
                     plt.title('topdown dlc points at time ' + str(frame_slice) + ' of ' + str(current_trial))
                     plt.savefig(fig3_path, dpi=300)
-                    if showfig is True:
-                        plt.show()
+                    plt.close()
+
+                back_head_centroid = []
+                front_head_centroid = []
+                atan_head = []
+                for time in range(0, len(timestamp_list)):
+                    frame_slice = timestamp_list[time]
+                    x_to_plot = x_vals.loc[[frame_slice]]
+                    y_to_plot = y_vals.loc[[frame_slice]]
+                    sum_back_x_pts = sum([int(x_to_plot.iloc[0,6]), int(x_to_plot.iloc[0,3])])
+                    sum_back_y_pts = sum([int(y_to_plot.iloc[0, 6]), int(y_to_plot.iloc[0, 3])])
+
+                    back_head_centroid_timepoint = (sum_back_x_pts / 2, sum_back_y_pts / 2)
+                    front_head_centroid_timepoint = (int(x_to_plot.iloc[0,0]), int(y_to_plot.iloc[0,0]))
+                    atan_head_timepoint = math.atan((front_head_centroid_timepoint[1] - back_head_centroid_timepoint[1]) / (front_head_centroid_timepoint[0] - back_head_centroid_timepoint[0])) * 180 / math.pi
+
+                    back_head_centroid.append(back_head_centroid_timepoint)
+                    front_head_centroid.append(front_head_centroid_timepoint)
+                    atan_head.append(atan_head_timepoint)
+
+                if savefig is True:
+                    fig4_dir = savepath_input + '/' + current_trial + '/'
+                    if not os.path.exists(fig4_dir):
+                        os.makedirs(fig4_dir)
+                    fig4_path = fig4_dir + 'dlc_topdown_head_angle_timepoint.png'
+
+                    plt.figure(figsize=(15, 10))
+                    plt.plot([back_head_centroid_timepoint[0], front_head_centroid_timepoint[0]], [back_head_centroid_timepoint[1], front_head_centroid_timepoint[1]], 'bo-')
+                    plt.title('topdown head angle at start of trial')
+                    plt.savefig(fig4_path, dpi=300)
+                    plt.close()
+
+                if savefig is True:
+                    fig5_dir = savepath_input + '/' + current_trial + '/'
+                    if not os.path.exists(fig5_dir):
+                        os.makedirs(fig5_dir)
+                    fig5_path = fig5_dir + 'dlc_topdown_head_angle.png'
+
+                    plt.figure(figsize=(15, 10))
+                    plt.plot(atan_head)
+                    plt.title('topdown head angle')
+                    plt.xlabel('frame')
+                    plt.ylabel('angle')
+                    plt.savefig(fig5_path, dpi=300)
+                    plt.close()
 
                 # this trial's data with no NaNs both post-thresholding and post-y-coordinate correction
                 # mask the NaNs
-                topdown_likeli_thresh_nonan = xr.DataArray.dropna(likeli_thresh_allpts, dim='time', how='all')
-                topdown_likeli_thresh_nonan['trial'] = current_trial
+                complete_topdown_out = xr.DataArray.dropna(likeli_thresh_allpts, dim='time', how='all')
+                complete_topdown_out['trial'] = current_trial
+
+                # the below block does not work because it requires that all points are present to get the angle of the head, which is not true
+                # in this set of data
+                # need to implement changes so that it aligns from any head points that are avalible
+
+                # back_head_centroid = xr.DataArray(back_head_centroid, coords=[('time', topdown_coordcor.coords['time']), ('x/y', range(0,2))])
+                # front_head_centroid = xr.DataArray(front_head_centroid, coords=[('time', topdown_coordcor.coords['time']), ('x/y', range(0,2))])
+                # atan_head = xr.DataArray(atan_head, coords=[('time', topdown_coordcor.coords['time'])])
+                # complete_topdown_out = xr.concat([topdown_likeli_thresh_nonan, back_head_centroid, front_head_centroid, atan_head], dim='time')
 
                 # append this trial to all others now that processing is done
                 if trial_num == 0:
-                    all_topdown_output = topdown_likeli_thresh_nonan
+                    all_topdown_output = complete_topdown_out
                 elif trial_num > 0:
-                    all_topdown_output = xr.concat([all_topdown_output, topdown_likeli_thresh_nonan], dim='trial', fill_value=np.nan)
+                    all_topdown_output = xr.concat([all_topdown_output, complete_topdown_out], dim='trial', fill_value=np.nan)
 
     return all_topdown_output

@@ -5,7 +5,7 @@ corral_files.py of FreelyMovingEphys/file_management/
 Renames files so that there is a preceding 1 before single digits so that glob
 function can tell apart _1 from _11
 
-last modified: June 15, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 23, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 
@@ -57,16 +57,19 @@ def rename_files(vid_list, missing_zero_pos, save_path):
                 out.release()
                 cv2.destroyAllWindows()
 
-vid_path = '/Users/dylanmartins/data/Niell/PreyCapture/Cohort3/J463c(blue)/*/ApproachVids/'
-save_path = '/Users/dylanmartins/data/Niell/PreyCapture/Cohort3/J463c(blue)/110719/CorralledApproachVids/'
+main_path = '/home/dylan/data/Niell/PreyCapture/Cohort3/J463c(blue)/110719/ApproachData/'
+save_path = '/home/dylan/data/Niell/PreyCapture/Cohort3/J463c(blue)/110719/CorralledApproachDataDI/'
 
-righteye_vid_list = set(glob(vid_path + '*eye1r*.avi')) - set(glob(vid_path + '*DeInter*.avi'))
-lefteye_vid_list = set(glob(vid_path + '*eye2l*.avi')) - set(glob(vid_path + '*DeInter*.avi'))
-topdown_vid_list = set(glob(vid_path + '*top*.avi')) - set(glob(vid_path + '*DeInter*.avi'))
-worldcam_vid_list = set(glob(vid_path + '*world*.avi')) - set(glob(vid_path + '*DeInter*.avi'))
+topdown_file_list = glob(main_path + '*top*DeepCut*.h5')
+righteye_file_list = glob(main_path + '*eye1r*DeInter2*.h5')
+lefteye_file_list = glob(main_path + '*eye2l*DeInter2*.h5')
+right_TS = glob(main_path + '*eye1rTS*.csv')
+left_TS = glob(main_path + '*eye2lTS*.csv')
 
 # topdown=27, right/lefteye=29 right/lefttime=31 # topdowntime=29
 
-rename_files(righteye_vid_list, 29, save_path)
-rename_files(lefteye_vid_list, 29, save_path)
-rename_files(topdown_vid_list, 27, save_path)
+rename_files(topdown_file_list, 27, save_path)
+rename_files(righteye_file_list, 29, save_path)
+rename_files(lefteye_file_list, 29, save_path)
+rename_files(right_TS, 31, save_path)
+rename_files(left_TS, 31, save_path)

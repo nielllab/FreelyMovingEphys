@@ -6,7 +6,7 @@ Functions for dealing with time and time stamps of data structures for the Freel
 repository. read_time() reads in time functions and returns a list of timestamps associated
 with each video frame. It also returns the starting timestamp for each data input.
 
-last modified: June 11, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 23, 2020 by Dylan Martins (dmartins@uoregon.edu)
 """
 #####################################################################################
 
@@ -14,7 +14,20 @@ import pandas as pd
 from datetime import datetime
 
 ####################################################
-def read_time(data):
+def match_deinterlace(raw_time, timestep):
+    # match the length of deinterlaced videos with DLC point structures and videos that are twice the length of the timestamp files
+    out = []
+    for i in raw_time:
+        between_time = i + (timestep / 2)
+        out.append(i)
+        out.append(between_time)
+    return out
+
+####################################################
+def read_time(data, len_main):
+    # read in time values, correct their lengths
+    # takes in the time data and the lenght of the main point data it's associated with
+    # len_main is used to sort out if the time file is too short because of deinterlacing of video
     TS_read = pd.read_csv(data)
     TS_read.columns=['index', 'time']
     TS_read = TS_read['time']
@@ -31,8 +44,13 @@ def read_time(data):
     # not an ideal solution, but otherwise there are problems
     topdown_timestep = TS[-1] - TS[-2]
     TS.append(TS[-1] + topdown_timestep)
-    return TS, start, end
+    if len_main > len(TS):
+        time_out = match_deinterlace(TS, topdown_timestep)
+    elif len_main == len(TS):
+        time_out = TS
+    elif len_main < TS:
+        print('issue with read_time: more timepoints than there are data')
+    return time_out, start, end
 
 ####################################################
-
 
