@@ -1,4 +1,13 @@
-# Creates a function to find file of a given type in a path and recursively searches subfolders
+#####################################################################################
+"""
+find.py
+
+Creates a function to find file of a given type in a path and recursively searches subfolders
+
+last modified: June 19, 2020
+"""
+#####################################################################################
+
 import os
 import fnmatch
 

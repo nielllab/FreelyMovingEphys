@@ -1,11 +1,12 @@
 #####################################################################################
 """
-corral_files.py of FreelyMovingEphys/file_management/
+corral_files.py
 
-Renames files so that there is a preceding 1 before single digits so that glob
-function can tell apart _1 from _11
+Rename prey-capture DeepLabCut outputs and camera videos so that there is a preceding
+zero before a single digit number in the trial-identifying sections of file names.
+Use rename_files.py instead of corral_files.py
 
-last modified: June 23, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 23, 2020
 """
 #####################################################################################
 

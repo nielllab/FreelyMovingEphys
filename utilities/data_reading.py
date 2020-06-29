@@ -1,29 +1,22 @@
 #####################################################################################
 """
-data_reading.py of FreelyMovingEphys/utilities/
-(functions originally in the file load_from_DLC.py)
+data_reading.py
 
-Contains three helper functions: (1) read_dlc() opens .h5 files and organizes
-the column names of input data as a pandas DataFrame. (2) read_in_eye() reads in the
-left and right eye data passed to it from read_data(). Eye tag positions are renamed
-so that the side of the mouse's eye that the data comes from is in that column label.
-(3) read_data() is passed data files for as many cameras as user wants, and
-returns a pandas structure for each.
+Functions to read in DeepLabCut outputs
 
-last modified: June 11, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 27, 2020
 """
 #####################################################################################
 
-from glob import glob
+# import packages
 import pandas as pd
-import os.path
-import h5py
-import numpy as np
-import xarray as xr
-import h5netcdf
 
 ####################################################
+
 def read_dlc(dlcfile):
+    '''
+    Read in and manage column names of topdown data passed in in the form of .h5 files.
+    '''
     try:
         # read in .h5 file
         pts = pd.read_hdf(dlcfile)
@@ -32,11 +25,17 @@ def read_dlc(dlcfile):
         pts = pd.read_hdf(dlcfile, key='data')
     # organize columns of pts
     pts.columns = [' '.join(col[:][1:3]).strip() for col in pts.columns.values]
+    pts = pts.rename(columns={pts.columns[n]: pts.columns[n].replace(' ', '_') for n in range(len(pts.columns))})
     pt_loc_names = pts.columns.values
     return pts, pt_loc_names
 
 ####################################################
+
 def read_in_eye(data_input, side, num_points=8):
+    '''
+    Read in and manage column names of eye data passed in in the form of .h5 files.
+    '''
+
     # create list of eye points that matches data variables in data xarray
     eye_pts = []
     num_points_for_range = num_points + 1
@@ -70,7 +69,11 @@ def read_in_eye(data_input, side, num_points=8):
     return eye_data, eye_names
 
 ####################################################
+
 def read_data(topdown_input=None, lefteye_input=None, righteye_input=None):
+    '''
+    Read in topdown, left eye, and/or right eye .h5 files by calling above functions.
+    '''
 
     # read top-down camera data into xarray
     if topdown_input != None:
@@ -85,9 +88,11 @@ def read_data(topdown_input=None, lefteye_input=None, righteye_input=None):
     return topdown_pts, topdown_names, lefteye_pts, lefteye_names, righteye_pts, righteye_names
 
 ####################################################
-# test to make sure the trial exists before using it
-# this function is used in topdown_preening and check_tracking
+
 def test_trial_presence(data, trial_name):
+    '''
+    test to make sure the trial exists before using it. This function is used in topdown_preening.py and check_tracking.py.
+    '''
     try:
         data.sel(trial=trial_name)
         exists = True

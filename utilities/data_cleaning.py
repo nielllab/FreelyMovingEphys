@@ -1,10 +1,10 @@
 #####################################################################################
 """
-data_cleaning.py of FreelyMovingEphys/utilities/
+data_cleaning.py
 
-Various functions to preen xarray data.
+Functions to preen topdown and eye DLC data.
 
-last modified: June 15, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 15, 2020
 """
 #####################################################################################
 # imports
@@ -15,26 +15,20 @@ import pandas as pd
 #############################################
 def split_xyl(eye_names, eye_data, thresh):
     '''
-    Makes a separate pandas DataFrame out of x points and y points from left or right eye from xarray DataArray input
-    Also thresholds the likelihood values using input parameter
-    :param eye_names: names of each point in the eye data, a list
-    :param eye_data: an xarray of x points, y points, and likelihood of
-    :param thresh: likelihood threshold value, a decimal value equal to or less than 1
-    :return: x_vals, y_vals, likeli_pts
+    Makes a separate pandas DataFrame out of x and y points. Thresholds x and y points using likelihood threshold
+    provided as input parameter to function. Also returns likelihoods as a pandas DataFrame.
     '''
     x_locs = []
     y_locs = []
     likeli_locs = []
     for loc_num in range(0, len(eye_names)):
         loc = eye_names[loc_num]
-        if ' x' in loc:
+        if '_x' in loc:
             x_locs.append(loc)
-        elif ' y' in loc:
+        elif '_y' in loc:
             y_locs.append(loc)
-        elif ' likeli' in loc:
+        elif 'likeli' in loc:
             likeli_locs.append(loc)
-        elif loc is None:
-            print('loc is None')
 
     # get the xarray split up into x, y,and likelihood
     for loc_num in range(0, len(likeli_locs)):
@@ -64,10 +58,8 @@ def split_xyl(eye_names, eye_data, thresh):
     x_pts = xr.DataArray.squeeze(x_pts)
     y_pts = xr.DataArray.squeeze(y_pts)
 
-    # convert to dataframe, transpose so points are columns, and drop trailing NaNs
-    x_vals = pd.DataFrame.dropna(xr.DataArray.to_pandas(x_pts).T)
-    y_vals = pd.DataFrame.dropna(xr.DataArray.to_pandas(y_pts).T)
+    # convert to dataframe, transpose so points are columns
+    x_vals = xr.DataArray.to_pandas(x_pts).T
+    y_vals = xr.DataArray.to_pandas(y_pts).T
 
     return x_vals, y_vals, likeli_pts
-
-#############################################

@@ -1,18 +1,13 @@
 #####################################################################################
 """
-eye_tracking.py of FreelyMovingEphys
+eye_tracking.py
 
-Function eye_angles() takes in xarray DataArray of left and right eye videos. Will run
-with one or both eyes fine. Data are thresholded by likelihood, turned into
-pandas arrays, and passed to calc_ellipse() which gets out the least squares estimate
-for a 2D ellipse. The parameters of the ellipse estimated by calc_ellipse() is
-cleaned up by preen_then_get_eye_angles(), and through that, passed to get_eye_angles()
-to extract from the ellipse parameters the angle of the mouse's eye for each frame.
+Functions to track an eye from DLC points and return a set of ellipse parameters.
 
-Adapted from code by Elliott Abe, DLCEyeVids.py, especially for the functions
-get_eye_angles(), preen_then_get_eye_angles(), and calc_ellipse().
+Adapted from DLCEyeVids.py, especially the functions get_eye_angles(),
+preen_then_get_eye_angles(), and calc_ellipse().
 
-last modified: June 18, 2020 by Dylan Martins (dmartins@uoregon.edu)
+last modified: June 18, 2020
 """
 #####################################################################################
 
@@ -81,17 +76,20 @@ def calc_ellipse(num_frames, x_vals, y_vals, pxl_thresh):
     return theta, phi, longaxis_all, shortaxis_all, CamCent
 
 ####################################################
-def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_trial_time, showfig=False, savefig=False, thresh=0.99, pxl_thresh=50, side='left'):
-    # prepares data for use with Elliott's get_eye_angles
-    # runs on one eye at a time, but can run on both if needed
-    # pxl_thresh is the max number of pixels for radius of pupil
-    # thresh is the liklihood threshold
+def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_trial_time, savefig=False, thresh=0.99, pxl_thresh=50, side='left'):
+    '''
+    Prepares data for use with get_eye_angles, one eye at a time.
+    pxl_thresh is the max number of pixels for radius of pupil; thresh is the likelihood threshold
+    '''
     for trial_num in range(0, len(trial_id_list)):
         current_trial_name = trial_id_list[trial_num]
         if eye_data_input.sel(trial=current_trial_name) is not None:
             eye_data = eye_data_input.sel(trial=current_trial_name)
 
             x_vals, y_vals, likeli_vals = split_xyl(eye_names, eye_data, thresh)
+
+            x_vals = pd.DataFrame.dropna(x_vals)
+            y_vals = pd.DataFrame.dropna(y_vals)
 
             # get the number of frames
             num_frames = len(x_vals)
@@ -150,8 +148,6 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
             trial_ellipse_data = xr.DataArray(trial_ellipse_df, coords=[('time', time), ('ellipse_params', ellipse_params)])
             trial_ellipse_data['trial'] = current_trial_name
             trial_ellipse_data['eye_side'] = side
-            trial_ellipse_data['time_start'] = eye_data['time_start'].values
-            trial_ellipse_data['time_end'] = eye_data['time_end'].values
             trial_ellipse_data['cam_center_x'] = cam_center[0]
             trial_ellipse_data['cam_center_y'] = cam_center[1]
 
