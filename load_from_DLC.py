@@ -7,10 +7,12 @@ Through terminal, the user provides (1) a folder path for DeepLabCut .h5 files a
 camera timestamp .csv files, (2) a folder path for .avi videos from camera feeds, (3)
 a folder path into which outputs of load_from_DLC.py can be saved including plots,
 videos, and point position and eye ellipse data, (4) whether or not to save figures
-into the save path with the argument in y/n format, (5) whether or not to save out
-point and ellipse data as .nc files with the argument in bool y/n format, and (6) how
-many trial's to add into the cohort before preening the data and finding ellipses, etc.
-This is here, mostly, for the purposes of development.
+into the save path with the argument in y/n format, and (5) whether or not to save out
+point and ellipse data as .nc files with the argument in bool y/n format.
+Optional arguments include: -ll is how many trial's to add into the cohort before preening
+the data and finding ellipses, etc.; -lt is the likelihood threshold to use for DeepLabCut found
+point positions; -pt is the maximum number of pixels for radius of the pupil for eye tracking;
+-cc is the values with which topdown view y-coordinates can be corrected.
 
 Example terminal line to run the script:
 python3 load_from_DLC.py /dlc/h5/file/path/ /video/avi/file/path/ /path/to/save/data/and/videos/ y y -ll 2
@@ -28,7 +30,7 @@ and saves out the videos in .mp4 format. Data are stored in xarray DataArrays du
 use, and saved out as a .nc file right after being converted to one all-encompassing
 Dataset which contains all points and ellipse parameters for all trials.
 
-last modified: June 28, 2020
+last modified: June 30, 2020
 """
 #####################################################################################
 # package imports
@@ -48,7 +50,7 @@ from utilities.check_tracking import parse_data_for_playback
 from utilities.eye_calibration import plot_check_eye_calibration
 
 # get user inputs
-parser = argparse.ArgumentParser(description='process dlc data and corresponding videos')
+parser = argparse.ArgumentParser(description='Process DeepLabCut data and corresponding videos.', epilog='The DeepLabCut data must include a set of topdown points, and can contain up to two eyes. The videos must include a topdown video, and may optionallly include one or both eyes and/or a worldcam. Timestamp files in .csv file format must be present in the DeepLabCut folder for every camera that has video files. If a timestamp file is missing, the corresponding camera cannot be read in.')
 parser.add_argument('dlcpath', help='a file path where the dlc .h5 files can be found for the trial(s) of interest')
 parser.add_argument('vidpath', help='a file path where corrosponding eye, topdown, and worldcam videos can be found as .avi files')
 parser.add_argument('savepath', help='a file path into which figures, videos, and dlc points can be saved')
@@ -57,6 +59,7 @@ parser.add_argument('savenc', help='save out .nc file of all ddlc data for all t
 parser.add_argument('-ll', '--looplim', help='number of unique trials to loop through, type=int, if nothing passed, looplim=100', type=int)
 parser.add_argument('-lt', '--likthresh', help='number of unique trials to loop through, type=int, if nothing passed, likthresh=0.99', type=int)
 parser.add_argument('-pt', '--pxlthresh', help='max number of pixels for radius of pupil, type=int, if nothing passed, pxlthresh=50', type=int)
+parser.add_argument('-cc', '--coordcor', help='values with which to correct y-coordinates i topdown view, type=int, if nothing passed, coordcor=0', type=int)
 
 args = parser.parse_args()
 
@@ -85,6 +88,11 @@ if args.pxlthresh:
     pixel_thresh = args.pxlthresh
 else:
     pixel_thresh = 50
+
+if args.coordcor:
+    coordcor = args.coordcor
+else:
+    coordcor = 0
 
 # find the files wanted from the given args.dlcpath and args.vidpath
 # DeepLabCut point locations
@@ -204,7 +212,7 @@ for file in topdown_file_list:
 
 # process the topdown data
 print('preening top-down points')
-preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, args.savepath, savefig=savefig, coord_correction_val=0, thresh=likelihood_thresh)
+preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, args.savepath, savefig=savefig, coord_correction_val=coordcor, thresh=likelihood_thresh)
 preened_topdown = xr.DataArray.rename(preened_topdown, 'topdown')
 
 # get the ellipse parameters out from the DLC points of each eye

@@ -5,7 +5,7 @@ check_tracking.py
 Functions to open .avi videos and plot on these videos the DeepLabCut points and ellipse
 parameters for any eyes which may have been provided in the formats of an xarray DataArrays.
 
-last modified: June 24, 2020
+last modified: June 30, 2020
 """
 #####################################################################################
 # import packages
@@ -99,13 +99,13 @@ def plot_pts_on_video(topdown_vid_read, worldcam_vid_read=None, lefteye_vid_read
     Combine all video feeds into one video with DLC points and ellipse parameters plotted over the mouse videos.
     '''
 
-    topdown_data = topdown_data.sel(time=slice(td_startframe,td_endframe))
+    topdown_data = topdown_data.isel(time=slice(td_startframe,td_endframe))
     if left_ellipse is not None:
-        left_ellipse = left_ellipse.sel(time=slice(left_startframe, left_endframe))
-        left_pts = left_pts.sel(time=slice(left_startframe, left_endframe))
+        left_ellipse = left_ellipse.isel(time=slice(left_startframe, left_endframe))
+        left_pts = left_pts.isel(time=slice(left_startframe, left_endframe))
     if right_ellipse is not None:
-        right_ellipse = right_ellipse.sel(time=slice(right_startframe, right_endframe))
-        right_pts = right_pts.sel(time=slice(right_startframe, right_endframe))
+        right_ellipse = right_ellipse.isel(time=slice(right_startframe, right_endframe))
+        right_pts = right_pts.isel(time=slice(right_startframe, right_endframe))
 
     # get list of timestamps
     topdown_pd = xr.DataArray.to_pandas(topdown_data).T
@@ -115,24 +115,36 @@ def plot_pts_on_video(topdown_vid_read, worldcam_vid_read=None, lefteye_vid_read
 
     # get ready to write the combined video file
     savepath = str(savepath_input) + '/' + str(trial_name) + '/' + str(trial_name) + '.mp4'
-    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     main_width = (set_size[0] * 2)
     main_height = (set_size[1] * 2)
-
     out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (main_width, main_height))
 
-    # set frame counts to the aligned starting points based on DataArray timestamps
-    righteye_vid_read = righteye_vid_read.set(cv2.CAP_PROP_POS_FRAMES, right_startframe)
-    lefteye_vid_read = lefteye_vid_read.set(cv2.CAP_PROP_POS_FRAMES, left_startframe)
-    topdown_vid_read = topdown_vid_read.set(cv2.CAP_PROP_POS_FRAMES, td_startframe)
-
     while(1):
+        # set frame counts to the aligned starting points based on DataArray timestamps
+        # value 2 tells cv2 that the frame to be captured next will be provided in the next argument, right_startframe
+        # if topdown_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == 0:
+        #     righteye_vid_read = righteye_vid_read.set(2, right_startframe)
+        #     lefteye_vid_read = lefteye_vid_read.set(2, left_startframe)
+        #     topdown_vid_read = topdown_vid_read.set(2, td_startframe)
+
         # get frame of each video
         ret_re, frame_re = righteye_vid_read.read()
         ret_le, frame_le = lefteye_vid_read.read()
         ret_wc, frame_wc = worldcam_vid_read.read()
         ret_td, frame_td = topdown_vid_read.read()
+
+        # exit the video feed if one of the frames was not received right
+        if ret_re is False or ret_le is False or ret_wc is False or ret_td is False:
+            print('cannot receive frame from one of inputs... exiting now')
+            break
+
+        # end the video writing if any of the captures reach their final frame
+        if topdown_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == td_endframe or lefteye_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == left_endframe or righteye_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == right_endframe:
+            print('reached end of frame for one of inputs... exiting now')
+            out_vid.release()
+            cv2.destroyAllWindows()
+            break
 
         # as long as the frames all exist (they're duplicated from the topdown feed if any are missing, so the frames
         # should exist even if the camera input doesn't)...
@@ -256,9 +268,6 @@ def plot_pts_on_video(topdown_vid_read, worldcam_vid_read=None, lefteye_vid_read
             bottom_row_vids = np.concatenate((frame_le_resized, frame_re_resized), axis=1)
             all_vids = np.concatenate((top_row_vids, bottom_row_vids), axis=0)
 
-            # display the frame with the window titled with the trial's name
-            cv2.imshow(trial_name, all_vids)
-
             # save the frame into out_vid to be saved as a file
             out_vid.write(all_vids)
         else:
@@ -267,8 +276,8 @@ def plot_pts_on_video(topdown_vid_read, worldcam_vid_read=None, lefteye_vid_read
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    out_vid.release()
-    cv2.destroyAllWindows()
+        out_vid.release()
+        cv2.destroyAllWindows()
 
 ####################################################
 def parse_data_for_playback(savepath_input, trial_list, preened_topdown, left_ellipse=None, right_ellipse=None,

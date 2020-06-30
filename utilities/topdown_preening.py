@@ -46,7 +46,7 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
                 y_data = topdown_interp.sel(point_loc=y_names) - coord_correction_val
                 x_data = topdown_interp.sel(point_loc=x_names)
                 l_data = topdown_interp.sel(point_loc=l_names)
-                topdown_coordcor = xr.concat([x_data, y_data, l_data], dim='time', fill_value=np.nan)
+                topdown_coordcor = xr.concat([x_data, y_data, l_data], dim='point_loc', fill_value=np.nan)
 
                 # make figure of nose position over time, with start and finish labeled in green and red respectively
                 if savefig is True:
