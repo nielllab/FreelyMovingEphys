@@ -1,4 +1,4 @@
-# quick script to play videos saved out of load_from_DLC.py by functions in check_tracking.py
+# quick script to play videos saved out of load_from_DLC.py by functions in check_all_tracking.py
 
 import numpy as np
 import cv2

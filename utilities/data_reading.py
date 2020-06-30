@@ -91,7 +91,7 @@ def read_data(topdown_input=None, lefteye_input=None, righteye_input=None):
 
 def test_trial_presence(data, trial_name):
     '''
-    test to make sure the trial exists before using it. This function is used in topdown_preening.py and check_tracking.py.
+    test to make sure the trial exists before using it. This function is used in topdown_preening.py and check_all_tracking.py.
     '''
     try:
         data.sel(trial=trial_name)

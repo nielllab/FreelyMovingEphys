@@ -37,7 +37,7 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
         if test_trial is True:
             with all_topdown_data.sel(trial=current_trial) as topdown_data:
                 # interpolate across NaNs fro each point_loc, then piece dataset back together
-                topdown_interp = xr.DataArray.interpolate_na(topdown_data, dim='time', use_coordinate='time', method='linear')
+                topdown_interp = xr.DataArray.interpolate_na(topdown_data, dim='frame', use_coordinate='frame', method='linear')
 
                 # for each point location in the topdown input data, select y head points and subtract them from int to fix coordinates
                 y_names = [name for name in pt_names if '_y' in name]
@@ -82,7 +82,7 @@ def preen_topdown_data(all_topdown_data, trial_list, pt_names, savepath_input, c
                         # select only the likelihood data for this point
                         likeli_pt = topdown_coordcor.sel(point_loc=current_pt_loc)
 
-                        # set x/y coords to NaN where the liklihood is below threshold value
+                        # set x/y coords to NaN where the likelihood is below threshold value
                         assoc_x_pt[likeli_pt < thresh] = np.nan
                         assoc_y_pt[likeli_pt < thresh] = np.nan
 

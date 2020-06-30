@@ -1,6 +1,6 @@
 #####################################################################################
 """
-check_tracking.py
+check_all_tracking.py
 
 Functions to open .avi videos and plot on these videos the DeepLabCut points and ellipse
 parameters for any eyes which may have been provided in the formats of an xarray DataArrays.
@@ -66,7 +66,7 @@ def read_videos(current_trial, topdown_vid_path, lefteye_vid_path=None, righteye
         # if it doesn't exist, make a version of it that matches the dimensions of the topdown feed
         lefteye_vid_read = topdown_vid_read
 
-    if worldcam_vid_path is None and lefteye_vid_path is None and righteye_vid_path is None:
+    if worldcam_vid_path is None & lefteye_vid_path is None & righteye_vid_path is None:
         set_size = (td_width, td_height)
 
     # check frame length of each video -- are they the same?
@@ -135,12 +135,12 @@ def plot_pts_on_video(topdown_vid_read, worldcam_vid_read=None, lefteye_vid_read
         ret_td, frame_td = topdown_vid_read.read()
 
         # exit the video feed if one of the frames was not received right
-        if ret_re is False or ret_le is False or ret_wc is False or ret_td is False:
+        if ret_re is False | ret_le is False | ret_wc is False | ret_td is False:
             print('cannot receive frame from one of inputs... exiting now')
             break
 
         # end the video writing if any of the captures reach their final frame
-        if topdown_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == td_endframe or lefteye_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == left_endframe or righteye_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == right_endframe:
+        if topdown_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == td_endframe | lefteye_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == left_endframe | righteye_vid_read.get(cv2.CAP_PROP_POS_FRAMES) == right_endframe:
             print('reached end of frame for one of inputs... exiting now')
             out_vid.release()
             cv2.destroyAllWindows()
@@ -148,7 +148,7 @@ def plot_pts_on_video(topdown_vid_read, worldcam_vid_read=None, lefteye_vid_read
 
         # as long as the frames all exist (they're duplicated from the topdown feed if any are missing, so the frames
         # should exist even if the camera input doesn't)...
-        if np.shape(frame_re) != () and np.shape(frame_le) != () and np.shape(frame_wc) != () and np.shape(frame_td) != ():
+        if np.shape(frame_re) != () & np.shape(frame_le) != () & np.shape(frame_wc) != () & np.shape(frame_td) != ():
             # some aesthetics
             font = cv2.FONT_HERSHEY_SIMPLEX
             plot_color0 = (225, 255, 0)
@@ -300,10 +300,10 @@ def parse_data_for_playback(savepath_input, trial_list, preened_topdown, left_el
         print('mouse_key = ' + mouse_key + ' trial_key = ' + trial_key)
 
         # find video files
-        righteye_vids = [i for i in righteye_vid_list if mouse_key and trial_key in i]
-        lefteye_vids = [i for i in lefteye_vid_list if mouse_key and trial_key in i]
-        topdown_vids = [i for i in topdown_vid_list if mouse_key and trial_key in i]
-        worldcam_vids = [i for i in worldcam_vid_list if mouse_key and trial_key in i]
+        righteye_vids = [i for i in righteye_vid_list if mouse_key & trial_key in i]
+        lefteye_vids = [i for i in lefteye_vid_list if mouse_key & trial_key in i]
+        topdown_vids = [i for i in topdown_vid_list if mouse_key & trial_key in i]
+        worldcam_vids = [i for i in worldcam_vid_list if mouse_key & trial_key in i]
         # this turns it into a string from a list of only one string item
         topdown_vid = topdown_vids[0]
         try:
@@ -330,7 +330,7 @@ def parse_data_for_playback(savepath_input, trial_list, preened_topdown, left_el
 
             # test each case of absence/presence of DLC-based ellipse data for eyes
             # NOT looking at presence/absence of videos, that will be dealt with in function read_videos()
-            if test_trial_le is True and test_trial_re is True:
+            if test_trial_le is True & test_trial_re is True:
                 # get the left and right data for the current trial
                 leftellipse_data = left_ellipse.sel(trial=current_trial)
                 rightellipse_data = right_ellipse.sel(trial=current_trial)
@@ -352,7 +352,7 @@ def parse_data_for_playback(savepath_input, trial_list, preened_topdown, left_el
                                   td_startframe, td_endtime, left_startframe, left_endtime, right_startframe, right_endtime, first_real_time, last_real_time)
 
             # do the same as above, for trials in which there is a left eye and no right eye
-            elif test_trial_le is True and test_trial_re is False:
+            elif test_trial_le is True & test_trial_re is False:
                 leftellipse_data = left_ellipse.sel(trial=current_trial)
                 trial_lefteye = left_pts.sel(trial=current_trial)
                 # then, read in the video files to get them ready to be plotted on
@@ -363,7 +363,7 @@ def parse_data_for_playback(savepath_input, trial_list, preened_topdown, left_el
                                   current_trial=current_trial, savepath_input=savepath_input)
 
             # do the same as above, for trials in which there is a right eye and no left eye
-            elif test_trial_le is False and test_trial_re is True:
+            elif test_trial_le is False & test_trial_re is True:
                 rightellipse_data = right_ellipse.sel(trial=current_trial)
                 trial_righteye = right_pts.sel(trial=current_trial)
                 # then, read in the video files to get them ready to be plotted on
@@ -374,7 +374,7 @@ def parse_data_for_playback(savepath_input, trial_list, preened_topdown, left_el
                                   right_pts=trial_lefteye, current_trial=current_trial, savepath_input=savepath_input)
 
             # do the same as above, for trials in which there are no eye DLC files
-            elif test_trial_le is False and test_trial_re is False:
+            elif test_trial_le is False & test_trial_re is False:
                 # then, read in the video files to get them ready to be plotted on
                 topdown_vid_read, worldcam_vid_read, lefteye_vid_read, righteye_vid_read, set_size, len_dict = read_videos(current_trial, topdown_vid, worldcam_vid)
                 # then, plot points on them on the videos, display them in a window, and save them out

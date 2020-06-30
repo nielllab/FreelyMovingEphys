@@ -25,7 +25,7 @@ topdown camera data are thresholded by DLC likelihood values and (optionally) co
 a coordinate value in topdown_preening.py. Eye points are passed to eye_tracking.py to
 threshold by likelihood and get out ellipse parameters, which are returned also in an
 xarray DataArray format. Once these DataArrays are all created, they're passed to
-check_tracking.py which plots the DLC points and ellipse parameters on the .avi videos,
+check_all_tracking.py which plots the DLC points and ellipse parameters on the .avi videos,
 and saves out the videos in .mp4 format. Data are stored in xarray DataArrays during
 use, and saved out as a .nc file right after being converted to one all-encompassing
 Dataset which contains all points and ellipse parameters for all trials.
@@ -40,14 +40,16 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import argparse
+import warnings
 
 # function imports
 from utilities.topdown_preening import preen_topdown_data
 from utilities.eye_tracking import eye_angles
 from utilities.time_management import read_time
 from utilities.data_reading import read_data
-from utilities.check_tracking import parse_data_for_playback
+from utilities.check_all_tracking import parse_data_for_playback
 from utilities.eye_calibration import plot_check_eye_calibration
+from utilities.check_ind_tracking import plot_pts_on_vid
 
 # get user inputs
 parser = argparse.ArgumentParser(description='Process DeepLabCut data and corresponding videos.', epilog='The DeepLabCut data must include a set of topdown points, and can contain up to two eyes. The videos must include a topdown video, and may optionallly include one or both eyes and/or a worldcam. Timestamp files in .csv file format must be present in the DeepLabCut folder for every camera that has video files. If a timestamp file is missing, the corresponding camera cannot be read in.')
@@ -129,12 +131,12 @@ for file in topdown_file_list:
         trial_key = file_name[17:28]
 
         # find the right/left eye DLC files that match the topdown DLC file
-        righteye_files = [i for i in righteye_file_list if mouse_key and trial_key in i]
-        lefteye_files = [i for i in lefteye_file_list if mouse_key and trial_key in i]
+        righteye_files = [i for i in righteye_file_list if mouse_key & trial_key in i]
+        lefteye_files = [i for i in lefteye_file_list if mouse_key & trial_key in i]
         # find the camera time files that match the topdown DLC file
-        topdown_time_files = [i for i in topdown_time_file_list if mouse_key and trial_key in i]
-        lefteye_time_files = [i for i in lefteye_time_file_list if mouse_key and trial_key in i]
-        righteye_time_files = [i for i in righteye_time_file_list if mouse_key and trial_key in i]
+        topdown_time_files = [i for i in topdown_time_file_list if mouse_key & trial_key in i]
+        lefteye_time_files = [i for i in lefteye_time_file_list if mouse_key & trial_key in i]
+        righteye_time_files = [i for i in righteye_time_file_list if mouse_key & trial_key in i]
 
         # the above lines return lists of one string, this converts them into just a string
         lefteye_file = lefteye_files[0]
@@ -170,41 +172,72 @@ for file in topdown_file_list:
         # build one DataArray that stacks up all topdown trials in separate dimensions
         if topdown_time is not None:
             if loop_count == 0:
-                topdown = xr.DataArray(topdown_pts, coords=[topdown_time, topdown_pts.columns], dims=['time', 'point_loc'])
+                # topdown = xr.DataArray(topdown_pts, coords=[topdown_time, topdown_pts.columns], dims=['time', 'point_loc'])
+                topdown_pt_len = range(0,len(topdown_pts))
+                topdown = xr.DataArray(topdown_pts, coords=[topdown_pt_len, topdown_pts.columns], dims=['frame', 'point_loc'])
                 topdown['trial'] = trial_id
+                # create a DataArray of time values, where time are the data and coords and arbitrary indices
+                topdownTS = xr.DataArray(topdown_time, dims=['pos'])
+                topdownTS.name = 'lefteye_timestamps'
+                topdownTS['trial'] = trial_id
             elif loop_count > 0:
-                topdown_trial = xr.DataArray(topdown_pts, coords=[topdown_time, topdown_pts.columns], dims=['time', 'point_loc'])
+                # topdown_trial = xr.DataArray(topdown_pts, coords=[topdown_time, topdown_pts.columns], dims=['time', 'point_loc'])
+                topdown_pt_len = range(0, len(topdown_pts))
+                topdown_trial = xr.DataArray(topdown_pts, coords=[topdown_pt_len, topdown_pts.columns], dims=['frame', 'point_loc'])
                 topdown_trial['trial'] = trial_id
                 topdown = xr.concat([topdown, topdown_trial], dim='trial', fill_value=np.nan)
+                # timestamps (concat new to full)
+                new_topdownTS = xr.DataArray(topdown_time, dims=['pos'])
+                new_topdownTS['trial'] = trial_id
+                topdownTS = xr.concat([topdownTS, new_topdownTS], dim='trial', fill_value=np.nan)
         elif topdown_time is None:
             print('trial ' + trial_id + ' has no topdown time data')
 
         # build one DataArray that stacks up all trials in separate dimensions for each of two possible eyes
-        if lefteye_pts is not None and lefteye_time is not None:
+        if lefteye_pts is not None & lefteye_time is not None:
             if loop_count == 0:
-                lefteye = xr.DataArray(lefteye_pts, coords=[lefteye_time, lefteye_pts.columns], dims=['time', 'point_loc'])
+                # create a DataArray of left eye point positions
+                lefteye_pt_len = range(0, len(lefteye_pts))
+                lefteye = xr.DataArray(lefteye_pts, coords=[lefteye_pt_len, lefteye_pts.columns], dims=['frame', 'point_loc'])
                 lefteye['trial'] = trial_id
                 lefteye_time_df = pd.DataFrame(lefteye_time,columns=[trial_id])
+                # create a DataArray of time values, where time are the data and coords and arbitrary indices
+                lefteyeTS = xr.DataArray(lefteye_time, dims=['pos'])
+                lefteyeTS.name = 'lefteye_timestamps'
+                lefteyeTS['trial'] = trial_id
             elif loop_count > 0:
-                lefteye_trial = xr.DataArray(lefteye_pts, coords=[lefteye_time, lefteye_pts.columns], dims=['time', 'point_loc'])
+                # point positions (concat new to full)
+                lefteye_trial = xr.DataArray(lefteye_pts, coords=[lefteye_pt_len, lefteye_pts.columns], dims=['frame', 'point_loc'])
                 lefteye_trial['trial'] = trial_id
                 lefteye = xr.concat([lefteye, lefteye_trial], dim='trial', fill_value=np.nan)
                 lefteye_time_df_to_append = pd.DataFrame(lefteye_time,columns=[trial_id])
                 lefteye_time_df = lefteye_time_df.join(lefteye_time_df_to_append)
+                # timestamps (concat new to full)
+                new_lefteyeTS = xr.DataArray(lefteye_time, dims=['pos'])
+                new_lefteyeTS['trial'] = trial_id
+                lefteyeTS = xr.concat([lefteyeTS, new_lefteyeTS], dim='trial', fill_value=np.nan)
         elif lefteye_pts is None or lefteye_time is None:
             print('trial ' + trial_id + ' has no left eye camera data')
 
-        if righteye_pts is not None and righteye_time is not None:
+        if righteye_pts is not None & righteye_time is not None:
             if loop_count == 0:
                 righteye = xr.DataArray(righteye_pts, coords=[righteye_time, righteye_pts.columns], dims=['time', 'point_loc'])
                 righteye['trial'] = trial_id
                 righteye_time_df = pd.DataFrame(righteye_time,columns=[trial_id])
+                # create a DataArray of time values, where time are the data and coords and arbitrary indices
+                righteyeTS = xr.DataArray(righteye_time, dims=['pos'])
+                righteyeTS.name = 'lefteye_timestamps'
+                righteyeTS['trial'] = trial_id
             elif loop_count > 0:
                 righteye_trial = xr.DataArray(righteye_pts, coords=[righteye_time, righteye_pts.columns], dims=['time', 'point_loc'])
                 righteye_trial['trial'] = trial_id
                 righteye = xr.concat([righteye, righteye_trial], dim='trial', fill_value=np.nan)
                 righteye_time_df_to_append = pd.DataFrame(righteye_time,columns=[trial_id])
                 righteye_time_df = righteye_time_df.join(righteye_time_df_to_append)
+                # timestamps (concat new to full)
+                new_righteyeTS = xr.DataArray(righteye_time, dims=['pos'])
+                new_righteyeTS['trial'] = trial_id
+                righteyeTS = xr.concat([righteyeTS, new_righteyeTS], dim='trial', fill_value=np.nan)
         elif righteye_pts is None or righteye_time is None:
             print('trial ' + trial_id + ' has no right eye camera data')
 
@@ -216,12 +249,51 @@ preened_topdown = preen_topdown_data(topdown, trial_id_list, topdown_names, args
 preened_topdown = xr.DataArray.rename(preened_topdown, 'topdown')
 
 # get the ellipse parameters out from the DLC points of each eye
-print('getting left eye angles')
-left_ellipse = eye_angles(lefteye, lefteye_names, trial_id_list, args.savepath, lefteye_time_df, savefig=savefig, side='left', pxl_thresh=pixel_thresh)
-left_ellipse = xr.DataArray.rename(left_ellipse, 'left_ellipse')
-print('getting right eye angles')
-right_ellipse = eye_angles(righteye, righteye_names, trial_id_list, args.savepath, righteye_time_df, savefig=savefig, side='right', pxl_thresh=pixel_thresh)
-right_ellipse = xr.DataArray.rename(right_ellipse, 'right_ellipse')
+with warnings.catch_warnings():
+    # ignore a reoccurring runtime error while running the ellipse parameter functions
+    warnings.simplefilter("ignore")
+
+    print('getting left eye angles')
+    left_ellipse = eye_angles(lefteye, lefteye_names, trial_id_list, args.savepath, lefteye_time_df, savefig=savefig, side='left', pxl_thresh=pixel_thresh)
+    left_ellipse = xr.DataArray.rename(left_ellipse, 'left_ellipse')
+    print('getting right eye angles')
+    right_ellipse = eye_angles(righteye, righteye_names, trial_id_list, args.savepath, righteye_time_df, savefig=savefig, side='right', pxl_thresh=pixel_thresh)
+    right_ellipse = xr.DataArray.rename(right_ellipse, 'right_ellipse')
+
+for current_trial in trial_id_list:
+    mouse_key = current_trial[6:11]
+    trial_key = current_trial[18:]
+
+    righteye_vids = [i for i in righteye_vid_list if mouse_key & trial_key in i]
+    lefteye_vids = [i for i in lefteye_vid_list if mouse_key & trial_key in i]
+    topdown_vids = [i for i in topdown_vid_list if mouse_key & trial_key in i]
+    worldcam_vids = [i for i in worldcam_vid_list if mouse_key & trial_key in i]
+
+    try:
+        topdown_vid = topdown_vids[0]
+        td_pt_data = preened_topdown.sel(trial=current_trial)
+        plot_pts_on_vid(current_trial, 'topdown', topdown_vid, args.savepath, td_pt_data)
+    except IndexError:
+        pass
+    try:
+        righteye_vid = righteye_vids[0]
+        re_pt_data = righteye.sel(trial=current_trial)
+        re_pt_ell = right_ellipse.sel(trial=current_trial)
+        plot_pts_on_vid(current_trial, 'righteye', righteye_vid, args.savepath, re_pt_data, re_pt_ell)
+    except IndexError:
+        pass
+    try:
+        worldcam_vid = worldcam_vids[0]
+        plot_pts_on_vid(current_trial, 'worldcam', worldcam_vid, args.savepath)
+    except IndexError:
+        pass
+    try:
+        lefteye_vid = lefteye_vids[0]
+        le_pt_data = lefteye.sel(trial=current_trial)
+        le_pt_ell = left_ellipse.sel(trial=current_trial)
+        plot_pts_on_vid(current_trial, 'lefteye', lefteye_vid, args.savepath, le_pt_data, le_pt_ell)
+    except IndexError:
+        pass
 
 # confirm that the eye tracking has done an alright job
 # print('checking calibration of eyes') # THIS DOES NOT WORK YET
@@ -248,7 +320,7 @@ if savenc is True:
     gathered.to_netcdf(gathered_path)
 
 # playback the videos and save out a combined alinged video with feeds stitched side-by-side
-print('parsing data and video files for plotting and playback')
-parse_data_for_playback(args.savepath, trial_id_list, preened_topdown, left_ellipse, right_ellipse,
-                        topdown_vid_list, lefteye_vid_list, righteye_vid_list, worldcam_vid_list,
-                        topdown_names, lefteye_names, righteye_names, left_pts=lefteye, right_pts=righteye)
+# print('parsing data and video files for plotting and playback')
+# parse_data_for_playback(args.savepath, trial_id_list, preened_topdown, left_ellipse, right_ellipse,
+#                         topdown_vid_list, lefteye_vid_list, righteye_vid_list, worldcam_vid_list,
+#                         topdown_names, lefteye_names, righteye_names, left_pts=lefteye, right_pts=righteye)

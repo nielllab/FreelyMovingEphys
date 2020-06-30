@@ -97,13 +97,12 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
             # make a plot of an example frame, showing the points of the ellipse
             # a way to make sure the data are somewhat elliptical
             if savefig is True:
-                timestamp_list = x_vals.index.values
-                frame_slice = timestamp_list[3]
+                frame_slice = 3
                 x_to_plot = x_vals.loc[[frame_slice]]
                 y_to_plot = y_vals.loc[[frame_slice]]
                 plt.figure(figsize=(15,10))
                 plt.scatter(x_to_plot, y_to_plot, color='r')
-                plt.title('dlc points at time ' + str(frame_slice) + ' of ' + str(side) + ' eye of ' + str(current_trial_name))
+                plt.title('dlc points at frame ' + str(frame_slice) + ' of ' + str(side) + ' eye of ' + str(current_trial_name))
                 plt.savefig(savepath_input + '/' + current_trial_name + '/' + 'dlc_eye_pts_at_time_' + str(frame_slice) + '.png', dpi=300)
                 plt.close()
 
@@ -133,19 +132,19 @@ def eye_angles(eye_data_input, eye_names, trial_id_list, savepath_input, all_tri
 
             # turn DataFrame into an xr DataArray, name the dims, fill in metadata (the trial name, which eye it is, etc.)
             ellipse_params = ['theta', 'phi', 'longaxis_all', 'shortaxis_all']
-            len_index = len(x_vals.index.values)
-            len_data = len(trial_ellipse_df)
-            len_diff = len_index - len_data
-            if len_index > len_data:
-                time = x_vals.index.values[:-len_diff]
-            elif len_index < len_data:
-                step = x_vals.index.values[-1] - x_vals.index.values[-2]
-                time = x_vals.index.values
-                time.append(x_vals.index.values[-1] + step)
-            elif len_index == len_data:
-                time = x_vals.index.values
+            # len_index = len(x_vals.index.values)
+            # len_data = len(trial_ellipse_df)
+            # len_diff = len_index - len_data
+            # if len_index > len_data:
+            #     time = x_vals.index.values[:-len_diff]
+            # elif len_index < len_data:
+            #     step = x_vals.index.values[-1] - x_vals.index.values[-2]
+            #     time = x_vals.index.values
+            #     time.append(x_vals.index.values[-1] + step)
+            # elif len_index == len_data:
+            #     time = x_vals.index.values
 
-            trial_ellipse_data = xr.DataArray(trial_ellipse_df, coords=[('time', time), ('ellipse_params', ellipse_params)])
+            trial_ellipse_data = xr.DataArray(trial_ellipse_df, coords=[('frame', range(0, len(trial_ellipse_df))), ('ellipse_params', ellipse_params)])
             trial_ellipse_data['trial'] = current_trial_name
             trial_ellipse_data['eye_side'] = side
             trial_ellipse_data['cam_center_x'] = cam_center[0]
