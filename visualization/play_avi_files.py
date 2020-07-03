@@ -3,12 +3,16 @@
 import numpy as np
 import cv2
 
-cap = cv2.VideoCapture('/home/dylan/data/Niell/PreyCapture/Cohort3Outputs/J463c(blue)_110719/analysis_test_U13d/mouse_J463c_trial_1_110719_03/mouse_J463c_trial_1_110719_03.mp4')
-trial_name = 'mouse_J463c_trial_1_110719_03'
+cap = cv2.VideoCapture('/home/dylan/data/Niell/PreyCapture/Cohort3Outputs/J463c(blue)_110719/outputs_02A/mouse_J463c_trial_1_110719_05/mouse_J463c_trial_1_110719_05_t.mp4')
+trial_name = 'mouse_J463c_trial_1_110719_05'
 
 while 1:
 
     ret, frame = cap.read()
+
+    if not ret:
+        break
+
     cv2.imshow(trial_name, frame)
     cv2.waitKey(60)
     if cv2.waitKey(1) & 0xFF == ord('q'):

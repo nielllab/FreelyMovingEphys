@@ -40,11 +40,7 @@ def plot_check_eye_calibration(all_eye_ellipses, all_eye_dlc_pts, trial_id_list,
             thetaphi_diff = np.concatenate(thetas, phis).T - camcenter
             xvals = np.linalg.norm(thetaphi_diff, ord=None)
             yvals = pix2deg_scale * np.sqrt(1-(shortaxes) / longaxes)**2
-            plt.figure(figsize=(15,10))
+            plt.figure(figsize=(10,10))
             plt.plot(xvals, yvals, 'k.')
             plt.savefig(savepath_input + '/' + current_trial_name + '/' + str(side) + '_side_ellipse_calibration.png', dpi=300)
             plt.close()
-
-# code to step into this file and run line by line
-# all_eye_ellipses = left_ellipse
-# ellipse_data = all_eye_ellipses.sel(trial='mouse_J463c_trial_1_110719_03')
