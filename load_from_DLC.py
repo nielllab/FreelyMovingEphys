@@ -43,13 +43,13 @@ import argparse
 import warnings
 
 # function imports
-from utilities.topdown_preening import preen_topdown_data
-from utilities.eye_tracking import eye_angles
-from utilities.time_management import read_time
-from utilities.data_reading import read_data
-from utilities.check_all_tracking import parse_data_for_playback
-from utilities.eye_calibration import plot_check_eye_calibration
-from utilities.check_ind_tracking import plot_pts_on_vid
+from util_old.topdown_preening import preen_topdown_data
+from util_old.eye_tracking import eye_angles
+from util_old.time_management import read_time
+from util_old.data_reading import read_data
+from util_old.check_all_tracking import parse_data_for_playback
+from util_old.eye_calibration import plot_check_eye_calibration
+from util_old.check_ind_tracking import plot_pts_on_vid
 
 # get user inputs
 parser = argparse.ArgumentParser(description='Process DeepLabCut data and corresponding videos.', epilog='The DeepLabCut data must include a set of topdown points, and can contain up to two eyes. The videos must include a topdown video, and may optionallly include one or both eyes and/or a worldcam. Timestamp files in .csv file format must be present in the DeepLabCut folder for every camera that has video files. If a timestamp file is missing, the corresponding camera cannot be read in.')

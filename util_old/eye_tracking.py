@@ -17,7 +17,7 @@ from skimage import measure
 import xarray as xr
 import matplotlib.pyplot as plt
 
-from utilities.data_cleaning import split_xyl
+from util_old.data_cleaning import split_xyl
 
 ####################################################
 def get_eye_angles(ellipseparams):

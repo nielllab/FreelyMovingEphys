@@ -14,7 +14,7 @@ Last modified: June 24, 2020
 import math
 import numpy as np
 
-from utilities.data_cleaning import split_xyl
+from util_old.data_cleaning import split_xyl
 
 def rotmat(theta):
     m = [[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]]

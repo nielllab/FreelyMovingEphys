@@ -19,8 +19,8 @@ import numpy as np
 import xarray as xr
 
 # import functions
-from utilities.data_reading import test_trial_presence
-from utilities.time_management import find_first_time
+from util_old.data_reading import test_trial_presence
+from util_old.time_management import find_first_time
 ####################################################
 def plot_pts_on_vid(trial_name, camtype, vid_path, savepath, dlc_data=None, ell_data=None):
     '''

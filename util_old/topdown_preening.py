@@ -21,9 +21,9 @@ import math
 
 matplotlib.use('TkAgg')
 
-from utilities.data_reading import test_trial_presence
-from utilities.data_cleaning import split_xyl
-from utilities.head_angle import align_head
+from util_old.data_reading import test_trial_presence
+from util_old.data_cleaning import split_xyl
+from util_old.head_angle import align_head
 
 ####################################################
 

@@ -4,7 +4,6 @@ rename_files.py
 
 Rename prey-capture DeepLabCut outputs and camera videos so that there is a preceding
 zero before a single digit number in the trial-identifying sections of file names.
-An improved version of corral_files.py.
 
 last modified: June 24, 2020
 """
