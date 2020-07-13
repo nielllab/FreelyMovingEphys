@@ -134,15 +134,15 @@ for top1dlcpath in topdown1_dlc_files:
                 gatheredeye = xr.merge([vpts, vcleanpts, vtheta])
             elif v != 'v1':
                 concattop = xr.merge([vpts, vcleanpts, vtheta])
-                gatheredeye = xr.concat([gatheredtop, concattop])
+                gatheredeye = xr.concat([gatheredeye, concattop])
         except IndexError:
             pass
     if top1dlcpath == topdown1_dlc_files[0]:
-        gatheredtop['trial'] = key
-        topout = gatheredtop
+        gatheredeye['trial'] = key
+        eyeout = gatheredeye
     elif top1dlcpath != topdown1_dlc_files[0]:
-        gatheredtop['trial'] = key
-        topout = xr.concat([topout, gatheredtop], dim='trial', fill_value=np.nan)
+        gatheredeye['trial'] = key
+        eyeout = xr.concat([topout, gatheredeye], dim='trial', fill_value=np.nan)
 
 savecomplete(topout, args.global_save_path, 'tops')
 savecomplete(eyeout, args.global_save_path, 'eyes')
