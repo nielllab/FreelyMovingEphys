@@ -10,7 +10,7 @@ import os
 import xarray as xr
 
 # module imports
-from util.read_data import open_h5, open_time
+from util.read_data import open_h5, open_time, read_paths
 from util.track_eye import eye_tracking # , check_eye_calibration
 from util.track_topdown import topdown_tracking # , head_angle
 from util.plot_video import check_tracking
@@ -25,8 +25,13 @@ def topdown_intake(data_path, file_name, save_path, lik_thresh, coord_cor, topdo
     try:
         h5_path = os.path.join(data_path, file_name) + '.h5'
 
-        # read in .h5 DLC data
-        pts, names = open_h5(h5_path)
+        if bonsaitime is True:
+            csv_path = os.path.join(data_path, file_name) + '_BonsaiTS.csv'
+        elif bonsaitime is False:
+            csv_path = os.path.join(data_path, file_name) + '_FlirTS.csv'
+
+        # build xarray out of paths
+        pts, names, times = read_paths(h5_path, csv_path)
 
         # interpolate, threshold, and plot safety-checks
         clean_pts = topdown_tracking(pts, names, save_path, file_name, lik_thresh, coord_cor, topdown_pt_num, cricket)
@@ -36,7 +41,7 @@ def topdown_intake(data_path, file_name, save_path, lik_thresh, coord_cor, topdo
 
         topout = xr.merge([pts, clean_pts])
     except FileNotFoundError:
-        print('missing DLC file... output DLC xarray object is type None')
+        print('missing either DLC or time file... output DLC xarray object is type None')
         h5_path = None
         topout = None
 
@@ -53,25 +58,7 @@ def topdown_intake(data_path, file_name, save_path, lik_thresh, coord_cor, topdo
         print('missing video file... no output video object is being saved')
         avi_path = None
 
-    try:
-        if bonsaitime is True:
-            csv_path = os.path.join(data_path, file_name) + '_BonsaiTS.csv'
-        elif bonsaitime is False:
-            csv_path = os.path.join(data_path, file_name) + '_FlirTS.csv'
-
-        # read in .csv timestamps
-        if h5_path is not None:
-            time = open_time(csv_path, len(pts))
-            xtime = xr.DataArray(time)
-        elif h5_path is None:
-            time = open_time(csv_path)
-            xtime = xr.DataArray(time)
-    except FileNotFoundError:
-        print('missing time file... output time object is type None')
-        csv_path = None
-        xtime = None
-
-    return topout, xtime
+    return topout
 
 # eye cam function access
 def eye_intake(data_path, file_name, save_path, lik_thresh, pxl_thresh, ell_thresh, eye_pt_num, tear, bonsaitime):

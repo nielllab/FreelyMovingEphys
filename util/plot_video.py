@@ -2,11 +2,12 @@
 FreelyMovingEphys plotting on top of videos of any source
 plot_video.py
 
-Last modified July 10, 2020
+Last modified July 12, 2020
 """
 
 # package imports
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
@@ -92,6 +93,7 @@ def check_tracking(trial_name, camtype, vid_path, savepath, dlc_data=None, ell_d
                         ellipse_theta = int(leftellipseTS.sel(ellipse_params='theta').values)
                         ellipse_phi = int(leftellipseTS.sel(ellipse_params='phi').values)
                         plot_lellipse = cv2.ellipse(frame_le, ellipse_center, ellipse_axes, ellipse_theta, 0, 360, plot_color0, 4)
+
                     except ValueError:
                         plot_lellipse = frame_le
 
@@ -125,59 +127,6 @@ def check_tracking(trial_name, camtype, vid_path, savepath, dlc_data=None, ell_d
 
         out_vid.release()
         cv2.destroyAllWindows()
-
-    # elif camtype == 'r':
-    #     while (1):
-    #         # read the frame for this pass through while loop
-    #         ret_re, frame_re = vidread.read()
-    #
-    #         if not ret_re:
-    #             break
-    #
-    #         # get current frame number to be displayed, so that it can be used to slice DLC data
-    #         frame_time = vidread.get(cv2.CAP_PROP_POS_FRAMES)
-    #
-    #         try:
-    #             rightellipseTS = ell_data.sel(frame=frame_time)
-    #             try:
-    #                 # get out ellipse parameters and plot them on the video
-    #                 ellipse_center = (int(rightellipseTS['cam_center_x'].values), int(rightellipseTS['cam_center_y'].values))
-    #                 ellipse_longaxis = int(rightellipseTS.sel(ellipse_params='longaxis_all').values)
-    #                 ellipse_shortaxis = int(rightellipseTS.sel(ellipse_params='shortaxis_all').values)
-    #                 ellipse_axes = (ellipse_longaxis, ellipse_shortaxis)
-    #                 ellipse_theta = int(rightellipseTS.sel(ellipse_params='theta').values)
-    #                 ellipse_phi = int(rightellipseTS.sel(ellipse_params='phi').values)
-    #                 plot_rellipse = cv2.ellipse(frame_re, ellipse_center, ellipse_axes, ellipse_theta, 0, 360,
-    #                                             plot_color0, 4)
-    #             except ValueError:
-    #                 plot_rellipse = frame_re
-    #
-    #             for k in range(0, 24, 3):
-    #                 try:
-    #                     # get out the DLC points and plot them on the video
-    #                     rightptsTS = dlc_data.sel(time=frame_time)
-    #                     le_pts_x = rightptsTS.isel(point_loc=k)
-    #                     le_pts_y = rightptsTS.isel(point_loc=k + 1)
-    #                     le_center_xy = (int(le_pts_x), int(le_pts_y))
-    #                     if k == 0:
-    #                         # plot them on the fresh righteye frame
-    #                         plot_rellipse = cv2.circle(plot_rellipse, le_center_xy, 6, plot_color1, -1)
-    #                     elif k >= 3:
-    #                         # plot them on the righteye frame with all past lefteye points
-    #                         plot_rellipse = cv2.circle(plot_rellipse, le_center_xy, 6, plot_color1, -1)
-    #                 except ValueError:
-    #                     # print('ignoring ValueError raised by right eye DLC points')
-    #                     pass
-    #
-    #         except KeyError:
-    #             plot_rellipse = plot_rellipse
-    #
-    #         out_vid.write(plot_rellipse)
-    #         if cv2.waitKey(1) & 0xFF == ord('q'):
-    #             break
-    #
-    #     out_vid.release()
-    #     cv2.destroyAllWindows()
 
     elif camtype == 'w':
         while (1):

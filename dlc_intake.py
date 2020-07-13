@@ -18,8 +18,8 @@ import warnings
 
 # module imports
 from util.read_data import find_paths, read_paths
-from util.track_topdown import topdown_tracking, head_angle
-from util.track_eye import eye_tracking, check_eye_calibration
+from util.track_topdown import topdown_tracking #, head_angle
+from util.track_eye import eye_tracking #, check_eye_calibration
 from util.plot_video import check_tracking
 from util.save_data import savecomplete
 
@@ -128,13 +128,13 @@ for top1dlcpath in topdown1_dlc_files:
             print('tracking eye camera view ' + str(v) + ' for ' + str(key))
             vpts = eyedlc.sel(view=v)
             vparams = eye_tracking(vpts, eyenames, args.global_save_path, key, args.lik_thresh, args.pxl_thresh, args.eye_pt_num, args.tear)
-            check_eye_calibration(vparams, vpts, args.global_save_path, key, args.ell_thresh)
+            # check_eye_calibration(vparams, vpts, args.global_save_path, key, args.ell_thresh)
             check_tracking(key, 't', top1vidpath, args.savepath, dlc_data=vpts, ell_data=vparams)
             if v == 'v1':
-                gatheredeye = xr.merge([vpts, vcleanpts, vtheta])
+                gatheredeye = xr.merge([vpts, vparams])
             elif v != 'v1':
-                concattop = xr.merge([vpts, vcleanpts, vtheta])
-                gatheredeye = xr.concat([gatheredeye, concattop])
+                concateye = xr.merge([vpts, vparams])
+                gatheredeye = xr.concat([gatheredeye, concateye])
         except IndexError:
             pass
     if top1dlcpath == topdown1_dlc_files[0]:
@@ -144,8 +144,16 @@ for top1dlcpath in topdown1_dlc_files:
         gatheredeye['trial'] = key
         eyeout = xr.concat([topout, gatheredeye], dim='trial', fill_value=np.nan)
 
-savecomplete(topout, args.global_save_path, 'tops')
-savecomplete(eyeout, args.global_save_path, 'eyes')
+try:
+    savecomplete(topout, args.global_save_path, 'tops')
+except NameError:
+    print('no top .nc file saved because no data was passed')
+try:
+    savecomplete(eyeout, args.global_save_path, 'eyes')
+except NameError:
+    print('no eye .nc file saved because no data was passed')
+
+
 
 
 

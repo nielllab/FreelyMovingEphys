@@ -28,10 +28,9 @@ def open_h5(path):
 
 # for dlc_intake's use of open_h5, prevents errors if data does not exist
 def try_open_h5(list_path):
-    # dlc_intake passes in a list of one value
     try:
         path = list_path[0]
-    except IndexError:
+    except KeyError:
         path = list_path
     try:
         pts, pt_loc_names = open_h5(path)
@@ -72,16 +71,14 @@ def open_time(path, num_timepoints_in_pts=None):
     return time_out
 
 def try_open_time(list_path, num_timepoints_in_pts=None):
-    # dlc_intake passes in a list of one value
     try:
         path = list_path[0]
-    except IndexError:
+    except KeyError:
         path = list_path
     # test to see if data exist, read in if exists
     time_out = open_time(path, num_timepoints_in_pts)
 
     return time_out
-
 
 # convert xarray DataArray of DLC x and y positions and likelihood values into separate pandas data structures
 def split_xyl(eye_names, eye_data, thresh):
@@ -137,12 +134,18 @@ def find_paths(main_path, glob_keys):
 
 # build an xarray DataArray of between zero and three camera inputs
 def read_paths(path1=None, timepath1=None, path2=None, timepath2=None, path3=None, timepath3=None):
-    view1, names1 = try_open_h5(path1)
-    view2, names2 = try_open_h5(path2)
-    view3, names3 = try_open_h5(path3)
-    time1 = try_open_time(timepath1, len(view1))
-    time2 = try_open_time(timepath2, len(view2))
-    time3 = try_open_time(timepath3, len(view3))
+    if path1 is not None:
+        view1, names1 = try_open_h5(path1)
+    if path2 is not None:
+        view2, names2 = try_open_h5(path2)
+    if path3 is not None:
+        view3, names3 = try_open_h5(path3)
+    if timepath1 is not None:
+        time1 = try_open_time(timepath1, len(view1))
+    if timepath2 is not None:
+        time2 = try_open_time(timepath2, len(view2))
+    if timepath3 is not None:
+        time3 = try_open_time(timepath3, len(view3))
 
     if view1 is not None:
         xdata = xr.DataArray(view1, dims=['frame', 'point_loc'])
