@@ -2,7 +2,7 @@
 FreelyMovingEphys topdown tracking utilities
 track_topdown.py
 
-Last modified July 08, 2020
+Last modified July 14, 2020
 """
 
 # package imports
@@ -23,8 +23,6 @@ def rotmat(theta):
 # find angle of head at all time points
 # def head_angle():
 
-
-
 # track topdown position by calling other functions, takes in ONE trial at a time
 def topdown_tracking(topdown_data, topdown_pt_names, savepath, trial_name, lik_thresh, coord_cor, topdown_pt_num, cricket):
     # make directory for figure saving, if it does not already exist
@@ -42,7 +40,6 @@ def topdown_tracking(topdown_data, topdown_pt_names, savepath, trial_name, lik_t
     x_data = topdown_interp.sel(point_loc=x_names)
     l_data = topdown_interp.sel(point_loc=l_names)
     topdown_coordcor = xr.concat([x_data, y_data, l_data], dim='point_loc', fill_value=np.nan)
-
 
     nose_x_pts = topdown_coordcor.sel(point_loc='nose_x')
     nose_y_pts = topdown_coordcor.sel(point_loc='nose_y')

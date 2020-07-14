@@ -2,7 +2,7 @@
 FreelyMovingEphys plotting on top of videos of any source
 plot_video.py
 
-Last modified July 12, 2020
+Last modified July 14, 2020
 """
 
 # package imports
@@ -12,7 +12,7 @@ import numpy as np
 import xarray as xr
 
 # open video from camera of any type passed in, plot its DLC points over the video feed, and save out as an .avi format
-def check_tracking(trial_name, camtype, vid_path, savepath, dlc_data=None, ell_data=None, head_ang=None):
+def check_tracking(trial_name, camtype, vid_path, savepath, dlc_data=None, ell_data=None, head_ang=None, vext=None):
 
     # read topdown video in
     vidread = cv2.VideoCapture(vid_path)
@@ -20,7 +20,7 @@ def check_tracking(trial_name, camtype, vid_path, savepath, dlc_data=None, ell_d
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     # setup the file to save out of this
-    savepath = str(savepath) + '/' + str(trial_name) + '/' + str(trial_name) + '_' + str(camtype) + '.avi'
+    savepath = str(savepath) + '/' + str(trial_name) + '/' + str(trial_name) + '_' + vext + '.avi'
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (width, height))
 

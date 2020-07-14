@@ -2,7 +2,7 @@
 FreelyMovingEphys data reading utilities
 read_data.py
 
-Last modified July 12, 2020
+Last modified July 14, 2020
 """
 
 # package imports
@@ -26,20 +26,6 @@ def open_h5(path):
 
     return pts, pt_loc_names
 
-# for dlc_intake's use of open_h5, prevents errors if data does not exist
-def try_open_h5(list_path):
-    try:
-        path = list_path[0]
-    except KeyError:
-        path = list_path
-    try:
-        pts, pt_loc_names = open_h5(path)
-    except NotImplementedError:
-        pts = None
-        pt_loc_names = None
-
-    return pts, pt_loc_names
-
 # match the length of deinterlaced videos with DLC point structures and videos
 def match_deinterlace(raw_time, timestep):
     out = []
@@ -53,7 +39,7 @@ def match_deinterlace(raw_time, timestep):
 # read in the timestamps for a camera and adjust to deinterlaced video length if needed
 def open_time(path, num_timepoints_in_pts=None):
     # read in the timestamps
-    TS_read = pd.read_csv(path, names=['time'])
+    TS_read = pd.read_csv(open(path, 'rU'), encoding='utf-8', engine='c', names=['time'])
     TS_read['time'] = pd.to_datetime(TS_read['time'])
     time_out = TS_read['time']
 
@@ -67,16 +53,6 @@ def open_time(path, num_timepoints_in_pts=None):
         elif num_timepoints_in_pts < len(TS_read['time']):
             print('issue with read_time: more timepoints than there are data')
             time_out = TS_read['time']
-
-    return time_out
-
-def try_open_time(list_path, num_timepoints_in_pts=None):
-    try:
-        path = list_path[0]
-    except KeyError:
-        path = list_path
-    # test to see if data exist, read in if exists
-    time_out = open_time(path, num_timepoints_in_pts)
 
     return time_out
 
@@ -134,35 +110,63 @@ def find_paths(main_path, glob_keys):
 
 # build an xarray DataArray of between zero and three camera inputs
 def read_paths(path1=None, timepath1=None, path2=None, timepath2=None, path3=None, timepath3=None):
-    if path1 is not None:
-        view1, names1 = try_open_h5(path1)
-    if path2 is not None:
-        view2, names2 = try_open_h5(path2)
-    if path3 is not None:
-        view3, names3 = try_open_h5(path3)
-    if timepath1 is not None:
-        time1 = try_open_time(timepath1, len(view1))
-    if timepath2 is not None:
-        time2 = try_open_time(timepath2, len(view2))
-    if timepath3 is not None:
-        time3 = try_open_time(timepath3, len(view3))
+    # assumes that if path1 is not None, timepath1 will not be None
+    if path1 is not None and path1 != []:
+        if isinstance(path1, list):
+            view1, names1 = open_h5(path1[0])
+        else:
+            view1, names1 = open_h5(path1)
+        if isinstance(timepath1, list):
+            time1 = open_time(timepath1[0], len(view1))
+        else:
+            time1 = open_time(timepath1, len(view1))
+        v1read = xr.DataArray(view1, dims=['frame', 'point_loc'])
+        v1read.name = 'v1'
+        v1time = pd.DataFrame(time1, columns=['v1'])
+    elif path1 is None or path1 == []:
+        view1 = None
+        names1 = None
+        time1 = None
+    if path2 is not None and path2 != []:
+        if isinstance(path2, list):
+            view2, names2 = open_h5(path2[0])
+        else:
+            view2, names2 = open_h5(path2)
+        if isinstance(timepath2, list):
+            time2 = open_time(timepath2[0], len(view2))
+        else:
+            time2 = open_time(timepath2, len(view2))
+        v2read = xr.DataArray(view2, dims=['frame', 'point_loc'])
+        v2read.name = 'v2'
+        v2time = pd.DataFrame(time2, columns=['v2'])
+    elif path2 is None or path2 == []:
+        view2 = None
+        time2 = None
+    if path3 is not None and path3 != []:
+        if isinstance(path3, list):
+            view3, names3 = open_h5(path3[0])
+        else:
+            view3, names3 = open_h5(path3)
+        if isisntance(timepath3, list):
+            time3 = open_time(timepath3[0], len(view3))
+        else:
+            time3 = open_time(timepath3, len(view3))
+        v3read = xr.DataArray(view3, dims=['frame', 'point_loc'])
+        v3read.name = 'v3'
+        v3time = pd.DataFrame(time3, columns=['v3'])
+    elif path3 is None or path3 == []:
+        view3 = None
+        time3 = None
 
     if view1 is not None:
-        xdata = xr.DataArray(view1, dims=['frame', 'point_loc'])
-        xdata['view'] = 'v1'
-        alltime = pd.DataFrame(time1, columns=['v1'])
+        xdata = xr.DataArray.to_dataset(v1read)
+        alltime = v1time
         if view2 is not None:
-            v2 = xr.DataArray(view2, dims=['frame', 'point_loc'])
-            v2['view'] = 'v2'
-            xdata = xr.concat([xdata, v2], dim='view', fill_value=np.nan)
-            v2t = pd.DataFrame(time2, columns=['v2'])
-            alltime = alltime.join(v2t)
+            xdata = xr.merge([xdata, v2read])
+            alltime = alltime.join(v2time)
             if view3 is not None:
-                v3 = xr.DataArray(view3, dims=['frame', 'point_loc'])
-                v3['view'] = 'v3'
-                xdata = xr.concat([xdata, v3], dim='view', fill_value=np.nan)
-                v3t = pd.DataFrame(time3, columns=['v3'])
-                alltime = alltime.join(v3t)
+                xdata = xr.merge([xdata, v3read])
+                alltime = alltime.join(v3time)
     elif view1 is None:
         xdata = None
         alltime = None
@@ -170,16 +174,3 @@ def read_paths(path1=None, timepath1=None, path2=None, timepath2=None, path3=Non
         xtime = xr.DataArray(alltime)
 
     return xdata, xtime, names1
-
-
-
-
-
-
-
-
-
-
-
-
-

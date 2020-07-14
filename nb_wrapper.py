@@ -1,8 +1,8 @@
 """
-FreelyMovingEphys wrapper functions to access analysis functions
+FreelyMovingEphys wrapper functions to access analysis functions from jupyter
 nb_wrapper.py
 
-Last modified July 12, 2020
+Last modified July 14, 2020
 """
 
 # package imports
@@ -20,9 +20,16 @@ def topdown_intake(data_path, file_name, save_path, lik_thresh, coord_cor, topdo
     dir = os.path.join(save_path, file_name)
     if not os.path.exists(dir):
         os.makedirs(dir)
+        print('created save directory at ' + str(dir))
+    elif os.path.exists(dir):
+        print('using existing save directory ' + str(dir))
+
+    # get view extension
+    viewext = file_name.split('_')[-1]
 
     # get the complete path to the topdown trial named in the jupyter notebook
     try:
+        print('attempting dlc and time data reads...')
         h5_path = os.path.join(data_path, file_name) + '.h5'
 
         if bonsaitime is True:
@@ -31,15 +38,22 @@ def topdown_intake(data_path, file_name, save_path, lik_thresh, coord_cor, topdo
             csv_path = os.path.join(data_path, file_name) + '_FlirTS.csv'
 
         # build xarray out of paths
-        pts, names, times = read_paths(h5_path, csv_path)
+        pts, times, names = read_paths(h5_path, csv_path)
 
+        print('attempting dlc data processing...')
         # interpolate, threshold, and plot safety-checks
+        pts = xr.Dataset.to_array(pts)
+        pts = xr.DataArray.sel(pts, variable='v1')
+
         clean_pts = topdown_tracking(pts, names, save_path, file_name, lik_thresh, coord_cor, topdown_pt_num, cricket)
 
         # get head angle, plot safety-checks
         # theta = head_angle(clean_pts, names, lik_thresh)
 
+        pts.name = 'raw_pt_values'
+        clean_pts.name = 'output_pt_values'
         topout = xr.merge([pts, clean_pts])
+        print('dlc operations complete')
     except FileNotFoundError:
         print('missing either DLC or time file... output DLC xarray object is type None')
         h5_path = None
@@ -49,11 +63,13 @@ def topdown_intake(data_path, file_name, save_path, lik_thresh, coord_cor, topdo
         avi_path = os.path.join(data_path, file_name) + '.avi'
 
         if h5_path is not None:
+            print('plotting points on video')
             # plot head points and head angle on video
-            check_tracking(file_name, 't', avi_path, save_path, dlc_data=clean_pts)
+            check_tracking(file_name, 't', avi_path, save_path, dlc_data=clean_pts, vext=viewext)
         elif h5_path is None:
+            print('saving video without points')
             # plot video without DLC data
-            check_tracking(file_name, 't', avi_path, save_path)
+            check_tracking(file_name, 't', avi_path, save_path, vext=viewext)
     except FileNotFoundError:
         print('missing video file... no output video object is being saved')
         avi_path = None
@@ -65,21 +81,34 @@ def eye_intake(data_path, file_name, save_path, lik_thresh, pxl_thresh, ell_thre
     dir = os.path.join(save_path, file_name)
     if not os.path.exists(dir):
         os.makedirs(dir)
+        print('created save directory at ' + str(dir))
+    elif os.path.exists(dir):
+        print('using existing save directory ' + str(dir))
 
     # get the complete path to the eye trial named in the jupyter notebook
     try:
+        print('attempting dlc and time data reads...')
         h5_path = os.path.join(data_path, file_name) + '.h5'
 
-        # read in .h5 DLC data
-        pts, names = open_h5(h5_path)
+        if bonsaitime is True:
+            csv_path = os.path.join(data_path, file_name) + '_BonsaiTS.csv'
+        elif bonsaitime is False:
+            csv_path = os.path.join(data_path, file_name) + '_FlirTS.csv'
 
+        # read in .h5 DLC data
+        pts, times, names = read_paths(h5_path, csv_path)
+
+        print('attempting ellipse calculations...')
         # calculate ellipse and get eye angles
         params = eye_tracking(pts, names, save_path, file_name, lik_thresh, pxl_thresh, eye_pt_num, tear)
 
         # get head angle, plot safety-checks
         # theta = head_angle(clean_pts, names, lik_thresh)
 
+        pts.name = 'raw_pt_values'
+        params.name = 'ellipse_param_values'
         eyeout = xr.merge([pts, params])
+        print('ellipse calculations complete')
     except FileNotFoundError:
         print('missing DLC file... output DLC xarray object is type None')
         h5_path = None
@@ -89,31 +118,15 @@ def eye_intake(data_path, file_name, save_path, lik_thresh, pxl_thresh, ell_thre
         avi_path = os.path.join(data_path, file_name) + '.avi'
 
         if h5_path is not None:
+            print('plotting points on video')
             # plot eye points and ellipses on video
-            check_tracking(file_name, 'e', avi_path, save_path, dlc_data=pts, ell_data=params)
+            check_tracking(file_name, 'e', avi_path, save_path, dlc_data=pts, ell_data=params, vext=viewext)
         elif h5_path is None:
             # plot video without DLC data
-            check_tracking(file_name, 'e', avi_path, save_path)
+            print('saving video without points')
+            check_tracking(file_name, 'e', avi_path, save_path, vext=viewext)
     except FileNotFoundError:
         print('missing video file... no output video object is being saved')
         avi_path = None
 
-    try:
-        if bonsaitime is True:
-            csv_path = os.path.join(data_path, file_name) + '_BonsaiTS.csv'
-        elif bonsaitime is False:
-            csv_path = os.path.join(data_path, file_name) + '_FlirTS.csv'
-
-        # read in .csv timestamps
-        if h5_path is not None:
-            time = open_time(csv_path, len(pts))
-            xtime = xr.DataArray(time)
-        elif h5_path is None:
-            time = open_time(csv_path)
-            xtime = xr.DataArray(time)
-    except FileNotFoundError:
-        print('missing time file... output time object is type None')
-        csv_path = None
-        xtime = None
-
-    return eyeout, xtime
+    return eyeout

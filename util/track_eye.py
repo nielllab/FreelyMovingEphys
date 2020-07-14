@@ -2,7 +2,7 @@
 FreelyMovingEphys eye tracking utilities
 track_eye.py
 
-Last modified July 08, 2020
+Last modified July 14, 2020
 """
 
 # package imports
@@ -81,8 +81,10 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir)
 
+    eye_interp = xr.DataArray.interpolate_na(eye_data, dim='frame', use_coordinate='frame', method='linear')
+
     # break xarray into a pandas structure so it can be used by functions that get out the eye angle
-    x_vals, y_vals, likeli_vals = split_xyl(eye_pt_names, eye_data, lik_thresh)
+    x_vals, y_vals, likeli_vals = split_xyl(eye_pt_names, eye_interp, lik_thresh)
 
     # drop_tear
     if tear is True:
@@ -100,12 +102,12 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
     plt.plot(theta * 180 / np.pi)
     plt.xlabel('frame')
     plt.ylabel('angle')
-    plt.title(str(trial_name) +' theta over time')
+    plt.title(str(trial_name) + ' theta over time')
     plt.subplot(212)
     plt.plot(phi * 180 / np.pi)
     plt.xlabel('frame')
     plt.ylabel('angle')
-    plt.title(str(trial_name) +' phi over time')
+    plt.title(str(trial_name) + ' phi over time')
     plt.savefig(fig_dir + 'theta_phi_traces.png', dpi=300)
     plt.close()
 
@@ -119,24 +121,3 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
     ellipse_out['cam_center_y'] = cam_center[1]
 
     return ellipse_out
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

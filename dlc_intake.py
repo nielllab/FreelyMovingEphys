@@ -2,9 +2,9 @@
 FreelyMovingEphys terminal-facing DeepLabCut data intake
 dlc_intake.py
 
-Terminal-facing script to reach dlc- and video-handling functions in repository's directory /util/
+Terminal-facing script to reach dlc- and video-handling functions
 
-last modified: July 12, 2020
+last modified: July 14, 2020
 """
 
 # package imports
@@ -41,20 +41,20 @@ args = parser.parse_args()
 
 print('getting DLC, video, and  time files')
 # find DLC files in global_data_path
-dlc_glob_keys = ['*Top1*.h5', '*Top2*.h5', '*Top3*.h5', '*REye*.h5', '*LEye*.h5']
+dlc_glob_keys = ['*TOP1*.h5', '*TOP2*.h5', '*TOP3*.h5', '*REye*.h5', '*LEye*.h5']
 dlc_paths = find_paths(args.global_data_path, dlc_glob_keys)
 topdown1_dlc_files = dlc_paths[0]; topdown2_dlc_files = dlc_paths[1]; topdown3_dlc_files = dlc_paths[2]
 righteye_dlc_files = dlc_paths[3]; lefteye_dlc_files = dlc_paths[4]
 
 # find video files in global_data_path
-vid_glob_keys = ['*Top1*.avi', '*Top2*.avi', '*Top3*.avi', '*REye*.avi', '*LEye*.avi', '*RWorld*.avi', '*LWorld*.avi']
+vid_glob_keys = ['*TOP1*.avi', '*TOP2*.avi', '*TOP3*.avi', '*REye*.avi', '*LEye*.avi', '*RWorld*.avi', '*LWorld*.avi']
 vid_paths = find_paths(args.global_data_path, vid_glob_keys)
 topdown1_vid_files = vid_paths[0]; topdown2_vid_files = vid_paths[1]; topdown3_vid_files = vid_paths[2]
 righteye_vid_files = vid_paths[3]; lefteye_vid_files = vid_paths[4]
 rightworld_vid_files = vid_paths[5]; leftworld_vid_files = vid_paths[6]
 
 # find time files in global_data_path
-time_glob_keys = ['*Top1*BonsaiTS.csv', '*Top2*BonsaiTS.csv', '*Top3*BonsaiTS.csv', '*REye*BonsaiTS.csv', '*LEye*BonsaiTS.csv', '*RWorld*BonsaiTS.csv', '*LWorld*BonsaiTS.csv']
+time_glob_keys = ['*TOP1*BonsaiTS.csv', '*TOP2*BonsaiTS.csv', '*TOP3*BonsaiTS.csv', '*REye*BonsaiTS.csv', '*LEye*BonsaiTS.csv', '*RWorld*BonsaiTS.csv', '*LWorld*BonsaiTS.csv']
 time_paths = find_paths(args.global_data_path, time_glob_keys)
 topdown1_time_files = time_paths[0]; topdown2_time_files = time_paths[1]; topdown3_time_files = time_paths[2]
 righteye_time_files = time_paths[3]; lefteye_time_files = time_paths[4]
@@ -62,35 +62,51 @@ rightworld_time_files = time_paths[5]; leftworld_time_files = time_paths[6]
 
 for top1dlcpath in topdown1_dlc_files:
     top1fullname = os.path.split(top1dlcpath)[1]
-    key = top1fullname.split('_')[:-1]
+    key_pieces = top1fullname.split('_')[:-1]
+    key = '_'.join(key_pieces)
+
     print('starting on ' + str(key))
 
-    # get associated DLC files for top1dlcpath
-    top2dlcpath = [i for i in topdown2_dlc_files if key in i]
-    top3dlcpath = [i for i in topdown3_dlc_files if key in i]
-    eyeLdlcpath = [i for i in lefteye_dlc_files if key in i]
-    eyeRdlcpath = [i for i in righteye_dlc_files if key in i]
+    # in the case where there's only one DLC file for each camera type (i.e. one trial only), run this...
+    if len(topdown1_dlc_files) == 1:
+        top2dlcpath = topdown2_dlc_files; top3dlcpath = topdown3_dlc_files
+        eyeLdlcpath = lefteye_dlc_files; eyeRdlcpath = righteye_dlc_files
+        top1vidpath = topdown1_vid_files; top2vidpath = topdown2_vid_files; top3vidpath = topdown3_vid_files
+        eyeLvidpath = lefteye_vid_files; eyeRvidpath = righteye_vid_files
+        worldLvidpath = leftworld_vid_files; worldRvidpath = rightworld_vid_files
+        top1timepath = topdown1_time_files; top2timepath = topdown2_time_files; top3timepath = topdown3_time_files
+        eyeLtimepath = lefteye_time_files; eyeRtimepath = righteye_time_files
+        worldLtimepath = leftworld_time_files; worldRtimepath = rightworld_time_files
 
-    # get associated video files for top1dlcpath
-    top1vidpath = [i for i in topdown1_vid_files if key in i]
-    top2vidpath = [i for i in topdown2_vid_files if key in i]
-    top3vidpath = [i for i in topdown3_vid_files if key in i]
-    eyeLvidpath = [i for i in lefteye_vid_files if key in i]
-    eyeRvidpath = [i for i in righteye_vid_files if key in i]
-    worldLvidpath = [i for i in leftworld_vid_files if key in i]
-    worldRvidpath = [i for i in rightworld_vid_files if key in i]
+    elif len(topdown1_dlc_files) > 1:
+        # get associated DLC files for top1dlcpath
+        top2dlcpath = [i for i in topdown2_dlc_files if key in i]
+        top3dlcpath = [i for i in topdown3_dlc_files if key in i]
+        eyeLdlcpath = [i for i in lefteye_dlc_files if key in i]
+        eyeRdlcpath = [i for i in righteye_dlc_files if key in i]
 
-    # get associated time files for top1dlcpath
-    top1timepath = [i for i in topdown1_time_files if key in i]
-    top2timepath = [i for i in topdown2_time_files if key in i]
-    top3timepath = [i for i in topdown3_time_files if key in i]
-    eyeLtimepath = [i for i in lefteye_time_files if key in i]
-    eyeRtimepath = [i for i in righteye_time_files if key in i]
-    worldLtimepath = [i for i in leftworld_time_files if key in i]
-    worldRtimepath = [i for i in rightworld_time_files if key in i]
+        # get associated video files for top1dlcpath
+        top1vidpath = [i for i in topdown1_vid_files if key in i]
+        top2vidpath = [i for i in topdown2_vid_files if key in i]
+        top3vidpath = [i for i in topdown3_vid_files if key in i]
+        eyeLvidpath = [i for i in lefteye_vid_files if key in i]
+        eyeRvidpath = [i for i in righteye_vid_files if key in i]
+        worldLvidpath = [i for i in leftworld_vid_files if key in i]
+        worldRvidpath = [i for i in rightworld_vid_files if key in i]
+
+        # get associated time files for top1dlcpath
+        top1timepath = [i for i in topdown1_time_files if key in i]
+        top2timepath = [i for i in topdown2_time_files if key in i]
+        top3timepath = [i for i in topdown3_time_files if key in i]
+        eyeLtimepath = [i for i in lefteye_time_files if key in i]
+        eyeRtimepath = [i for i in righteye_time_files if key in i]
+        worldLtimepath = [i for i in leftworld_time_files if key in i]
+        worldRtimepath = [i for i in rightworld_time_files if key in i]
+
+        print(top1timepath)
 
     # build xarray DataArrays for each camera type which contain data for each view of that type
-    # also make DataArray from the  timestamp list for each view of the camera type
+    # also make DataArray from the timestamp list for each view of the camera type
     topdlc, toptime, topnames = read_paths(top1dlcpath, top1timepath, top2dlcpath, top2timepath, top3dlcpath, top3timepath)
     eyedlc, eyetime, eyenames = read_paths(eyeLdlcpath, eyeLtimepath, eyeRdlcpath, eyeRtimepath)
 
@@ -103,17 +119,33 @@ for top1dlcpath in topdown1_dlc_files:
     top_vlist = ['v1', 'v2', 'v3']
     for v in top_vlist:
         try:
-            print('tracking topdown camera view ' + str(v) + ' for ' + str(key))
-            vpts = topdlc.sel(view=v)
-            vcleanpts = topdown_tracking(vpts, topnames, args.savepath, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket)
-            vtheta = head_angle(vcleanpts, topnames, args.lik_thresh)
-            check_tracking(key, 't', top1vidpath, args.savepath, dlc_data=vcleanpts, head_ang=vtheta)
+            print('trying to track topdown camera view ' + str(v) + ' for ' + str(key))
+            vpts = topdlc[v]
             if v == 'v1':
-                gatheredtop = xr.merge([vpts, vcleanpts, vtheta])
+                vid = top1vidpath
+                viewext = 'TOP1'
+            elif v == 'v2':
+                vid = top2vidpath
+                viewext = 'TOP2'
+            elif v == 'v3':
+                vid = top3vidpath
+                viewext = 'TOP3'
+            vcleanpts = topdown_tracking(vpts, topnames, args.global_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket)
+            # vtheta = head_angle(vcleanpts, topnames, args.lik_thresh)
+            if isinstance(vid, list):
+                check_tracking(key, 't', vid[0], args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
+            else:
+                check_tracking(key, 't', vid, args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
+            vpts.name = 'raw_pt_values'
+            vcleanpts.name = 'output_pt_values'
+            if v == 'v1':
+                gatheredtop = xr.merge([vpts, vcleanpts])
             elif v != 'v1':
-                concattop = xr.merge([vpts, vcleanpts, vtheta])
-                gatheredtop = xr.concat([gatheredtop, concattop])
-        except IndexError:
+                concattop = xr.merge([vpts, vcleanpts])
+                gatheredtop = xr.concat([gatheredtop, concattop], dim='view', fill_value=np.nan)
+            print('tracking sucessful for ' + str(v))
+        except KeyError: # in case not all three views exist
+            print('failed to find view ' + str(v))
             pass
     if top1dlcpath == topdown1_dlc_files[0]:
         gatheredtop['trial'] = key
@@ -126,16 +158,29 @@ for top1dlcpath in topdown1_dlc_files:
     for v in eye_vlist:
         try:
             print('tracking eye camera view ' + str(v) + ' for ' + str(key))
-            vpts = eyedlc.sel(view=v)
+            vpts = eyedlc[v]
+            if v == 'v1':
+                vid = eyeLvidpath
+                viewext = 'LEye'
+            elif v == 'v2':
+                vid = eyeRvidpath
+                viewext = 'REye'
             vparams = eye_tracking(vpts, eyenames, args.global_save_path, key, args.lik_thresh, args.pxl_thresh, args.eye_pt_num, args.tear)
             # check_eye_calibration(vparams, vpts, args.global_save_path, key, args.ell_thresh)
-            check_tracking(key, 't', top1vidpath, args.savepath, dlc_data=vpts, ell_data=vparams)
+            if isinstance(vid, list):
+                check_tracking(key, 'e', vid[0], args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
+            else:
+                check_tracking(key, 'e', vid, args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
+            vpts.name = 'raw_pt_values'
+            vparams.name = 'ellipse_param_values'
             if v == 'v1':
                 gatheredeye = xr.merge([vpts, vparams])
             elif v != 'v1':
                 concateye = xr.merge([vpts, vparams])
                 gatheredeye = xr.concat([gatheredeye, concateye])
-        except IndexError:
+            print('tracking sucessful for ' + str(v))
+        except KeyError:
+            print('failed to find view ' + str(v))
             pass
     if top1dlcpath == topdown1_dlc_files[0]:
         gatheredeye['trial'] = key
@@ -143,6 +188,8 @@ for top1dlcpath in topdown1_dlc_files:
     elif top1dlcpath != topdown1_dlc_files[0]:
         gatheredeye['trial'] = key
         eyeout = xr.concat([topout, gatheredeye], dim='trial', fill_value=np.nan)
+
+    print('processing of trial ' + key + ' is complete... outputs wont be saved until the end of all trials')
 
 try:
     savecomplete(topout, args.global_save_path, 'tops')
@@ -152,8 +199,3 @@ try:
     savecomplete(eyeout, args.global_save_path, 'eyes')
 except NameError:
     print('no eye .nc file saved because no data was passed')
-
-
-
-
-
