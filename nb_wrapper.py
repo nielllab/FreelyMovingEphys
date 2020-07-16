@@ -48,11 +48,12 @@ def topdown_intake(data_path, file_name, save_path, lik_thresh, coord_cor, topdo
         clean_pts = topdown_tracking(pts, names, save_path, file_name, lik_thresh, coord_cor, topdown_pt_num, cricket)
 
         # get head angle, plot safety-checks
-        # theta = head_angle(clean_pts, names, lik_thresh)
+        thetas = head_angle(clean_pts, names, lik_thresh, save_path, cricket)
 
         pts.name = 'raw_pt_values'
         clean_pts.name = 'output_pt_values'
-        topout = xr.merge([pts, clean_pts])
+        thetas.name = 'head_angle_values'
+        topout = xr.merge([pts, clean_pts, thetas])
         print('dlc operations complete')
     except FileNotFoundError:
         print('missing either DLC or time file... output DLC xarray object is type None')

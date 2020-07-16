@@ -2,7 +2,7 @@
 FreelyMovingEphys plotting on top of videos of any source
 plot_video.py
 
-Last modified July 14, 2020
+Last modified July 15, 2020
 """
 
 # package imports
@@ -10,6 +10,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
+from skimage import measure
 
 # open video from camera of any type passed in, plot its DLC points over the video feed, and save out as an .avi format
 def check_tracking(trial_name, camtype, vid_path, savepath, dlc_data=None, ell_data=None, head_ang=None, vext=None):
@@ -86,15 +87,21 @@ def check_tracking(trial_name, camtype, vid_path, savepath, dlc_data=None, ell_d
                     leftellipseTS = ell_data.sel(frame=frame_time)
                     try:
                         # get out ellipse parameters and plot them on the video
-                        ellipse_center = (int(leftellipseTS['cam_center_x'].values), int(leftellipseTS['cam_center_y'].values))
+                        emod = measure.EllipseModel()
+                        ellipse_center = (int(leftellipseTS['cam_center_y'].values), int(leftellipseTS['cam_center_x'].values))
                         ellipse_longaxis = int(leftellipseTS.sel(ellipse_params='longaxis_all').values)
                         ellipse_shortaxis = int(leftellipseTS.sel(ellipse_params='shortaxis_all').values)
                         ellipse_axes = (ellipse_longaxis, ellipse_shortaxis)
                         ellipse_theta = int(leftellipseTS.sel(ellipse_params='theta').values)
                         ellipse_phi = int(leftellipseTS.sel(ellipse_params='phi').values)
-                        plot_lellipse = cv2.ellipse(frame_le, ellipse_center, ellipse_axes, ellipse_theta, 0, 360, plot_color0, 4)
-
-                    except ValueError:
+                        e_points = emod.predict_xy(ellipse_theta).astype(np.int)
+                        for k in range(0, np.size(e_points, axis=1)):
+                            ptk = e_points[k]
+                            if k == 0:
+                                pt_frame_le = cv2.circle(frame_le, ptk, 2, plot_color0, -1)
+                            elif k >= 1:
+                                pt_frame_le = cv2.circle(pt_frame_le, ptk, 2, plot_color0, -1)
+                    except TypeError:
                         plot_lellipse = frame_le
 
                     for k in range(0, 24, 3):

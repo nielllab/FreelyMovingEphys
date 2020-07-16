@@ -86,7 +86,7 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
     # break xarray into a pandas structure so it can be used by functions that get out the eye angle
     x_vals, y_vals, likeli_vals = split_xyl(eye_pt_names, eye_interp, lik_thresh)
 
-    # drop_tear
+    # drop tear
     if tear is True:
         x_vals = x_vals.drop([-2, -1], axis=1)
         y_vals = y_vals.drop([-2, -1], axis=1)

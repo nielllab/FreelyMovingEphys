@@ -4,7 +4,7 @@ dlc_intake.py
 
 Terminal-facing script to reach dlc- and video-handling functions
 
-last modified: July 14, 2020
+last modified: July 15, 2020
 """
 
 # package imports
@@ -18,7 +18,7 @@ import warnings
 
 # module imports
 from util.read_data import find_paths, read_paths
-from util.track_topdown import topdown_tracking #, head_angle
+from util.track_topdown import topdown_tracking , head_angle
 from util.track_eye import eye_tracking #, check_eye_calibration
 from util.plot_video import check_tracking
 from util.save_data import savecomplete
@@ -131,17 +131,18 @@ for top1dlcpath in topdown1_dlc_files:
                 vid = top3vidpath
                 viewext = 'TOP3'
             vcleanpts = topdown_tracking(vpts, topnames, args.global_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket)
-            # vtheta = head_angle(vcleanpts, topnames, args.lik_thresh)
+            vthetas = head_angle(vcleanpts, topnames, args.lik_thresh, args.global_save_path, args.cricket, key)
             if isinstance(vid, list):
                 check_tracking(key, 't', vid[0], args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
             else:
                 check_tracking(key, 't', vid, args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
             vpts.name = 'raw_pt_values'
             vcleanpts.name = 'output_pt_values'
+            vthetas.name = 'head_angle_values'
             if v == 'v1':
-                gatheredtop = xr.merge([vpts, vcleanpts])
+                gatheredtop = xr.merge([vpts, vcleanpts, vthetas])
             elif v != 'v1':
-                concattop = xr.merge([vpts, vcleanpts])
+                concattop = xr.merge([vpts, vcleanpts, vthetas])
                 gatheredtop = xr.concat([gatheredtop, concattop], dim='view', fill_value=np.nan)
             print('tracking sucessful for ' + str(v))
         except KeyError: # in case not all three views exist
