@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 import tkinter
 import math
 
-# function imports
+# module imports
 from util.read_data import split_xyl
 
 # matrix rotation, used to find head angle
@@ -73,90 +73,95 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name):
             theta_good[frame] = np.nan
             aligned_good[:,:,frame] = np.nan
 
-    # calculate mean head from good points across trials
-    mean_head = np.nanmean(aligned_good, axis=2)
+    # if there are no values in aligned_good, then don't bother with the rest of the process
+    try:
+        # calculate mean head from good points across trials
+        mean_head = np.nanmean(aligned_good, axis=2)
 
-    # rotate mean head to align to x-axis
-    longaxis = mean_head[:, [num_ideal_points-1, 1]] # line from middle of head to nose
-    longtheta = np.arctan2(np.diff(longaxis[1]).astype(float), np.diff(longaxis[0]).astype(float))[0] # angle of line
-    headrot = rotmat(-longtheta)
-    aligned = np.zeros(np.shape(aligned_good.T), dtype=object)
-    for frame in range(0,np.size(aligned_good, axis=2)):
-        aligned[frame,:,:] = np.matmul(aligned_good[:,:,frame].T, headrot)
-    aligned = aligned.T
+        # rotate mean head to align to x-axis
+        longaxis = mean_head[:, [num_ideal_points-1, 1]] # line from middle of head to nose
+        longtheta = np.arctan2(np.diff(longaxis[1]).astype(float), np.diff(longaxis[0]).astype(float))[0] # angle of line
+        headrot = rotmat(-longtheta)
+        aligned = np.zeros(np.shape(aligned_good.T), dtype=object)
+        for frame in range(0,np.size(aligned_good, axis=2)):
+            aligned[frame,:,:] = np.matmul(aligned_good[:,:,frame].T, headrot)
+        aligned = aligned.T
 
-    mean_head1 = np.nanmean(aligned, axis=2)
+        mean_head1 = np.nanmean(aligned, axis=2)
 
-    mean_stack = np.stack(([mean_head1[0,:]**2, mean_head1[1,:]**2]), axis=1)
-    mean_dist = mean_stack[:,0] + mean_stack[:,1]
-    for i in range(0,len(mean_dist)):
-        mean_dist[i] = np.sqrt(mean_dist[i])
-    cent = np.zeros([2, np.size(aligned_good.T, axis=0)], dtype=object)
+        mean_stack = np.stack(([mean_head1[0,:]**2, mean_head1[1,:]**2]), axis=1)
+        mean_dist = mean_stack[:,0] + mean_stack[:,1]
+        for i in range(0,len(mean_dist)):
+            mean_dist[i] = np.sqrt(mean_dist[i])
+        cent = np.zeros([2, np.size(aligned_good.T, axis=0)], dtype=object)
 
-    # get all cetroids
-    for frame in range(0, np.size(centroid, axis=1)):
-        c = data[:,:,frame]
-        mesh1 = np.floor(np.amin(c[0,:]))
-        mesh2 = np.ceil(np.amax(c[0,:]))
-        mesh3 = np.floor(np.amin(c[1,:]))
-        mesh4 = np.ceil(np.amax(c[1,:]))
-        meshx, meshy = np.meshgrid((mesh1, mesh2), (mesh3, mesh4), sparse=False)
+        # get all cetroids
+        for frame in range(0, np.size(centroid, axis=1)):
+            c = data[:,:,frame]
+            mesh1 = np.floor(np.amin(c[0,:]))
+            mesh2 = np.ceil(np.amax(c[0,:]))
+            mesh3 = np.floor(np.amin(c[1,:]))
+            mesh4 = np.ceil(np.amax(c[1,:]))
+            meshx, meshy = np.meshgrid((mesh1, mesh2), (mesh3, mesh4), sparse=False)
 
-        # for each head point calculate how far the pixels are from it, calculate error of how
-        # far this is from where it should be, and add these up
-        err = 0
+            # for each head point calculate how far the pixels are from it, calculate error of how
+            # far this is from where it should be, and add these up
+            err = 0
+            for i in range(0,num_ideal_points):
+                if ~np.isnan(c[0,i]):
+                    r = np.sqrt((meshx-c[0,i])**2 + (meshy-c[1,i])**2) # distance
+                    err = err + (mean_dist[i] - r)**2 # error
+            # find minimum, then get x and y values and set as centeroid
+            ind = np.argmin(err)
+            indi, indj = np.unravel_index(ind,np.shape(err))
+            cent[0,frame] = meshx[indi,indj]
+            cent[1,frame] = meshy[indi,indj]
+
+        # center all points using calculated centroid
         for i in range(0,num_ideal_points):
-            if ~np.isnan(c[0,i]):
-                r = np.sqrt((meshx-c[0,i])**2 + (meshy-c[1,i])**2) # distance
-                err = err + (mean_dist[i] - r)**2 # error
-        # find minimum, then get x and y values and set as centeroid
-        ind = np.argmin(err)
-        indi, indj = np.unravel_index(ind,np.shape(err))
-        cent[0,frame] = meshx[indi,indj]
-        cent[1,frame] = meshy[indi,indj]
+            centered[:,i,:] = data[:,i,:] - cent
 
-    # center all points using calculated centroid
-    for i in range(0,num_ideal_points):
-        centered[:,i,:] = data[:,i,:] - cent
+        # now, align all timepoints
+        allaligned = np.zeros(np.shape(centered), dtype=object)
+        alltheta = np.zeros(np.shape(centroid[0,:]), dtype=object)
 
-    # now, align all timepoints
-    allaligned = np.zeros(np.shape(centered), dtype=object)
-    alltheta = np.zeros(np.shape(centroid[0,:]), dtype=object)
+        for frame in range(0, np.size(centroid, axis=1)):
+            num_ideal_points = np.size(data[0, :, frame], axis=0)
+            num_real_pts = np.count_nonzero(~np.isnan(data[1, :, frame]))
+            c = centered[:,:,frame]
+            if num_real_pts >= 3:
+                theta = np.linspace(0, (2 * math.pi), 101)
+                theta = theta[1:-1]
+                del rms
+                rms = np.zeros(len(theta))
+                for i in range(0, len(theta)):
+                    c_rot = np.matmul(c.T, rotmat(theta[i])) # rotation
+                    rms[i] = np.nansum((mean_head - c_rot.T) ** 2)  # root mean squared
+                # find index for theta with smallest error and rotate by this amount
+                alltheta[frame] = np.argmin(rms)
+                allaligned[:,:,frame] = np.matmul(c.T, rotmat(alltheta[frame])).T
+            elif num_real_pts < 3:
+                alltheta[frame] = np.nan
+                allaligned[:,:,frame] = np.nan
 
-    for frame in range(0, np.size(centroid, axis=1)):
-        num_ideal_points = np.size(data[0, :, frame], axis=0)
-        num_real_pts = np.count_nonzero(~np.isnan(data[1, :, frame]))
-        c = centered[:,:,frame]
-        if num_real_pts >= 3:
-            theta = np.linspace(0, (2 * math.pi), 101)
-            theta = theta[1:-1]
-            del rms
-            rms = np.zeros(len(theta))
-            for i in range(0, len(theta)):
-                c_rot = np.matmul(c.T, rotmat(theta[i])) # rotation
-                rms[i] = np.nansum((mean_head - c_rot.T) ** 2)  # root mean squared
-            # find index for theta with smallest error and rotate by this amount
-            alltheta[frame] = np.argmin(rms)
-            allaligned[:,:,frame] = np.matmul(c.T, rotmat(alltheta[frame])).T
-        elif num_real_pts < 3:
-            alltheta[frame] = np.nan
-            allaligned[:,:,frame] = np.nan
+        # head angle was negative of what we want, so this fixes that
+        alltheta = 2 * math.pi - alltheta
+        # range -pi to pi
+        alltheta = np.where(alltheta > math.pi, alltheta, alltheta-2*math.pi)
 
-    # head angle was negative of what we want, so this fixes that
-    alltheta = 2 * math.pi - alltheta
-    # range -pi to pi
-    alltheta = np.where(alltheta > math.pi, alltheta, alltheta-2*math.pi)
+        # plots of head theta
+        plt.figure(figsize=(15,15))
+        plt.plot(alltheta)
+        plt.xlabel('frame')
+        plt.ylabel('angle')
+        plt.title('head theta over frames')
+        plt.savefig(fig_dir + 'head_angle_trace.png', dpi=300)
+        plt.close()
 
-    # plots of head theta
-    plt.figure(figsize=(15,15))
-    plt.plot(alltheta)
-    plt.xlabel('frame')
-    plt.ylabel('angle')
-    plt.title('head theta over frames')
-    plt.savefig(fig_dir + 'head_angle_trace.png', dpi=300)
-    plt.close()
-
-    thetaout = xr.DataArray(alltheta)
+        thetaout = xr.DataArray(alltheta)
+    except ZeroDivisionError:
+        print('abandoned head angle... not enough good points')
+        thetaout = xr.DataArray(np.zeros(np.shape(theta_good)))
 
     return thetaout
 
@@ -223,6 +228,7 @@ def topdown_tracking(topdown_data, topdown_pt_names, savepath, trial_name, lik_t
     # mask the NaNs, but only for the figure (don't want to lose time information for actual analysis)
     nose_x_thresh_nonan_pts = nose_x_thresh_pts[np.isfinite(nose_x_thresh_pts)]
     nose_y_thresh_nonan_pts = nose_y_thresh_pts[np.isfinite(nose_y_thresh_pts)]
+
     plt.figure(figsize=(15, 15))
     plt.title('mouse nose x/y path after likelihood threshold')
     plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))

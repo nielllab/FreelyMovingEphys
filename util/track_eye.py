@@ -64,7 +64,9 @@ def estimate_ellipse(num_frames, x_vals, y_vals, pxl_thresh):
                 params_raw = np.array(emod.params)
                 params_expanded = np.expand_dims(params_raw, axis=0)
                 ellipseparams = np.append(ellipseparams, params_expanded, axis=0)
-        except KeyError:
+            else:
+                ellipseparams = np.append(ellipseparams, np.empty((0, 5)), axis=0)
+        except np.linalg.LinAlgError as err:
             # if the timestamp cannot be found, add a filler entry of parameters
             ellipseparams = np.append(ellipseparams, np.empty((0, 5)), axis=0)
     theta, phi, longaxis_all, shortaxis_all, CamCent = clean_ellipse_estimate(ellipseparams, pxl_thresh)
@@ -81,7 +83,12 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir)
 
-    eye_interp = xr.DataArray.interpolate_na(eye_data, dim='frame', use_coordinate='frame', method='linear')
+    try:
+        eye_interp = xr.DataArray.interpolate_na(eye_data, dim='frame', use_coordinate='frame', method='linear')
+    except AttributeError:
+        # this catches an error being raised by the jupyter notebook, not needed for terminal interface
+        eye_data = xr.Dataset.to_array(eye_data)
+        eye_interp = xr.DataArray.interpolate_na(eye_data, dim='frame', use_coordinate='frame', method='linear')
 
     # break xarray into a pandas structure so it can be used by functions that get out the eye angle
     x_vals, y_vals, likeli_vals = split_xyl(eye_pt_names, eye_interp, lik_thresh)
@@ -94,7 +101,7 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
 
     num_frames = len(x_vals)
 
-    theta, phi, longaxis_all, shortaxis_all, CamCent = estimate_ellipse(num_frames, x_vals, y_vals, pxl_thresh)
+    theta, phi, longaxis, shortaxis, CamCent = estimate_ellipse(num_frames, x_vals, y_vals, pxl_thresh)
 
     # figure: theta and phi values over time in frames
     plt.subplots(2, 1, figsize=(30, 20))
@@ -112,9 +119,9 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
     plt.close()
 
     cam_center = [np.squeeze(CamCent[0]).tolist(), np.squeeze(CamCent[1]).tolist()]
-    ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis_all':list(longaxis_all),
-                                             'shortaxis_all':list(shortaxis_all)})
-    ellipse_params = ['theta', 'phi', 'longaxis_all', 'shortaxis_all']
+
+    ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(longaxis), 'shortaxis':list(shortaxis)})
+    ellipse_params = ['theta', 'phi', 'longaxis', 'shortaxis']
     ellipse_out = xr.DataArray(ellipse_df, coords=[('frame', range(0, len(ellipse_df))), ('ellipse_params', ellipse_params)])
     ellipse_out['trial'] = trial_name
     ellipse_out['cam_center_x'] = cam_center[0]

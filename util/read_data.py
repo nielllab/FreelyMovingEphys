@@ -167,10 +167,26 @@ def read_paths(path1=None, timepath1=None, path2=None, timepath2=None, path3=Non
             if view3 is not None:
                 xdata = xr.merge([xdata, v3read])
                 alltime = alltime.join(v3time)
+
     elif view1 is None:
         xdata = None
         alltime = None
     if alltime is not None:
         xtime = xr.DataArray(alltime)
+    elif alltime is None:
+        xtime = None
 
     return xdata, xtime, names1
+
+# read in a single data and time path and format them much as read_paths() would
+def read1path(path, timepath):
+    # deal with data
+    readin, names = open_h5(path)
+    xdata = xr.DataArray(readin, dims=['frame', 'point_loc'])
+    xdata.name = 'v1'
+    # deal with time
+    timein = open_time(timepath, len(readin))
+    time = pd.DataFrame(timein, columns=['v1'])
+    xtime = xr.DataArray(time)
+
+    return xdata, xtime, names
