@@ -2,7 +2,7 @@
 FreelyMovingEphys world tracking utilities
 track_world.py
 
-Last modified July 29, 2020
+Last modified August 03, 2020
 """
 
 # package imports
@@ -18,7 +18,14 @@ import scipy.stats
 
 # module imports
 from util.read_data import open_h5, open_time, read_paths, read1path
-from util.common_util import sigm_fit, nanxcorr
+
+# get the mean confidence interval
+def find_ci(data, confidence=0.95):
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t.ppf((1 + confidence) / 2., n-1)
+    return m, h, m-h, m+h
 
 # time formatting so that timedelta can be plotted
 def format_func(x, pos):
@@ -27,6 +34,9 @@ def format_func(x, pos):
     seconds = int(x%60)
     return "{:d}:{:02d}:{:02d}".format(hours, minutes, seconds)
 formatter = FuncFormatter(format_func)
+
+def curve_func(xval, a, b, c, d):
+    return (a+b-a)/(1+10**((c-xval)*d))
 
 # basic world shifting
 def adjust_world(data_path, file_name, eyeext, topext, worldext, eye_ds, savepath):
@@ -139,7 +149,7 @@ def adjust_world(data_path, file_name, eyeext, topext, worldext, eye_ds, savepat
 
 # find pupil edge and align over time to calculate cyclotorsion
 # all inputs must be deinterlaced
-def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, save_path):
+def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, save_path, world_interp_method):
     # get eye data out of dataset
     eye_pts = xr.Dataset.to_array(eye_ds).sel(variable='raw_pt_values')
     eye_ell_params = xr.Dataset.to_array(eye_ds).sel(variable='ellipse_param_values')
@@ -163,7 +173,7 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
     topTS = open_time(top1timepath)
 
     # interpolate ellipse parameters to worldcam timestamps
-    eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=interp_method)
+    eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=world_interp_method)
 
     # the very first timestamp
     start_time = min(eyeTS[0], worldTS[0], topTS[0])
@@ -205,6 +215,10 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
         if not top_ret:
             break
 
+        wrld_frame = cv2.cvtColor(wrld_frame, cv2.COLOR_BGR2GRAY)
+        eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)
+        top_frame = cv2.cvtColor(top_frame, cv2.COLOR_BGR2GRAY)
+
         # get ellisepe parameters for this time
         current_time = eyevid.get(cv2.CAP_PROP_POS_FRAMES)
         current_theta = eye_theta.sel(frame=current_time).values[0]
@@ -216,6 +230,7 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
         dlc_names = dlc_pts_thistime.coords['point_loc'].values
         dlc_x_names = [name for name in dlc_names if '_x' in name]
         dlc_y_names = [name for name in dlc_names if '_y' in name]
+
         # get nanmean of x and y in (y, x) tuple as center of ellipse
         x_val = []; y_val = []
         for ptpairnum in range(0, len(dlc_x_names)):
@@ -223,6 +238,7 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
             y_val.append(dlc_pts_thistime.sel(point_loc=dlc_y_names[ptpairnum]).values)
         mean_cent = (int(np.nanmean(x_val)), int(np.nanmean(y_val)))
 
+        ci = []; params = []
         for th in range(0, 360):
             meanr = 0.5 * (current_longaxis + current_shortaxis)
 
@@ -231,40 +247,53 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
             # go out along radius and get pixel values
             pupil_edge = np.zeros([360, len(r)])
             for i in range(0, len(r)):
-                # ERROR CREATING PUPIL EDGE; index 1331 is out of bounds for axis 1 with size 640
-                pupil_edge[th,i] = eye_frame[int(mean_cent[1]+r[i]*np.degrees(np.sin(th))), int(mean_cent[0]+r[i]*np.degrees(np.cos(th)))]
+                pupil_edge[th,:] = eye_frame[int(mean_cent[1]+r[i]*(np.sin(th))), int(mean_cent[0]+r[i]*(np.cos(th)))]
+
             # fit sigmoind to pupil edge at this theta
             d = pupil_edge[th,:]
-            params[th,i,:] = sigm_fit(range(0,len(d)), d, [], [100,200,10,0.5], 0)
-            ci[th,i] = params[th,i,2]
+            init_params = [100,200,10,0.5]
+            # non-linear regression
+            popt, pcov = curve_fit(curve_func, xdata=range(0,len(d)), ydata=d, p0=init_params)
+            # confidence interval of the parameters
+            ypred, delta, ypred_lowerci, ypred_upperci = find_ci(popt)
+            ci.append(delta)
+            params.append(popt)
+
         fit_thresh = 1
+        params = np.array(params)
         # extract radius variable from parameters
-        rfit = params[:,:,2] -1
-        # if confidence interval in estimate is >fitThresh pix, set to to NaN
-        rfit[ci[:,:,2]>fitThresh] = np.nan
-        # remove if luminance goes the wrong way (e.g. from reflectance)
-        d_intensity = params[:,:,2]
-        rfit[d_intensity < 0] = np.nan
+        rfit = np.vstack([np.array(np.zeros(len(ci))), (params[:,2] - 1)])
+
+        # if confidence interval in estimate is > fit_thresh pix, set to to NaN
+        # then, remove if luminance goes the wrong way (e.g. from reflectance)
+        for j in range(0,len(ci)):
+            rfit[:,j] = np.where(ci[j] > fit_thresh, rfit[:,j], np.nan)
+            rfit[:,j] = np.where(ci[j] < 0, rfit[:,j], np.nan)
+
         # median filter
         rfit = signal.medfilt(rfit,3)
 
-        filt_size = 30
+        filtsize = 30
         # subtract baseline (boxcar average using conv)
         # this is because our points aren't perfectly centered on ellipse
-        for f in range(0,np.size(rfit, axis=1)):
-            rfit_conv[:,f] = rfit_conv[:,f] - np.convolve(rfit[:,f],np.ones([filt_size,1])/filtsize,'same')
+        rfit_conv = np.array(np.zeros(np.shape(rfit)))
+        for f in range(0,np.size(rfit, axis=0)):
+            rfit_conv[f,:] = rfit[f,:] - np.convolve(rfit[f,:], np.ones(filtsize)/filtsize, 'same')
+
         # edges have artifact from conv, so set to NaNs
         # could fix this by padding data with wraparound at 0 and 360deg before conv
-        rfit_conv[range(0,filt_size/2+1),:] = np.nan
-        rfit_conv[range(0,filt_size/2-1),:] = np.nan
+        rfit_conv[:,range(0,int(filtsize/2+1))] = np.nan
+        rfit_conv[:,range(0,int(filtsize/2-1))] = np.nan
 
-        th = range(0,360)
         plot_color1 = (0, 255, 255)
         rmin = 0.5 * (current_longaxis + current_shortaxis) - ranger
+        th = range(0,360)
+        x = mean_cent[0] + (rmin + rfit) * np.cos(th)
+        y = mean_cent[1] + (rmin + rfit) * np.sin(th)
+        x = np.array(x); y = np.array(y);
+        eye_frame = cv2.line(eye_frame, (int(np.array(x[0,0])), int(np.array(x[1,0]))), (int(np.array(y[0,0])), int(np.array(y[1,0]))), plot_color1, thickness=4)
 
-        eye_frame = cv2.line(eye_frame, mean_cent[0] + (rmin + rfit) * cosd(th).T, mean_cent[1] + (rmin + rfit) * sind(th).T, plot_color1, thickness=4)
-
-        template = np.nanmean(rfit_conv[:,100:120,1])
+#         template = np.nanmean(rfit_conv[:,100:120,1])
 
         # ...saftey check plots of cross correlation will go here...
 
@@ -276,5 +305,5 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
         vidout.release()
         cv2.destroyAllWindows()
 
-    plt.figure()
-    plt.imagesc(coorcoef)
+#     plt.figure()
+#     plt.imagesc(coorcoef)

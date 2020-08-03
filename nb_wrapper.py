@@ -78,7 +78,7 @@ def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_c
     return topout
 
 # eye cam function access
-def eye_world_intake(data_path, file_name, viewext, save_path, lik_thresh, pxl_thresh, ell_thresh, eye_pt_num, tear, bonsaitime):
+def eye_intake(data_path, file_name, viewext, save_path, lik_thresh, pxl_thresh, ell_thresh, eye_pt_num, tear, bonsaitime):
     dir = os.path.join(save_path, file_name)
     if not os.path.exists(dir):
         os.makedirs(dir)
