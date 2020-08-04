@@ -149,8 +149,9 @@ def adjust_world(data_path, file_name, eyeext, topext, worldext, eye_ds, savepat
 
 # find pupil edge and align over time to calculate cyclotorsion
 # all inputs must be deinterlaced
-def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, save_path, world_interp_method):
+def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, save_path, world_interp_method, ranger):
     # get eye data out of dataset
+    print('managing files')
     eye_pts = xr.Dataset.to_array(eye_ds).sel(variable='raw_pt_values')
     eye_ell_params = xr.Dataset.to_array(eye_ds).sel(variable='ellipse_param_values')
 
@@ -172,6 +173,7 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
     worldTS = open_time(worldtimepath)
     topTS = open_time(top1timepath)
 
+    print('interpolating and selecting parameters')
     # interpolate ellipse parameters to worldcam timestamps
     eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=world_interp_method)
 
@@ -191,6 +193,7 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
     eyeTSminusstart = [(t-start_time).seconds for t in eyeTS]
     worldTSminusstart = [(t-start_time).seconds for t in worldTS]
 
+    print('opening videos')
     worldvid = cv2.VideoCapture(worldvidpath)
     topvid = cv2.VideoCapture(top1vidpath)
     eyevid = cv2.VideoCapture(eyevidpath)
@@ -214,6 +217,11 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
             break
         if not top_ret:
             break
+
+        cur = str(eyevid.get(cv2.CAP_PROP_POS_FRAMES))
+        tot = str(eyevid.get(cv2.CAP_PROP_FRAME_COUNT))
+        progress = str(int((eyevid.get(cv2.CAP_PROP_POS_FRAMES) / eyevid.get(cv2.CAP_PROP_FRAME_COUNT))*100))
+        print('working on frame ' + cur + ' of ' + tot + ' (' + progress + '%)')
 
         wrld_frame = cv2.cvtColor(wrld_frame, cv2.COLOR_BGR2GRAY)
         eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)

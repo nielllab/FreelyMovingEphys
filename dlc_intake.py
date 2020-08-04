@@ -22,7 +22,7 @@ from util.track_topdown import topdown_tracking , head_angle
 from util.track_eye import eye_tracking #, check_eye_calibration
 from util.plot_video import check_topdown_tracking, check_eye_tracking
 from util.save_data import savecomplete
-from util.track_world import adjust_world
+from util.track_world import adjust_world, find_pupil_rotation
 
 # get user inputs
 parser = argparse.ArgumentParser(description='Process DeepLabCut data and corresponding videos.', epilog='The global data path may include between zero and three topdown views, between one and two eye views, and between zero and two world views. Timestamp files should be provided in .csv format, DLC points in .h5 format, and videos in .avi format. Saved outputs will include one .nc file with all point, ellipse, and angle data for all trials and one .nc file with all starting DLC data for all trials. Additionally, a folder will be created for each trial and videos with points and/or ellipse paramaters plotted over camera video feeds will be saved out as .avi formats for each view input, and saftey-check plots will be saved as .png formats showing how well DLC and the intake pipeline have done. A right eye .avi video is necessary to find all other files.')
@@ -130,9 +130,9 @@ for eyeRvidpath in righteye_vid_files:
                 vcleanpts = topdown_tracking(vpts, topnames, args.global_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket)
                 vthetas = head_angle(vcleanpts, topnames, args.lik_thresh, args.global_save_path, args.cricket, key)
                 if isinstance(vid, list):
-                    check_topdown_tracking(key, 't', vid[0], args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
+                    check_topdown_tracking(key, vid[0], args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
                 else:
-                    check_topdown_tracking(key, 't', vid, args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
+                    check_topdown_tracking(key, vid, args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
                 vpts.name = 'raw_pt_values'
                 vcleanpts.name = 'output_pt_values'
                 vthetas.name = 'head_angle_values'
@@ -176,9 +176,9 @@ for eyeRvidpath in righteye_vid_files:
                 # check_eye_calibration(vparams, vpts, args.global_save_path, key, args.ell_thresh)
                 if vid != []:
                     if isinstance(vid, list):
-                        check_eye_tracking(key, 'e', vid[0], args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
+                        check_eye_tracking(key, vid[0], args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
                     else:
-                        check_eye_tracking(key, 'e', vid, args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
+                        check_eye_tracking(key, vid, args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
                 vpts.name = 'raw_pt_values'
                 vparams.name = 'ellipse_param_values'
                 if v == 'v1':
@@ -214,22 +214,25 @@ for eyeRvidpath in righteye_vid_files:
                 foundworld = False
             try:
                 vpts = eyedlc[v]
-                foundv = True
+                foundeye = True
             except KeyError:
-                foundv = False
+                foundeye = False
                 pass
-            if foundv is True:
+            if foundeye is True:
                 if v == 'v1':
                     eyevid = eyeLvidpath
-                    viewext = 'Left'
+                    eyeext = 'LEye'
+                    worldext = 'LWorld'
                 elif v == 'v2':
                     eyevid = eyeRvidpath
-                    viewext = 'Right'
+                    eyeext = 'REye'
+                    worldext = 'RWorld'
                 vparams = eyeout[v]
             # for now, adjust_world() will only use the first topview because it's only plotted for context, not actual analysis
-            if foundv is True and foundworld is True:
-                print('adjusting ' + viewext + ' world view')
-                adjust_world(vpts, vparams, eye_time_path, eyevid, world_time_path, world_vid_path, top1timepath, top1vidpath, args.global_save_path, key, viewext)
+            # should eliminate dependence on topdown data... topdown might not always be there
+            if foundeye is True and foundworld is True:
+                print('finding pupil rotation for ' + viewext + ' world view')
+                find_pupil_rotation(args.global_data_path, key, viewext, 'TOP1', worldext, xREye, args.global_save_path, 'linear')
             elif foundv is False or foundworld is False:
                 print('failed to find ' + viewext + ' world view')
 
