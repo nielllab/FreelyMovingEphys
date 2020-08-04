@@ -20,7 +20,7 @@ import warnings
 from util.read_data import find_paths, read_paths
 from util.track_topdown import topdown_tracking , head_angle
 from util.track_eye import eye_tracking #, check_eye_calibration
-from util.plot_video import check_tracking
+from util.plot_video import check_topdown_tracking, check_eye_tracking
 from util.save_data import savecomplete
 from util.track_world import adjust_world
 
@@ -130,9 +130,9 @@ for eyeRvidpath in righteye_vid_files:
                 vcleanpts = topdown_tracking(vpts, topnames, args.global_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket)
                 vthetas = head_angle(vcleanpts, topnames, args.lik_thresh, args.global_save_path, args.cricket, key)
                 if isinstance(vid, list):
-                    check_tracking(key, 't', vid[0], args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
+                    check_topdown_tracking(key, 't', vid[0], args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
                 else:
-                    check_tracking(key, 't', vid, args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
+                    check_topdown_tracking(key, 't', vid, args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
                 vpts.name = 'raw_pt_values'
                 vcleanpts.name = 'output_pt_values'
                 vthetas.name = 'head_angle_values'
@@ -176,9 +176,9 @@ for eyeRvidpath in righteye_vid_files:
                 # check_eye_calibration(vparams, vpts, args.global_save_path, key, args.ell_thresh)
                 if vid != []:
                     if isinstance(vid, list):
-                        check_tracking(key, 'e', vid[0], args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
+                        check_eye_tracking(key, 'e', vid[0], args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
                     else:
-                        check_tracking(key, 'e', vid, args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
+                        check_eye_tracking(key, 'e', vid, args.global_save_path, dlc_data=vpts, ell_data=vparams, vext=viewext)
                 vpts.name = 'raw_pt_values'
                 vparams.name = 'ellipse_param_values'
                 if v == 'v1':
