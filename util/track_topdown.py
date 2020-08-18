@@ -2,7 +2,7 @@
 FreelyMovingEphys topdown tracking utilities
 track_topdown.py
 
-Last modified July 15, 2020
+Last modified August 18, 2020
 """
 
 # package imports
@@ -14,9 +14,12 @@ import os
 from matplotlib import pyplot as plt
 import tkinter
 import math
+import cv2
+from skimage import measure
+from itertools import product
 
 # module imports
-from util.read_data import split_xyl
+from util.read_data import split_xyl, open_time
 
 # matrix rotation, used to find head angle
 def rotmat(theta):
@@ -24,7 +27,7 @@ def rotmat(theta):
     return m
 
 # find angle of head at all time points
-def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name):
+def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name, nose_x, nose_y, time):
     fig_dir = savepath + '/' + trial_name + '/'
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir)
@@ -77,10 +80,9 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name):
     try:
         # calculate mean head from good points across trials
         mean_head = np.nanmean(aligned_good, axis=2)
-
         # rotate mean head to align to x-axis
-        longaxis = mean_head[:, [num_ideal_points-1, 1]] # line from middle of head to nose
-        longtheta = np.arctan2(np.diff(longaxis[1]).astype(float), np.diff(longaxis[0]).astype(float))[0] # angle of line
+        longaxis = mean_head[:, [0, num_ideal_points-1]] # line from middle of head to nose
+        longtheta = np.arctan2(np.diff(longaxis[:,1]).astype(float), np.diff(longaxis[:,0]).astype(float))[0] # angle of line at mean head angle
         headrot = rotmat(-longtheta)
         aligned = np.zeros(np.shape(aligned_good.T), dtype=object)
         for frame in range(0,np.size(aligned_good, axis=2)):
@@ -98,11 +100,7 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name):
         # get all cetroids
         for frame in range(0, np.size(centroid, axis=1)):
             c = data[:,:,frame]
-            mesh1 = np.floor(np.amin(c[0,:]))
-            mesh2 = np.ceil(np.amax(c[0,:]))
-            mesh3 = np.floor(np.amin(c[1,:]))
-            mesh4 = np.ceil(np.amax(c[1,:]))
-            meshx, meshy = np.meshgrid((mesh1, mesh2), (mesh3, mesh4), sparse=False)
+            meshx, meshy = np.meshgrid((np.floor(np.amin(c[0,:])), np.ceil(np.amax(c[0,:]))), (np.floor(np.amin(c[1,:])), np.ceil(np.amax(c[1,:]))), sparse=False)
 
             # for each head point calculate how far the pixels are from it, calculate error of how
             # far this is from where it should be, and add these up
@@ -113,9 +111,9 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name):
                     err = err + (mean_dist[i] - r)**2 # error
             # find minimum, then get x and y values and set as centeroid
             ind = np.argmin(err)
-            indi, indj = np.unravel_index(ind,np.shape(err))
-            cent[0,frame] = meshx[indi,indj]
-            cent[1,frame] = meshy[indi,indj]
+            unravel_ind = np.unravel_index(ind,np.shape(err), order='C')
+            cent[0,frame] = meshx[unravel_ind]
+            cent[1,frame] = meshy[unravel_ind]
 
         # center all points using calculated centroid
         for i in range(0,num_ideal_points):
@@ -130,13 +128,13 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name):
             num_real_pts = np.count_nonzero(~np.isnan(data[1, :, frame]))
             c = centered[:,:,frame]
             if num_real_pts >= 3:
-                theta = np.linspace(0, (2 * math.pi), 101)
+                theta = np.linspace(0, (2 * np.pi), 101)
                 theta = theta[1:-1]
                 del rms
                 rms = np.zeros(len(theta))
                 for i in range(0, len(theta)):
                     c_rot = np.matmul(c.T, rotmat(theta[i])) # rotation
-                    rms[i] = np.nansum((mean_head - c_rot.T) ** 2)  # root mean squared
+                    rms[i] = np.nansum((mean_head1 - c_rot.T) ** 2)  # root mean squared
                 # find index for theta with smallest error and rotate by this amount
                 alltheta[frame] = np.argmin(rms)
                 allaligned[:,:,frame] = np.matmul(c.T, rotmat(alltheta[frame])).T
@@ -144,10 +142,10 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name):
                 alltheta[frame] = np.nan
                 allaligned[:,:,frame] = np.nan
 
-        # head angle was negative of what we want, so this fixes that
-        alltheta = 2 * math.pi - alltheta
+        # head angle was negative of what we want, this fixes that
+        alltheta = 2 * np.pi - alltheta
         # range -pi to pi
-        alltheta = np.where(alltheta > math.pi, alltheta, alltheta-2*math.pi)
+        alltheta = np.where(alltheta > np.pi, alltheta, alltheta-2*np.pi)
 
         # plots of head theta
         plt.figure(figsize=(15,15))
@@ -158,19 +156,38 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name):
         plt.savefig(fig_dir + 'head_angle_trace.png', dpi=300)
         plt.close()
 
-        thetaout = xr.DataArray(alltheta)
+        # build the xarray to store out theta values
+        thetaout = xr.DataArray(alltheta, coords={'frame':range(0,len(alltheta))}, dims=['frame'])
+        thetaout['mean_head_theta'] = longtheta
+
     except ZeroDivisionError:
-        print('abandoned head angle... not enough good points')
         thetaout = xr.DataArray(np.zeros(np.shape(theta_good)))
+
+    plt.subplots(213)
+    plt.title('x, y, and head angle of mouse ' + trial_name)
+    plt.subplots(211)
+    plt.ylabel('x')
+    plt.plot(nose_x)
+    plt.subplots(212)
+    plt.ylabel('y')
+    plt.plot(nose_y)
+    plt.subplots(213)
+    plt.ylabel('theta')
+    plt.plot(alltheta)
+    plt.savefig(fig_dir + 'all_head_params.png', dpi=300)
+    plt.close()
 
     return thetaout
 
 # track topdown position by calling other functions, takes in ONE trial at a time
-def topdown_tracking(topdown_data, topdown_pt_names, savepath, trial_name, lik_thresh, coord_cor, topdown_pt_num, cricket):
+def topdown_tracking(topdown_data, topdown_pt_names, savepath, trial_name, lik_thresh, coord_cor, topdown_pt_num, cricket, time_path):
     # make directory for figure saving, if it does not already exist
     fig_dir = savepath + '/' + trial_name + '/'
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir)
+
+    # get time read in
+    toptime = open_time(time_path)
 
     topdown_interp = xr.DataArray.interpolate_na(topdown_data, dim='frame', use_coordinate='frame', method='linear')
 
@@ -239,4 +256,77 @@ def topdown_tracking(topdown_data, topdown_pt_names, savepath, trial_name, lik_t
 
     likeli_thresh_allpts['trial'] = trial_name
 
-    return likeli_thresh_allpts
+    points_out = likeli_thresh_allpts.assign_coords(time=('frame', toptime))
+
+    return points_out, nose_x_thresh_pts, nose_y_thresh_pts
+
+# plot points on topdown video as a saftey check, then save as .avi
+def check_topdown_tracking(trial_name, vid_path, savepath, dlc_data=None, head_ang=None, vext=None):
+
+    # read topdown video in
+    vidread = cv2.VideoCapture(vid_path)
+    width = int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # setup the file to save out of this
+    savepath = str(savepath) + '/' + str(trial_name) + '/' + str(trial_name) + '_' + vext + '.avi'
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (width, height))
+
+    # set colors
+    plot_color0 = (225, 255, 0)
+    plot_color1 = (0, 255, 255)
+
+    while (1):
+        # read the frame for this pass through while loop
+        ret, frame = vidread.read()
+
+        if not ret:
+            break
+
+        if dlc_data is not None:
+            # get current frame number to be displayed, so that it can be used to slice DLC data
+            frame_time = vidread.get(cv2.CAP_PROP_POS_FRAMES)
+
+            try:
+                for k in range(0, 30, 3):
+                    topdownTS = dlc_data.sel(frame=frame_time)
+                    current_ang = head_ang.sel(frame=frame_time).values
+                    try:
+                        td_pts_x = topdownTS.isel(point_loc=k)
+                        td_pts_y = topdownTS.isel(point_loc=k + 1)
+                        center_xy = (int(td_pts_x), int(td_pts_y))
+                        if k == 0:
+                            # plot them on the fresh topdown frame
+                            frame = cv2.circle(frame, center_xy, 6, plot_color0, -1)
+                        elif k >= 3:
+                            # plot them on the topdown frame with all past topdown points
+                            frame = cv2.circle(frame, center_xy, 6, plot_color0, -1)
+
+                        backX = topdownTS.sel(point_loc='Back_of_Head_x').values
+                        backY = topdownTS.sel(point_loc='Back_of_Head_y').values
+
+                        try:
+                            x1 = (backX * np.cos(float(current_ang))).astype(int)
+                            y1 = (backY * np.sin(float(current_ang))).astype(int)
+                            x2 = (backX + 30 * np.cos(float(current_ang))).astype(int)
+                            y2 = (backY + 30 * np.sin(float(current_ang))).astype(int)
+                            frame = cv2.line(frame, (x1,y1), (x2,y2), plot_color1, thickness=4)
+                        except OverflowError:
+                            pass
+                    except ValueError:
+                        pass
+            except KeyError:
+                pass
+
+            out_vid.write(frame)
+
+        elif dlc_data is None:
+            out_vid.write(frame_td)
+
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    out_vid.release()
+    cv2.destroyAllWindows()

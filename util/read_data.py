@@ -11,6 +11,16 @@ import numpy as np
 import xarray as xr
 from glob import glob
 import os
+import fnmatch
+
+# glob for subdirectories
+def find(pattern, path):
+    result = [] # initialize the list as empty
+    for root, dirs, files in os.walk(path): # walk though the path directory, and files
+        for name in files:  # walk to the file in the directory
+            if fnmatch.fnmatch(name,pattern):  # if the file matches the filetype append to list
+                result.append(os.path.join(root,name))
+    return result # return full list of file of a given type
 
 # read in .h5 DLC files and manage column names
 def open_h5(path):

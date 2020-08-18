@@ -11,9 +11,9 @@ import xarray as xr
 
 # module imports
 from util.read_data import open_h5, open_time, read_paths, read1path
-from util.track_eye import eye_tracking # , check_eye_calibration
-from util.track_topdown import topdown_tracking, head_angle
-from util.plot_video import check_eye_tracking, check_topdown_tracking
+from util.track_eye import eye_tracking, check_eye_tracking
+from util.track_topdown import topdown_tracking, head_angle, check_topdown_tracking
+from util.track_cricket import get_cricket_props
 
 # topdown view function access
 def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_cor, topdown_pt_num, cricket, bonsaitime):
@@ -23,9 +23,6 @@ def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_c
         print('created save directory at ' + str(dir))
     elif os.path.exists(dir):
         print('using existing save directory ' + str(dir))
-
-    # get view extension
-    viewext = file_name.split('_')[-1]
 
     # get the complete path to the topdown trial named in the jupyter notebook
     try:
@@ -45,16 +42,27 @@ def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_c
         pts = xr.Dataset.to_array(pts)
         pts = xr.DataArray.sel(pts, variable='v1')
 
-        clean_pts = topdown_tracking(pts, names, save_path, file_name, lik_thresh, coord_cor, topdown_pt_num, cricket)
+        clean_pts, nose_x, nose_y = topdown_tracking(pts, names, save_path, file_name, lik_thresh, coord_cor, topdown_pt_num, cricket, csv_path)
 
         # get head angle, plot safety-checks
-        thetas = head_angle(clean_pts, names, lik_thresh, save_path, cricket, file_name)
+        thetas = head_angle(clean_pts, names, lik_thresh, save_path, cricket, file_name, nose_x, nose_y, csv_path)
 
-        pts.name = 'raw_pt_values'
-        clean_pts.name = 'output_pt_values'
-        thetas.name = 'head_angle_values'
-        topout = xr.merge([pts, clean_pts, thetas])
-        print('dlc operations complete')
+        if cricket is True:
+            # get out cricket properties
+            cricket_props = get_cricket_props(clean_pts, thetas, save_path, file_name)
+
+            pts.name = 'raw_pt_values'
+            clean_pts.name = 'output_pt_values'
+            thetas.name = 'head_angle_values'
+            topout = xr.merge([clean_pts, thetas, cricket_props])
+            print('dlc operations complete')
+
+        if cricket is False:
+            pts.name = 'raw_pt_values'
+            clean_pts.name = 'output_pt_values'
+            thetas.name = 'head_angle_values'
+            topout = xr.merge([clean_pts, thetas])
+            print('dlc operations complete')
     except FileNotFoundError:
         print('missing either DLC or time file... output DLC xarray object is type None')
         h5_path = None
@@ -66,7 +74,7 @@ def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_c
         if h5_path is not None:
             print('plotting points on video')
             # plot head points and head angle on video
-            check_topdown_tracking(file_name, avi_path, save_path, dlc_data=clean_pts, vext=viewext)
+            check_topdown_tracking(file_name, avi_path, save_path, dlc_data=clean_pts, head_ang=thetas, vext=viewext)
         elif h5_path is None:
             print('saving video without points')
             # plot video without DLC data

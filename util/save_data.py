@@ -18,7 +18,7 @@ def savetrial(data, path, name, camtype):
         data.to_netcdf(os.path.join(dir, str(name + '_' + camtype + '.nc')))
         print('data for this trial is saved at ' + str(dir))
     elif data is None:
-        print('nothing saved for ' + str(name) + ' of camtype ' + str(camtype) + 'because type is None')
+        print('nothing saved for ' + str(name) + ' of camtype ' + str(camtype) + ' because type is None')
 
 # save xarray Dataset as a .nc file
 def savecomplete(data, dir, ext):

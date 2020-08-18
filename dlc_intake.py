@@ -2,9 +2,7 @@
 FreelyMovingEphys terminal-facing DeepLabCut data intake
 dlc_intake.py
 
-Terminal-facing script to reach dlc- and video-handling functions
-
-last modified: July 26, 2020
+last modified: August 14, 2020
 """
 
 # package imports
@@ -18,11 +16,11 @@ import warnings
 
 # module imports
 from util.read_data import find_paths, read_paths
-from util.track_topdown import topdown_tracking , head_angle
-from util.track_eye import eye_tracking #, check_eye_calibration
-from util.plot_video import check_topdown_tracking, check_eye_tracking
+from util.track_topdown import topdown_tracking , head_angle, check_topdown_tracking
+from util.track_eye import eye_tracking, check_eye_tracking
 from util.save_data import savecomplete
 from util.track_world import adjust_world, find_pupil_rotation
+from util.track_cricket import get_cricket_props
 
 # get user inputs
 parser = argparse.ArgumentParser(description='Process DeepLabCut data and corresponding videos.', epilog='The global data path may include between zero and three topdown views, between one and two eye views, and between zero and two world views. Timestamp files should be provided in .csv format, DLC points in .h5 format, and videos in .avi format. Saved outputs will include one .nc file with all point, ellipse, and angle data for all trials and one .nc file with all starting DLC data for all trials. Additionally, a folder will be created for each trial and videos with points and/or ellipse paramaters plotted over camera video feeds will be saved out as .avi formats for each view input, and saftey-check plots will be saved as .png formats showing how well DLC and the intake pipeline have done. A right eye .avi video is necessary to find all other files.')
@@ -120,15 +118,23 @@ for eyeRvidpath in righteye_vid_files:
                 vpts = topdlc[v]
                 if v == 'v1':
                     vid = top1vidpath
+                    time = top1timepath
                     viewext = 'TOP1'
                 elif v == 'v2':
                     vid = top2vidpath
+                    time = top2timepath
                     viewext = 'TOP2'
                 elif v == 'v3':
                     vid = top3vidpath
+                    time = top3timepath
                     viewext = 'TOP3'
-                vcleanpts = topdown_tracking(vpts, topnames, args.global_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket)
-                vthetas = head_angle(vcleanpts, topnames, args.lik_thresh, args.global_save_path, args.cricket, key)
+                vcleanpts, nose_x, nose_y = topdown_tracking(vpts, topnames, args.global_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket, time[0])
+                vthetas = head_angle(vcleanpts, topnames, args.lik_thresh, args.global_save_path, args.cricket, key, nose_x, nose_y, time)
+                if args.cricket is True:
+                    cricket_props = get_cricket_props(vcleanpts, vthetas, args.global_save_path, key)
+                if args.cricket is False:
+                    cricket_props = None
+
                 if isinstance(vid, list):
                     check_topdown_tracking(key, vid[0], args.global_save_path, dlc_data=vcleanpts, vext=viewext) #, head_ang=vtheta)
                 else:
@@ -136,11 +142,18 @@ for eyeRvidpath in righteye_vid_files:
                 vpts.name = 'raw_pt_values'
                 vcleanpts.name = 'output_pt_values'
                 vthetas.name = 'head_angle_values'
-                if v == 'v1':
-                    gatheredtop = xr.merge([vpts, vcleanpts, vthetas])
-                elif v != 'v1':
-                    concattop = xr.merge([vpts, vcleanpts, vthetas])
-                    gatheredtop = xr.concat([gatheredtop, concattop], dim='view', fill_value=np.nan)
+                if cricket_props is not None:
+                    if v == 'v1':
+                        gatheredtop = xr.merge([vcleanpts, vthetas, cricket_props])
+                    elif v != 'v1':
+                        concattop = xr.merge([vcleanpts, vthetas, cricket_props])
+                        gatheredtop = xr.concat([gatheredtop, concattop], dim='view', fill_value=np.nan)
+                if cricket_props is None:
+                    if v == 'v1':
+                        gatheredtop = xr.merge([vcleanpts, vthetas])
+                    elif v != 'v1':
+                        concattop = xr.merge([vcleanpts, vthetas])
+                        gatheredtop = xr.concat([gatheredtop, concattop], dim='view', fill_value=np.nan)
                 print('tracking sucessful for ' + str(v))
             except KeyError: # in case not all three views exist
                 print('failed to find view ' + str(v))
