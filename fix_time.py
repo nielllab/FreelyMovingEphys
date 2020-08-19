@@ -36,31 +36,42 @@ for this_avi in avi_list:
     key = '.'.join(key_pieces)
     print('running on ' + key)
     # then, find those other pieces of the trial using the key
-    this_csv = [i for i in csv_list if key in i][0]
-    this_h5 = [i for i in h5_list if key in i][0]
+    try:
+        this_csv = [i for i in csv_list if key in i][0]
+        this_h5 = [i for i in h5_list if key in i][0]
+        other_files_present = True
+    except IndexError:
+        other_files_present = False
     # get some info about the video
     cap = cv2.VideoCapture(this_avi)
     frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     fps = cap.get(cv2.CAP_PROP_FPS)
     if fps == 60:
-        print('video for ' + key + ' already has 60fps')
+        print('video for ' + key + ' already has 60fps... copying now')
+        avi_out_path = os.path.join(main_path, (key + '.avi'))
+        shutil.move(this_avi, avi_out_path)
+        if other_files_present is True:
+            csv_out_path = os.path.join(main_path, (key + '.csv'))
+            shutil.move(this_csv, csv_out_path)
+            h5_out_path = os.path.join(main_path, (key + '.h5'))
+            shutil.move(this_h5, h5_out_path)
     elif fps == 30:
         if not os.path.exists(main_path):
             os.makedirs(main_path)
         print('starting to deinterlace and interpolate')
         # interpolate over video with bash command -- will only be done on 30fps videos
         avi_out_path = os.path.join(main_path, (key + '.avi'))
-        subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v',
-        'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
-        # write out the timestamps that have been opened and interpolated over
-        csv_out_path = os.path.join(main_path, (key + '_BonsaiTS.csv'))
-        csv_out = pd.DataFrame(open_time(this_csv, int(frame_count)))
-        csv_out.to_csv(csv_out_path, index=False)
-        # then, move the h5 files over so they're with the other items in that trial
-        h5_out_path = os.path.join(main_path, (key + '.h5'))
-        shutil.move(this_h5, h5_out_path)
+        subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+        if other_files_present is True:
+            # write out the timestamps that have been opened and interpolated over
+            csv_out_path = os.path.join(main_path, (key + '_BonsaiTS.csv'))
+            csv_out = pd.DataFrame(open_time(this_csv, int(frame_count)))
+            csv_out.to_csv(csv_out_path, index=False)
+            # then, move the h5 files over so they're with the other items in that trial
+            h5_out_path = os.path.join(main_path, (key + '.h5'))
+            shutil.move(this_h5, h5_out_path)
     else:
         print('frame rate not 30 or 60 for ' + key)
 
-print('done converting ' + str(len(avi_list) + len(csv_list) + len(this_h5)) + ' items')
+print('done converting ' + str(len(avi_list) + len(csv_list) + len(h5_list)) + ' items')
 print('data saved at ' + args.save_path)
