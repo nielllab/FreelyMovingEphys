@@ -20,6 +20,7 @@ from util.read_data import open_time, find
 # get user inputs
 parser = argparse.ArgumentParser(description='Deinterlace videos to go from 30fps to 60fps. Then, interpolate timestamps in subdirectories to correct for video deinterlacing.')
 parser.add_argument('data_path', help='path to timestamps')
+parser.add_argument('deinter_path', help='path to deinterlaced videos')
 parser.add_argument('save_path', help='path to save interpolated timestaps into')
 args = parser.parse_args()
 
@@ -54,21 +55,19 @@ for this_avi in avi_list:
     if not os.path.exists(main_path):
         os.makedirs(main_path)
     if fps == 60:
-        print('video for ' + key + ' already has 60fps... copying now')
         avi_out_path = os.path.join(main_path, (key + '.avi'))
-        shutil.move(this_avi, avi_out_path)
+        shutil.copyfile(this_avi, avi_out_path)
         if csv_present is True:
-            csv_out_path = os.path.join(main_path, (key + '.csv'))
-            shutil.move(this_csv, csv_out_path)
+            csv_out_path = os.path.join(main_path, (key + '_Bonsai.csv'))
+            shutil.copyfile(this_csv, csv_out_path)
         if h5_present is True:
             h5_out_path = os.path.join(main_path, (key + '.h5'))
-            shutil.move(this_h5, h5_out_path)
+            shutil.copyfile(this_h5, h5_out_path)
     elif fps == 30:
-        print('starting to deinterlace and interpolate')
-        # deinterlace video with ffmpeg -- will only be done on 30fps videos
+        # find deinterlaced files instead
+        this_avi_deinter = os.path.join(args.deinter_path, (key + '.avi'))
         avi_out_path = os.path.join(main_path, (key + '.avi'))
-        # subprocess.call('ffmpeg -i ' + this_avi + ' -vf yadif=1:-1:0 -c:v libx264 -crf 19 -c:a aac -b:a 256k ' + avi_out_path, shell=True)
-        ffmpeg.get_args('ffmpeg -i ' + this_avi + ' -vf yadif=1:-1:0 -c:v libx264 --preset slow -crf 19 -c:a aac -b:a 256k ' + avi_out_path)
+        shutil.copyfile(this_avi_deinter, avi_out_path)
         if csv_present is True:
             # write out the timestamps that have been opened and interpolated over
             csv_out_path = os.path.join(main_path, (key + '_BonsaiTS.csv'))
@@ -77,7 +76,7 @@ for this_avi in avi_list:
         if h5_present is True:
             # then, move the h5 files over so they're with the other items in that trial
             h5_out_path = os.path.join(main_path, (key + '.h5'))
-            shutil.move(this_h5, h5_out_path)
+            shutil.copyfile(this_h5, h5_out_path)
     else:
         print('frame rate not 30 or 60 for ' + key)
 
