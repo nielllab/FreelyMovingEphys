@@ -100,6 +100,7 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
     x_vals, y_vals, likeli_vals = split_xyl(eye_pt_names, eye_interp, lik_thresh)
 
     # drop tear
+    # these points ought to be used, this will be addressed later
     if tear is True:
         x_vals = x_vals.drop([-2, -1], axis=1)
         y_vals = y_vals.drop([-2, -1], axis=1)
@@ -169,16 +170,16 @@ def check_eye_tracking(trial_name, vid_path, savepath, dlc_data=None, ell_data=N
                 ellipse_axes = (int(ell_data_thistime.sel(ellipse_params='longaxis').values), int(ell_data_thistime.sel(ellipse_params='shortaxis').values))
                 ellipse_phi = int(ell_data_thistime.sel(ellipse_params='phi').values)
                 ellipse_cent = (int(ell_data_thistime.sel(ellipse_params='centX').values), int(ell_data_thistime.sel(ellipse_params='centY').values))
-                frame_le = cv2.ellipse(frame_le, ellipse_cent, ellipse_axes, ellipse_phi, 0, 360, plot_color0, 4)
+                frame_le = cv2.ellipse(frame_le, ellipse_cent, ellipse_axes, ellipse_phi, 0, 360, plot_color0, 2)
             except (ValueError, KeyError) as e:
                 pass
 
             # get out the DLC points and plot them on the video
             try:
-                leftptsTS = dlc_data.sel(frame=frame_time)
+                leftptsTS = dlc_data.sel(frame=vidread.get(cv2.CAP_PROP_POS_FRAMES))
                 for k in range(0, 24, 3):
                     pt_cent = (int(leftptsTS.isel(point_loc=k).values), int(leftptsTS.isel(point_loc=k+1).values))
-                    frame_le = cv2.circle(frame_le, pt_cent, 4, plot_color1, -1)
+                    frame_le = cv2.circle(frame_le, pt_cent, 3, plot_color1, -1)
             except (ValueError, KeyError) as e:
                 pass
 

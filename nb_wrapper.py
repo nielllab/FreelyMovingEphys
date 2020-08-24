@@ -51,9 +51,9 @@ def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_c
             # get out cricket properties
             cricket_props = get_cricket_props(clean_pts, thetas, save_path, file_name)
 
-            pts.name = 'raw_pt_values'
             clean_pts.name = 'output_pt_values'
             thetas.name = 'head_angle_values'
+            cricket_props.name = 'cricket_properties'
             topout = xr.merge([clean_pts, thetas, cricket_props])
             print('dlc operations complete')
 

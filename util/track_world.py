@@ -2,7 +2,7 @@
 FreelyMovingEphys world tracking utilities
 track_world.py
 
-Last modified August 17, 2020
+Last modified August 24, 2020
 """
 
 # package imports
@@ -301,9 +301,9 @@ def find_pupil_rotation(data_path, file_name, eyeext, topext, worldext, eye_ds, 
         fit_thresh = 1
         params = np.array(params)
 
-        print(np.shape(params))
         # extract radius variable from parameters
         rfit = params[:,2] - 1
+        rfit = np.stack([rfit, np.zeros(len(rfit)).T])
 
         # if confidence interval in estimate is > fit_thresh pix, set to to NaN
         # then, remove if luminance goes the wrong way (e.g. from reflectance)

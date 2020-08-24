@@ -2,21 +2,22 @@
 FreelyMovingEphys topdown tracking utilities
 track_topdown.py
 
-Last modified August 18, 2020
+Last modified August 23, 2020
 """
 
 # package imports
 import pandas as pd
 import numpy as np
-import matplotlib
 import xarray as xr
 import os
-from matplotlib import pyplot as plt
 import tkinter
 import math
 import cv2
 from skimage import measure
 from itertools import product
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 # module imports
 from util.read_data import split_xyl, open_time
@@ -41,6 +42,7 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name, no
     data = np.stack([x_vals.T, y_vals.T])
 
     centroid = np.squeeze(np.mean(data, axis=1))
+
     centered = np.zeros(np.shape(data), dtype=object)
     theta_good = np.zeros(np.shape(centroid[0,:]), dtype=object)
     aligned_good = np.zeros(np.shape(data), dtype=object)
@@ -50,11 +52,13 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name, no
         centered[:,h,:] = data[:,h,:] - centroid
 
     # last good frame will be used as reference frame
+    num_good_for_frames = []
     for testframe in range(0, np.size(data, axis=2)):
-        testptnum = np.size(data[:, :, testframe], axis=1)
+        num_ideal_points_in_test = np.size(data[0, :, testframe], axis=0)
         num_good = np.count_nonzero(~np.isnan(data[1, :, testframe]))
-        if testptnum == num_good:
+        if num_ideal_points_in_test == num_good:
             ref = centered[:,:,testframe]
+        num_good_for_frames.append(num_good)
 
     # if there are no NaNs and it's a perfect timepoint, loop through a range of thetas and rotate the frame by that much
     # then, calculate how well it matches the reference
@@ -97,7 +101,7 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name, no
             mean_dist[i] = np.sqrt(mean_dist[i])
         cent = np.zeros([2, np.size(aligned_good.T, axis=0)], dtype=object)
 
-        # get all cetroids
+        # get all centroids
         for frame in range(0, np.size(centroid, axis=1)):
             c = data[:,:,frame]
             meshx, meshy = np.meshgrid((np.floor(np.amin(c[0,:])), np.ceil(np.amax(c[0,:]))), (np.floor(np.amin(c[1,:])), np.ceil(np.amax(c[1,:]))), sparse=False)
@@ -147,15 +151,6 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name, no
         # range -pi to pi
         alltheta = np.where(alltheta > np.pi, alltheta, alltheta-2*np.pi)
 
-        # plots of head theta
-        plt.figure(figsize=(15,15))
-        plt.plot(alltheta)
-        plt.xlabel('frame')
-        plt.ylabel('angle')
-        plt.title('head theta over frames')
-        plt.savefig(fig_dir + 'head_angle_trace.png', dpi=300)
-        plt.close()
-
         # build the xarray to store out theta values
         thetaout = xr.DataArray(alltheta, coords={'frame':range(0,len(alltheta))}, dims=['frame'])
         thetaout['mean_head_theta'] = longtheta
@@ -163,18 +158,34 @@ def head_angle(pt_input, pt_names, lik_thresh, savepath, cricket, trial_name, no
     except ZeroDivisionError:
         thetaout = xr.DataArray(np.zeros(np.shape(theta_good)))
 
-    plt.subplots(213)
-    plt.title('x, y, and head angle of mouse ' + trial_name)
-    plt.subplots(211)
-    plt.ylabel('x')
-    plt.plot(nose_x)
-    plt.subplots(212)
-    plt.ylabel('y')
-    plt.plot(nose_y)
-    plt.subplots(213)
-    plt.ylabel('theta')
-    plt.plot(alltheta)
-    plt.savefig(fig_dir + 'all_head_params.png', dpi=300)
+    # plot
+    fig1 = plt.figure(constrained_layout=True)
+    gs = fig1.add_gridspec(5,2)
+    f1_ax1 = fig1.add_subplot(gs[0, :])
+    f1_ax1.set_title(trial_name + 'points')
+    f1_ax1.plot(data[:,0,:], data[:,1,:])
+    f1_ax2 = fig1.add_subplot(gs[1, 0])
+    f1_ax2.set_title('number of good points')
+    f1_ax2.plot(num_good_for_frames)
+    f1_ax3 = fig1.add_subplot(gs[1, 1])
+    f1_ax3.set_title('fraction bad timepoints')
+    f1_ax3.plot(num_good_for_frames)
+    f1_ax3.set_xlabel('point num'); f1_ax3.set_ylim([0,1])
+    # f1_ax4 = fig1.add_subplot(gs[2, 0])
+    # f1_ax4.scatter(cent[0,:], cent[1,:])
+    # f1_ax4.set_title('all points')
+    # f1_ax5 = fig1.add_subplot(gs[2, 1])
+    # f1_ax5.set_title('only good points')
+    # f1_ax5.scatter(centroid[0,:], centroid[1,:])
+    f1_ax6 = fig1.add_subplot(gs[3, :])
+    f1_ax6.plot(alltheta)
+    f1_ax6.set_title('final theta')
+    f1_ax6.set_ylabel('theta'); f1_ax6.set_xlabel('frame')
+    f1_ax7 = fig1.add_subplot(gs[4, :])
+    f1_ax7.plot(nose_x); f1_ax7.plot(nose_y)
+    f1_ax7.legend('x','y')
+    f1_ax7.set_ylabel('position'); f1_ax6.set_xlabel('frame')
+    plt.savefig(fig_dir + 'head_alignment.png', dpi=300)
     plt.close()
 
     return thetaout
@@ -256,7 +267,7 @@ def topdown_tracking(topdown_data, topdown_pt_names, savepath, trial_name, lik_t
 
     likeli_thresh_allpts['trial'] = trial_name
 
-    points_out = likeli_thresh_allpts.assign_coords(time=('frame', toptime))
+    points_out = likeli_thresh_allpts.assign_coords(timestamps=('frame', toptime))
 
     return points_out, nose_x_thresh_pts, nose_y_thresh_pts
 
@@ -322,7 +333,7 @@ def check_topdown_tracking(trial_name, vid_path, savepath, dlc_data=None, head_a
             out_vid.write(frame)
 
         elif dlc_data is None:
-            out_vid.write(frame_td)
+            out_vid.write(frame)
 
 
         if cv2.waitKey(1) & 0xFF == ord('q'):

@@ -2,7 +2,7 @@
 FreelyMovingEphys topdown cricket tracking utilities
 track_cricket.py
 
-Last modified August 18, 2020
+Last modified August 23, 2020
 """
 
 # package imports
@@ -26,10 +26,10 @@ def get_cricket_props(top_pts, mouse_theta, savepath, trial_name):
     vy_c = np.convolve(vx_c, filt, mode='same')
     cricket_speed = np.sqrt(vx_c**2, vy_c**2)
 
-    # range
+    # cricket range
     rx = top_pts.sel(point_loc='cricket_Body_x').values - top_pts.sel(point_loc='nose_x').values
     ry = top_pts.sel(point_loc='cricket_Body_y').values - top_pts.sel(point_loc='nose_y').values
-    range = np.sqrt(rx**2, ry**2)
+    c_range = np.sqrt(rx**2, ry**2)
 
     # azimuth
     cricket_theta = np.arctan2(ry,rx)
@@ -56,7 +56,7 @@ def get_cricket_props(top_pts, mouse_theta, savepath, trial_name):
     plt.ylabel('pixels/sec')
     plt.title('cricket speed')
     plt.subplot(232)
-    plt.plot(range)
+    plt.plot(c_range)
     plt.xlabel('frame')
     plt.ylabel('pixels')
     plt.title('range (cricket body to mouse nose)')
@@ -79,9 +79,9 @@ def get_cricket_props(top_pts, mouse_theta, savepath, trial_name):
     plt.close()
 
     # print('data lengths: cspeed=' + str(len(cricket_speed)) + ' range=' + str(len(range)) + ' az=' + str(len(az)) + ' dtheta=' + str(len(d_theta)) + ' mspeed=' + str(len(mouse_speed)))
-    props_out = pd.DataFrame({'cricket_speed':list(cricket_speed), 'range':list(range[:-1]), 'azimuth':list(az[:-1]), 'd_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})
+    props_out = pd.DataFrame({'cricket_speed':list(cricket_speed), 'range':list(c_range)[:-1], 'azimuth':list(az)[:-1], 'd_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})
     # TO DO: Sort out why range and az end up longer than the rest of the data, and fix it. Reliably one value too long. Index to get it running for now
     prop_names = ['cricket_speed', 'range', 'azimuth', 'd_theta', 'mouse_speed']
-    cricket_props = xr.DataArray(props_out, coords=[('frame', range(0,len(props_out))), ('prop',prop_names)], dims=['frame'])
+    cricket_props = xr.DataArray(props_out, coords=[('frame',range(0,np.size(cricket_speed,0))), ('prop',prop_names)])
 
     return cricket_props
