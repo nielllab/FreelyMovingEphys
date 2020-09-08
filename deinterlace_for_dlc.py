@@ -1,6 +1,7 @@
 """
-FreelyMovingEphys deinterlace 30fps videos and interpolate timestamps to match
 deinterlace_for_dlc.py
+
+Deinterlace found 30fps videos and interpolate their timestamps to match.
 
 Last modified August 25, 2020
 """

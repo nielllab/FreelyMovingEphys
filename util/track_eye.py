@@ -1,8 +1,9 @@
 """
-FreelyMovingEphys eye tracking utilities
 track_eye.py
 
-Last modified August 14, 2020
+Eye tracking utilities
+
+Last modified September 06, 2020
 """
 
 # package imports
@@ -19,8 +20,11 @@ from itertools import product
 # module imports
 from util.read_data import split_xyl
 
-# get out eye angles
 def eye_angles(ellipseparams):
+    '''
+    get out eye angles
+    '''
+
     R = np.linspace(0,2*np.pi,100)
     longaxis_all = np.maximum(ellipseparams[:,2],ellipseparams[:,3])
     shortaxis_all = np.minimum(ellipseparams[:,2],ellipseparams[:,3])
@@ -39,8 +43,11 @@ def eye_angles(ellipseparams):
 
     return theta, phi, longaxis_all, shortaxis_all, CamCent
 
-# clean ellipse estimate created in estimate_ellipse(), run eye_angles()
 def clean_ellipse_estimate(ellipseparams, pxl_thresh):
+    '''
+    clean ellipse estimate created in estimate_ellipse(), run eye_angles()
+    '''
+
     bdfit2, temp = np.where(ellipseparams[:, 2:4] > pxl_thresh)
     eparams = pd.DataFrame(ellipseparams)
     eparams.iloc[bdfit2, :] = np.nan
@@ -51,8 +58,11 @@ def clean_ellipse_estimate(ellipseparams, pxl_thresh):
 
     return theta, phi, longaxis_all, shortaxis_all, CamCent
 
-# estimate ellipse, run clean_ellipse_estimate() and eye_angles()
 def estimate_ellipse(num_frames, x_vals, y_vals, pxl_thresh):
+    '''
+    estimate ellipse, run clean_ellipse_estimate() and eye_angles()
+    '''
+
     emod = measure.EllipseModel()
     # create an empty array to be populated by the five outputs of EllipseModel()
     ellipseparams = np.empty((0, 5))
@@ -79,16 +89,20 @@ def estimate_ellipse(num_frames, x_vals, y_vals, pxl_thresh):
 
     return theta, phi, longaxis_all, shortaxis_all, CamCent, centX, centY
 
-# make visualizations of how well eye tracking has worked
-# def check_eye_calibration():
+def eye_tracking(eye_data, config, trial_name, eye_letter):
+    '''
+    calculate ellipse parameters from DLC points and format in xarray
+    takes in ONE trial at a time
 
-# track eye angle by calling other functions, takes in ONE trial at a time
-def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_thresh, eye_pt_num, tear):
-    # make directory for figure saving, if it does not already exist
-    fig_dir = savepath + '/' + trial_name + '/'
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir)
+    inputs
+    eye_data: xarray of DLC points formatted by h5_to_xr function
+    config: dictionary read in from .json file giving metadata about experiments
 
+    returns
+    ellipse_out: xarray of ellipse parameters
+    '''
+
+    eye_pt_names = list(eye_data['point_loc'].values)
     try:
         eye_interp = xr.DataArray.interpolate_na(eye_data, dim='frame', use_coordinate='frame', method='linear')
     except AttributeError:
@@ -97,18 +111,17 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
         eye_interp = xr.DataArray.interpolate_na(eye_data, dim='frame', use_coordinate='frame', method='linear')
 
     # break xarray into a pandas structure so it can be used by functions that get out the eye angle
-    x_vals, y_vals, likeli_vals = split_xyl(eye_pt_names, eye_interp, lik_thresh)
+    x_vals, y_vals, likeli_vals = split_xyl(eye_pt_names, eye_interp, config['lik_thresh'])
 
     # drop tear
     # these points ought to be used, this will be addressed later
-    if tear is True:
-        x_vals = x_vals.drop([-2, -1], axis=1)
-        y_vals = y_vals.drop([-2, -1], axis=1)
-        likeli_vals = likeli_vals.drop([-2, -1], axis=1)
+    if config['tear'] is True:
+        x_vals = x_vals.iloc[:,:-2]
+        y_vals = y_vals.iloc[:,:-2]
 
     num_frames = len(x_vals)
 
-    theta, phi, longaxis, shortaxis, CamCent, centX, centY = estimate_ellipse(num_frames, x_vals, y_vals, pxl_thresh)
+    theta, phi, longaxis, shortaxis, CamCent, centX, centY = estimate_ellipse(num_frames, x_vals, y_vals, config['pxl_thresh'])
 
     # figure: theta and phi values over time in frames
     plt.subplots(2, 1)
@@ -122,7 +135,7 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
     plt.xlabel('frame')
     plt.ylabel('angle')
     plt.title(str(trial_name) + ' phi over time')
-    plt.savefig(fig_dir + 'theta_phi_traces.png', dpi=300)
+    plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE_theta_phi.png')), dpi=300)
     plt.close()
 
     cam_center = [np.squeeze(CamCent[0]).tolist(), np.squeeze(CamCent[1]).tolist()]
@@ -136,8 +149,20 @@ def eye_tracking(eye_data, eye_pt_names, savepath, trial_name, lik_thresh, pxl_t
 
     return ellipse_out
 
-# plot points and ellipse on eye video as a saftey check, then save as .avi
-def check_eye_tracking(trial_name, vid_path, savepath, dlc_data=None, ell_data=None, vext=None):
+def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
+    '''
+    plot DLC points around eye and ellipse from previously calculated parameters on video and save out as an .avi
+
+    inputs
+    vid_path: file path to one eye video for a single trial, should be a string, '/path/to/vid.avi'
+    dlc_data: xarray of dlc points around the eye as formatted by h5_to_xr() function
+    ell_data: xarray of ellipse parameters
+    config: dictionary read in from .json file giving metadata about experiments
+    trial_name: string, the name of this trial EXCLUDING the type of video this is (i.e. it shoudn't include 'LEYE' or 'REYE')
+    eye_letter: string, either 'R' or 'L' to indicate the side of the mouse that the eye video comes from, used to label the saved out .avi file
+
+    returns nothing
+    '''
 
     # read topdown video in
     vidread = cv2.VideoCapture(vid_path)
@@ -145,7 +170,7 @@ def check_eye_tracking(trial_name, vid_path, savepath, dlc_data=None, ell_data=N
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     # setup the file to save out of this
-    savepath = str(savepath) + '/' + str(trial_name) + '/' + str(trial_name) + '_' + vext + '.avi'
+    savepath = os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (width, height))
 
@@ -163,12 +188,10 @@ def check_eye_tracking(trial_name, vid_path, savepath, dlc_data=None, ell_data=N
         if dlc_data is not None and ell_data is not None:
             # get current frame number to be displayed, so that it can be used to slice DLC data
             try:
-                frame_time = vidread.get(cv2.CAP_PROP_POS_FRAMES)
-                ell_data_thistime = ell_data.sel(frame=frame_time)
-                dlc_data_thistime = dlc_data.sel(frame=frame_time)
+                ell_data_thistime = ell_data.sel(frame=vidread.get(cv2.CAP_PROP_POS_FRAMES))
                 # get out ellipse parameters and plot them on the video
                 ellipse_axes = (int(ell_data_thistime.sel(ellipse_params='longaxis').values), int(ell_data_thistime.sel(ellipse_params='shortaxis').values))
-                ellipse_phi = int(ell_data_thistime.sel(ellipse_params='phi').values)
+                ellipse_phi = int(np.rad2deg(ell_data_thistime.sel(ellipse_params='phi').values))
                 ellipse_cent = (int(ell_data_thistime.sel(ellipse_params='centX').values), int(ell_data_thistime.sel(ellipse_params='centY').values))
                 frame_le = cv2.ellipse(frame_le, ellipse_cent, ellipse_axes, ellipse_phi, 0, 360, plot_color0, 2)
             except (ValueError, KeyError) as e:
@@ -177,7 +200,7 @@ def check_eye_tracking(trial_name, vid_path, savepath, dlc_data=None, ell_data=N
             # get out the DLC points and plot them on the video
             try:
                 leftptsTS = dlc_data.sel(frame=vidread.get(cv2.CAP_PROP_POS_FRAMES))
-                for k in range(0, 24, 3):
+                for k in range(0, len(leftptsTS), 3):
                     pt_cent = (int(leftptsTS.isel(point_loc=k).values), int(leftptsTS.isel(point_loc=k+1).values))
                     frame_le = cv2.circle(frame_le, pt_cent, 3, plot_color1, -1)
             except (ValueError, KeyError) as e:

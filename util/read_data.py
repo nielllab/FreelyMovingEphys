@@ -1,8 +1,9 @@
 """
-FreelyMovingEphys data reading utilities
 read_data.py
 
-Last modified July 14, 2020
+Data reading utilities
+
+Last modified September 07, 2020
 """
 
 # package imports
@@ -12,6 +13,7 @@ import xarray as xr
 from glob import glob
 import os
 import fnmatch
+import dateutil
 
 # glob for subdirectories
 def find(pattern, path):
@@ -36,33 +38,27 @@ def open_h5(path):
 
     return pts, pt_loc_names
 
-# match the length of deinterlaced videos with DLC point structures and videos
-def match_deinterlace(raw_time, timestep):
-    out = []
-    for i in raw_time:
-        between_time = i + (timestep / 2)
-        out.append(i)
-        out.append(between_time)
-
-    return out
-
 # read in the timestamps for a camera and adjust to deinterlaced video length if needed
-def open_time(path, num_timepoints_in_pts=None):
-    # read in the timestamps
-    TS_read = pd.read_csv(open(path, 'rU'), encoding='utf-8', engine='c', names=['time'])
-    TS_read['time'] = pd.to_datetime(TS_read['time'])
-    time_out = TS_read['time']
+def open_time(path, dlc_len=None):
+    # read in the timestamps if they've come directly from cameras
+    read_time = pd.read_csv(open(path, 'rU'), encoding='utf-8', engine='c', header=None)
+    time_in = pd.to_timedelta(read_time.squeeze(), unit='us')
 
-    if num_timepoints_in_pts is not None:
+    # auto check if vids were deinterlaced
+    if dlc_len is not None:
         # test length of the time just read in as it compares to the length of the data, correct for deinterlacing if needed
-        timestep = TS_read['time'][1] - TS_read['time'][0]
-        if num_timepoints_in_pts > len(TS_read['time']):
-            time_out = match_deinterlace(TS_read['time'], timestep)
-        elif num_timepoints_in_pts == len(TS_read['time']):
-            time_out = TS_read['time']
-        elif num_timepoints_in_pts < len(TS_read['time']):
-            print('issue with read_time: more timepoints than there are data')
-            time_out = TS_read['time']
+        timestep = np.median(np.diff(time_in, axis=0))
+        if dlc_len > len(time_in):
+            time_out = np.zeros(np.size(time_in, 0)*2)
+            # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
+            time_out[::2] = time_in + 0.25 * timestep
+            time_out[1::2] = time_in - 0.25 * timestep
+        elif dlc_len == len(time_in):
+            time_out = time_in
+        elif dlc_len < len(time_in):
+            time_out = time_in
+    elif dlc_len is None:
+        time_out = time_in
 
     return time_out
 
@@ -110,93 +106,60 @@ def split_xyl(eye_names, eye_data, thresh):
 
     return x_vals, y_vals, likeli_pts
 
-# make a path from pieces, search for files with a glob function, and then sort outputs for a list of glob keys
-def find_paths(main_path, glob_keys):
-    out = []
-    for key in glob_keys:
-        path_list = sorted(glob(os.path.join(main_path, key)))
-        out.append(path_list)
-    return out
-
-# build an xarray DataArray of between zero and three camera inputs
-def read_paths(path1=None, timepath1=None, path2=None, timepath2=None, path3=None, timepath3=None):
-    # assumes that if path1 is not None, timepath1 will not be None
-    if path1 is not None and path1 != []:
-        if isinstance(path1, list):
-            view1, names1 = open_h5(path1[0])
+# build an xarray DataArray of the a single camera's dlc point .h5 files and .csv timestamp corral_files
+# function is used for any camera view regardless of type, though extension must be specified in 'view' argument
+def h5_to_xr(pt_path, time_path, view):
+    if pt_path is not None and pt_path != []:
+        if isinstance(pt_path, list):
+            TOP, names = open_h5(pt_path[0])
         else:
-            view1, names1 = open_h5(path1)
-        if isinstance(timepath1, list):
-            time1 = open_time(timepath1[0], len(view1))
+            TOP, names = open_h5(pt_path)
+        if isinstance(time_path, list):
+            time = open_time(time_path[0], len(TOP))
         else:
-            time1 = open_time(timepath1, len(view1))
-        v1read = xr.DataArray(view1, dims=['frame', 'point_loc'])
-        v1read.name = 'v1'
-        v1time = pd.DataFrame(time1, columns=['v1'])
-    elif path1 is None or path1 == []:
-        view1 = None
-        names1 = None
-        time1 = None
-    if path2 is not None and path2 != []:
-        if isinstance(path2, list):
-            view2, names2 = open_h5(path2[0])
-        else:
-            view2, names2 = open_h5(path2)
-        if isinstance(timepath2, list):
-            time2 = open_time(timepath2[0], len(view2))
-        else:
-            time2 = open_time(timepath2, len(view2))
-        v2read = xr.DataArray(view2, dims=['frame', 'point_loc'])
-        v2read.name = 'v2'
-        v2time = pd.DataFrame(time2, columns=['v2'])
-    elif path2 is None or path2 == []:
-        view2 = None
-        time2 = None
-    if path3 is not None and path3 != []:
-        if isinstance(path3, list):
-            view3, names3 = open_h5(path3[0])
-        else:
-            view3, names3 = open_h5(path3)
-        if isisntance(timepath3, list):
-            time3 = open_time(timepath3[0], len(view3))
-        else:
-            time3 = open_time(timepath3, len(view3))
-        v3read = xr.DataArray(view3, dims=['frame', 'point_loc'])
-        v3read.name = 'v3'
-        v3time = pd.DataFrame(time3, columns=['v3'])
-    elif path3 is None or path3 == []:
-        view3 = None
-        time3 = None
+            time = open_time(time_path, len(TOP))
+        TOPpts = xr.DataArray(TOP, dims=['frame', 'point_loc'])
+        TOPpts.name = view
+        TOPpts = TOPpts.assign_coords(timestamps=('frame', time[1:])) # indexing [1:] into time because first row is the empty header, 0
+    elif pt_path is None or pt_path == []:
+        TOPpts = None
 
-    if view1 is not None:
-        xdata = xr.DataArray.to_dataset(v1read)
-        alltime = v1time
-        if view2 is not None:
-            xdata = xr.merge([xdata, v2read])
-            alltime = alltime.join(v2time)
-            if view3 is not None:
-                xdata = xr.merge([xdata, v3read])
-                alltime = alltime.join(v3time)
+    return TOPpts, names
 
-    elif view1 is None:
-        xdata = None
-        alltime = None
-    if alltime is not None:
-        xtime = xr.DataArray(alltime)
-    elif alltime is None:
-        xtime = None
+# Sort out what the first timestamp in all DataArrays is so that videos can be set to start playing at the corresponding frame
+def find_start_end(topdown_data, leftellipse_data, rightellipse_data, side_data):
 
-    return xdata, xtime, names1
+    # bin the times
+    topdown_binned = topdown_data.resample(time='10ms').mean()
+    left_binned = leftellipse_data.resample(time='10ms').mean()
+    right_binned = rightellipse_data.resample(time='10ms').mean()
+    side_binned = side_data.resample(time='10ms').mean()
 
-# read in a single data and time path and format them much as read_paths() would
-def read1path(path, timepath):
-    # deal with data
-    readin, names = open_h5(path)
-    xdata = xr.DataArray(readin, dims=['frame', 'point_loc'])
-    xdata.name = 'v1'
-    # deal with time
-    timein = open_time(timepath, len(readin))
-    time = pd.DataFrame(timein, columns=['v1'])
-    xtime = xr.DataArray(time)
+    # get binned times for each
+    td_bintime = topdown_binned.coords['timestamps'].values
+    le_bintime = left_binned.coords['timestamps'].values
+    re_bintime = right_binned.coords['timestamps'].values
+    sd_bintime = side_binned.coords['timestamps'].values
 
-    return xdata, xtime, names
+    print('topdown: ' + str(td_bintime[0]) + ' / ' + str(td_bintime[-1]))
+    print('left: ' + str(le_bintime[0]) + ' / ' + str(le_bintime[-1]))
+    print('right: ' + str(re_bintime[0]) + ' / ' + str(re_bintime[-1]))
+    print('side: ' + str(sd_bintime[0]) + ' / ' + str(sd_bintime[-1]))
+
+    # find the last timestamp to start a video
+    first_real_time = max([td_bintime[0], le_bintime[0], re_bintime[0], sd_bintime[0]])
+
+    # find the first end of a video
+    last_real_time = min([td_bintime[-1], le_bintime[-1], re_bintime[-1], sd_bintime[-1]])
+
+    # find which position contains the timestamp that matches first_real_time and last_real_time
+    td_startframe = next(i for i, x in enumerate(td_bintime) if x == first_real_time)
+    td_endframe = next(i for i, x in enumerate(td_bintime) if x == last_real_time)
+    left_startframe = next(i for i, x in enumerate(le_bintime) if x == first_real_time)
+    left_endframe = next(i for i, x in enumerate(le_bintime) if x == last_real_time)
+    right_startframe = next(i for i, x in enumerate(re_bintime) if x == first_real_time)
+    right_endframe = next(i for i, x in enumerate(re_bintime) if x == last_real_time)
+    side_startframe = next(i for i, x in enumerate(sd_bintime) if x == first_real_time)
+    side_endframe = next(i for i, x in enumerate(sd_bintime) if x == last_real_time)
+
+    return td_startframe, td_endframe, left_startframe, left_endframe, right_startframe, right_endframe, side_startframe, side_endframe, first_real_time, last_real_time

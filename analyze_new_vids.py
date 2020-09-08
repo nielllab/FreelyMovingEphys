@@ -1,9 +1,11 @@
 """
-FreelyMovingEphys analyze new videos using DeepLabCut and Anipose
 analyze_new_vids.py
+
+Analyze new videos using DeepLabCut and/or Anipose.
 
 Last modified August 27, 2020
 """
+
 # package imports
 import deeplabcut
 import numpy as np

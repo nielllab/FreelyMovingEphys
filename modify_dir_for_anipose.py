@@ -1,6 +1,7 @@
 """
 modify_dir_for_anipose.py
-create a copy of an experiment directory with files prepared for Anipose analysis
+
+Create a copy of an experiment directory with files prepared for Anipose analysis
 
 Last modified August 29, 2020
 """

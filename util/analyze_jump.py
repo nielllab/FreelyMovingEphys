@@ -1,8 +1,9 @@
 """
-FreelyMovingEphys jump tracking utilities
 analyze_jump.py
 
-Last modified August 22, 2020
+Jump tracking utilities
+
+Last modified September 07, 2020
 """
 
 # package imports
@@ -105,44 +106,6 @@ def jump_cc(global_data_path, global_save_path, trial_name, REye_ds, LEye_ds, to
     fig4.legend(['mean theta', 'mean theta divergence', 'mean phi'])
 
     pp.close()
-
-# Sort out what the first timestamp in all DataArrays is so that videos can be set to start playing at the corresponding frame
-def find_start_end(topdown_data, leftellipse_data, rightellipse_data, side_data):
-
-    # bin the times
-    topdown_binned = topdown_data.resample(time='10ms').mean()
-    left_binned = leftellipse_data.resample(time='10ms').mean()
-    right_binned = rightellipse_data.resample(time='10ms').mean()
-    side_binned = side_data.resample(time='10ms').mean()
-
-    # get binned times for each
-    td_bintime = topdown_binned.coords['timestamps'].values
-    le_bintime = left_binned.coords['timestamps'].values
-    re_bintime = right_binned.coords['timestamps'].values
-    sd_bintime = side_binned.coords['timestamps'].values
-
-    print('topdown: ' + str(td_bintime[0]) + ' / ' + str(td_bintime[-1]))
-    print('left: ' + str(le_bintime[0]) + ' / ' + str(le_bintime[-1]))
-    print('right: ' + str(re_bintime[0]) + ' / ' + str(re_bintime[-1]))
-    print('side: ' + str(sd_bintime[0]) + ' / ' + str(sd_bintime[-1]))
-
-    # find the last timestamp to start a video
-    first_real_time = max([td_bintime[0], le_bintime[0], re_bintime[0], sd_bintime[0]])
-
-    # find the first end of a video
-    last_real_time = min([td_bintime[-1], le_bintime[-1], re_bintime[-1], sd_bintime[-1]])
-
-    # find which position contains the timestamp that matches first_real_time and last_real_time
-    td_startframe = next(i for i, x in enumerate(td_bintime) if x == first_real_time)
-    td_endframe = next(i for i, x in enumerate(td_bintime) if x == last_real_time)
-    left_startframe = next(i for i, x in enumerate(le_bintime) if x == first_real_time)
-    left_endframe = next(i for i, x in enumerate(le_bintime) if x == last_real_time)
-    right_startframe = next(i for i, x in enumerate(re_bintime) if x == first_real_time)
-    right_endframe = next(i for i, x in enumerate(re_bintime) if x == last_real_time)
-    side_startframe = next(i for i, x in enumerate(sd_bintime) if x == first_real_time)
-    side_endframe = next(i for i, x in enumerate(sd_bintime) if x == last_real_time)
-
-    return td_startframe, td_endframe, left_startframe, left_endframe, right_startframe, right_endframe, side_startframe, side_endframe, first_real_time, last_real_time
 
 # create movies of pursuit with eye positions
 def jump_gaze_trace(datapath, savepath, trialname, REye, LEye, TOP, SIDE, Rvid, Lvid, Svid, Tvid):

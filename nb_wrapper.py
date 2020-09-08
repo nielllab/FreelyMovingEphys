@@ -1,8 +1,9 @@
 """
-FreelyMovingEphys wrapper functions to access analysis functions from jupyter
 nb_wrapper.py
 
-Last modified July 26, 2020
+wrapper functions to access analysis functions from jupyter
+
+Last modified September 07, 2020
 """
 
 # package imports
@@ -10,10 +11,11 @@ import os
 import xarray as xr
 
 # module imports
-from util.read_data import open_h5, open_time, read_paths, read1path
+from util.read_data import open_h5, open_time, h5_to_xr
 from util.track_eye import eye_tracking, check_eye_tracking
 from util.track_topdown import topdown_tracking, head_angle, check_topdown_tracking
 from util.track_cricket import get_cricket_props
+from util.track_world import find_pupil_rotation, pupil_rotation_wrapper
 
 # topdown view function access
 def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_cor, topdown_pt_num, cricket, bonsaitime):
@@ -35,17 +37,17 @@ def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_c
             csv_path = os.path.join(data_path, file_name) + '_FlirTS.csv'
 
         # build xarray out of paths
-        pts, times, names = read_paths(h5_path, csv_path)
+        pts, names = h5_to_xr(h5_path, csv_path, 'TOP')
 
         print('attempting dlc data processing...')
         # interpolate, threshold, and plot safety-checks
         pts = xr.Dataset.to_array(pts)
         pts = xr.DataArray.sel(pts, variable='v1')
 
-        clean_pts, nose_x, nose_y = topdown_tracking(pts, names, save_path, file_name, lik_thresh, coord_cor, topdown_pt_num, cricket, csv_path)
+        clean_pts, nose_x, nose_y = topdown_tracking(pts, names, save_path, file_name, lik_thresh, coord_cor, topdown_pt_num, cricket)
 
         # get head angle, plot safety-checks
-        thetas = head_angle(clean_pts, names, lik_thresh, save_path, cricket, file_name, nose_x, nose_y, csv_path)
+        thetas = head_angle(clean_pts, names, lik_thresh, save_path, cricket, file_name, nose_x, nose_y)
 
         if cricket is True:
             # get out cricket properties
@@ -64,7 +66,7 @@ def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_c
             topout = xr.merge([clean_pts, thetas])
             print('dlc operations complete')
     except FileNotFoundError:
-        print('missing either DLC or time file... output DLC xarray object is type None')
+        print('missing either DLC or time file; output DLC xarray object is type None')
         h5_path = None
         topout = None
 
@@ -72,27 +74,32 @@ def topdown_intake(data_path, file_name, viewext, save_path, lik_thresh, coord_c
         avi_path = os.path.join(data_path, file_name) + '.avi'
 
         if h5_path is not None:
-            print('plotting points on video')
+            print('plotting points on video...')
             # plot head points and head angle on video
             check_topdown_tracking(file_name, avi_path, save_path, dlc_data=clean_pts, head_ang=thetas, vext=viewext)
         elif h5_path is None:
-            print('saving video without points')
+            print('saving video without points...')
             # plot video without DLC data
             check_topdown_tracking(file_name, avi_path, save_path, vext=viewext)
     except FileNotFoundError:
-        print('missing video file... no output video object is being saved')
+        print('missing video file; no output video object is being saved')
         avi_path = None
 
     return topout
 
 # eye cam function access
 def eye_intake(data_path, file_name, viewext, save_path, lik_thresh, pxl_thresh, ell_thresh, eye_pt_num, tear, bonsaitime):
-    dir = os.path.join(save_path, file_name)
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-        print('created save directory at ' + str(dir))
-    elif os.path.exists(dir):
-        print('using existing save directory ' + str(dir))
+    fig_dir = os.path.join(save_path, file_name)
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir)
+        print('created save directory at ' + str(fig_dir))
+    elif os.path.exists(fig_dir):
+        print('using existing save directory ' + str(fig_dir))
+
+    trial_name_pieces = file_name.split('_')[:-1]
+    trial_name = '_'.join(trial_name_pieces)
+    side_letter = viewext[0]
+    print(trial_name)
 
     # get the complete path to the eye trial named in the jupyter notebook
     try:
@@ -105,21 +112,20 @@ def eye_intake(data_path, file_name, viewext, save_path, lik_thresh, pxl_thresh,
             csv_path = os.path.join(data_path, file_name) + '_FlirTS.csv'
 
         # read in .h5 DLC data
-        pts, times, names = read1path(h5_path, csv_path)
+        pts, names = h5_to_xr(h5_path, csv_path, viewext)
 
         print('attempting ellipse calculations...')
         # calculate ellipse and get eye angles
         params = eye_tracking(pts, names, save_path, file_name, lik_thresh, pxl_thresh, eye_pt_num, tear)
 
-        # get head angle, plot safety-checks
-        # theta = head_angle(clean_pts, names, lik_thresh)
+        rfit, shift = pupil_rotation_wrapper(data_path, trial_name, side_letter, params, fig_dir)
 
         pts.name = 'raw_pt_values'
         params.name = 'ellipse_param_values'
         eyeout = xr.merge([pts, params])
         print('ellipse calculations complete')
     except FileNotFoundError:
-        print('missing DLC file... output DLC xarray object is type None')
+        print('missing DLC file; output DLC xarray object is type None')
         h5_path = None
         eyeout = None
 
@@ -127,15 +133,15 @@ def eye_intake(data_path, file_name, viewext, save_path, lik_thresh, pxl_thresh,
         avi_path = os.path.join(data_path, file_name) + '.avi'
 
         if h5_path is not None:
-            print('plotting points on video')
+            print('plotting points on video...')
             # plot eye points and ellipses on video
             check_eye_tracking(file_name, avi_path, save_path, dlc_data=pts, ell_data=params, vext=viewext)
         elif h5_path is None:
             # plot video without DLC data
-            print('saving video without points')
+            print('saving video without points...')
             check_eye_tracking(file_name, avi_path, save_path, vext=viewext)
     except FileNotFoundError:
-        print('missing video file... no output video object is being saved')
+        print('missing video file; no output video object is being saved')
         avi_path = None
 
-    return eyeout
+    return eyeout, rfit, shift

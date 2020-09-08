@@ -1,8 +1,9 @@
 """
-FreelyMovingEphys world tracking utilities
 track_world.py
 
-Last modified September 03, 2020
+World tracking utilities
+
+Last modified September 07, 2020
 """
 
 # package imports
@@ -18,37 +19,14 @@ from scipy.optimize import curve_fit
 import scipy.stats as st
 import time
 import subprocess as sp
-from multiprocessing import Pool
+import multiprocessing
 import sys
 import warnings
 from scipy import ndimage
+import time
 
 # module imports
 from util.read_data import open_time, find
-
-# nonlinear regression parameter confidence intervals
-# adapted from https://gist.github.com/danieljfarrell/81809e6f53c07a18cd12
-def nlparci(fvec, jac):
-    # residual sum of squares
-    rss = np.sum(fvec**2)
-    # number of data points and parameters
-    n, p = jac.shape
-    # the statistical degrees of freedom
-    nmp = n - p
-    # mean residual error
-    ssq = rss / nmp
-    # the Jacobian
-    J = np.matrix(jac)
-    # covariance matrix
-    c = np.linalg.inv(J.T*J)
-    # variance-covariance matrix.
-    pcov = c * ssq
-    # Diagonal terms provide error estimate based on uncorrelated parameters.
-    # The sqrt convert from variance to std. dev. units.
-    err = np.sqrt(np.diag(np.abs(pcov))) * 1.96  # std. dev. x 1.96 -> 95% conf
-    # Here err is the full 95% area under the normal distribution curve. This
-    # means that the plus-minus error is the half of this value
-    return err
 
 # get the mean confidence interval
 def find_ci(a, confidence=0.95):
@@ -193,32 +171,37 @@ def curve_func(xval, a, b, c, d):
     return a+(b-a)/(1+10**((c-xval)*d))
 
 # fit to sigmoid function
-# at some point, initial parameters should be reconsidered; getting a fit requires unresonbaly large maxfev right now
 def sigm_fit(d):
-    return curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5], maxfev=1000000)
+    return curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5], maxfev=1000000, bounds=([50,100, 5, .05],[150, 250, 20, 5]), method='dogbox')
 
-def pupil_rotation_wrapper(global_data_path, trial_name, side_letter, eye_params, global_save_path, world_interp_method='linear', ranger=10):
-    eyevidpath = find((trial_name + '*' + side_letter + 'EYE.avi'), global_data_path)[0]
-    toptimepath = find(('*' + trial_name + '*' + 'TOP_BonsaiTS.csv'), global_data_path)[0]
-    eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTS.csv'), global_data_path)[0]
-    worldtimepath = find(('*' + trial_name + '*' + side_letter + 'WORLD_BonsaiTS.csv'), global_data_path)[0]
+# multiprocessing-ready fit to sigmoid function
+def sigm_fit_mp(d):
+    try:
+        popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5], maxfev=1000000, bounds=([50,100, 5, .05],[150, 250, 20, 5]), method='dogbox')
+        ci = np.sqrt(np.diagonal(pcov))
+    except RuntimeError:
+        popt = np.nan; ci = np.nan
+    return (popt, ci)
 
-    return find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, global_save_path, world_interp_method, ranger)
+def pupil_rotation_wrapper(eye_params, config, trial_name, side_letter):
+    eyevidpath = find((trial_name + '*' + side_letter + 'EYE.avi'), config['data_path'])[0]
+    toptimepath = find(('*' + trial_name + '*' + 'TOP_BonsaiTS.csv'), config['data_path'])[0]
+    eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTS.csv'), config['data_path'])[0]
+    worldtimepath = find(('*' + trial_name + '*' + side_letter + 'WORLD_BonsaiTS.csv'), config['data_path'])[0]
+
+    return find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['save_path'], config['world_interp_method'], config['range_radius'], config)
 
 # find pupil edge and align over time to calculate cyclotorsion
-def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, file_name, eyeext, eye_ds, save_path, world_interp_method, ranger):
+def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, eyeext, eye_ell_params, save_path, world_interp_method, ranger, config):
+    starting_time = time.time()
 
-    fig_dir = save_path + '/' + file_name + '/'
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir)
+    print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
 
-    # get eye data out of dataset
-    eye_pts = xr.Dataset.to_array(eye_ds).sel(variable='raw_pt_values')
-    eye_ell_params = xr.Dataset.to_array(eye_ds).sel(variable='ellipse_param_values')
+    rad_range = [np.deg2rad(i) for i in range(0,360)]
 
     # open time files
-    eyeTS = open_time(eyetimepath, np.size(eye_pts, axis=0))
-    worldTS = open_time(worldtimepath, np.size(eye_pts, axis=0))
+    eyeTS = open_time(eyetimepath, np.size(eye_ell_params, axis=0))
+    worldTS = open_time(worldtimepath, np.size(eye_ell_params, axis=0))
     topTS = open_time(toptimepath)
 
     # interpolate ellipse parameters to worldcam timestamps
@@ -242,17 +225,19 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
     eyeTSminusstart = [(t-start_time).seconds for t in eyeTS]
     worldTSminusstart = [(t-start_time).seconds for t in worldTS]
 
-    print('opening video')
     eyevid = cv2.VideoCapture(eyevidpath)
 
     # setup the file to save out of this
-    vidsavepath = os.path.join(fig_dir, str(file_name + '_pupil_edge_detection_' + eyeext + '.avi'))
+    vidsavepath = os.path.join(config['save_path'], str(trial_name + '_pupil_edge_detection_' + eyeext + '.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    vidout = cv2.VideoWriter(vidsavepath, fourcc, 60, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
+    vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
 
     set_size = (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
     while(1):
+        sys.stdout.write('reading frame {} for sigmoid fit of pupil edge, now at {}% progress\r'.format(str(int(eyevid.get(cv2.CAP_PROP_POS_FRAMES))), str(int(eyevid.get(cv2.CAP_PROP_POS_FRAMES)/int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT))))))
+        sys.stdout.flush()
+
         # read the frame for this pass through while loop
         eye_ret, eye_frame = eyevid.read()
 
@@ -260,62 +245,57 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
             break
 
         # debug with a few frames
-        if eyevid.get(cv2.CAP_PROP_POS_FRAMES) > 20:
-            break
-
-        cur = str(int(eyevid.get(cv2.CAP_PROP_POS_FRAMES)))
-        tot = str(int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)))
-        progress = str(int((eyevid.get(cv2.CAP_PROP_POS_FRAMES) / eyevid.get(cv2.CAP_PROP_FRAME_COUNT))*100))
-        sys.stdout.write('working on pupil in frame {} of {}; now at {}% progress\r'.format(cur, tot, progress))
-        sys.stdout.flush()
+        # if eyevid.get(cv2.CAP_PROP_POS_FRAMES) > 6:
+        #     break
 
         eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)
 
         # get ellisepe parameters for this time
         current_time = eyevid.get(cv2.CAP_PROP_POS_FRAMES)
-        current_theta = eye_theta.sel(frame=current_time).values[0]
-        current_phi = eye_phi.sel(frame=current_time).values[0]
-        current_longaxis = eye_longaxis.sel(frame=current_time).values[0]
-        current_shortaxis = eye_shortaxis.sel(frame=current_time).values[0]
-        current_centX = eye_centX.sel(frame=current_time).values[0]
-        current_centY = eye_centY.sel(frame=current_time).values[0]
+        current_theta = eye_theta.sel(frame=current_time).values
+        current_phi = eye_phi.sel(frame=current_time).values
+        current_longaxis = eye_longaxis.sel(frame=current_time).values
+        current_shortaxis = eye_shortaxis.sel(frame=current_time).values
+        current_centX = eye_centX.sel(frame=current_time).values
+        current_centY = eye_centY.sel(frame=current_time).values
 
         # get cross-section of pupil at each angle 1-360 and fit to sigmoid
         ci = []; params = []
-        for th in range(1, 361):
+        n_proc = multiprocessing.cpu_count()
+        pool = multiprocessing.Pool(processes=n_proc)
+        start_mp = time.time()
+        param_mp = []
+        for deg_th in range(0,360):
+            rad_th = rad_range[deg_th]
             meanr = 0.5 * (current_longaxis + current_shortaxis)
             r = range(int(meanr - ranger), int(meanr + ranger))
-
             # go out along radius and get pixel values
-            pupil_edge = np.zeros([361, len(r)])
+            pupil_edge = np.zeros([360, len(r)])
             for i in range(0, len(r)):
-                pupil_edge[th,i] = eye_frame[int(current_centY+r[i]*((np.sin(th)))), int(current_centX+r[i]*((np.cos(th))))]
+                pupil_edge[deg_th,i] = eye_frame[int(current_centY+r[i]*(np.sin(rad_th))), int(current_centX+r[i]*(np.cos(rad_th)))]
             # fit sigmoind to pupil edge at this theta
-            d = pupil_edge[th,:]
-            try:
-                # non-linear regression, fit to sigmoid (VERY SLOW -- multiprocessing needed for this step)
-                popt, pcov = sigm_fit(d)
-                # confidence interval of the parameters
-                ci.append(np.sqrt(np.diagonal(pcov)))
-                params.append(popt)
-            except RuntimeError:
-                ci.append([np.nan,np.nan,np.nan,np.nan]); params.append([np.nan,np.nan,np.nan,np.nan])
+            d = pupil_edge[deg_th,:]
+            param_mp.append(pool.apply_async(sigm_fit_mp, args=(d,)))
+        params_output = [result.get() for result in param_mp]
+
+        params = []; ci = []
+        for deg_th in range(0,360):
+            params.append(params_output[deg_th][0])
+            ci.append(params_output[deg_th][1])
+        params = np.stack(params); ci = np.stack(ci)
 
         fit_thresh = 1
-        params = np.array(params); ci = np.array(ci)
 
         # extract radius variable from parameters
         rfit = params[:,2] - 1
 
         # if confidence interval in estimate is > fit_thresh pix, set to to NaN
         # then, remove if luminance goes the wrong way (e.g. from reflectance)
-        for th in range(1,360):
-            rfit[th] = np.where(ci[th,2] > fit_thresh, np.nan, rfit[th])
-            rfit[th] = np.where(ci[th,2] < 0, np.nan, rfit[th])
+        for deg_th in range(0,360):
+            rfit[deg_th] = np.where(ci[deg_th,2] > fit_thresh, np.nan, rfit[deg_th])
+            rfit[deg_th] = np.where(ci[deg_th,2] < 0, np.nan, rfit[deg_th])
 
-        # median filter
-        rfit = signal.medfilt(rfit,3)
-        # interpolate because convolution will create large NaN holes
+        # # interpolate because convolution will create large NaN holes
         interp_x = [item for sublist in np.argwhere(np.isnan(rfit)) for item in sublist]
         interp_xp = [item for sublist in np.argwhere(~np.isnan(rfit)) for item in sublist]
         interp_fp = rfit[~np.isnan(rfit)]
@@ -326,6 +306,10 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
             if np.isnan(rfit_interp[i]):
                 rfit_interp[i] = rfit_interp_vals[j]
                 j = j + 1
+
+        # median filter
+        rfit_interp = signal.medfilt(rfit_interp,3)
+
         # subtract baseline (boxcar average using conv)
         # because our points aren't perfectly centered on ellipse
         filtsize = 30
@@ -337,9 +321,10 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
 
         # save out video with detected edge of pupil outlined in green
         rmin = 0.5 * (current_longaxis + current_shortaxis) - ranger
-        for th in range(1,261):
+        for deg_th in range(0,360):
+            rad_th = rad_range[deg_th]
             try:
-                eye_frame = cv2.circle(eye_frame, (int(round(current_centX+(rmin+rfit[th])*np.cos(th))),int(round(current_centY+(rmin+rfit[th])*np.sin(th)))), 1, (0,0,0), thickness=-1)
+                eye_frame = cv2.circle(eye_frame, (int(round(current_centX+(rmin+rfit[deg_th])*(np.cos(rad_th)))),int(round(current_centY+(rmin+rfit[deg_th])*(np.sin(rad_th))))), 1, (0,0,0), thickness=-1)
             except ValueError:
                 pass
 
@@ -364,6 +349,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
 
     # correlation across timepoints
     timepoint_corr_rfit = np.corrcoef([rfit_conv_xr.isel(frame=1), rfit_conv_xr.isel(frame=2)]) # best way to make this apply to the entire dimension 'frame'? return to this later
+
     plt.figure()
     fig, ax = plt.subplots()
     im = ax.imshow(timepoint_corr_rfit)
@@ -372,7 +358,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
     ax.set_yticks(np.arange(len(timepoint_corr_rfit)))
     ax.set_xticklabels(range(1,len(timepoint_corr_rfit)+1))
     ax.set_yticklabels(range(1,len(timepoint_corr_rfit)+1))
-    plt.savefig(fig_dir + 'corr_radius_fit.png', dpi=300)
+    plt.savefig(os.path.join(config['save_path'], (trial_name + '_corr_radius_fit.png')), dpi=300)
     plt.close()
 
     # calculate mean as template
@@ -380,14 +366,13 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
     plt.figure()
     plt.plot(template)
     plt.title('mean as template')
-    plt.savefig(fig_dir + 'mean_template.png', dpi=300)
+    plt.savefig(os.path.join(config['save_path'], (trial_name + '_mean_template.png')), dpi=300)
     plt.close()
 
     plt.xcorr(rfit_conv_xr.isel(frame=1).values,template)
     plt.title('mean as template')
-    plt.savefig(fig_dir + 'mean_template.png', dpi=300)
     plt.title('rfit_conv template cross correlation')
-    plt.savefig(fig_dir + 'rfit_template_cc.png', dpi=300)
+    plt.savefig(os.path.join(config['save_path'], (trial_name + '_rfit_template_cc.png')), dpi=300)
     plt.close()
 
     # xcorr of two random timepoints
@@ -395,7 +380,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
     plt.figure()
     plt.xcorr(rfit_conv_xr.sel(frame=t1).values, rfit_conv_xr.sel(frame=t2).values)
     plt.title('xcorr of time ' + str(t1) + ' and ' + str(t2))
-    plt.savefig(fig_dir + 'xcorr_of_two_times.png', dpi=300)
+    plt.savefig(os.path.join(config['save_path'], (trial_name + '_xcorr_of_two_times.png')), dpi=300)
     plt.close()
 
     # iterative fit to alignment
@@ -407,20 +392,17 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
     total_shift = np.zeros(n); peak = np.zeros(n)
     c = total_shift;
     for rep in range(0,12):
-        print('starting rep='+str(rep)+' in iterative fit')
+        sys.stdout.write('starting rep {} for iterative fit of pupil rotation\r'.format(str(int(rep))))
+        sys.stdout.flush()
         # calculate and plot template
         template = np.nanmean(rfit_conv_xr.values, 0)
         plt.figure()
         plt.title('rep='+str(rep)+' in iterative fit')
         plt.plot(template)
-        plt.savefig(fig_dir + 'rep'+str(rep)+'_template.png', dpi=300)
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_rep'+str(rep)+'_pupil_rot_template.png')), dpi=300)
         plt.close()
 
         eyevid = cv2.VideoCapture(eyevidpath)
-
-        vidsavepath = os.path.join(fig_dir, str(file_name + '_pupil_rotation_rep' + str(rep) + '_' + eyeext + '.avi'))
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        vidout = cv2.VideoWriter(vidsavepath, fourcc, 60, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
 
         for frame_num in range(1,n):
             # for each frame, get correlation and shift
@@ -433,17 +415,17 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
         # histogram of correlations
         plt.figure()
         plt.hist(c)
-        plt.savefig(fig_dir + 'rep'+str(rep)+'_correlation_hist.png', dpi=300)
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_rep'+str(rep)+'_correlation_hist.png')), dpi=300)
         plt.close()
 
     win = 3
     shift_nan = -total_shift
     shift_nan[c < 0.4] = np.nan
 
-#     interp_x = [item for sublist in np.argwhere(np.isnan(shift_nan)) for item in sublist]
-#     interp_xp = [item for sublist in np.argwhere(~np.isnan(shift_nan)) for item in sublist]
-#     interp_fp = shift_nan[~np.isnan(shift_nan)]
-#     shift_interp = np.interp(interp_x, interp_xp, interp_fp)
+    # interp_x = [item for sublist in np.argwhere(np.isnan(shift_nan)) for item in sublist]
+    # interp_xp = [item for sublist in np.argwhere(~np.isnan(shift_nan)) for item in sublist]
+    # interp_fp = shift_nan[~np.isnan(shift_nan)]
+    # shift_interp = np.interp(interp_x, interp_xp, interp_fp)
 
     shift_smooth = np.convolve(shift_nan, np.ones(win)/win, mode='same')
     shift_smooth = shift_smooth - np.nanmedian(shift_smooth)
@@ -451,26 +433,20 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
 
     plt.figure()
     plt.plot(shift_nan)
-    plt.savefig(fig_dir + 'shift_nan.png', dpi=300)
+    plt.savefig(os.path.join(config['save_path'], (trial_name + '_shift_nan.png')), dpi=300)
     plt.close()
+
     plt.figure()
     plt.plot(shift_smooth)
-    plt.savefig(fig_dir + 'shift_smooth.png', dpi=300)
+    plt.savefig(os.path.join(config['save_path'], (trial_name + '_shift_smooth.png')), dpi=300)
     plt.close
-
-    # get eye data out of dataset
-    eye_pts = xr.Dataset.to_array(eye_ds).sel(variable='raw_pt_values')
-    eye_ell_params = xr.Dataset.to_array(eye_ds).sel(variable='ellipse_param_values')
 
     # interpolate ellipse parameters to worldcam timestamps
     eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=world_interp_method)
 
-    eye_theta = eye_ell_interp_params.sel(ellipse_params='theta')
-    eye_phi = eye_ell_interp_params.sel(ellipse_params='phi')
-    eye_longaxis= eye_ell_interp_params.sel(ellipse_params='longaxis')
-    eye_shortaxis = eye_ell_interp_params.sel(ellipse_params='shortaxis')
-    eye_centX = eye_ell_interp_params.sel(ellipse_params='centX')
-    eye_centY = eye_ell_interp_params.sel(ellipse_params='centY')
+    vidsavepath = os.path.join(config['save_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + eyeext + '.avi'))
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
 
     while(1):
         eye_ret, eye_frame = eyevid.read()
@@ -479,35 +455,53 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
             break
 
         # debug with a few frames
-        if eyevid.get(cv2.CAP_PROP_POS_FRAMES) > 20:
-            break
+        # if eyevid.get(cv2.CAP_PROP_POS_FRAMES) > 6:
+        #     break
 
         eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)
 
         # get ellisepe parameters for this time
         current_time = int(eyevid.get(cv2.CAP_PROP_POS_FRAMES))
-        current_theta = eye_theta.sel(frame=current_time).values[0]
-        current_phi = eye_phi.sel(frame=current_time).values[0]
-        current_longaxis = eye_longaxis.sel(frame=current_time).values[0]
-        current_shortaxis = eye_shortaxis.sel(frame=current_time).values[0]
-        current_centX = eye_centX.sel(frame=current_time).values[0]
-        current_centY = eye_centY.sel(frame=current_time).values[0]
+        current_theta = eye_theta.sel(frame=current_time).values
+        current_phi = eye_phi.sel(frame=current_time).values
+        current_longaxis = eye_longaxis.sel(frame=current_time).values
+        current_shortaxis = eye_shortaxis.sel(frame=current_time).values
+        current_centX = eye_centX.sel(frame=current_time).values
+        current_centY = eye_centY.sel(frame=current_time).values
 
+        # plot the ellipse edge
         rmin = 0.5 * (current_longaxis + current_shortaxis) - ranger
-        for th in range(1,261):
-            eye_frame = cv2.circle(eye_frame, (int(round(current_centX+(rmin+rfit[th])*np.cos(th))),int(round(current_centY+(rmin+rfit[th])*np.sin(th)))), 1, (0,0,0), thickness=-1)
+        for deg_th in range(0,360):
+            try:
+                rad_th = rad_range[deg_th]
+                eye_frame = cv2.circle(eye_frame, (int(round(current_centX+(rmin+rfit[deg_th])*np.rad2deg(np.cos(rad_th)))),int(round(current_centY+(rmin+rfit[deg_th])*np.rad2deg(np.sin(rad_th))))), 1, (0,0,0), thickness=-1)
+            except ValueError:
+                pass
 
+        # plot the rotation of the eye as a vertical line made up of many circles
         d = range(-20,20)
         for d1 in d:
             try:
-                eye_frame = cv2.circle(eye_frame, (int(round(current_centX + d1 * np.cos(shift_smooth[current_time]+90))),int(round(current_centY + d1 * np.sin(shift_smooth[current_time]+90)))),1,(0,0,0),thickness=-1)
+                eye_frame = cv2.circle(eye_frame, (int(round(current_centX + d1 * (np.cos(np.deg2rad(shift_smooth[current_time]+90))))),int(round(current_centY + d1 * (np.sin(np.deg2rad(shift_smooth[current_time]+90)))))),1,(0,0,0),thickness=-1)
             except (ValueError, IndexError):
                 pass
-        eye_frame = cv2.circle(eye_frame, (int(current_centX),int(current_centY)),3,(0,0,0),thickness=-1)
+
+        # plot the center of the eye on the frame as a larger dot than the others
+        try:
+            eye_frame = cv2.circle(eye_frame, (int(current_centX),int(current_centY)),3,(0,0,0),thickness=-1)
+        except (ValueError, IndexError):
+            pass
+
+        # plot the actual ellipse from track_eye
+        try:
+            eye_frame = cv2.ellipse(eye_frame, (int(current_centX),int(current_centY)), (int(current_longaxis),int(current_shortaxis)), int(np.rad2deg(current_phi)), 0, 360, (0,0,0), 2)
+        except (ValueError, IndexError):
+            pass
+
 
         plt.figure()
         plt.imshow(eye_frame)
-        plt.savefig(fig_dir + 'frame' + str(int(eyevid.get(cv2.CAP_PROP_POS_FRAMES))) + '_imshow.png', dpi=300)
+        plt.savefig(os.path.join(config['save_path'], (trial_name + 'frame' + str(int(eyevid.get(cv2.CAP_PROP_POS_FRAMES))) + '_imshow.png')), dpi=300)
         plt.close
 
         vidout.write(eye_frame)
@@ -518,4 +512,10 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, fil
         vidout.release()
         cv2.destroyAllWindows()
 
-    return rfit_conv_xr, xr.DataArray(shift_smooth)
+    print('total time for finding pupil rotation: ' + str((time.time() - starting_time)/60) + ' min')
+    print('time per frame: ' + str((time.time() - starting_time)/int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT))) + ' sec') # CHANGE TO: /int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)
+
+    shift = xr.DataArray(shift_smooth, coords=[('frame',range(0,np.size(shift_smooth,0)))])
+    rfit_conv_xr = xr.DataArray.rename(rfit_conv_xr, dim_0='deg')
+
+    return rfit_conv_xr, shift
