@@ -3,7 +3,7 @@ track_topdown.py
 
 Topdown tracking utilities
 
-Last modified September 07, 2020
+Last modified September 12, 2020
 """
 
 # package imports
@@ -19,6 +19,7 @@ from itertools import product
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from tqdm import tqdm
 
 # module imports
 from util.read_data import split_xyl, open_time
@@ -158,35 +159,35 @@ def head_angle(pt_input, nose_x, nose_y, config, trial_name):
     except ZeroDivisionError:
         thetaout = xr.DataArray(np.zeros(np.shape(theta_good)))
 
-    # plot
-    fig1 = plt.figure(constrained_layout=True)
-    gs = fig1.add_gridspec(5,2)
-    f1_ax1 = fig1.add_subplot(gs[0, :])
-    f1_ax1.set_title(trial_name + 'points')
-    f1_ax1.plot(data[:,0,:], data[:,1,:])
-    f1_ax2 = fig1.add_subplot(gs[1, 0])
-    f1_ax2.set_title('number of good points')
-    f1_ax2.plot(num_good_for_frames)
-    f1_ax3 = fig1.add_subplot(gs[1, 1])
-    f1_ax3.set_title('fraction bad timepoints')
-    f1_ax3.plot(num_good_for_frames)
-    f1_ax3.set_xlabel('point num'); f1_ax3.set_ylim([0,1])
-    # f1_ax4 = fig1.add_subplot(gs[2, 0])
-    # f1_ax4.scatter(cent[0,:], cent[1,:])
-    # f1_ax4.set_title('all points')
-    # f1_ax5 = fig1.add_subplot(gs[2, 1])
-    # f1_ax5.set_title('only good points')
-    # f1_ax5.scatter(centroid[0,:], centroid[1,:])
-    f1_ax6 = fig1.add_subplot(gs[3, :])
-    f1_ax6.plot(alltheta)
-    f1_ax6.set_title('final theta')
-    f1_ax6.set_ylabel('theta'); f1_ax6.set_xlabel('frame')
-    f1_ax7 = fig1.add_subplot(gs[4, :])
-    f1_ax7.plot(nose_x); f1_ax7.plot(nose_y)
-    f1_ax7.legend('x','y')
-    f1_ax7.set_ylabel('position'); f1_ax6.set_xlabel('frame')
-    plt.savefig(os.path.join(config['save_path'], (trial_name + '_head_alignment.png')), dpi=300)
-    plt.close()
+    if config['save_vids'] is True:
+        fig1 = plt.figure(constrained_layout=True)
+        gs = fig1.add_gridspec(5,2)
+        f1_ax1 = fig1.add_subplot(gs[0, :])
+        f1_ax1.set_title(trial_name + 'points')
+        f1_ax1.plot(data[:,0,:], data[:,1,:])
+        f1_ax2 = fig1.add_subplot(gs[1, 0])
+        f1_ax2.set_title('number of good points')
+        f1_ax2.plot(num_good_for_frames)
+        f1_ax3 = fig1.add_subplot(gs[1, 1])
+        f1_ax3.set_title('fraction bad timepoints')
+        f1_ax3.plot(num_good_for_frames)
+        f1_ax3.set_xlabel('point num'); f1_ax3.set_ylim([0,1])
+        # f1_ax4 = fig1.add_subplot(gs[2, 0])
+        # f1_ax4.scatter(cent[0,:], cent[1,:])
+        # f1_ax4.set_title('all points')
+        # f1_ax5 = fig1.add_subplot(gs[2, 1])
+        # f1_ax5.set_title('only good points')
+        # f1_ax5.scatter(centroid[0,:], centroid[1,:])
+        f1_ax6 = fig1.add_subplot(gs[3, :])
+        f1_ax6.plot(alltheta)
+        f1_ax6.set_title('final theta')
+        f1_ax6.set_ylabel('theta'); f1_ax6.set_xlabel('frame')
+        f1_ax7 = fig1.add_subplot(gs[4, :])
+        f1_ax7.plot(nose_x); f1_ax7.plot(nose_y)
+        f1_ax7.legend('x','y')
+        f1_ax7.set_ylabel('position'); f1_ax6.set_xlabel('frame')
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_head_alignment.png')), dpi=300)
+        plt.close()
 
     return thetaout
 
@@ -207,13 +208,14 @@ def topdown_tracking(topdown_data, config, trial_name):
     nose_x_pts = topdown_coordcor.sel(point_loc='nose_x')
     nose_y_pts = topdown_coordcor.sel(point_loc='nose_y')
 
-    plt.figure()
-    plt.title('mouse nose x/y path before likelihood threshold')
-    plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
-    plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
-    plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
-    plt.savefig(os.path.join(config['save_path'], (trial_name + '_nose_trace.png')), dpi=300)
-    plt.close()
+    if config['save_vids'] is True:
+        plt.figure()
+        plt.title('mouse nose x/y path before likelihood threshold')
+        plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
+        plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
+        plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_nose_trace.png')), dpi=300)
+        plt.close()
 
     # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
     likeli_loop_count = 0
@@ -251,13 +253,14 @@ def topdown_tracking(topdown_data, config, trial_name):
     nose_x_thresh_nonan_pts = nose_x_thresh_pts[np.isfinite(nose_x_thresh_pts)]
     nose_y_thresh_nonan_pts = nose_y_thresh_pts[np.isfinite(nose_y_thresh_pts)]
 
-    plt.figure()
-    plt.title('mouse nose x/y path after likelihood threshold')
-    plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))
-    plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
-    plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
-    plt.savefig(os.path.join(config['save_path'], (trial_name + '_nose_trace_thresh.png')), dpi=300)
-    plt.close()
+    if config['save_vids'] is True:
+        plt.figure()
+        plt.title('mouse nose x/y path after likelihood threshold')
+        plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))
+        plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
+        plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_nose_trace_thresh.png')), dpi=300)
+        plt.close()
 
     likeli_thresh_allpts['trial'] = trial_name
 
@@ -276,13 +279,13 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name):
     # setup the file to save out of this
     savepath = os.path.join(config['save_path'], (trial_name + '_topdown.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (width, height))
+    out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
     # set colors
     plot_color0 = (225, 255, 0)
     plot_color1 = (0, 255, 255)
 
-    while (1):
+    for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # read the frame for this pass through while loop
         ret, frame = vidread.read()
 

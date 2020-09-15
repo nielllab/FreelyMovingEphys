@@ -3,7 +3,7 @@ track_eye.py
 
 Eye tracking utilities
 
-Last modified September 06, 2020
+Last modified September 12, 2020
 """
 
 # package imports
@@ -16,6 +16,7 @@ import os
 import cv2
 from skimage import measure
 from itertools import product
+from tqdm import tqdm
 
 # module imports
 from util.read_data import split_xyl
@@ -123,20 +124,21 @@ def eye_tracking(eye_data, config, trial_name, eye_letter):
 
     theta, phi, longaxis, shortaxis, CamCent, centX, centY = estimate_ellipse(num_frames, x_vals, y_vals, config['pxl_thresh'])
 
-    # figure: theta and phi values over time in frames
-    plt.subplots(2, 1)
-    plt.subplot(211)
-    plt.plot(theta * 180 / np.pi)
-    plt.xlabel('frame')
-    plt.ylabel('angle')
-    plt.title(str(trial_name) + ' theta over time')
-    plt.subplot(212)
-    plt.plot(phi * 180 / np.pi)
-    plt.xlabel('frame')
-    plt.ylabel('angle')
-    plt.title(str(trial_name) + ' phi over time')
-    plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE_theta_phi.png')), dpi=300)
-    plt.close()
+    if config['save_vids'] is True:
+        # figure: theta and phi values over time in frames
+        plt.subplots(2, 1)
+        plt.subplot(211)
+        plt.plot(theta * 180 / np.pi)
+        plt.xlabel('frame')
+        plt.ylabel('angle')
+        plt.title(str(trial_name) + ' theta over time')
+        plt.subplot(212)
+        plt.plot(phi * 180 / np.pi)
+        plt.xlabel('frame')
+        plt.ylabel('angle')
+        plt.title(str(trial_name) + ' phi over time')
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE_theta_phi.png')), dpi=300)
+        plt.close()
 
     cam_center = [np.squeeze(CamCent[0]).tolist(), np.squeeze(CamCent[1]).tolist()]
 
@@ -172,13 +174,13 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     # setup the file to save out of this
     savepath = os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (width, height))
+    out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
     # set colors
     plot_color0 = (225, 255, 0)
     plot_color1 = (0, 255, 255)
 
-    while (1):
+    for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # read the frame for this pass through while loop
         ret_le, frame_le = vidread.read()
 
