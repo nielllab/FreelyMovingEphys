@@ -185,7 +185,8 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
     topTS = open_time(toptimepath)
 
     # interpolate ellipse parameters to worldcam timestamps
-    eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=world_interp_method)
+    # eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=world_interp_method)
+    eye_ell_interp_params = eye_ell_params
 
     # the very first timestamp
     start_time = min(eyeTS[0], worldTS[0], topTS[0])
@@ -211,7 +212,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
     eyevid = cv2.VideoCapture(eyevidpath)
     totalF = int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)) # this can be changed to a small number of frames for testing
     set_size = (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-    
+
     # set up for the multiprocessing that'll be used during sigmoid fit function
     n_proc = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(processes=n_proc)
@@ -234,7 +235,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
         current_centX = eye_centX.sel(frame=current_time).values
         current_centY = eye_centY.sel(frame=current_time).values
 
-        # some configuration 
+        # some configuration
         meanr = 0.5 * (current_longaxis + current_shortaxis) # mean radius
         r = range(int(meanr - ranger), int(meanr + ranger)) # range of values over mean radius (meanr)
         pupil_edge = np.zeros([totalF, 360, len(r)]) # empty array that the calculated edge of the pupil will be put into
@@ -268,26 +269,31 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
         interp_x = [item for sublist in np.argwhere(np.isnan(rfit)) for item in sublist]
         interp_xp = [item for sublist in np.argwhere(~np.isnan(rfit)) for item in sublist]
         interp_fp = rfit[~np.isnan(rfit)]
-        rfit_interp_vals = np.interp(interp_x, interp_xp, interp_fp)
-        # replace values in rfit_interp if they were NaN with the values found in interpolation
-        rfit_interp = rfit; j=0
-        for i in range(0,len(rfit_interp)):
-            if np.isnan(rfit_interp[i]):
-                rfit_interp[i] = rfit_interp_vals[j]
-                j = j + 1
 
-        # median filter
-        rfit_interp = signal.medfilt(rfit_interp,3)
+        try:
+            rfit_interp_vals = np.interp(interp_x, interp_xp, interp_fp)
+            # replace values in rfit_interp if they were NaN with the values found in interpolation
+            rfit_interp = rfit; j=0
+            for i in range(0,len(rfit_interp)):
+                if np.isnan(rfit_interp[i]):
+                    rfit_interp[i] = rfit_interp_vals[j]
+                    j = j + 1
 
-        # subtract baseline because our points aren't perfectly centered on ellipse
-        filtsize = 30
-        rfit_conv = rfit - np.convolve(rfit_interp, np.ones(filtsize)/filtsize, mode='same')
-        # edges have artifact from conv, so set to NaNs
-        # could fix this by padding data with wraparound at 0 and 360deg before conv
-        # the astropy package can do this with the convolution.convolve package
-        # TO DO: test and impliment wraparound convolution with astropy function convolve
-        rfit_conv[range(0,int(filtsize/2+1))] = np.nan
-        rfit_conv[range((len(rfit_conv)-int(filtsize/2-1)),len(rfit_conv))] = np.nan
+            # median filter
+            rfit_interp = signal.medfilt(rfit_interp,3)
+
+            # subtract baseline because our points aren't perfectly centered on ellipse
+            filtsize = 30
+            rfit_conv = rfit - np.convolve(rfit_interp, np.ones(filtsize)/filtsize, mode='same')
+            # edges have artifact from conv, so set to NaNs
+            # could fix this by padding data with wraparound at 0 and 360deg before conv
+            # the astropy package can do this with the convolution.convolve package
+            # TO DO: test and impliment wraparound convolution with astropy function convolve
+            rfit_conv[range(0,int(filtsize/2+1))] = np.nan
+            rfit_conv[range((len(rfit_conv)-int(filtsize/2-1)),len(rfit_conv))] = np.nan
+
+        except ValueError: # in case every value in rfit is NaN
+            rfit_conv = np.empty(np.shape(rfit_conv)) # make an rfit_conv with the shape of the last one
 
         # save out pupil edge data into one xarray for all frames
         if step == 0:
@@ -299,6 +305,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
             rfit_conv_temp['frame'] = eyevid.get(cv2.CAP_PROP_POS_FRAMES)
             rfit_conv_temp = xr.DataArray.rename(rfit_conv_temp, {'dim_0':'deg'})
             rfit_conv_xr = xr.concat([rfit_conv_xr, rfit_conv_temp], dim='frame', fill_value=np.nan)
+
 
     # plot rfit for all trials and highlight mean
     if config['save_figs'] is True:
@@ -314,7 +321,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
     timepoint_corr_rfit = pd.DataFrame(rfit_conv_xr.values).T.corr()
 
     # plot the correlation matrix of rfit over all timepoints
-    if config['save_figs'] is True: 
+    if config['save_figs'] is True:
         plt.figure()
         fig, ax = plt.subplots()
         im = ax.imshow(timepoint_corr_rfit)
@@ -422,7 +429,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
             eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)
 
             # get ellisepe parameters for this time
-            current_time = int(eyevid.get(cv2.CAP_PROP_POS_FRAMES))
+            current_time = step
             current_theta = eye_theta.sel(frame=current_time).values
             current_phi = eye_phi.sel(frame=current_time).values
             current_longaxis = eye_longaxis.sel(frame=current_time).values

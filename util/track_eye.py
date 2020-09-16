@@ -213,8 +213,8 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
 
         out_vid.write(frame_le)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     break
 
     out_vid.release()
-    cv2.destroyAllWindows()
+    # cv2.destroyAllWindows()

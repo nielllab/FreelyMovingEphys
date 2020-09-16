@@ -333,11 +333,11 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name):
             out_vid.write(frame)
 
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     break
 
     out_vid.release()
-    cv2.destroyAllWindows()
+    # cv2.destroyAllWindows()
 
 def get_top_props(top_pts, mouse_theta, config, trial_name):
     '''

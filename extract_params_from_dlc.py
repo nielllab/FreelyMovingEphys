@@ -113,8 +113,12 @@ def main():
                 print('plotting parameters on video')
                 plot_eye_vid(eye_avi, eyedlc, eyeparams, config, t_name, eye_side)
             # name and organize data
-            eyedlc.name = 'eye_dlc_pts'; eyeparams.name = 'eye_ellipse_params'; rfit.name = 'eye_radius_fit'; shift.name = 'eye_pupil_rotation'
-            gathered_eye = xr.merge([eyedlc, eyeparams, rfit, shift])
+            eyedlc.name = 'eye_dlc_pts'; eyeparams.name = 'eye_ellipse_params'
+            try:
+                rfit.name = 'eye_radius_fit'; shift.name = 'eye_pupil_rotation'
+                gathered_eye = xr.merge([eyedlc, eyeparams, rfit, shift])
+            except NameError:
+                gathered_eye = xr.merge([eyedlc, eyeparams])
             gathered_eye['trial'] = t_name; gathered_eye['side'] = eye_side
             if trial_path == trial_paths[0]:
                 eyeout = gathered_eye
