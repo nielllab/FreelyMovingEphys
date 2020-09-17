@@ -1,8 +1,9 @@
 """
-FreelyMovingEphys data saving utilities
 save_data.py
 
-Last modified July 14, 2020
+Data saving utilities
+
+Last modified September 09, 2020
 """
 
 # package imports
@@ -16,14 +17,12 @@ def savetrial(data, path, name, camtype):
         if not os.path.exists(dir):
             os.makedirs(dir)
         data.to_netcdf(os.path.join(dir, str(name + '_' + camtype + '.nc')))
-        print('data for this trial is saved at ' + str(dir))
     elif data is None:
-        print('nothing saved for ' + str(name) + ' of camtype ' + str(camtype) + 'because type is None')
+        pass
 
 # save xarray Dataset as a .nc file
-def savecomplete(data, dir, ext):
+def savecomplete(data, savedir, camext):
     # ext should describe the data, something like 'top', 'eye', etc.
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    data.to_netcdf(os.path.join(dir, str(ext + '.nc')))
-    print('complete dataset of ' + str(ext) + ' is saved at ' + str(dir))
+    if not os.path.exists(savedir):
+        os.makedirs(savedir)
+    data.to_netcdf(os.path.join(savedir, str(camext + '.nc')))
