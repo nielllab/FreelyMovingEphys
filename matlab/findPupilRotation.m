@@ -7,15 +7,15 @@ clear all
 
 
 %% filenames
-fEyeDLC = dir('J475*eye*Deep*.csv').name; pEyeDLC = '.';
-fEyeTS = dir('J475*eye*TS*.csv').name; pEyeTs = '.';
-fEyeVid = dir('J475*eye*Deinter*.avi').name; pEyeVid = '.';
+fEyeDLC = dir('J462*eye*Deep*.csv').name; pEyeDLC = '.';
+fEyeTS = dir('J462*eye*TS*.csv').name; pEyeTs = '.';
+fEyeVid = dir('J462*eye*Deinter*.avi').name; pEyeVid = '.';
 
 
 %% load eyecam timestamps
 eyeTs = dlmread(fullfile(pEyeTs,fEyeTS));
 eyeTs= eyeTs(:,1)*60*60 + eyeTs(:,2)*60 + eyeTs(:,3);  %%% data is read as hours, mins, secs
-        
+
 %% load eye DLC
 eyeDLC = csvread(fullfile(pEyeDLC,fEyeDLC),3,0);
 %%% parse columns (x,y,likelihood)
@@ -24,21 +24,22 @@ eyeX = eyeDLC(:,2:3:end); eyeY = eyeDLC(:,3:3:end); eyeP = eyeDLC(:,4:3:end);
 [eyeTheta,eyePhi, eyeEllipseRaw] = EyeCameraCalc1(length(eyeX), eyeX,eyeY, eyeP);
 ellipseDeinter = eyeEllipseRaw;
 
-%% load eye video 
+%% load eye video
 TempVidT = VideoReader(fullfile(pEyeVid,fEyeVid));
 frame=1;
 display('reading eye vid')
 while hasFrame(TempVidT)
-    eyeVidRaw(:,:,frame) = mean(readFrame(TempVidT),3);   
+    eyeVidRaw(:,:,frame) = mean(readFrame(TempVidT),3);
     %%% status update
     if mod(frame,500)==0
         fprintf('frame = %d\n',frame)
     end
-    frame=frame+1;   
+    frame=frame+1;
 end
 
 eyeVid = eyeVidRaw; clear eyeVidRaw;
 
+%%% plot a few random frames to check them out
 eyeCent =nanmean(ellipseDeinter(:,1:2),1);
 figure
 for i = 1:12
@@ -48,43 +49,45 @@ for i = 1:12
     hold on
     %plot(pts(1,:),pts(2,:),'r')
     axis equal; axis off
-    axis([eyeCent(1)-100 eyeCent(1)+100 eyeCent(2)-100 eyeCent(2)+100]); 
+    axis([eyeCent(1)-100 eyeCent(1)+100 eyeCent(2)-100 eyeCent(2)+100]);
 end
 
-%%% this is where alignment starts
+%% this is where alignment starts!!!
 
-tic
-clear params ci clear pupilEdge
-nf = 600; rangeR = 10;
 
 %%% get ellipse params for easy reference
 A0= ellipseDeinter(:,3); B0 = ellipseDeinter(:,4);
 xcent = ellipseDeinter(:,1); ycent = ellipseDeinter(:,2);
-for f = 1:nf
+
+%%% loop over frames and get edge profile, then edge points
+nf = 6000; %%% number of frames to analyze
+rangeR = 10;  %%% range (in pixels) to analyze on either side of radius
+tic
+for f = 1:min(nf, length(ycent))
     f
-%%% get cross-section of pupil at each angle 1-360 and fit to sigmoid
-for th = 1:360;
-    meanR = 0.5*(A0(f)+B0(f));   % get the mean radius; really this should be done by computing ellipse point from a,b,phi; x = a*[0.7:1.3]*cosd(th); y = b*[0.7:1.3]*sind(th); multiply x,y, by phi rotmat (see plotEllipse); then circshift all values by phi
-    r = (meanR-rangeR):meanR+rangeR;
-    
-    %%% go out along radius and get pixel values
-    for i = 1:length(r)
-        try
-            pupilEdge(th,i) = eyeVid(round(ycent(f)+r(i)*sind(th)),round( xcent(f) + r(i)*cosd(th)),f);
-        catch
-            display('out of frame')
+    %%% get cross-section of pupil at each angle 1-360 and fit to sigmoid
+    for th = 1:360;
+        meanR = 0.5*(A0(f)+B0(f));   % get the mean radius; really this should be done by computing ellipse point from a,b,phi; x = a*[0.7:1.3]*cosd(th); y = b*[0.7:1.3]*sind(th); multiply x,y, by phi rotmat (see plotEllipse); then circshift all values by phi
+        r = (meanR-rangeR):meanR+rangeR;
+        
+        %%% go out along radius and get pixel values
+        for i = 1:length(r)
+            try
+                pupilEdge(th,i) = eyeVid(round(ycent(f)+r(i)*sind(th)),round( xcent(f) + r(i)*cosd(th)),f);
+            catch
+                display('out of frame')
+            end
         end
+        
+        %%% fit sigmoind to pupil edge at this theta
+        d = squeeze(pupilEdge(th,:));
+        [params(th,:,f) stat] = sigm_fit(1:length(d), d,[],[100 200 10 0.5],0);
+        ci(th,:,f) = stat.paramCI(:,2) - stat.paramCI(:,1);
     end
-    
-    %%% fit sigmoind to pupil edge at this theta
-    d = squeeze(pupilEdge(th,:));
-[params(th,:,f) stat] = sigm_fit(1:length(d), d,[],[100 200 10 0.5],0);
-ci(th,:,f) = stat.paramCI(:,2) - stat.paramCI(:,1);
-end
-% figure
-% imagesc(edge(:,:,f)',[0 255]); colormap gray
-% hold on
-% plot(params(th,3,f),'r');
+    % figure
+    % imagesc(edge(:,:,f)',[0 255]); colormap gray
+    % hold on
+    % plot(params(th,3,f),'r');
 end %f
 toc
 
@@ -107,9 +110,10 @@ figure
 plot(rfit)
 
 
-filtSz = 30;
+
 %%% subtract baseline (boxcar average using conv); this is because our
 %%% points aren't perfectly centered on ellipse
+filtSz = 30;  %%% width of boxcar
 for f = 1:size(rfit,2)
     rfitConv(:,f) = rfit(:,f) - nanconv(rfit(:,f),ones(filtSz,1)/filtSz,'same');
 end
@@ -120,7 +124,7 @@ figure
 plot(rfitConv);
 
 
-%%% plot data into movie
+%% plot data into movie
 figure
 clear mov
 for f = 1:size(rfit,2)
@@ -138,7 +142,7 @@ for f = 1:size(rfit,2)
     mov(f) = getframe(gcf);
 end
 
- %%% write movie
+%%% write movie
 [fOut pOut] = uiputfile('*.avi')
 if fOut~=0
     vid = VideoWriter(fullfile(pOut,fOut));
@@ -149,7 +153,7 @@ if fOut~=0
     close(vid);
 end
 
-
+%% a few diagnostics ...
 %%% get correlation across timepoints (only at zero lag, so not great. but
 %%% but shows reliability in stable periods
 figure
@@ -171,7 +175,7 @@ figure
 plot(nanxcorr(rfitConv(:,t(1)),rfitConv(:,t(2)),30,'coeff'))
 hold on; plot([31 31],[-0.5 0.5])
 
-%%% iterative fit to alignment
+%% iterative fit to alignment
 %%% start with mean as template
 %%% on each iteration, shift individual frames to max xcorr with template
 %%% then recalculate mean template
@@ -182,27 +186,27 @@ templateFig = figure; hold on; set(gcf,'Name','template')
 histFig = figure; hold on; set(gcf,'Name','correlation histogram');
 totalShift = zeros(n,1); c= totalShift;
 for rep = 1:12
-   %%% calculate and plot template
+    %%% calculate and plot template
     template = nanmedian(pupilUpdate,2);
-   figure(templateFig)
-   subplot(3,4,rep);
-   plot(template); title(sprintf('iter %d',rep));
-   %%% loop over each frame, take xcorr, and shift accordingly
-   for i = 1:n
-        [xc lags]= nanxcorr(template,pupilUpdate(:,i),10,'coeff');     
+    figure(templateFig)
+    subplot(3,4,rep);
+    plot(template); title(sprintf('iter %d',rep));
+    %%% loop over each frame, take xcorr, and shift accordingly
+    for i = 1:n
+        [xc lags]= nanxcorr(template,pupilUpdate(:,i),10,'coeff');
         [c(i) peaklag] = max(xc);
         peak(i) = lags(peaklag);
         totalShift(i) = totalShift(i)+peak(i);
         pupilUpdate(:,i) = circshift(pupilUpdate(:,i),peak(i),1);
-   end
+    end
     
-   %%%histogram of correlations
+    %%%histogram of correlations
     figure(histFig)
     subplot(3,4,rep);
     plot(0:0.05:1, hist(c,0:0.05:1)); xlabel('corr')
     title(sprintf('iter %d',rep));
     drawnow
-   meanC(rep) =  mean(c)
+    meanC(rep) =  mean(c)
 end
 
 figure
@@ -212,50 +216,57 @@ figure
 plot(c,totalShift,'.'); xlabel('correlation'); ylabel('shift');
 
 
-win = 3;
+%%% get correlation across timepoints
+figure
+imagesc(corrcoef(pupilUpdate,'Rows','pairwise'),[0 1])
+title('correlation of radius fit across timepoints')
+
+%%% clean and smooth shift values
+win = 3;  %%% window for smoothing
 shiftNan = -totalShift;
 shiftNan(c<0.4) = NaN;
-%shiftSmooth = medfilt1(shiftSmooth,3);
+%shiftSmooth = medfilt1(shiftSmooth,win);
 shiftSmooth = nanconv(shiftNan,ones(win,1)/win,'same');
 shiftSmooth = shiftSmooth - nanmedian(shiftSmooth);
 shiftNan = shiftNan-nanmedian(shiftNan);
 figure
-plot(shiftNan)
+plot(shiftNan); title('shift values with NaNs removed'); xlabel('frame'); ylabel('deg')
 figure
-plot(shiftSmooth)
+plot(shiftSmooth); title('shift values smoothed');xlabel('frame'); ylabel('deg')
 
-
+%% make movie to show results
+%%% 4 subplots, one with just video, one with outline,
+%%% one with orientation, one with both
 figure
 d = -40:40;
 clear mov
-
 for f = 1:length(shiftSmooth)
-   if ~isnan(ycent(f))
-       for sp = 1:4
-        subplot(2,2,sp)
-        hold off
-        imagesc(eyeVid(:,:,f),[0 255]); colormap gray;axis equal
-        hold on
-        if sp==2 | sp ==4
-            plot(xcent(f) + d*cosd(shiftSmooth(f)+90), ycent(f)+d*sind(shiftSmooth(f)+90),'LineWidth',2)
+    if ~isnan(ycent(f))
+        for sp = 1:4
+            subplot(2,2,sp)
+            hold off
+            imagesc(eyeVid(:,:,f),[0 255]); colormap gray;axis equal
+            hold on
+            if sp==2 | sp ==4
+                plot(xcent(f) + d*cosd(shiftSmooth(f)+90), ycent(f)+d*sind(shiftSmooth(f)+90),'LineWidth',2)
+            end
+            if sp ==3 | sp==4
+                th = 1:360;
+                rmin = 0.5*(A0+B0) - rangeR;
+                plot( xcent(f) + (rmin(f) + rfit(:,f)).*cosd(th)',ycent(f)+(rmin(f)+rfit(:,f)).*sind(th)','g')
+            end
+            axis([xcent(f)-75 xcent(f)+75 ycent(f)-75 ycent(f)+75]);
+            axis off
+            if sp==1
+                title(sprintf('corr = %0.2f',c(f)));
+            end
+            drawnow
         end
-        if sp ==3 | sp==4
-            th = 1:360;
-            rmin = 0.5*(A0+B0) - rangeR;
-            plot( xcent(f) + (rmin(f) + rfit(:,f)).*cosd(th)',ycent(f)+(rmin(f)+rfit(:,f)).*sind(th)','g')
-        end
-        axis([xcent(f)-100 xcent(f)+100 ycent(f)-100 ycent(f)+100]);
-        axis off
-       if sp==1
-           title(sprintf('corr = %0.2f',c(f)));
-       end
-        drawnow
-       end
-   end
+    end
     mov(f) = getframe(gcf);
 end
 
- %%% write movie
+%%% write movie
 [fOut pOut] = uiputfile('*.avi')
 if fOut~=0
     vid = VideoWriter(fullfile(pOut,fOut));
@@ -265,6 +276,5 @@ if fOut~=0
     writeVideo(vid,mov);
     close(vid);
 end
-    
-figure
-plot(nanxcorr(pupilUpdate(:,10),template,30,'coeff'))
+
+
