@@ -18,7 +18,7 @@ import json
 from multiprocessing import freeze_support
 
 # module imports
-from util.read_data import h5_to_xr, find, format_frames
+from util.read_data import h5_to_xr, find, format_frames, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle, plot_top_vid, get_top_props
 from util.track_eye import plot_eye_vid, eye_tracking
 from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper
@@ -88,7 +88,7 @@ def main():
             pts.name = 'top_dlc_pts'; head_theta.name = 'top_head_theta'; top_props = 'top_properties'
             trial_top_data = xr.merge([pts, head_theta, top_props, xr_top_frames1, xr_top_frames2, xr_top_frames3])
             try:
-                trial_data = xr.merge([trial_data, trial_top_data])
+                trial_data = merge_xr_by_timestamps(trial_data, trial_top_data)
             except UnboundLocalError:
                 trial_data = trial_top_data
 
@@ -115,9 +115,9 @@ def main():
             # get pupil rotation and plot video -- slow step
             # rfit, shift = pupil_rotation_wrapper(eyeparams, config, t_name, eye_side)
             # make videos (only if config says so)
-            # if config['save_vids'] is True:
-            #     print('plotting parameters on video')
-            #     plot_eye_vid(eye_avi, eyedlc, eyeparams, config, t_name, eye_side)
+            if config['save_vids'] is True:
+                print('plotting parameters on video')
+                plot_eye_vid(eye_avi, eyedlc, eyeparams, config, t_name, eye_side)
             # make xarray of video frames
             xr_eye_frames = format_frames(eye_avi, config)
             # name and organize data
@@ -126,7 +126,7 @@ def main():
             xr_eye_frames.name = eye_side+'video'
             trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames])
             try:
-                trial_data = xr.merge([trial_data, trial_eye_data])
+                trial_data = merge_xr_by_timestamps(trial_data, trial_eye_data)
             except UnboundLocalError:
                 trial_data = trial_eye_data
 
@@ -149,13 +149,13 @@ def main():
             xr_world_frames = format_frames(world_avi, config); xr_world_frames.name = world_side+'world_video'
             trial_world_data = xr.merge([worlddlc, xr_world_frames])
             try:
-                trial_data = xr.merge([trial_data, trial_world_data])
+                trial_data = merge_xr_by_timestamps(trial_data, trial_world_data)
             except UnboundLocalError:
                 trial_data = trial_world_data
 
         print('saving data for ' + t_name)
         # save out the DataArrays as one merged Dataset
-        trial_data.to_netcdf(os.path.join(config['save_path'], str(t_name + '.nc')))
+        trial_data.to_netcdf(os.path.join(config['save_path'], str(t_name + '.nc')), engine='netcdf4', encoding={"Rvideo":{"zlib": True, "complevel": 9}})
 
     print('done with ' + str(len(trial_paths)) + ' queued trials')
 

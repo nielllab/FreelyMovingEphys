@@ -224,8 +224,6 @@ def format_frames(vid_path, config):
 # first input will start at frame 0, the second input will be aligned to the first using timestamps in nanoseconds
 # so that the first frame in a new dimension, 'merge_time', will start at either a positive or negative integer which
 # is shifted forward or back from 0
-# this needs to be improved; currently requires a lot of memory (possibly because all video frames are being merged into one dataarray)
-# and secondly because it can only handle two xarrays at a time
 def merge_xr_by_timestamps(xr1, xr2):
     # round the nanoseseconds in each xarray
     round1 = np.around(xr1['timestamps'].data.astype(np.int), -4)
@@ -248,3 +246,4 @@ def merge_xr_by_timestamps(xr1, xr2):
     ds_out = xr.merge([new1,new2])
 
     return ds_out
+    

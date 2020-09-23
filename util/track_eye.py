@@ -158,7 +158,8 @@ def eye_tracking(eye_data, config):
     phi = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
 
     # organize data to return as an xarray of most essential parameters
-    ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,6]), 'shortaxis':list(ellipse_params[:,5]),
+    # note: here, we subtract 45 degrees (in radians) from phi
+    ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi-0.7854), 'longaxis':list(ellipse_params[:,6]), 'shortaxis':list(ellipse_params[:,5]),
                                'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12])})
     ellipse_params = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0']
     ellipse_out = xr.DataArray(ellipse_df, coords=[('frame', range(0, len(ellipse_df))), ('ellipse_params', ellipse_params)], dims=['frame', 'ellipse_params'])
@@ -192,7 +193,7 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
                 ell_data_thistime = ell_data.sel(frame=frame_num)
                 # get out ellipse parameters and plot them on the video
                 ellipse_axes = (int(ell_data_thistime.sel(ellipse_params='longaxis').values), int(ell_data_thistime.sel(ellipse_params='shortaxis').values))
-                ellipse_phi = int(np.rad2deg(ell_data_thistime.sel(ellipse_params='phi').values)-90)
+                ellipse_phi = int(np.rad2deg(ell_data_thistime.sel(ellipse_params='phi').values))
                 ellipse_cent = (int(ell_data_thistime.sel(ellipse_params='X0').values), int(ell_data_thistime.sel(ellipse_params='Y0').values))
                 frame = cv2.ellipse(frame, ellipse_cent, ellipse_axes, ellipse_phi, 0, 360, (255,0,0), 2) # ellipse in blue
             except (ValueError, KeyError):
@@ -200,12 +201,12 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
 
             # get out the DLC points and plot them on the video
             try:
-                leftptsTS = dlc_data.sel(frame=frame_num)
-                for k in range(0, len(leftptsTS), 3):
-                    pt_cent = (int(leftptsTS.isel(point_loc=k).values), int(leftptsTS.isel(point_loc=k+1).values))
-                    if leftptsTS.isel(point_loc=k+2).values < 0.90: # bad points in red
+                pts = dlc_data.sel(frame=frame_num)
+                for k in range(0, len(pts), 3):
+                    pt_cent = (int(pts.isel(point_loc=k).values), int(pts.isel(point_loc=k+1).values))
+                    if pts.isel(point_loc=k+2).values < 0.90: # bad points in red
                         frame = cv2.circle(frame, pt_cent, 3, (0,0,255), -1)
-                    elif leftptsTS.isel(point_loc=k+2).values >= 0.90: # good points in green
+                    elif pts.isel(point_loc=k+2).values >= 0.90: # good points in green
                         frame = cv2.circle(frame, pt_cent, 3, (0,255,0), -1)
 
             except (ValueError, KeyError):

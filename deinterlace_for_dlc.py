@@ -18,7 +18,7 @@ import shutil
 from util.read_data import open_time, find
 
 # get user inputs
-parser = argparse.ArgumentParser(description='Deinterlace videos to go from 30fps to 60fps. Then, interpolate timestamps in subdirectories to correct for video deinterlacing.')
+parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
 parser.add_argument('-d', '--data_path', help='parent directory of all data including timestamps, videos, and any text files of metadata')
 parser.add_argument('-s', '--save_path', help='where to rebuld the directories and save deinterlaced/interpolated data along with data copied over.')
 args = parser.parse_args()
