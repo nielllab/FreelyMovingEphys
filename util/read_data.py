@@ -1,9 +1,9 @@
 """
 read_data.py
 
-Data reading utilities
+functions for reading in and manipulating data and time
 
-Last modified September 14, 2020
+last modified September 21, 2020
 """
 
 # package imports
@@ -14,6 +14,8 @@ from glob import glob
 import os
 import fnmatch
 import dateutil
+import cv2
+from tqdm import tqdm
 
 # glob for subdirectories
 def find(pattern, path):
@@ -51,8 +53,8 @@ def open_time(path, dlc_len=None):
         if dlc_len > len(time_in):
             time_out = np.zeros(np.size(time_in, 0)*2)
             # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
-            time_out[::2] = time_in + 0.25 * timestep
-            time_out[1::2] = time_in - 0.25 * timestep
+            time_out[::2] = time_in - 0.25 * timestep
+            time_out[1::2] = time_in + 0.25 * timestep
         elif dlc_len == len(time_in):
             time_out = time_in
         elif dlc_len < len(time_in):
@@ -111,20 +113,27 @@ def split_xyl(eye_names, eye_data, thresh):
 def h5_to_xr(pt_path, time_path, view):
     if pt_path is not None and pt_path != []:
         if isinstance(pt_path, list):
-            TOP, names = open_h5(pt_path[0])
+            pts, names = open_h5(pt_path[0])
         else:
-            TOP, names = open_h5(pt_path)
+            pts, names = open_h5(pt_path)
         if isinstance(time_path, list):
-            time = open_time(time_path[0], len(TOP))
+            time = open_time(time_path[0], len(pts))
         else:
-            time = open_time(time_path, len(TOP))
-        TOPpts = xr.DataArray(TOP, dims=['frame', 'point_loc'])
-        TOPpts.name = view
-        TOPpts = TOPpts.assign_coords(timestamps=('frame', time[1:])) # indexing [1:] into time because first row is the empty header, 0
+            time = open_time(time_path, len(pts))
+        xrpts = xr.DataArray(pts, dims=['frame', 'point_loc'])
+        xrpts.name = view
+        xrpts = xrpts.assign_coords(timestamps=('frame', time[1:])) # indexing [1:] into time because first row is the empty header, 0
     elif pt_path is None or pt_path == []:
-        TOPpts = None
+        if time_path is not None and time_path != []:
+            time = open_time(time_path)
+            xrpts = xr.DataArray(np.zeros([len(time)-1]), dims=['frame'])
+            xrpts = xrpts.assign_coords({'frame':range(0,len(xrpts))})
+            xrpts = xrpts.assign_coords(timestamps=('frame', time[1:]))
+            names = None
+        elif time_path is None or time_path == []:
+            xrpts = None; names = None
 
-    return TOPpts, names
+    return xrpts, names
 
 # Sort out what the first timestamp in all DataArrays is so that videos can be set to start playing at the corresponding frame
 def find_start_end(topdown_data, leftellipse_data, rightellipse_data, side_data):
@@ -179,8 +188,62 @@ def nanxcorr(x, y, maxlag=25):
         x_use = x_arr[use]; yshift_use = yshift_arr[use]
         # normalize
         x_use = (x_use - np.mean(x_use)) / (np.std(x_use) * len(x_use))
-        yshift_use = (yshift_use - np.mean(yshift_use)) / (np.std(yshift_use))
+        try:
+            yshift_use = (yshift_use - np.mean(yshift_use)) / (np.std(yshift_use))
+        except ZeroDivisionError:
+            yshift_use = (yshift_use - np.mean(yshift_use))
         # get correlation
         cc.append(np.correlate(x_use, yshift_use))
     cc_out = np.hstack(np.stack(cc))
     return cc_out, lags
+
+# add videos to xarray
+# will downsample by ratio in config file and convert to black and white uint8
+# might want to improve the way this is done -- requires lot of memory for each video
+def format_frames(vid_path, config):
+    print('formatting video into DataArray')
+    vidread = cv2.VideoCapture(vid_path)
+    all_frames = np.empty([int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)),
+                        int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*config['dwnsmpl']),
+                        int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*config['dwnsmpl'])])
+    for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
+        ret, frame = vidread.read()
+        if not ret:
+            break
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        sframe = cv2.resize(frame, (0,0), fx=config['dwnsmpl'], fy=config['dwnsmpl'], interpolation=cv2.INTER_NEAREST)
+        all_frames[frame_num,:,:] = sframe
+
+    formatted_frames = xr.DataArray(all_frames.astype(np.int8), dims=['frame', 'height', 'width'])
+    formatted_frames.assign_coords({'frame':range(0,len(formatted_frames))})
+    del all_frames
+
+    return formatted_frames
+
+# align xarrays by time and merge
+# first input will start at frame 0, the second input will be aligned to the first using timestamps in nanoseconds
+# so that the first frame in a new dimension, 'merge_time', will start at either a positive or negative integer which
+# is shifted forward or back from 0
+def merge_xr_by_timestamps(xr1, xr2):
+    # round the nanoseseconds in each xarray
+    round1 = np.around(xr1['timestamps'].data.astype(np.int), -4)
+    round2 = np.around(xr2['timestamps'].data.astype(np.int), -4)
+    df2 = pd.DataFrame(round2)
+
+    # where we'll put the index of the closest match in round2 for each value in round1
+    ind = []
+    for step in range(0,len(round1)):
+        ind.append(np.argmin(abs(df2 - round1[step])))
+    # here, a positive value means that round2 is delayed by that value
+    # and a negative value means that round2 is ahead by that value
+    delay_behind_other = int(round(np.mean([(i-ind[i]) for i in range(0,len(ind))])))
+
+    # set the two dataarrays up with aligned timestamps
+    new1 = xr1.expand_dims({'merge_time':range(0,len(xr1))})
+    new2 = xr2.expand_dims({'merge_time':range(delay_behind_other, len(ind)+delay_behind_other)})
+
+    # merge into one dataset
+    ds_out = xr.merge([new1,new2])
+
+    return ds_out
+    

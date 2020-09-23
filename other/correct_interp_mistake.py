@@ -26,7 +26,7 @@ def find(pattern, path):
 def open_time(path, dlc_len=None, force_shift=False):
     # read in the timestamps if they've come directly from cameras
     read_time = pd.read_csv(open(path, 'rU'), encoding='utf-8', engine='c', header=None)
-    time_in = pd.to_timedelta(read_time.squeeze(), unit='us', errors='coerce')
+    time_in = pd.to_timedelta(read_time.squeeze(), unit='us')
 
     # auto check if vids were deinterlaced
     if dlc_len is not None:
@@ -35,8 +35,8 @@ def open_time(path, dlc_len=None, force_shift=False):
         if dlc_len > len(time_in):
             time_out = np.zeros(np.size(time_in, 0)*2)
             # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
-            time_out[::2] = time_in + 0.25 * timestep
-            time_out[1::2] = time_in - 0.25 * timestep
+            time_out[::2] = time_in - 0.25 * timestep
+            time_out[1::2] = time_in + 0.25 * timestep
         elif dlc_len == len(time_in):
             time_out = time_in
         elif dlc_len < len(time_in):
@@ -50,13 +50,13 @@ def open_time(path, dlc_len=None, force_shift=False):
         timestep = np.median(np.diff(time_in, axis=0))
         time_out = np.zeros(np.size(time_in, 0)*2)
         # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
-        time_out[::2] = time_in + 0.25 * timestep
-        time_out[1::2] = time_in - 0.25 * timestep
+        time_out[::2] = time_in - 0.25 * timestep
+        time_out[1::2] = time_in + 0.25 * timestep
 
     return time_out
 
 # get user inputs
-parser = argparse.ArgumentParser(description='Deinterlace videos to go from 30fps to 60fps. Then, interpolate timestamps in subdirectories to correct for video deinterlacing.')
+parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
 parser.add_argument('-d', '--data_path')
 parser.add_argument('-s', '--save_path')
 args = parser.parse_args()

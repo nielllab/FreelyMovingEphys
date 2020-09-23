@@ -1,9 +1,9 @@
 """
 track_topdown.py
 
-Topdown tracking utilities
+topdown tracking utilities
 
-Last modified September 12, 2020
+last modified September 12, 2020
 """
 
 # package imports
@@ -332,25 +332,10 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name):
         elif dlc_data is None:
             out_vid.write(frame)
 
-
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
-
     out_vid.release()
-    # cv2.destroyAllWindows()
 
+# using the topdown data, get properties of mouse movement (and cricket, if config file says there is one)
 def get_top_props(top_pts, mouse_theta, config, trial_name):
-    '''
-    using the topdown data, get properties of mouse movement (and cricket, if config file says there is one)
-
-    inputs
-    top_pts: xarray of topdown points
-    mouse_theta: head angle of mouse as calculated by head_angle function
-    config: dictionary read in from .json file giving metadata about experiments
-
-    outputs
-
-    '''
 
     # set names of points
     cricketbodyX = crick_body_name + '_x'; cricketbodyY = crick_body_name + '_y'
@@ -374,52 +359,52 @@ def get_top_props(top_pts, mouse_theta, config, trial_name):
         cricket_theta = np.arctan2(ry,rx)
         az = mouse_theta - cricket_theta
 
-    # head angular velocity
-    d_theta = np.diff(mouse_theta.values)
-    d_theta = np.where(d_theta > np.pi, d_theta+2*np.pi, d_theta-2*np.pi)
-    theta_fract = np.sum(~pd.isnull(mouse_theta.values))/len(mouse_theta.values)
-    # long_theta_fract = np.sum(~pd.isnull(mouse_theta['mean_head_theta'].values))/len(mouse_theta['mean_head_theta'].values)
+        # head angular velocity
+        d_theta = np.diff(mouse_theta.values)
+        d_theta = np.where(d_theta > np.pi, d_theta+2*np.pi, d_theta-2*np.pi)
+        theta_fract = np.sum(~pd.isnull(mouse_theta.values))/len(mouse_theta.values)
+        # long_theta_fract = np.sum(~pd.isnull(mouse_theta['mean_head_theta'].values))/len(mouse_theta['mean_head_theta'].values)
 
-    # head velocity
-    vx_m = np.diff(top_pts.sel(point_loc=mousenoseX).values) # currently use nose x/y -- is this different if we use the center of the head?
-    vy_m = np.diff(top_pts.sel(point_loc=mousenoseY).values)
-    vx_m = np.convolve(vx_m, filt, mode='same')
-    vy_m = np.convolve(vy_m, filt, mode='same')
-    mouse_speed = np.sqrt(vx_m**2, vy_m**2)
+        # head velocity
+        vx_m = np.diff(top_pts.sel(point_loc=mousenoseX).values) # currently use nose x/y -- is this different if we use the center of the head?
+        vy_m = np.diff(top_pts.sel(point_loc=mousenoseY).values)
+        vx_m = np.convolve(vx_m, filt, mode='same')
+        vy_m = np.convolve(vy_m, filt, mode='same')
+        mouse_speed = np.sqrt(vx_m**2, vy_m**2)
 
-    # a very large plot of the cricket and mouse properties
-    plt.subplots(2,3)
-    plt.subplot(231)
-    plt.plot(cricket_speed)
-    plt.xlabel('frames')
-    plt.ylabel('pixels/sec')
-    plt.title('cricket speed')
-    plt.subplot(232)
-    plt.plot(c_range)
-    plt.xlabel('frame')
-    plt.ylabel('pixels')
-    plt.title('range (cricket body to mouse nose)')
-    plt.subplot(233)
-    plt.plot(az)
-    plt.xlabel('frame')
-    plt.ylabel('radians')
-    plt.title('azimuth')
-    plt.subplot(234)
-    plt.plot(d_theta)
-    plt.xlabel('frame')
-    plt.ylabel('radians/frame')
-    plt.title('head angular velocity')
-    plt.subplot(235)
-    plt.plot(mouse_speed)
-    plt.xlabel('frame')
-    plt.ylabel('pixels/sec')
-    plt.title('mouse speed')
-    plt.savefig(os.path.join(config['save_path'], (trial_name + '_topdown_props.png')), dpi=300)
-    plt.close()
+        # a very large plot of the cricket and mouse properties
+        plt.subplots(2,3)
+        plt.subplot(231)
+        plt.plot(cricket_speed)
+        plt.xlabel('frames')
+        plt.ylabel('pixels/sec')
+        plt.title('cricket speed')
+        plt.subplot(232)
+        plt.plot(c_range)
+        plt.xlabel('frame')
+        plt.ylabel('pixels')
+        plt.title('range (cricket body to mouse nose)')
+        plt.subplot(233)
+        plt.plot(az)
+        plt.xlabel('frame')
+        plt.ylabel('radians')
+        plt.title('azimuth')
+        plt.subplot(234)
+        plt.plot(d_theta)
+        plt.xlabel('frame')
+        plt.ylabel('radians/frame')
+        plt.title('head angular velocity')
+        plt.subplot(235)
+        plt.plot(mouse_speed)
+        plt.xlabel('frame')
+        plt.ylabel('pixels/sec')
+        plt.title('mouse speed')
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_topdown_props.png')), dpi=300)
+        plt.close()
 
-    props_out = pd.DataFrame({'cricket_speed':list(cricket_speed), 'range':list(c_range)[:-1], 'azimuth':list(az)[:-1], 'd_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})
-    # TO DO: Sort out why range and az end up longer than the rest of the data, and fix it. Reliably one value too long. Index to get it running for now
-    prop_names = ['cricket_speed', 'range', 'azimuth', 'd_theta', 'mouse_speed']
-    cricket_props = xr.DataArray(props_out, coords=[('frame',range(0,np.size(cricket_speed,0))), ('prop',prop_names)])
+        props_out = pd.DataFrame({'cricket_speed':list(cricket_speed), 'range':list(c_range)[:-1], 'azimuth':list(az)[:-1], 'd_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})
+        # TO DO: Sort out why range and az end up longer than the rest of the data, and fix it. Reliably one value too long. Index to get it running for now
+        prop_names = ['cricket_speed', 'range', 'azimuth', 'd_theta', 'mouse_speed']
+        props_out_xr = xr.DataArray(props_out, coords=[('frame',range(0,np.size(cricket_speed,0))), ('prop',prop_names)])
 
-    return cricket_props
+    return props_out_xr

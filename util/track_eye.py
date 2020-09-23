@@ -1,9 +1,9 @@
 """
 track_eye.py
 
-Eye tracking utilities
+utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-Last modified September 12, 2020
+last modified September 20, 2020
 """
 
 # package imports
@@ -17,204 +17,204 @@ import cv2
 from skimage import measure
 from itertools import product
 from tqdm import tqdm
+from numpy import *
+import json
+from math import e as e
+from numpy.linalg import eig
+import math
 
 # module imports
 from util.read_data import split_xyl
 
-def eye_angles(ellipseparams):
-    '''
-    get out eye angles
-    '''
+# finds the best fit to an ellipse for the given set of points in a single frame
+# inputs should be x and y values of points aroudn pupil as numpy arrays
+# outputs dictionary of ellipse parameters for a single frame
+# adapted from /niell-lab-analysis/freely moving/fit_ellipse2.m
+def fit_ellipse(x,y):
 
-    R = np.linspace(0,2*np.pi,100)
-    longaxis_all = np.maximum(ellipseparams[:,2],ellipseparams[:,3])
-    shortaxis_all = np.minimum(ellipseparams[:,2],ellipseparams[:,3])
-    Ellipticity = shortaxis_all/longaxis_all
-    lis, = np.where(Ellipticity<.9)
-    A = np.vstack([np.cos(ellipseparams[lis,4]),np.sin(ellipseparams[lis,4])])
-    b = np.expand_dims(np.diag(A.T@np.squeeze(ellipseparams[lis,0:2].T)),axis=1)
-    CamCent = np.linalg.inv(A@A.T)@A@b
-    longaxis = np.squeeze(np.maximum(ellipseparams[lis,2],ellipseparams[lis,3]))
-    shortaxis = np.squeeze(np.minimum(ellipseparams[lis,2],ellipseparams[lis,3]))
-    Ellipticity = shortaxis/longaxis
-    scale = np.sum(np.sqrt(1-(Ellipticity)**2)*(np.linalg.norm(ellipseparams[lis,0:2]-CamCent.T,axis=1)))/np.sum(1-(Ellipticity)**2);
-    temp = (ellipseparams[:,0]-CamCent[0])/scale
-    theta = np.arcsin(temp)
-    phi = np.arcsin((ellipseparams[:,1]-CamCent[1])/np.cos(theta)/scale)
+    orientation_tolerance = 1*np.exp(-3)
+    
+    # remove bias of the ellipse
+    meanX = np.mean(x)
+    meanY = np.mean(y)
+    x = x - meanX
+    y = y - meanY
+    
+    # estimation of the conic equation
+    X = np.array([x**2, x*y, y**2, x, y])
+    X = np.stack(X).T
+    a = dot(np.sum(X, axis=0), linalg.pinv(np.matmul(X.T,X)))
+    
+    # extract parameters from the conic equation
+    a, b, c, d, e = a[0], a[1], a[2], a[3], a[4]
+    
+    # eigen decomp
+    Q = np.array([[a, b/2],[b/2, c]])
+    eig_val, eig_vec = eig(Q)
+    
+    # get angle to long axis
+    angle_to_x = np.arctan2(eig_vec[1,0], eig_vec[0,0])
+    angle_from_x = angle_to_x
+    
 
-    return theta, phi, longaxis_all, shortaxis_all, CamCent
+    orientation_rad = 0.5 * np.arctan2(b, (c-a))
+    cos_phi = np.cos(orientation_rad)
+    sin_phi = np.sin(orientation_rad)
+    a, b, c, d, e = [a*cos_phi**2 - b*cos_phi*sin_phi + c*sin_phi**2,
+                     0,
+                     a*sin_phi**2 + b*cos_phi*sin_phi + c*cos_phi**2,
+                     d*cos_phi - e*sin_phi,
+                     d*sin_phi + e*cos_phi]
+    meanX, meanY = [cos_phi*meanX - sin_phi*meanY,
+                    sin_phi*meanX + cos_phi*meanY]
+    
+    # check if conc expression represents an ellipse
+    test = a*c
+    if test > 0:
+        # make sure coefficients are positive as required
+        if a<0:
+            a, c, d, e = [-a, -c, -d, -e]
+        
+        # final ellipse parameters
+        X0 = meanX - d/2/a
+        Y0 = meanY - e/2/c
+        F = 1 + (d**2)/(4*a) + (e**2)/(4*c)
+        a = np.sqrt(F/a)
+        b = np.sqrt(F/c)
+        long_axis = 2*np.maximum(a,b)
+        short_axis = 2*np.minimum(a,b)
+        
+        # rotate axes backwards to find center point of original tilted ellipse
+        R = np.array([[cos_phi, sin_phi], [-sin_phi, cos_phi]])
+        P_in = R @ np.array([[X0],[Y0]])
+        X0_in = P_in[0][0]
+        Y0_in = P_in[1][0]
+        
+        # organize parameters in dictionary to return
+        # makes some final modifications to values here, maybe those should be done above for cleanliness
+        ellipse_dict = {'X0':X0, 'Y0':Y0, 'F':F, 'a':a, 'b':b, 'long_axis':long_axis/2, 'short_axis':short_axis/2,
+                        'angle_to_x':np.rad2deg(angle_to_x), 'angle_from_x':np.rad2deg(angle_from_x), 'cos_phi':cos_phi, 'sin_phi':sin_phi,
+                        'X0_in':X0_in, 'Y0_in':Y0_in, 'phi':orientation_rad}
+        
+    else:
+        # if the conic equation didn't return an ellipse, don't return any real values and fill the dictionary with NaNs
+        ellipse_dict = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
+                        'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
+                        'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
+        
+    return ellipse_dict
 
-def clean_ellipse_estimate(ellipseparams, pxl_thresh):
-    '''
-    clean ellipse estimate created in estimate_ellipse(), run eye_angles()
-    '''
+# get the ellipse parameters from DeepLabCut points and save into an xarray
+# equivilent to /niell-lab-analysis/freely moving/EyeCameraCalc1.m
+def eye_tracking(eye_data, config):
+    
+    # names of th different points
+    pt_names = list(eye_data['point_loc'].values)
 
-    bdfit2, temp = np.where(ellipseparams[:, 2:4] > pxl_thresh)
-    eparams = pd.DataFrame(ellipseparams)
-    eparams.iloc[bdfit2, :] = np.nan
-    eparams = eparams.interpolate(method='linear', limit_direction='both', axis=0)
-    ellipseparams[bdfit2, :] = eparams.iloc[bdfit2, :]
-    # run get_eye_angles on the cleaned data
-    theta, phi, longaxis_all, shortaxis_all, CamCent = eye_angles(ellipseparams)
-
-    return theta, phi, longaxis_all, shortaxis_all, CamCent
-
-def estimate_ellipse(num_frames, x_vals, y_vals, pxl_thresh):
-    '''
-    estimate ellipse, run clean_ellipse_estimate() and eye_angles()
-    '''
-
-    emod = measure.EllipseModel()
-    # create an empty array to be populated by the five outputs of EllipseModel()
-    ellipseparams = np.empty((0, 5))
-    timestamp_list = x_vals.index.values
-    # index through each frame and stack the ellipse parameters
-    centX = []; centY = []
-    for timestamp in timestamp_list:
-        try:
-            x_block = x_vals.loc[timestamp, :]
-            y_block = y_vals.loc[timestamp, :]
-            xy = np.column_stack((x_block, y_block))
-            if emod.estimate(xy) is True:
-                params_raw = np.array(emod.params)
-                params_expanded = np.expand_dims(params_raw, axis=0)
-                ellipseparams = np.append(ellipseparams, params_expanded, axis=0)
-                centX.append(np.nanmean(x_block, axis=0)); centY.append(np.nanmean(y_block, axis=0))
-            else:
-                ellipseparams = np.append(ellipseparams, np.empty((0, 5)), axis=0)
-                centX.append(np.empty(np.shape(1))); centY.append(np.empty(np.shape(1)))
-        except np.linalg.LinAlgError as err:
-            # if the timestamp cannot be found, add a filler entry of parameters
-            ellipseparams = np.append(ellipseparams, np.empty((0, 5)), axis=0)
-    theta, phi, longaxis_all, shortaxis_all, CamCent = clean_ellipse_estimate(ellipseparams, pxl_thresh)
-
-    return theta, phi, longaxis_all, shortaxis_all, CamCent, centX, centY
-
-def eye_tracking(eye_data, config, trial_name, eye_letter):
-    '''
-    calculate ellipse parameters from DLC points and format in xarray
-    takes in ONE trial at a time
-
-    inputs
-    eye_data: xarray of DLC points formatted by h5_to_xr function
-    config: dictionary read in from .json file giving metadata about experiments
-
-    returns
-    ellipse_out: xarray of ellipse parameters
-    '''
-
-    eye_pt_names = list(eye_data['point_loc'].values)
-    try:
-        eye_interp = xr.DataArray.interpolate_na(eye_data, dim='frame', use_coordinate='frame', method='linear')
-    except AttributeError:
-        # this catches an error being raised by the jupyter notebook, not needed for terminal interface
-        eye_data = xr.Dataset.to_array(eye_data)
-        eye_interp = xr.DataArray.interpolate_na(eye_data, dim='frame', use_coordinate='frame', method='linear')
-
-    # break xarray into a pandas structure so it can be used by functions that get out the eye angle
-    x_vals, y_vals, likeli_vals = split_xyl(eye_pt_names, eye_interp, config['lik_thresh'])
-
+    x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['lik_thresh'])
+    likelihood = likeli_vals.values
     # drop tear
     # these points ought to be used, this will be addressed later
     if config['tear'] is True:
         x_vals = x_vals.iloc[:,:-2]
         y_vals = y_vals.iloc[:,:-2]
 
-    num_frames = len(x_vals)
+    # get bools of when a frame is usable with the right number of points above threshold
+    usegood = np.sum(likelihood,0) >= config['num_ellipse_pts_needed']
 
-    theta, phi, longaxis, shortaxis, CamCent, centX, centY = estimate_ellipse(num_frames, x_vals, y_vals, config['pxl_thresh'])
+    ellipse_params = np.empty([len(x_vals), 14])
 
-    if config['save_vids'] is True:
-        # figure: theta and phi values over time in frames
-        plt.subplots(2, 1)
-        plt.subplot(211)
-        plt.plot(theta * 180 / np.pi)
-        plt.xlabel('frame')
-        plt.ylabel('angle')
-        plt.title(str(trial_name) + ' theta over time')
-        plt.subplot(212)
-        plt.plot(phi * 180 / np.pi)
-        plt.xlabel('frame')
-        plt.ylabel('angle')
-        plt.title(str(trial_name) + ' phi over time')
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE_theta_phi.png')), dpi=300)
-        plt.close()
+    # step through each frame, fit an ellipse to points, and add ellipse parameters to array with data for all frames together
+    for step in tqdm(range(0,len(x_vals))):
+        if usegood[step] == True:
+            e_t = fit_ellipse(x_vals.iloc[step].values, y_vals.iloc[step].values)
+            ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
+                                    e_t['long_axis'], e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
+                                    e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
+        elif usegood[step] == False:
+            e_t = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
+                            'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
+                            'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
+            ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
+                                    e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
+                                    e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
 
-    cam_center = [np.squeeze(CamCent[0]).tolist(), np.squeeze(CamCent[1]).tolist()]
+    # list of all places where the ellipse meets threshold
+    R = np.linspace(0,2*np.pi, 100)
+    list1 = np.where((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh']) # short axis / long axis
+    list2 = np.where((usegood == True) & ((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh']))
 
-    ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(longaxis), 'shortaxis':list(shortaxis), 'centX':list(centX), 'centY':list(centY)})
-    ellipse_params = ['theta', 'phi', 'longaxis', 'shortaxis', 'centX', 'centY']
-    ellipse_out = xr.DataArray(ellipse_df, coords=[('frame', range(0, len(ellipse_df))), ('ellipse_params', ellipse_params)])
-    ellipse_out['trial'] = trial_name
-    ellipse_out['cam_center_x'] = cam_center[0]
-    ellipse_out['cam_center_y'] = cam_center[1]
+    # find camera center
+    A = np.vstack([np.cos(ellipse_params[list2,7]),np.sin(ellipse_params[list2,7])])
+    b = np.expand_dims(np.diag(A.T@np.squeeze(ellipse_params[list2,11:13].T)),axis=1)
+    cam_cent = np.linalg.inv(A@A.T)@A@b
+
+    # ellipticity and scale
+    ellipticity = (ellipse_params[list2,6] / ellipse_params[list2,5]).T
+    scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[list2,11:13]-cam_cent.T,axis=0)))/np.sum(1-(ellipticity)**2)
+
+    # angles
+    theta = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
+    phi = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
+
+    # organize data to return as an xarray of most essential parameters
+    # note: here, we subtract 45 degrees (in radians) from phi
+    ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi-0.7854), 'longaxis':list(ellipse_params[:,6]), 'shortaxis':list(ellipse_params[:,5]),
+                               'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12])})
+    ellipse_params = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0']
+    ellipse_out = xr.DataArray(ellipse_df, coords=[('frame', range(0, len(ellipse_df))), ('ellipse_params', ellipse_params)], dims=['frame', 'ellipse_params'])
+    ellipse_out.attrs['cam_center_x'] = cam_cent[0,0]
+    ellipse_out.attrs['cam_center_y'] = cam_cent[1,0]
 
     return ellipse_out
 
+# plot the ellipse and dlc points on the video frames
+# then, save the video out as an .avi file
 def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
-    '''
-    plot DLC points around eye and ellipse from previously calculated parameters on video and save out as an .avi
-
-    inputs
-    vid_path: file path to one eye video for a single trial, should be a string, '/path/to/vid.avi'
-    dlc_data: xarray of dlc points around the eye as formatted by h5_to_xr() function
-    ell_data: xarray of ellipse parameters
-    config: dictionary read in from .json file giving metadata about experiments
-    trial_name: string, the name of this trial EXCLUDING the type of video this is (i.e. it shoudn't include 'LEYE' or 'REYE')
-    eye_letter: string, either 'R' or 'L' to indicate the side of the mouse that the eye video comes from, used to label the saved out .avi file
-
-    returns nothing
-    '''
 
     # read topdown video in
+    # setup the file to save out of this
     vidread = cv2.VideoCapture(vid_path)
     width = int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    # setup the file to save out of this
     savepath = os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
-    # set colors
-    plot_color0 = (225, 255, 0)
-    plot_color1 = (0, 255, 255)
-
     for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
-        # read the frame for this pass through while loop
-        ret_le, frame_le = vidread.read()
+        ret, frame = vidread.read()
 
-        if not ret_le:
+        if not ret:
             break
 
         if dlc_data is not None and ell_data is not None:
             # get current frame number to be displayed, so that it can be used to slice DLC data
             try:
-                ell_data_thistime = ell_data.sel(frame=vidread.get(cv2.CAP_PROP_POS_FRAMES))
+                ell_data_thistime = ell_data.sel(frame=frame_num)
                 # get out ellipse parameters and plot them on the video
                 ellipse_axes = (int(ell_data_thistime.sel(ellipse_params='longaxis').values), int(ell_data_thistime.sel(ellipse_params='shortaxis').values))
                 ellipse_phi = int(np.rad2deg(ell_data_thistime.sel(ellipse_params='phi').values))
-                ellipse_cent = (int(ell_data_thistime.sel(ellipse_params='centX').values), int(ell_data_thistime.sel(ellipse_params='centY').values))
-                frame_le = cv2.ellipse(frame_le, ellipse_cent, ellipse_axes, ellipse_phi, 0, 360, plot_color0, 2)
-            except (ValueError, KeyError) as e:
+                ellipse_cent = (int(ell_data_thistime.sel(ellipse_params='X0').values), int(ell_data_thistime.sel(ellipse_params='Y0').values))
+                frame = cv2.ellipse(frame, ellipse_cent, ellipse_axes, ellipse_phi, 0, 360, (255,0,0), 2) # ellipse in blue
+            except (ValueError, KeyError):
                 pass
 
             # get out the DLC points and plot them on the video
             try:
-                leftptsTS = dlc_data.sel(frame=vidread.get(cv2.CAP_PROP_POS_FRAMES))
-                for k in range(0, len(leftptsTS), 3):
-                    pt_cent = (int(leftptsTS.isel(point_loc=k).values), int(leftptsTS.isel(point_loc=k+1).values))
-                    frame_le = cv2.circle(frame_le, pt_cent, 3, plot_color1, -1)
-            except (ValueError, KeyError) as e:
+                pts = dlc_data.sel(frame=frame_num)
+                for k in range(0, len(pts), 3):
+                    pt_cent = (int(pts.isel(point_loc=k).values), int(pts.isel(point_loc=k+1).values))
+                    if pts.isel(point_loc=k+2).values < 0.90: # bad points in red
+                        frame = cv2.circle(frame, pt_cent, 3, (0,0,255), -1)
+                    elif pts.isel(point_loc=k+2).values >= 0.90: # good points in green
+                        frame = cv2.circle(frame, pt_cent, 3, (0,255,0), -1)
+
+            except (ValueError, KeyError):
                 pass
 
         elif dlc_data is None or ell_data is None:
             pass
 
-        out_vid.write(frame_le)
-
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
+        out_vid.write(frame)
 
     out_vid.release()
-    # cv2.destroyAllWindows()
