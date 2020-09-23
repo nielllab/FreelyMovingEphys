@@ -39,11 +39,12 @@ try
     
     [pathstr, name, ext] = fileparts(filename);
     fid = fopen(filename, 'r');
+    suffix = sprintf('_int16_med%d_nch%d',doMedian,length(subChans));
     if nargin < 3 | isempty(outputDir)
-        outputFilename  = [pathstr filesep name '_int16_CARsub' ext];
+        outputFilename  = [pathstr filesep name suffix ext];
         mdTraceFilename = [pathstr filesep name '_medianTrace.mat'];
     else
-        outputFilename  = [outputDir filesep name '_int16_CARsub' ext];
+        outputFilename  = [outputDir filesep name suffix ext];
         mdTraceFilename = [outputDir filesep name '_medianTrace.mat'];
     end
     fidOut = fopen(outputFilename, 'w');
@@ -86,6 +87,16 @@ try
     save(mdTraceFilename, 'medianTrace', '-v7.3');
     fclose(fid);
     fclose(fidOut);
+    
+    figure
+    for i = 1:length(subChans)
+        subplot(ceil(length(subChans)/2),2,i)
+        plot(allData(i,1:3000));
+        axis off
+    end
+    figure
+    bar(std(double(allData),[],2));
+    xlabel('chan'); ylabel('stdev')
     
 catch me
     
