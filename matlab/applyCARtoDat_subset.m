@@ -1,4 +1,4 @@
-function [allData medianTrace] = applyCARtoDat_subset(filename, nChansTotal, outputDir, doMedian, subChans)
+function [allData medianTrace] = applyCARtoDat_subset(filename, nChansTotal, outputDir, doMedian, subChans, isUint16)
 % Subtracts median of each channel, then subtracts median of each time
 % point. Also, can select a subset of channels first (so don't include
 % noise in median filter)
@@ -14,7 +14,7 @@ function [allData medianTrace] = applyCARtoDat_subset(filename, nChansTotal, out
 % doMedian = option to subtract medians (1) or not (0) - latter is if you
 % only want to subset
 % subChans = subset of channels to includie in output
-%
+% isUint16 = raw data is uint16,so convert to int16
 % returns processed traces (allData) and CAR median (medianTrace)
 
 if ~exist('doMedian','var') | isempty(doMedian)
@@ -23,6 +23,10 @@ end
 
 if ~exist('subChans','var') | isempty(subChans)
     subChans = 1:nChansTotal;
+end
+
+if ~exist('isUint16','var')
+    isUint16=0;
 end
 chunkSize = 1000000;
 
@@ -36,10 +40,10 @@ try
     [pathstr, name, ext] = fileparts(filename);
     fid = fopen(filename, 'r');
     if nargin < 3 | isempty(outputDir)
-        outputFilename  = [pathstr filesep name '_CARsub' ext];
+        outputFilename  = [pathstr filesep name '_int16_CARsub' ext];
         mdTraceFilename = [pathstr filesep name '_medianTrace.mat'];
     else
-        outputFilename  = [outputDir filesep name '_CARsub' ext];
+        outputFilename  = [outputDir filesep name '_int16_CARsub' ext];
         mdTraceFilename = [outputDir filesep name '_medianTrace.mat'];
     end
     fidOut = fopen(outputFilename, 'w');
@@ -51,7 +55,12 @@ try
         
         fprintf(1, 'chunk %d/%d\n', chunkInd, nChunksTotal);
         
-        dat = fread(fid, [nChansTotal chunkSize], '*int16');
+        if isUint16
+        dat = fread(fid, [nChansTotal chunkSize], '*uint16');
+        dat = int16(double(dat)-2^15); %%% convert to int16
+        else
+          dat = fread(fid, [nChansTotal chunkSize], '*int16');
+        end
         
         if ~isempty(dat)
            % keyboard
