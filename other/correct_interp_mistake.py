@@ -26,7 +26,7 @@ def find(pattern, path):
 def open_time(path, dlc_len=None, force_shift=False):
     # read in the timestamps if they've come directly from cameras
     read_time = pd.read_csv(open(path, 'rU'), encoding='utf-8', engine='c', header=None)
-    time_in = pd.to_timedelta(read_time.squeeze(), unit='us')
+    time_in = pd.to_timedelta(read_time.squeeze(), unit='us', errors='coerce')
 
     # auto check if vids were deinterlaced
     if dlc_len is not None:

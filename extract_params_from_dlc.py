@@ -3,7 +3,7 @@ extract_params_from_dlc.py
 
 extract mouse and prey parameters from videos and DeepLabCut outputs
 
-last modified September 21, 2020
+Sept. 24, 2020
 """
 
 # package imports
@@ -23,6 +23,7 @@ from util.track_topdown import topdown_tracking, head_angle, plot_top_vid, get_t
 from util.track_eye import plot_eye_vid, eye_tracking
 from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper
 from util.analyze_jump import jump_gaze_trace
+from util.ephys import format_spikes
 
 # get user inputs
 parser = argparse.ArgumentParser(description='extract mouse and prey parameters from DeepLabCut data and corresponding videos')
@@ -30,6 +31,7 @@ parser.add_argument('-c', '--json_config_path', help='path to .json config file'
 args = parser.parse_args()
 
 def main():
+    print('config file: ' + args.json_config_path)
 
     # open config file
     with open(args.json_config_path, 'r') as fp:
@@ -43,7 +45,7 @@ def main():
         if trial not in trial_paths:
             trial_paths.append(trial)
 
-    # go into each trial and get out the camera types according to what's listed in json file
+    # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_path in trial_paths:
         trial_cam_h5 = [(trial_path +'_{}.h5').format(name) for name in config['camera_names']]
         if config['use_BonsaiTS'] is True:
@@ -56,6 +58,20 @@ def main():
         # make the save path if it doesn't exist
         if not os.path.exists(config['save_path']):
             os.makedirs(config['save_path'])
+
+        # format the ephys data
+        if config['has_ephys'] is True:
+            print('formatting electrophysiology recordings for ' + t_name)
+            # filter the list of files for the current tiral to get to the ephys data
+            # presently, the phy2 files are expected to be in a subdirectory of 
+            trial_spike_times = os.path.join(config['data_path'],'ephys','spike_times.npy')
+            trial_spike_clusters = os.path.join(config['data_path'],'ephys','spike_clusters.npy')
+            trial_cluster_group = os.path.join(config['data_path'],'ephys','cluster_group.tsv')
+            trial_ephys_time = os.path.join(config['data_path'],t_name+'Ephys_BonsaiTS.csv')
+            # read in the data and structure them in one xarray for all spikes during this trial
+            ephys_xr = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, config)
+            # save out the data
+            ephys_xr.to_netcdf(os.path.join(config['save_path'], str(t_name+'ephys.nc')), engine='netcdf4')
 
         # analyze top views
         if 'TOP' in config['camera_names']:
@@ -86,11 +102,12 @@ def main():
             xr_top_frames3 = format_frames(top_avi3, config); xr_top_frames3.name = 'top3_video'
             # name and organize data
             pts.name = 'top_dlc_pts'; head_theta.name = 'top_head_theta'; top_props = 'top_properties'
-            trial_top_data = xr.merge([pts, head_theta, top_props, xr_top_frames1, xr_top_frames2, xr_top_frames3])
-            try:
-                trial_data = merge_xr_by_timestamps(trial_data, trial_top_data)
-            except UnboundLocalError:
-                trial_data = trial_top_data
+            trial_top1_data = xr.merge([pts, head_theta, top_props, xr_top_frames1])
+            trial_top1_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'top1.nc')), engine='netcdf4', encoding={'top1_video':{"zlib": True, "complevel": 9}})
+            trial_top2_data = xr.merge([pts, head_theta, top_props, xr_top_frames2])
+            trial_top2_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'top2.nc')), engine='netcdf4', encoding={'top2_video':{"zlib": True, "complevel": 9}})
+            trial_top3_data = xr.merge([pts, head_theta, top_props, xr_top_frames3])
+            trial_top3_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'top3.nc')), engine='netcdf4', encoding={'top3_video':{"zlib": True, "complevel": 9}})
 
 
         # analyze eye views
@@ -123,39 +140,24 @@ def main():
             # name and organize data
             eyedlc.name = eye_side+'eye_dlc_pts'; eyeparams.name = eye_side+'eye_ellipse_params'
             # rfit.name = eye_side+'eye_radius_fit'; shift.name = eye_side+'eye_pupil_rotation'
-            xr_eye_frames.name = eye_side+'video'
+            xr_eye_frames.name = eye_side+'EYEvideo'
             trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames])
-            try:
-                trial_data = merge_xr_by_timestamps(trial_data, trial_eye_data)
-            except UnboundLocalError:
-                trial_data = trial_eye_data
+            trial_eye_data.to_netcdf(os.path.join(config['save_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYEvideo':{"zlib": True, "complevel": 9}})
 
         # analyze world views
         world_sides = []
-        if 'RWORLD' in config['camera_names']:
-            world_sides.append('R')
-        if 'LWORLD' in config['camera_names']:
-            world_sides.append('L')
-        for i in range(0,len(world_sides)):
-            world_side = world_sides[i]
-            print('tracking ' + world_side + 'WORLD for ' + t_name)
+        if 'WORLD' in config['camera_names']:
+            print('tracking WORLD for ' + t_name)
             # filter the list of files for the current trial to get the world view of this side
-            world_csv = list(filter(lambda a: (world_side+'WORLD') in a, trial_cam_csv))[0]
-            world_avi = list(filter(lambda a: (world_side+'WORLD') in a, trial_cam_avi))[0]
+            world_csv = list(filter(lambda a: ('WORLD') in a, trial_cam_csv))[0]
+            world_avi = list(filter(lambda a: ('WORLD') in a, trial_cam_avi))[0]
             # make an xarray of timestamps without dlc points, since there aren't any for a world camera
-            worlddlc, worldnames = h5_to_xr(pt_path=None, time_path=world_csv, view=(world_side+'WORLD'))
-            worlddlc.name = world_side+'world_times'
+            worlddlc, worldnames = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'))
+            worlddlc.name = 'WORLDtimes'
             # make xarray of video frames
-            xr_world_frames = format_frames(world_avi, config); xr_world_frames.name = world_side+'world_video'
+            xr_world_frames = format_frames(world_avi, config); xr_world_frames.name = 'WORLDvideo'
             trial_world_data = xr.merge([worlddlc, xr_world_frames])
-            try:
-                trial_data = merge_xr_by_timestamps(trial_data, trial_world_data)
-            except UnboundLocalError:
-                trial_data = trial_world_data
-
-        print('saving data for ' + t_name)
-        # save out the DataArrays as one merged Dataset
-        trial_data.to_netcdf(os.path.join(config['save_path'], str(t_name + '.nc')), engine='netcdf4', encoding={"Rvideo":{"zlib": True, "complevel": 9}})
+            trial_world_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'world.nc')), engine='netcdf4', encoding={'WORLDvideo':{"zlib": True, "complevel": 9}})
 
     print('done with ' + str(len(trial_paths)) + ' queued trials')
 

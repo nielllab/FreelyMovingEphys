@@ -3,7 +3,7 @@ read_data.py
 
 functions for reading in and manipulating data and time
 
-last modified September 21, 2020
+Sept. 24, 2020
 """
 
 # package imports
@@ -44,7 +44,7 @@ def open_h5(path):
 def open_time(path, dlc_len=None):
     # read in the timestamps if they've come directly from cameras
     read_time = pd.read_csv(open(path, 'rU'), encoding='utf-8', engine='c', header=None)
-    time_in = pd.to_timedelta(read_time.squeeze(), unit='us')
+    time_in = pd.to_timedelta(read_time.squeeze(), unit='us', errors='coerce')
 
     # auto check if vids were deinterlaced
     if dlc_len is not None:
@@ -240,10 +240,10 @@ def merge_xr_by_timestamps(xr1, xr2):
 
     # set the two dataarrays up with aligned timestamps
     new1 = xr1.expand_dims({'merge_time':range(0,len(xr1))})
-    new2 = xr2.expand_dims({'merge_time':range(delay_behind_other, len(ind)+delay_behind_other)})
+    new2 = xr2.expand_dims({'merge_time':range(delay_behind_other, len(ind)+delay_behind_other)}).drop('timestamps')
 
     # merge into one dataset
-    ds_out = xr.merge([new1,new2])
+    ds_out = xr.merge([new1,new2], dim='merge_time')
 
     return ds_out
     

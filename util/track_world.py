@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-last modified September 20, 2020
+Sept. 24, 2020
 """
 
 # package imports
@@ -147,7 +147,7 @@ def curve_func(xval, a, b, c, d):
 # multiprocessing-ready fit to sigmoid function
 def sigm_fit_mp(d):
     try:
-        popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5], bounds=([50, 100, 5, .05],[150, 250, 20, 5]), method='trf')
+        popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5], bounds=([50, 100, 5, .05],[150, 250, 20, 5]), method='trf', xtol=10**-5)
         ci = np.sqrt(np.diagonal(pcov))
     except RuntimeError:
         popt = np.nan*np.zeros(4);

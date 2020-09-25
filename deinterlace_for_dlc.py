@@ -1,10 +1,13 @@
 """
 deinterlace_for_dlc.py
 
-Deinterlace found 30fps videos and interpolate their timestamps to match.
+deinterlace videos and shift times to suit the new video frame count
+creates a copy of the data directory, including files which aren't going to be deinterlaced
+can handle .avi, .csv, .h5 and .txt files
 
-Last modified August 25, 2020
+Sept. 24, 2020
 """
+
 # package imports
 import argparse
 import sys
@@ -13,6 +16,7 @@ import os
 import cv2
 import subprocess
 import shutil
+import ffmpeg
 
 # module imports
 from util.read_data import open_time, find
@@ -68,8 +72,14 @@ for this_avi in avi_list:
         print('starting to deinterlace and interpolate on ' + key)
         # deinterlace video with ffmpeg -- will only be done on 30fps videos
         avi_out_path = os.path.join(main_path, (key + '.avi'))
-        subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v',
-        'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+        (
+            ffmpeg
+            .input(this_avi)
+            .filter_('-vf').filter_('-yadif=1:-1:0').filter_('-c:v libx264').filter_('-preset slow')
+            .filter_('-crf 19').filter_('-c:a aac').filter_('-b:a 256k')
+            .output(avi_out_path)
+        )
+        #subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
         frame_count_deinter = frame_count * 2
         if csv_present is True:
             # write out the timestamps that have been opened and interpolated over
