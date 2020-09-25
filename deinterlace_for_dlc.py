@@ -16,7 +16,6 @@ import os
 import cv2
 import subprocess
 import shutil
-import ffmpeg
 
 # module imports
 from util.read_data import open_time, find
@@ -72,14 +71,7 @@ for this_avi in avi_list:
         print('starting to deinterlace and interpolate on ' + key)
         # deinterlace video with ffmpeg -- will only be done on 30fps videos
         avi_out_path = os.path.join(main_path, (key + '.avi'))
-        (
-            ffmpeg
-            .input(this_avi)
-            .filter_('-vf').filter_('-yadif=1:-1:0').filter_('-c:v libx264').filter_('-preset slow')
-            .filter_('-crf 19').filter_('-c:a aac').filter_('-b:a 256k')
-            .output(avi_out_path)
-        )
-        #subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+        subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
         frame_count_deinter = frame_count * 2
         if csv_present is True:
             # write out the timestamps that have been opened and interpolated over

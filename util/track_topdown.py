@@ -30,7 +30,7 @@ def rotmat(theta):
     return m
 
 # find angle of head at all time points
-def head_angle(pt_input, nose_x, nose_y, config, trial_name):
+def head_angle(pt_input, nose_x, nose_y, config, trial_name, top_view):
 
     pt_names = list(pt_input['point_loc'].values)
 
@@ -163,7 +163,7 @@ def head_angle(pt_input, nose_x, nose_y, config, trial_name):
         fig1 = plt.figure(constrained_layout=True)
         gs = fig1.add_gridspec(5,2)
         f1_ax1 = fig1.add_subplot(gs[0, :])
-        f1_ax1.set_title(trial_name + 'points')
+        f1_ax1.set_title(trial_name + top_view + 'points')
         f1_ax1.plot(data[:,0,:], data[:,1,:])
         f1_ax2 = fig1.add_subplot(gs[1, 0])
         f1_ax2.set_title('number of good points')
@@ -186,13 +186,13 @@ def head_angle(pt_input, nose_x, nose_y, config, trial_name):
         f1_ax7.plot(nose_x); f1_ax7.plot(nose_y)
         f1_ax7.legend('x','y')
         f1_ax7.set_ylabel('position'); f1_ax6.set_xlabel('frame')
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_head_alignment.png')), dpi=300)
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + top_view + '_head_alignment.png')), dpi=300)
         plt.close()
 
     return thetaout
 
 # track topdown position by calling other functions, takes in ONE trial at a time
-def topdown_tracking(topdown_data, config, trial_name):
+def topdown_tracking(topdown_data, config, trial_name, top_view):
 
     topdown_interp = xr.DataArray.interpolate_na(topdown_data, dim='frame', use_coordinate='frame', method='linear')
 
@@ -214,7 +214,7 @@ def topdown_tracking(topdown_data, config, trial_name):
         plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
         plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
         plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_nose_trace.png')), dpi=300)
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + top_view + '_nose_trace.png')), dpi=300)
         plt.close()
 
     # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
@@ -259,17 +259,17 @@ def topdown_tracking(topdown_data, config, trial_name):
         plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))
         plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
         plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_nose_trace_thresh.png')), dpi=300)
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + top_view + '_nose_trace_thresh.png')), dpi=300)
         plt.close()
 
-    likeli_thresh_allpts['trial'] = trial_name
+    likeli_thresh_allpts['trial'] = trial_name + '_' + top_view + 
 
     # points_out = likeli_thresh_allpts.assign_coords(timestamps=('frame', toptime))
 
     return likeli_thresh_allpts, nose_x_thresh_pts, nose_y_thresh_pts
 
 # plot points on topdown video and save as .avi
-def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name):
+def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
 
     # read topdown video in
     vidread = cv2.VideoCapture(vid_path)
@@ -277,7 +277,7 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name):
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     # setup the file to save out of this
-    savepath = os.path.join(config['save_path'], (trial_name + '_topdown.avi'))
+    savepath = os.path.join(config['save_path'], (trial_name + '_' + top_view + '.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
@@ -335,7 +335,7 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name):
     out_vid.release()
 
 # using the topdown data, get properties of mouse movement (and cricket, if config file says there is one)
-def get_top_props(top_pts, mouse_theta, config, trial_name):
+def get_top_props(top_pts, mouse_theta, config, trial_name, top_view):
 
     # set names of points
     cricketbodyX = crick_body_name + '_x'; cricketbodyY = crick_body_name + '_y'
@@ -399,7 +399,7 @@ def get_top_props(top_pts, mouse_theta, config, trial_name):
         plt.xlabel('frame')
         plt.ylabel('pixels/sec')
         plt.title('mouse speed')
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_topdown_props.png')), dpi=300)
+        plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + top_view + '_props.png')), dpi=300)
         plt.close()
 
         props_out = pd.DataFrame({'cricket_speed':list(cricket_speed), 'range':list(c_range)[:-1], 'azimuth':list(az)[:-1], 'd_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})

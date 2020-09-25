@@ -53,6 +53,7 @@ def main():
         elif config['use_BonsaiTS'] is False:
             trial_cam_csv = [(trial_path+'_{}_FlirTS.csv').format(name) for name in config['camera_names']]
         trial_cam_avi = [(trial_path+'_{}.avi').format(name) for name in config['camera_names']]
+
         t_name = os.path.split(trial_path)[1]
 
         # make the save path if it doesn't exist
@@ -63,52 +64,50 @@ def main():
         if config['has_ephys'] is True:
             print('formatting electrophysiology recordings for ' + t_name)
             # filter the list of files for the current tiral to get to the ephys data
-            # presently, the phy2 files are expected to be in a subdirectory of 
-            trial_spike_times = os.path.join(config['data_path'],'ephys','spike_times.npy')
-            trial_spike_clusters = os.path.join(config['data_path'],'ephys','spike_clusters.npy')
-            trial_cluster_group = os.path.join(config['data_path'],'ephys','cluster_group.tsv')
-            trial_ephys_time = os.path.join(config['data_path'],t_name+'Ephys_BonsaiTS.csv')
+            trial_spike_times = os.path.join(trial_path,'ephys','spike_times.npy')
+            trial_spike_clusters = os.path.join(trial_path,'ephys','spike_clusters.npy')
+            trial_cluster_group = os.path.join(trial_path,'ephys','cluster_group.tsv')
+            trial_ephys_time = os.path.join(trial_path,t_name+'Ephys_BonsaiTS.csv')
             # read in the data and structure them in one xarray for all spikes during this trial
             ephys_xr = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, config)
             # save out the data
             ephys_xr.to_netcdf(os.path.join(config['save_path'], str(t_name+'ephys.nc')), engine='netcdf4')
 
         # analyze top views
-        if 'TOP' in config['camera_names']:
+        top_views = []
+        if 'TOP1' in config['camera_names']:
+            top_views.append('TOP1')
+        if 'TOP2' in config['camera_names']:
+            top_views.append('TOP2')
+        if 'TOP2' in config['camera_names']:
+            top_views.append('TOP3')
+        for i in range(0,len(top_views)):
+            top_view = top_views[i]
             print('tracking TOP for ' + t_name)
             # filter the list of files for the current trial to get the topdown view
-            top_h5 = list(filter(lambda a: 'TOP' in a, trial_cam_h5))[0]
-            top_csv = list(filter(lambda a: 'TOP' in a, trial_cam_csv))[0]
-            top_avi1 = list(filter(lambda a: 'TOP1' in a, trial_cam_avi))[0]
-            top_avi2 = list(filter(lambda a: 'TOP2' in a, trial_cam_avi))[0]
-            top_avi3 = list(filter(lambda a: 'TOP3' in a, trial_cam_avi))[0]
+            top_h5 = list(filter(lambda a: top_view in a, trial_cam_h5))[0]
+            top_csv = list(filter(lambda a: top_view in a, trial_cam_csv))[0]
+            top_avi = list(filter(lambda a: top_view in a, trial_cam_avi))[0]
             # make an xarray of dlc point values out of the found .h5 files
             # also assign timestamps as coordinates of the xarray
-            topdlc, topnames = h5_to_xr(top_h5, top_csv, 'TOP')
+            topdlc, topnames = h5_to_xr(top_h5, top_csv, top_view)
             # clean DLC points up
-            pts, noseX, noseY = topdown_tracking(topdlc, config, t_name) #key_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket
+            pts, noseX, noseY = topdown_tracking(topdlc, config, t_name, top_view) #key_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket
             # calculate head angle
             print('finding head angle and mouse/cricket properties')
-            head_theta = head_angle(pts, noseX, noseY, config, t_name) # args.lik_thresh, key_save_path, args.cricket, key, nose_x, nose_y
+            head_theta = head_angle(pts, noseX, noseY, config, t_name, top_view) # args.lik_thresh, key_save_path, args.cricket, key, nose_x, nose_y
             # get mouse properties (and cricket properties if there is one)
-            top_props = get_top_props(pts, head_theta, config, t_name)
+            top_props = get_top_props(pts, head_theta, config, t_name, top_view)
             # make videos (only saved if config says so)
             if config['save_vids'] is True:
                 print('plotting points on top video')
-                plot_top_vid(top_avi1, pts, head_theta, config, t_name)
+                plot_top_vid(top_avi, pts, head_theta, config, t_name, top_view)
             # make xarray of video frames
-            xr_top_frames1 = format_frames(top_avi1, config); xr_top_frames1.name = 'top1_video'
-            xr_top_frames2 = format_frames(top_avi2, config); xr_top_frames2.name = 'top2_video'
-            xr_top_frames3 = format_frames(top_avi3, config); xr_top_frames3.name = 'top3_video'
+            xr_top_frames1 = format_frames(top_avi, config); xr_top_frames1.name = top_view+'video'
             # name and organize data
             pts.name = 'top_dlc_pts'; head_theta.name = 'top_head_theta'; top_props = 'top_properties'
-            trial_top1_data = xr.merge([pts, head_theta, top_props, xr_top_frames1])
-            trial_top1_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'top1.nc')), engine='netcdf4', encoding={'top1_video':{"zlib": True, "complevel": 9}})
-            trial_top2_data = xr.merge([pts, head_theta, top_props, xr_top_frames2])
-            trial_top2_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'top2.nc')), engine='netcdf4', encoding={'top2_video':{"zlib": True, "complevel": 9}})
-            trial_top3_data = xr.merge([pts, head_theta, top_props, xr_top_frames3])
-            trial_top3_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'top3.nc')), engine='netcdf4', encoding={'top3_video':{"zlib": True, "complevel": 9}})
-
+            trial_top_data = xr.merge([pts, head_theta, top_props, xr_top_frames])
+            trial_top_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'video':{"zlib": True, "complevel": 9}})
 
         # analyze eye views
         eye_sides = []

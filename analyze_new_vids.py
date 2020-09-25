@@ -2,9 +2,8 @@
 analyze_new_vids.py
 
 analyze new videos from any camera type given the path to a previously trained network
-run in DLC-GPU conda environment
 
-Sept. 24, 2020
+Sept. 25, 2020
 """
 
 # package imports
@@ -14,9 +13,9 @@ import argparse
 # module imports
 from util.read_data import find
 
-def analyze_vids(vid_list, data_path, save_path, config_path):
+def analyze_2d(vid_list, data_path, save_path, config_path):
     for vid in vid_list:
-        vid_source_path = os.path.split(vid)[0]
+        current_path = os.path.split(vid)[0]
         vid_save_path = current_path.replace(data_path, save_path)
         print('analyzing ' + vid)
         deeplabcut.analyze_videos(config_path, vid, destfolder=vid_save_path)
@@ -28,7 +27,10 @@ parser.add_argument('-c', '--deeplabcut_config_path', help='path to the DLC netw
 parser.add_argument('-k', '--cam_key', help='key specifying which camera type this is (e.g. EYE, TOP)')
 args = parser.parse_args()
 
-
 avi_with_key = find('*'+args.cam_key+'*.avi', args.data_directory)
-analyze_vids(avi_with_key, args.data_directory, args.save_directory, args.deeplabcut_config_path)
+analyze_2d(avi_with_key, args.data_directory, args.save_directory, args.deeplabcut_config_path)
 print('done analyzing ' + str(len(avi_with_key)) + ' ' + args.cam_key + ' videos')
+
+    
+    
+    
