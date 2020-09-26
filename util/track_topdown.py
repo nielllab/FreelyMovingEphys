@@ -262,7 +262,7 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
         plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + top_view + '_nose_trace_thresh.png')), dpi=300)
         plt.close()
 
-    likeli_thresh_allpts['trial'] = trial_name + '_' + top_view + 
+    likeli_thresh_allpts['trial'] = trial_name + '_' + top_view
 
     # points_out = likeli_thresh_allpts.assign_coords(timestamps=('frame', toptime))
 

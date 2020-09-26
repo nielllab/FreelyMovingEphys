@@ -1,7 +1,12 @@
 """
 extract_params_from_dlc.py
 
-extract mouse and prey parameters from videos and DeepLabCut outputs
+extract parameters of mouse (and prey) in a freely moving environment
+takes in videos, timestamps, DeepLabCut outputs, and ephys data
+outputs xarrays of original data and parameters
+each camera will have its own xarray Dataset, and ephys will have one too
+combining these views accross time happens when analysis is happening by hand downstream from this
+
 
 Sept. 24, 2020
 """
@@ -44,6 +49,12 @@ def main():
         trial = '_'.join(split_name)
         if trial not in trial_paths:
             trial_paths.append(trial)
+    # do the same with ephys timestamps in case its being run with no DLC data and user just wants to format spikes
+    for cg in find('*Ephys_BonsaiTS.csv', config['data_path']):
+        split_name = cg.split('_')[:-2]
+        trial = '_'.join(split_name)
+        if trial not in trial_paths:
+            trial_paths.append(trial)
 
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_path in trial_paths:
@@ -53,7 +64,6 @@ def main():
         elif config['use_BonsaiTS'] is False:
             trial_cam_csv = [(trial_path+'_{}_FlirTS.csv').format(name) for name in config['camera_names']]
         trial_cam_avi = [(trial_path+'_{}.avi').format(name) for name in config['camera_names']]
-
         t_name = os.path.split(trial_path)[1]
 
         # make the save path if it doesn't exist
@@ -64,10 +74,10 @@ def main():
         if config['has_ephys'] is True:
             print('formatting electrophysiology recordings for ' + t_name)
             # filter the list of files for the current tiral to get to the ephys data
-            trial_spike_times = os.path.join(trial_path,'ephys','spike_times.npy')
-            trial_spike_clusters = os.path.join(trial_path,'ephys','spike_clusters.npy')
-            trial_cluster_group = os.path.join(trial_path,'ephys','cluster_group.tsv')
-            trial_ephys_time = os.path.join(trial_path,t_name+'Ephys_BonsaiTS.csv')
+            trial_spike_times = os.path.join(trial_path.split(':')[0].lower()+':', '/'.join(trial_path.split(':')[1].split('/')[:-1]), 'ephys','spike_times.npy')
+            trial_spike_clusters = os.path.join(trial_path.split(':')[0].lower()+':', '/'.join(trial_path.split(':')[1].split('/')[:-1]), 'ephys','spike_clusters.npy')
+            trial_cluster_group = os.path.join(trial_path.split(':')[0].lower()+':', '/'.join(trial_path.split(':')[1].split('/')[:-1]), 'ephys','cluster_group.tsv')
+            trial_ephys_time = os.path.join(trial_path.split(':')[0].lower()+':','/'.join(trial_path.split(':')[1].split('/')[:-1]),t_name+'_Ephys_BonsaiTS.csv')
             # read in the data and structure them in one xarray for all spikes during this trial
             ephys_xr = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, config)
             # save out the data
