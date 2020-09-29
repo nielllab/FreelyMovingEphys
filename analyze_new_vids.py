@@ -1,10 +1,12 @@
 """
 analyze_new_vids.py
 
-analyze new videos from any camera type given the path to a previously trained network
-run this in the DLC-GPU conda environment, but one which has had pandas, numpy, xarray, opencv, and tqdm installed
+analyze new videos from multiple camera types together, given the path
+to a previously trained network
+run this in the DLC-GPU conda environment with a few added requirements
+that can be loaded in from a text file in /FreelyMovingEphys/env/requirements.txt
 
-Sept. 25, 2020
+Sept. 28, 2020
 """
 
 # package imports
@@ -16,25 +18,40 @@ import os
 # module imports
 from util.read_data import find
 
-def analyze_2d(vid_list, data_path, save_path, config_path):
+# run DeepLabCut on a list of video files that share a DLC config file
+def runDLCbatch(vid_list, config_path):
     for vid in vid_list:
-        current_path = os.path.split(vid)[0]
-        vid_save_path = current_path.replace(data_path, save_path)
         print('analyzing ' + vid)
-        deeplabcut.analyze_videos(config_path, [vid], destfolder=vid_save_path)
+        deeplabcut.analyze_videos(config_path, [vid])
 
-parser = argparse.ArgumentParser(description='analyze new videos using DeepLabCut and Anipose using an already-trained network')
-parser.add_argument('-c', '--json_config_path', help='') # this is a json config file to pass in a dictionary of the pathsf
+parser = argparse.ArgumentParser(description='analyze all new videos using DeepLabCut with an already-trained network')
+parser.add_argument('-c', '--json_config_path', help='path to video analysis config file')
 args = parser.parse_args()
 
 # open config file
 with open(args.json_config_path, 'r') as fp:
     config = json.load(fp)
 
-avi_with_key = find('*'+config['cam_key']+'*.avi', config['data_path'])
-analyze_2d(avi_with_key, config['data_path'], config['save_path'], config['config_path'])
-print('done analyzing ' + str(len(avi_with_key)) + ' ' + config['cam_key'] + ' videos')
-
-    
-    
+# get each camera type's entry in a list of lists that the json file has in it'
+for cam in config['cams']:
+    # there's an entry for the name of the camera to be used
+    cam_key = cam[0]
+    # and an entry for the config file for that camear type (this will be used by DLC)
+    cam_config = cam[1]
+    # if it's one of the cameras that needs to needs to be deinterlaced first, make sure and read in the deinterlaced 
+    if any(cam_key in s for s in ['REYE','LEYE','WORLD']):
+        # find all the videos in the data directory that are from the current camera and are deinterlaced
+        vids_this_cam = find('*'+cam_key+'*deinter.avi', config['data_path'])
+        print('found ' + str(len(vids_this_cam)) + ' deinterlaced videos from cam_key ' + cam_key)
+        # warn the user if there's nothing found
+        if len(vids_this_cam) == 0:
+            print('no ' + cam_key + ' videos found -- maybe the videos are not deinterlaced yet?)
+    else:
+        # find all the videos for camera types that don't neeed to be deinterlaced
+        vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
+        print('found ' + str(len(vids_this_cam)) + 'videos from cam_key ' + cam_key)
+    # analyze the videos with DeepLabCut
+    # this gives the function a list of files that it will iterate over with the same DLC config file
+    runDLCbatch(vids_this_cam, cam_config)
+    print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
     

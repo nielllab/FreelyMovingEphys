@@ -5,7 +5,7 @@ deinterlace videos and shift times to suit the new video frame count
 creates a copy of the data directory, including files which aren't going to be deinterlaced
 can handle .avi, .csv, .h5 and .txt files
 
-Sept. 24, 2020
+Sept. 28, 2020
 """
 
 # package imports
@@ -23,8 +23,11 @@ from util.read_data import open_time, find
 # get user inputs
 parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
 parser.add_argument('-d', '--data_path', help='parent directory of all data including timestamps, videos, and any text files of metadata')
-parser.add_argument('-s', '--save_path', help='where to rebuld the directories and save deinterlaced/interpolated data along with data copied over.')
+parser.add_argument('-s', '--save_path', help='where to save the data (if not given, data will be saved in the data path with changed names')
 args = parser.parse_args()
+
+if not args.save_path:
+    args.save_path = args.data_path
 
 avi_list = find('*.avi', args.data_path)
 csv_list = find('*.csv', args.data_path)
@@ -56,26 +59,15 @@ for this_avi in avi_list:
     fps = cap.get(cv2.CAP_PROP_FPS)
     if not os.path.exists(main_path):
         os.makedirs(main_path)
-    if fps == 60:
-        print('video for ' + key + ' already has 60fps... copying now')
-        avi_out_path = os.path.join(main_path, (key + '.avi'))
-        shutil.copyfile(this_avi, avi_out_path)
-        if csv_present is True:
-            csv_out_path = os.path.join(main_path, (key + '_BonsaiTS.csv'))
-            csv_out = pd.DataFrame(open_time(this_csv, int(frame_count)))
-            csv_out.to_csv(csv_out_path, index=False)
-        if h5_present is True:
-            h5_out_path = os.path.join(main_path, (key + '.h5'))
-            shutil.copyfile(this_h5, h5_out_path)
     elif fps == 30:
         print('starting to deinterlace and interpolate on ' + key)
         # deinterlace video with ffmpeg -- will only be done on 30fps videos
-        avi_out_path = os.path.join(main_path, (key + '.avi'))
+        avi_out_path = os.path.join(main_path, (key + 'deinter.avi'))
         subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
         frame_count_deinter = frame_count * 2
         if csv_present is True:
             # write out the timestamps that have been opened and interpolated over
-            csv_out_path = os.path.join(main_path, (key + '_BonsaiTS.csv'))
+            csv_out_path = os.path.join(main_path, (key + '_BonsaiTSdeinter.csv'))
             csv_out = pd.DataFrame(open_time(this_csv, int(frame_count_deinter)))
             csv_out.to_csv(csv_out_path, index=False)
         if h5_present is True:
