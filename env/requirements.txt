@@ -1,0 +1,12 @@
+astropy
+h5py
+matplotlib
+numpy
+opencv-python
+pandas
+tables
+scikit-image
+scipy
+tqdm
+xarray
+netCDF4
