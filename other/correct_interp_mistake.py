@@ -3,7 +3,7 @@ correct mistakes in deinterlace_for_dlc.pyn where (1) time was not interpolated 
 fps was checked before deinterlacing videos and (2) not all timestamps were opened to datetimes
 given varied by day-1
 
-Last modified August 25, 2020
+Oct. 05, 2020
 """
 
 import argparse
@@ -12,6 +12,7 @@ import numpy as np
 import os
 import pandas as pd
 import dateutil
+from datetime import datetime
 
 # glob for subdirectories
 def find(pattern, path):
@@ -25,13 +26,21 @@ def find(pattern, path):
 # read in the timestamps for a camera and adjust to deinterlaced video length if needed
 def open_time(path, dlc_len=None, force_shift=False):
     # read in the timestamps if they've come directly from cameras
-    read_time = pd.read_csv(open(path, 'rU'), encoding='utf-8', engine='c', header=None)
-    time_in = pd.to_timedelta(read_time.squeeze(), unit='us', errors='coerce')
+    read_time = pd.read_csv(path, encoding='utf-8', engine='c', header=0).squeeze()
+    startT = (read_time[0])[:-2]
+    time_in = []
+    for current_time in read_time:
+        currentT = current_time[:-2]
+        try:
+            time_in.append((datetime.strptime(currentT, '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
+        except ValueError:
+            time_in.append(np.nan)
+    time_in = np.array(time_in)
 
     # auto check if vids were deinterlaced
     if dlc_len is not None:
         # test length of the time just read in as it compares to the length of the data, correct for deinterlacing if needed
-        timestep = np.median(np.diff(time_in, axis=0))
+        timestep = np.nanmedian(np.diff(time_in, axis=0))
         if dlc_len > len(time_in):
             time_out = np.zeros(np.size(time_in, 0)*2)
             # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
@@ -46,8 +55,8 @@ def open_time(path, dlc_len=None, force_shift=False):
 
     # force the times to be shifted if the user is sure it should be done
     if force_shift is True:
-        # test length of the time just read in as it compares to the length of the data, correct for deinterlacing if needed
-        timestep = np.median(np.diff(time_in, axis=0))
+        # test length of the time just read in as it compares to the length of the data, correct for deinterlacing
+        timestep = np.nanmedian(np.diff(time_in, axis=0))
         time_out = np.zeros(np.size(time_in, 0)*2)
         # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
         time_out[::2] = time_in - 0.25 * timestep
@@ -60,6 +69,9 @@ parser = argparse.ArgumentParser(description='deinterlace videos and adjust time
 parser.add_argument('-d', '--data_path')
 parser.add_argument('-s', '--save_path')
 args = parser.parse_args()
+
+if not args.save_path:
+    args.save_path = args.data_path
 
 csv_list = find('*BonsaiTS.csv', args.data_path)
 
