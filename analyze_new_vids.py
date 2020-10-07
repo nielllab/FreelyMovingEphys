@@ -49,7 +49,7 @@ for cam in config['cams']:
     else:
         # find all the videos for camera types that don't neeed to be deinterlaced
         vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
-        print('found ' + str(len(vids_this_cam)) + 'videos from cam_key ' + cam_key)
+        print('found ' + str(len(vids_this_cam)) + ' videos from cam_key ' + cam_key)
     # analyze the videos with DeepLabCut
     # this gives the function a list of files that it will iterate over with the same DLC config file
     runDLCbatch(vids_this_cam, cam_config)

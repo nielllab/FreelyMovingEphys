@@ -3,7 +3,7 @@ read_data.py
 
 functions for reading in and manipulating data and time
 
-Sept. 24, 2020
+Oct. 06, 2020
 """
 
 # package imports
@@ -16,6 +16,7 @@ import fnmatch
 import dateutil
 import cv2
 from tqdm import tqdm
+from datetime import datetime
 
 # glob for subdirectories
 def find(pattern, path):
@@ -33,23 +34,40 @@ def open_h5(path):
     except ValueError:
         # read in .h5 file when there is a key set in corral_files.py
         pts = pd.read_hdf(path, key='data')
-    # organize columns of pts
+    # organize columns
     pts.columns = [' '.join(col[:][1:3]).strip() for col in pts.columns.values]
     pts = pts.rename(columns={pts.columns[n]: pts.columns[n].replace(' ', '_') for n in range(len(pts.columns))})
     pt_loc_names = pts.columns.values
 
     return pts, pt_loc_names
 
+# open h5 file of a multianimal DLC project
+def open_ma_h5(path):
+    pts = pd.read_hdf(path)
+    # flatten columns from MultiIndex 
+    pts.columns = ['_'.join(col[:][1:]).strip() for col in pts.columns.values]
+
+    return pts
+
 # read in the timestamps for a camera and adjust to deinterlaced video length if needed
-def open_time(path, dlc_len=None):
+def open_time(path, dlc_len=None, force_shift=False):
     # read in the timestamps if they've come directly from cameras
-    read_time = pd.read_csv(open(path, 'rU'), encoding='utf-8', engine='c', header=None)
-    time_in = pd.to_timedelta(read_time.squeeze(), unit='us', errors='coerce')
+    read_time = pd.read_csv(path, encoding='utf-8', engine='c', header=0).squeeze()
+    startT = str(read_time[0])[:-2]
+    time_in = []
+    for current_time in read_time:
+        currentT = str(current_time)[:-2]
+        try:
+            time_in.append((datetime.strptime(currentT, '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
+        except ValueError:
+            # in the event that a timestamp doesn't meet the %H:%M:%S.%f format...
+            time_in.append(np.nan)
+    time_in = np.array(time_in)
 
     # auto check if vids were deinterlaced
     if dlc_len is not None:
         # test length of the time just read in as it compares to the length of the data, correct for deinterlacing if needed
-        timestep = np.median(np.diff(time_in, axis=0))
+        timestep = np.nanmedian(np.diff(time_in, axis=0))
         if dlc_len > len(time_in):
             time_out = np.zeros(np.size(time_in, 0)*2)
             # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
@@ -61,6 +79,15 @@ def open_time(path, dlc_len=None):
             time_out = time_in
     elif dlc_len is None:
         time_out = time_in
+
+    # force the times to be shifted if the user is sure it should be done
+    if force_shift is True:
+        # test length of the time just read in as it compares to the length of the data, correct for deinterlacing
+        timestep = np.nanmedian(np.diff(time_in, axis=0))
+        time_out = np.zeros(np.size(time_in, 0)*2)
+        # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
+        time_out[::2] = time_in - 0.25 * timestep
+        time_out[1::2] = time_in + 0.25 * timestep
 
     return time_out
 
@@ -110,19 +137,23 @@ def split_xyl(eye_names, eye_data, thresh):
 
 # build an xarray DataArray of the a single camera's dlc point .h5 files and .csv timestamp corral_files
 # function is used for any camera view regardless of type, though extension must be specified in 'view' argument
-def h5_to_xr(pt_path, time_path, view):
+def h5_to_xr(pt_path, time_path, view, config):
     if pt_path is not None and pt_path != []:
-        if isinstance(pt_path, list):
-            pts, names = open_h5(pt_path[0])
+        if 'TOP' in view and config['multianimal_TOP'] is True:
+            pts = open_ma_h5(pt_path)
         else:
             pts, names = open_h5(pt_path)
-        if isinstance(time_path, list):
-            time = open_time(time_path[0], len(pts))
-        else:
-            time = open_time(time_path, len(pts))
+        time = open_time(time_path, len(pts))
         xrpts = xr.DataArray(pts, dims=['frame', 'point_loc'])
         xrpts.name = view
-        xrpts = xrpts.assign_coords(timestamps=('frame', time[1:])) # indexing [1:] into time because first row is the empty header, 0
+        try:
+            xrpts = xrpts.assign_coords(timestamps=('frame', time[1:])) # indexing [1:] into time because first row is the empty header, 0
+        except ValueError:
+            # this is both messy and temporary -- trying to fix issue: ValueError: conflicting sizes for dimension 'frame': length 71521 on 'timestamps' and length 71522 on 'frame'
+            timestep = time[1] - time[0]
+            last_value = time[-1] + timestep
+            new_time = np.append(time, pd.Series(last_value))
+            xrpts = xrpts.assign_coords(timestamps=('frame', new_time[1:]))
     elif pt_path is None or pt_path == []:
         if time_path is not None and time_path != []:
             time = open_time(time_path)
@@ -133,7 +164,7 @@ def h5_to_xr(pt_path, time_path, view):
         elif time_path is None or time_path == []:
             xrpts = None; names = None
 
-    return xrpts, names
+    return xrpts
 
 # Sort out what the first timestamp in all DataArrays is so that videos can be set to start playing at the corresponding frame
 def find_start_end(topdown_data, leftellipse_data, rightellipse_data, side_data):
@@ -212,7 +243,7 @@ def format_frames(vid_path, config):
             break
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         sframe = cv2.resize(frame, (0,0), fx=config['dwnsmpl'], fy=config['dwnsmpl'], interpolation=cv2.INTER_NEAREST)
-        all_frames[frame_num,:,:] = sframe
+        all_frames[frame_num,:,:] = sframe.astype(np.int8)
 
     formatted_frames = xr.DataArray(all_frames.astype(np.int8), dims=['frame', 'height', 'width'])
     formatted_frames.assign_coords({'frame':range(0,len(formatted_frames))})
@@ -229,7 +260,6 @@ def merge_xr_by_timestamps(xr1, xr2):
     round1 = np.around(xr1['timestamps'].data.astype(np.int), -4)
     round2 = np.around(xr2['timestamps'].data.astype(np.int), -4)
     df2 = pd.DataFrame(round2)
-
     # where we'll put the index of the closest match in round2 for each value in round1
     ind = []
     for step in range(0,len(round1)):
@@ -237,13 +267,30 @@ def merge_xr_by_timestamps(xr1, xr2):
     # here, a positive value means that round2 is delayed by that value
     # and a negative value means that round2 is ahead by that value
     delay_behind_other = int(round(np.mean([(i-ind[i]) for i in range(0,len(ind))])))
-
     # set the two dataarrays up with aligned timestamps
     new1 = xr1.expand_dims({'merge_time':range(0,len(xr1))})
     new2 = xr2.expand_dims({'merge_time':range(delay_behind_other, len(ind)+delay_behind_other)}).drop('timestamps')
-
     # merge into one dataset
     ds_out = xr.merge([new1,new2], dim='merge_time')
 
     return ds_out
-    
+
+# use np.vstack with arrays of variable length by filling jaggged ends with NaNs
+def nan_vstack(array1, array2):
+    lengths = []
+    for array in [array1, array2]:
+        lengths.append(len(array))
+    set_length = max(lengths)
+    array_num = 0
+    for array in [array1, array2]:
+        array_num = array_num + 1
+        if len(array) < set_length:
+            len_diff = set_length - len(array)
+            nan_array = np.empty(len_diff)
+            nan_array[:] = np.nan
+            array = np.concatenate([array, nan_array])
+        if array_num == 1:
+            array1 = array
+        elif array_num == 2:
+            stack = np.vstack([array1, array])
+    return stack

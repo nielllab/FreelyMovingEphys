@@ -1,6 +1,6 @@
 {
-    "data_path": "T:/path/to/data/",
-    "save_path": "T:/path/to/save/",
+    "data_path": "T:/path/to/data",
+    "save_path": "T:/path/to/save",
     "camera_names":[],
     "lik_thresh": 0.99,
     "has_ephys":true,
@@ -15,5 +15,6 @@
     "range_radius": 10,
     "world_interp_method": "linear",
     "num_ellipse_pts_needed": 8,
-    "dwnsmpl": 0.5
+    "dwnsmpl": 0.5,
+    "ephys_sample_rate":30000
 }

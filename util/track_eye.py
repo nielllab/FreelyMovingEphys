@@ -177,7 +177,7 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     vidread = cv2.VideoCapture(vid_path)
     width = int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    savepath = os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE.avi'))
+    savepath = os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE_plot.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 

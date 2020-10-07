@@ -1,9 +1,8 @@
 {
-    "data_path": "G:/freely_moving_ephys/data/ephys_recordings/J524LT/",
+    "data_path": "T:/path/to/data",
     "cams": [
         ["REYE","C:/Users/Niell Lab/Documents/EyeCamTesting-dylan-2020-07-07/config.yaml"],
-        ["WORLD","C:/Users/Niell Lab/Documents/EyeCamTesting-dylan-2020-07-07/config.yaml"],
-        ["TOP1","C:/Users/Niell Lab/Documents/EyeCamTesting-dylan-2020-07-07/config.yaml"],
-        ["TOP2","C:/Users/Niell Lab/Documents/EyeCamTesting-dylan-2020-07-07/config.yaml"],
-        ["TOP3","C:/Users/Niell Lab/Documents/EyeCamTesting-dylan-2020-07-07/config.yaml"]]
+        ["TOP1","C:/Users/Niell Lab/Documents/MathisNetwork2/config.yaml"],
+        ["TOP2","C:/Users/Niell Lab/Documents/MathisNetwork2/config.yaml"],
+        ["TOP3","C:/Users/Niell Lab/Documents/MathisNetwork2/config.yaml"]]
 }
