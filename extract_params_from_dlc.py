@@ -7,7 +7,7 @@ outputs xarrays of original data and parameters
 each camera will have its own xarray Dataset, and ephys will have one too
 combining these views accross time happens when analysis is happening by hand downstream from this
 
-Oct. 05, 2020
+Oct. 07, 2020
 """
 
 # package imports
@@ -20,7 +20,6 @@ import argparse
 import warnings
 import json
 from multiprocessing import freeze_support
-import pickle
 
 # module imports
 from util.read_data import h5_to_xr, find, format_frames, merge_xr_by_timestamps
@@ -84,9 +83,9 @@ def main():
                 ephys, t0 = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, trial_templates, trial_cluster_info, config)
                 # restructure the data in xarray
                 all_clusters = ephys_to_dict(ephys, t0, t_name)
-                # save out the data
-                with open(os.path.join(config['save_path'], str(t_name+'_ephys.pickle'), 'wb') as handle:
-                    pickle.dump(all_clusters, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                # save out the data as a json
+                with open(os.path.join(config['save_path'], str(t_name+'_ephys.json'), 'wb') as fp:
+                    json.dump(all_clusters, fp)
             except FileNotFoundError:
                 print('missing one or more ephys files -- assuming no ephys analysis for this trial')
 
