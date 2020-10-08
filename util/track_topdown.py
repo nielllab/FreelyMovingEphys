@@ -3,7 +3,7 @@ track_topdown.py
 
 topdown tracking utilities
 
-last modified September 12, 2020
+Oct. 04, 2020
 """
 
 # package imports
@@ -191,24 +191,26 @@ def head_angle(pt_input, nose_x, nose_y, config, trial_name, top_view):
 
     return thetaout
 
+# simpler way to get head angle
+def simple_head_angle(pts, config):
+    angs = []
+    for step in tqdm(range(0,len(newpts))):
+        step_pts = newpts.isel(frame=step)
+        ang = np.tan((step_pts.sel(point_loc='mouse_spine_y')-step_pts.sel(point_loc='mouse_nose_y')),
+                    (step_pts.sel(point_loc='mouse_spine_x')-step_pts.sel(point_loc='mouse_nose_x')))
+        angs.append(ang)
+    head_theta = xr.DataArray(angs)
+
+    return head_theta
+
 # track topdown position by calling other functions, takes in ONE trial at a time
 def topdown_tracking(topdown_data, config, trial_name, top_view):
-
+    topdown_pt_names = list(topdown_data['point_loc'].values)
     topdown_interp = xr.DataArray.interpolate_na(topdown_data, dim='frame', use_coordinate='frame', method='linear')
 
-    # for each point location in the topdown input data, select y head points and subtract them from int to fix coordinates
-    y_names = [name for name in topdown_pt_names if '_y' in name]
-    x_names = [name for name in topdown_pt_names if '_x' in name]
-    l_names = [name for name in topdown_pt_names if 'lik' in name]
-    y_data = topdown_interp.sel(point_loc=y_names) - coord_cor
-    x_data = topdown_interp.sel(point_loc=x_names)
-    l_data = topdown_interp.sel(point_loc=l_names)
-    topdown_coordcor = xr.concat([x_data, y_data, l_data], dim='point_loc', fill_value=np.nan)
-
-    nose_x_pts = topdown_coordcor.sel(point_loc='nose_x')
-    nose_y_pts = topdown_coordcor.sel(point_loc='nose_y')
-
-    if config['save_vids'] is True:
+    nose_x_pts = topdown_interp.sel(point_loc='mouse_nose_x')
+    nose_y_pts = topdown_interp.sel(point_loc='mouse_nose_y')
+    if config['save_figs'] is True:
         plt.figure()
         plt.title('mouse nose x/y path before likelihood threshold')
         plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
@@ -225,30 +227,29 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
             # find the associated x and y points of the selected likelihood
             # assumes order is x, y, likelihood, will cause problems if isn't true of data...
             assoc_x_pos = topdown_pt_names[pt_num - 2]
-            assoc_x_pt = topdown_coordcor.sel(point_loc=assoc_x_pos)
+            assoc_x_pt = topdown_interp.sel(point_loc=assoc_x_pos)
             assoc_y_pos = topdown_pt_names[pt_num - 1]
-            assoc_y_pt = topdown_coordcor.sel(point_loc=assoc_y_pos)
+            assoc_y_pt = topdown_interp.sel(point_loc=assoc_y_pos)
 
             # select only the likelihood data for this point
-            likeli_pt = topdown_coordcor.sel(point_loc=current_pt_loc)
+            likeli_pt = topdown_interp.sel(point_loc=current_pt_loc)
 
             # set x/y coords to NaN where the likelihood is below threshold value
-            assoc_x_pt[likeli_pt < lik_thresh] = np.nan
-            assoc_y_pt[likeli_pt < lik_thresh] = np.nan
+            assoc_x_pt = assoc_x_pt.where(likeli_pt < config['lik_thresh'])
+            assoc_y_pt = assoc_y_pt.where(likeli_pt < config['lik_thresh'])
 
-            likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='point_loc')
+            likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='frame')
 
             if likeli_loop_count == 0:
                 likeli_thresh_allpts = likeli_thresh_1loc
             elif likeli_loop_count > 0:
-                likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_1loc], dim='point_loc',
-                                                 fill_value=np.nan)
+                likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_1loc], dim='point_loc',fill_value=np.nan)
 
             likeli_loop_count = likeli_loop_count + 1
 
     # make a plot of the mouse's path, where positions that fall under threshold will be NaNs
-    nose_x_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose_x')
-    nose_y_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose_y')
+    nose_x_thresh_pts = likeli_thresh_allpts.sel(point_loc='mouse_nose_x')
+    nose_y_thresh_pts = likeli_thresh_allpts.sel(point_loc='mouse_nose_y')
     # mask the NaNs, but only for the figure (don't want to lose time information for actual analysis)
     nose_x_thresh_nonan_pts = nose_x_thresh_pts[np.isfinite(nose_x_thresh_pts)]
     nose_y_thresh_nonan_pts = nose_y_thresh_pts[np.isfinite(nose_y_thresh_pts)]
@@ -266,7 +267,7 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
 
     # points_out = likeli_thresh_allpts.assign_coords(timestamps=('frame', toptime))
 
-    return likeli_thresh_allpts, nose_x_thresh_pts, nose_y_thresh_pts
+    return likeli_thresh_allpts#, nose_x_thresh_pts, nose_y_thresh_pts
 
 # plot points on topdown video and save as .avi
 def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
@@ -277,7 +278,7 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     # setup the file to save out of this
-    savepath = os.path.join(config['save_path'], (trial_name + '_' + top_view + '.avi'))
+    savepath = os.path.join(config['save_path'], (trial_name + '_' + top_view + '_plot.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
@@ -297,12 +298,12 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
             frame_time = vidread.get(cv2.CAP_PROP_POS_FRAMES)
 
             try:
-                for k in range(0, 30, 3):
+                for k in range(0, len(dlc_data['point_loc']), 3):
                     topdownTS = dlc_data.sel(frame=frame_time)
-                    current_ang = head_ang.sel(frame=frame_time).values
+                    # current_ang = head_ang.sel(frame=frame_time).values
                     try:
-                        td_pts_x = topdownTS.isel(point_loc=k)
-                        td_pts_y = topdownTS.isel(point_loc=k + 1)
+                        td_pts_x = topdownTS.isel(point_loc=k).values[0]
+                        td_pts_y = topdownTS.isel(point_loc=k + 1).values[0]
                         center_xy = (int(td_pts_x), int(td_pts_y))
                         if k == 0:
                             # plot them on the fresh topdown frame
@@ -311,17 +312,17 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
                             # plot them on the topdown frame with all past topdown points
                             frame = cv2.circle(frame, center_xy, 6, plot_color0, -1)
 
-                        backX = topdownTS.sel(point_loc='Back_of_Head_x').values
-                        backY = topdownTS.sel(point_loc='Back_of_Head_y').values
+                        # backX = topdownTS.sel(point_loc='mouse_spine_x').values
+                        # backY = topdownTS.sel(point_loc='mouse_spine_y').values
 
-                        try:
-                            x1 = (backX * np.cos(float(current_ang))).astype(int)
-                            y1 = (backY * np.sin(float(current_ang))).astype(int)
-                            x2 = (backX + 30 * np.cos(float(current_ang))).astype(int)
-                            y2 = (backY + 30 * np.sin(float(current_ang))).astype(int)
-                            frame = cv2.line(frame, (x1,y1), (x2,y2), plot_color1, thickness=4)
-                        except OverflowError:
-                            pass
+                        # try:
+                        #     x1 = (backX * np.cos(float(current_ang))).astype(int)
+                        #     y1 = (backY * np.sin(float(current_ang))).astype(int)
+                        #     x2 = (backX + 30 * np.cos(float(current_ang))).astype(int)
+                        #     y2 = (backY + 30 * np.sin(float(current_ang))).astype(int)
+                        #     frame = cv2.line(frame, (x1,y1), (x2,y2), plot_color1, thickness=4)
+                        # except OverflowError:
+                        #     pass
                     except ValueError:
                         pass
             except KeyError:
