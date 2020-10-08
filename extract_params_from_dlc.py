@@ -27,7 +27,7 @@ from util.track_topdown import topdown_tracking, head_angle, plot_top_vid, get_t
 from util.track_eye import plot_eye_vid, eye_tracking
 from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper
 from util.analyze_jump import jump_gaze_trace
-from util.ephys import format_spikes, ephys_to_dict
+from util.ephys import format_spikes
 
 # get user inputs
 parser = argparse.ArgumentParser(description='extract mouse and prey parameters from DeepLabCut data and corresponding videos')
@@ -42,7 +42,7 @@ def main():
         config = json.load(fp)
 
     # get trial name out of each avi file and make a list of the unique entries
-    trial_units = []; name_check = ['092820_J524RT_checkerboard_hf']; path_check = []
+    trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
         split_name = avi.split('_')[:-1]
         trial = '_'.join(split_name)

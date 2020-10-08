@@ -60,8 +60,11 @@ def open_time(path, dlc_len=None, force_shift=False):
         try:
             time_in.append((datetime.strptime(currentT, '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
         except ValueError:
-            # in the event that a timestamp doesn't meet the %H:%M:%S.%f format...
-            time_in.append(np.nan)
+            try:
+                # in the event that a timestamp is already formatted as nanoseconds
+                time_in.append((datetime.strptime(datetime.fromtimestamp(int(currentT)/(10**9)).strftime('%H:%M:%S.%f'), '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
+            except ValueError:
+                time_in.append(np.nan)
     time_in = np.array(time_in)
 
     # auto check if vids were deinterlaced
