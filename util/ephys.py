@@ -3,7 +3,7 @@ ephys.py
 
 organize and combine ephys data
 
-Oct. 06, 2020
+Oct. 07, 2020
 """
 
 # package imports
@@ -36,21 +36,6 @@ def format_spikes(spike_times_path, spike_clusters_path, cluster_group_path, eph
     for i, ind in enumerate(ephys_data.index):
         ephys_data.at[ind,'waveform'] = templates[ind,21:,ephys_data.at[ind,'ch']]
     # first timepoint
-    t0 = open_time(ephys_time_path)[0]
+    ephys_data['t0'] = open_time(ephys_time_path)[0]
 
-    return ephys_data, t0
-
-# combine all ephys data of a trial into a nested dictionary where each key contains the data and metadata of a single unit
-def ephys_to_dict(ephys_data, t0, trial_name):
-    cluster_dict_list = []
-    cluster_name_list = []
-    for cluster_id in ephys_data.index:
-        cluster = ephys_data.loc[cluster_id]
-        cluster_dict = dict(cluster)
-        cluster_dict['t0'] = t0
-        cluster_name = 'unit_' + trial_name + '_cluster' + str(cluster_id)
-        cluster_dict_list.append(cluster_dict)
-        cluster_name_list.append(cluster_name)
-    all_clusters = dict(zip(cluster_name_list, cluster_dict_list))
-    
-    return all_clusters
+    return ephys_data

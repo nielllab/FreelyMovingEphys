@@ -80,12 +80,9 @@ def main():
                 trial_ephys_time = os.path.join(trial_path,t_name+'_Ephys_BonsaiTS.csv')
                 trial_cluster_info = os.path.join(trial_path, t_name,'cluster_info.tsv')
                 # read in the data for all spikes during this trial
-                ephys, t0 = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, trial_templates, trial_cluster_info, config)
-                # restructure the data in xarray
-                all_clusters = ephys_to_dict(ephys, t0, t_name)
+                ephys = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, trial_templates, trial_cluster_info, config)
                 # save out the data as a json
-                with open(os.path.join(config['save_path'], str(t_name+'_ephys.json'), 'wb') as fp:
-                    json.dump(all_clusters, fp)
+                ephys.to_json(os.path.join(config['save_path'], str(t_name+'_ephys.json')))
             except FileNotFoundError:
                 print('missing one or more ephys files -- assuming no ephys analysis for this trial')
 
