@@ -3,7 +3,7 @@ ephys.py
 
 organize and combine ephys data
 
-Sept. 24, 2020
+Oct. 07, 2020
 """
 
 # package imports
@@ -15,25 +15,27 @@ import os
 # module imports
 from util.read_data import open_time
 
-# format ephys data read in from Phy2 output files and return them as an xarray
-def format_spikes(spike_times_path, spike_clusters_path, cluster_group_path, ephys_time_path, config):
-    # load in the spike data
-    spike_times = np.load(spike_times_path)
-    spike_clusters = np.load(spike_clusters_path)
-    # open the cluster key
-    with open(cluster_group_path) as cg:
-        cluster_group = pd.read_csv(cg, delimiter="\t", quotechar='"')
-    # open the timestamp file
-    time = open_time(ephys_time_path)
-    # combine spike times and clusters into a dataframe, then merge the key so that there will be a column identifying
-    # each spike as eithter 'good' 'mua' or 'noise'
-    spikes = pd.DataFrame(np.vstack([np.squeeze(spike_times), spike_clusters]).T, columns=['spike_time','cluster_id'])
-    all_ephys = pd.DataFrame.merge(spikes, cluster_group, on='cluster_id')
-    # only keep the spikes that were labeled in Phy2 as being 'good'
-    all_ephys_good = all_ephys[all_ephys['group'].str.contains('good')]
-    # put it all into an xarray and throw time in as a dimension
-    ephys_data = xr.DataArray(all_ephys_good, dims=['spike_num', 'ephys_params'])
-    ephys_data.where(ephys_data.group == 'good', 1)
-    ephys_data.expand_dims({'timestamps':time})
+# format ephys data read in from Phy2 output files
+# returns DataFrame of ephys data
+# also returns first timestamp from Bonsai timestamps
+def format_spikes(spike_times_path, spike_clusters_path, cluster_group_path, ephys_time_path, templates_path, cluster_info_path, config):
+    allSpikeT = np.load(spike_times_path)
+    allSpikeT = allSpikeT/config['ephys_sample_rate']  # should be a lookup table with timestamps
+    duration = np.max(allSpikeT)
+    ephys_data = pd.read_csv(cluster_info_path,sep = '\t',index_col=0)
+    clust = np.load(spike_clusters_path)
+    ephys_data['spikeT'] = np.nan
+    ephys_data['spikeT'] = ephys_data['spikeT'].astype(object)
+    # get spiketimes for each cluster
+    for c in np.unique(clust):
+        ephys_data.at[c,'spikeT'] =allSpikeT[clust==c].flatten()
+    # get waveform templates
+    templates = np.load(templates_path)
+    ephys_data['waveform'] = np.nan
+    ephys_data['waveform'] = ephys_data['spikeT'].astype(object)
+    for i, ind in enumerate(ephys_data.index):
+        ephys_data.at[ind,'waveform'] = templates[ind,21:,ephys_data.at[ind,'ch']]
+    # first timepoint
+    ephys_data['t0'] = open_time(ephys_time_path)[0]
 
     return ephys_data

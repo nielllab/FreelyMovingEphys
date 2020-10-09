@@ -1,8 +1,9 @@
+
 {
-    "data_path": "/home/seuss/Desktop/Phils_app/",
+    "data_path": "T:/path/to/data",
     "cams": [
-        ["REYE","/home/seuss/Desktop/EyeCamTesting-dylan-2020-07-07/config.yaml"],
-        ["TOP1","/home/seuss/Desktop/MathisNetwork2/config.yaml"],
-        ["TOP2","/home/seuss/Desktop/MathisNetwork2/config.yaml"],
-        ["TOP3","/home/seuss/Desktop/MathisNetwork2/config.yaml"]]
+        ["REYE","C:/Users/Niell Lab/Documents/EyeCamTesting-dylan-2020-07-07/config.yaml"],
+        ["TOP1","C:/Users/Niell Lab/Documents/MathisNetwork2/config.yaml"],
+        ["TOP2","C:/Users/Niell Lab/Documents/MathisNetwork2/config.yaml"],
+        ["TOP3","C:/Users/Niell Lab/Documents/MathisNetwork2/config.yaml"]]
 }
