@@ -7,7 +7,7 @@ outputs xarrays of original data and parameters
 each camera will have its own xarray Dataset, and ephys will have one too
 combining these views accross time happens when analysis is happening by hand downstream from this
 
-Oct. 07, 2020
+Oct. 08, 2020
 """
 
 # package imports
@@ -44,13 +44,14 @@ def main():
     # get trial name out of each avi file and make a list of the unique entries
     trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
-        split_name = avi.split('_')[:-1]
-        trial = '_'.join(split_name)
-        path_to_trial = os.path.join(os.path.split(trial)[0])
-        trial_name = os.path.split(trial)[1]
-        if trial_name not in name_check:
-            trial_units.append([path_to_trial, trial_name])
-            path_check.append(path_to_trial); name_check.append(trial_name)
+        if 'plot' not in avi:
+            split_name = avi.split('_')[:-1]
+            trial = '_'.join(split_name)
+            path_to_trial = os.path.join(os.path.split(trial)[0])
+            trial_name = os.path.split(trial)[1]
+            if trial_name not in name_check:
+                trial_units.append([path_to_trial, trial_name])
+                path_check.append(path_to_trial); name_check.append(trial_name)
 
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_unit in trial_units:
