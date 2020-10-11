@@ -58,7 +58,7 @@ def main():
         trial_path = trial_unit[0]
         t_name = trial_unit[1]
         trial_cam_h5 = find((t_name+'*.h5'), trial_path)
-        trial_cam_csv = find((t_name+'*BonsaiTS*.csv'), trial_path)
+        trial_cam_csv = find((t_name+'*BonsaiTSformatted.csv'), trial_path)
         trial_cam_avi = find((t_name+'*.avi'), trial_path)
 
         trial_cam_h5 = [x for x in trial_cam_h5 if x != []]
@@ -78,7 +78,7 @@ def main():
                 trial_spike_clusters = os.path.join(trial_path, t_name,'spike_clusters.npy')
                 trial_cluster_group = os.path.join(trial_path, t_name,'cluster_group.tsv')
                 trial_templates = os.path.join(trial_path, t_name,'templates.npy')
-                trial_ephys_time = os.path.join(trial_path,t_name+'_Ephys_BonsaiTS.csv')
+                trial_ephys_time = os.path.join(trial_path,t_name+'_Ephys_BonsaiTSformatted.csv')
                 trial_cluster_info = os.path.join(trial_path, t_name,'cluster_info.tsv')
                 # read in the data for all spikes during this trial
                 ephys = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, trial_templates, trial_cluster_info, config)
@@ -103,7 +103,7 @@ def main():
                 top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
             except IndexError:
                 top_h5 = None
-            top_csv = [i for i in trial_cam_csv if top_view in i][0]
+            top_csv = [i for i in trial_cam_csv if top_view in i and 'formatted' in i][0]
             top_avi = [i for i in trial_cam_avi if top_view in i][0]
             if top_h5 is not None:
                 # make an xarray of dlc point values out of the found .h5 files
@@ -153,7 +153,7 @@ def main():
             print('tracking ' + eye_side + 'EYE for ' + t_name)
             # filter the list of files for the current trial to get the eye of this side
             eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i and 'deinter' in i][0]
-            eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'deinter' in i][0]
+            eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i][0]
             eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i][0]
             # make an xarray of dlc point values out of the found .h5 files
             # also assign timestamps as coordinates of the xarray
@@ -183,11 +183,10 @@ def main():
                 trial_eye_data.to_netcdf(os.path.join(config['save_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
 
         # analyze world views
-        world_sides = []
         if 'WORLD' in config['camera_names']:
             print('tracking WORLD for ' + t_name)
             # filter the list of files for the current trial to get the world view of this side
-            world_csv = [i for i in trial_cam_csv if ('WORLD') in i and 'deinter' in i][0]
+            world_csv = [i for i in trial_cam_csv if ('WORLD') in i and 'formatted' in i][0]
             world_avi = [i for i in trial_cam_avi if ('WORLD') in i and 'deinter' in i][0]
             # make an xarray of timestamps without dlc points, since there aren't any for a world camera
             worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=config)

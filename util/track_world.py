@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Sept. 24, 2020
+Oct. 09, 2020
 """
 
 # package imports
@@ -41,9 +41,9 @@ def adjust_world(data_path, file_name, eyeext, topext, worldext, eye_ds, savepat
     top1vidpath = os.path.join(data_path, file_name) + '_' + topext + '.avi'
     eyevidpath = os.path.join(data_path, file_name) + '_' + eyeext + '.avi'
     worldvidpath = os.path.join(data_path, file_name) + '_' + worldext + '.avi'
-    top1timepath = os.path.join(data_path, file_name) + '_' + topext +'_BonsaiTS.csv'
-    eyetimepath = os.path.join(data_path, file_name) + '_' + eyeext +'_BonsaiTS.csv'
-    worldtimepath = os.path.join(data_path, file_name) + '_' + worldext +'_BonsaiTS.csv'
+    top1timepath = os.path.join(data_path, file_name) + '_' + topext +'_BonsaiTSformatted.csv'
+    eyetimepath = os.path.join(data_path, file_name) + '_' + eyeext +'_BonsaiTSformatted.csv'
+    worldtimepath = os.path.join(data_path, file_name) + '_' + worldext +'_BonsaiTSformatted.csv'
 
     # create save directory if it does not already exist
     fig_dir = savepath + '/' + file_name + '/'
@@ -156,10 +156,10 @@ def sigm_fit_mp(d):
 
 # function to get into find_pupil_rotation (this will be eliminated once the pupil rotation is working well)
 def pupil_rotation_wrapper(eye_params, config, trial_name, side_letter):
-    eyevidpath = find((trial_name + '*' + side_letter + 'EYE.avi'), config['data_path'])[0]
-    toptimepath = find(('*' + trial_name + '*' + 'TOP_BonsaiTS.csv'), config['data_path'])[0]
-    eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTS.csv'), config['data_path'])[0]
-    worldtimepath = find(('*' + trial_name + '*' + side_letter + 'WORLD_BonsaiTS.csv'), config['data_path'])[0]
+    eyevidpath = find((trial_name + '*' + side_letter + 'EYEdeinter.avi'), config['data_path'])[0]
+    toptimepath = find(('*' + trial_name + '*' + 'TOP?_BonsaiTSformatted.csv'), config['data_path'])[0]
+    eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTSformatted.csv'), config['data_path'])[0]
+    worldtimepath = find(('*' + trial_name + '*' + 'WORLD_BonsaiTSformatted.csv'), config['data_path'])[0]
 
     return find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['save_path'], config['world_interp_method'], config['range_radius'], config)
 
@@ -188,21 +188,21 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
     eye_phi = eye_ell_interp_params.sel(ellipse_params='phi')
     eye_longaxis= eye_ell_interp_params.sel(ellipse_params='longaxis')
     eye_shortaxis = eye_ell_interp_params.sel(ellipse_params='shortaxis')
-    eye_centX = eye_ell_interp_params.sel(ellipse_params='centX')
-    eye_centY = eye_ell_interp_params.sel(ellipse_params='centY')
+    eye_centX = eye_ell_interp_params.sel(ellipse_params='X0')
+    eye_centY = eye_ell_interp_params.sel(ellipse_params='Y0')
 
     # also get the the ellipse parameters that haven't been interpolated over
-    eye_raw_theta = eye_ell_params.sel(ellipse_params='theta')
-    eye_raw_phi = eye_ell_params.sel(ellipse_params='phi')
-    eye_raw_longaxis= eye_ell_params.sel(ellipse_params='longaxis')
-    eye_raw_shortaxis = eye_ell_params.sel(ellipse_params='shortaxis')
+    # eye_raw_theta = eye_ell_params.sel(ellipse_params='theta')
+    # eye_raw_phi = eye_ell_params.sel(ellipse_params='phi')
+    # eye_raw_longaxis= eye_ell_params.sel(ellipse_params='longaxis')
+    # eye_raw_shortaxis = eye_ell_params.sel(ellipse_params='shortaxis')
 
-    eyeTSminusstart = [(t-start_time).seconds for t in eyeTS]
-    worldTSminusstart = [(t-start_time).seconds for t in worldTS]
+    # eyeTSminusstart = [(t-start_time).total_seconds for t in eyeTS]
+    # worldTSminusstart = [(t-start_time).total_seconds for t in worldTS]
 
     # set up for the read-in video
     eyevid = cv2.VideoCapture(eyevidpath)
-    totalF = 3600 # int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)) # this can be changed to a small number of frames for testing
+    totalF = int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)) # this can be changed to a small number of frames for testing
     set_size = (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
     # set up for the multiprocessing that'll be used during sigmoid fit function
@@ -289,7 +289,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
 
             except ValueError: # in case every value in rfit is NaN
                 rfit_conv = np.empty(np.shape(rfit_conv)) # make an rfit_conv with the shape of the last one
-        except KeyError:
+        except (KeyError, ValueError) as e:
             key_error_count = key_error_count + 1
             rfit_conv = np.empty(np.shape(rfit_conv))
 
@@ -475,7 +475,6 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
             vidout.release()
             cv2.destroyAllWindows()
 
-    shift = xr.DataArray(shift_smooth, coords=[('frame',range(0,np.size(shift_smooth,0))),'timestamps'])
-    # rfit_conv_xr = xr.DataArray.rename(rfit_conv_xr, dim_0='deg')
-    print('key error count: ' + str(key_error_count))
+    shift = xr.DataArray(shift_smooth, coords=[('frame', range(0, len(shift_smooth)))], dims=['frame'])
+    print('key/value error count during sigmoid fit: ' + str(key_error_count))
     return rfit_conv_xr, shift

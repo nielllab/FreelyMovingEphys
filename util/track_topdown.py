@@ -194,8 +194,8 @@ def head_angle(pt_input, nose_x, nose_y, config, trial_name, top_view):
 # simpler way to get head angle
 def simple_head_angle(pts, config):
     angs = []
-    for step in tqdm(range(0,len(newpts))):
-        step_pts = newpts.isel(frame=step)
+    for step in tqdm(range(0,len(pts))):
+        step_pts = pts.isel(frame=step)
         ang = np.tan((step_pts.sel(point_loc='mouse_spine_y')-step_pts.sel(point_loc='mouse_nose_y')),
                     (step_pts.sel(point_loc='mouse_spine_x')-step_pts.sel(point_loc='mouse_nose_x')))
         angs.append(ang)

@@ -52,19 +52,16 @@ def open_ma_h5(path):
 # read in the timestamps for a camera and adjust to deinterlaced video length if needed
 def open_time(path, dlc_len=None, force_shift=False):
     # read in the timestamps if they've come directly from cameras
-    read_time = pd.read_csv(path, encoding='utf-8', engine='c', header=0).squeeze()
-    startT = str(read_time[0])[:-2]
+    read_time = pd.read_csv(path, encoding='utf-8', engine='c', header=None).squeeze()
+    if read_time[0] == 0: # in case header == 0, which is true of some files, drop that header which will have been read in as the first entry
+        read_time = read_time[1:]
     time_in = []
     for current_time in read_time:
         currentT = str(current_time)[:-2]
         try:
             time_in.append((datetime.strptime(currentT, '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
         except ValueError:
-            try:
-                # in the event that a timestamp is already formatted as nanoseconds
-                time_in.append((datetime.strptime(datetime.fromtimestamp(int(currentT)/(10**9)).strftime('%H:%M:%S.%f'), '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
-            except ValueError:
-                time_in.append(np.nan)
+            time_in.append(np.nan)
     time_in = np.array(time_in)
 
     # auto check if vids were deinterlaced
