@@ -67,27 +67,12 @@ for this_avi in avi_list:
         frame_count_deinter = frame_count * 2
         if csv_present is True:
             # write out the timestamps that have been opened and interpolated over
-            csv_out_path = os.path.join(main_path, (key + '_BonsaiTSdeinter.csv'))
+            csv_out_path = os.path.join(main_path, (key + '_BonsaiTSformatted.csv'))
             csv_out = pd.DataFrame(open_time(this_csv, int(frame_count_deinter)))
             csv_out.to_csv(csv_out_path, index=False)
-        if h5_present is True:
-            # then, move the h5 files over so they're with the other items in that trial
-            h5_out_path = os.path.join(main_path, (key + '.h5'))
-            shutil.copyfile(this_h5, h5_out_path)
     else:
         print('frame rate not 30 or 60 for ' + key)
 
 print('done with ' + str(len(avi_list) + len(csv_list) + len(h5_list)) + ' items')
 print('data saved at ' + args.save_path)
 
-print('starting on text files')
-txt_list = find('*.txt', args.data_path)
-for this_txt in txt_list:
-    txt_name = os.path.split(this_txt)[1]
-    key_pieces = txt_name.split('.')[:-1]
-    key = '.'.join(key_pieces)
-    main_path = os.path.split(this_txt)[0]
-    main_path = main_path.replace(args.data_path, args.save_path)
-    txt_out_path = os.path.join(main_path, (key + '.txt'))
-    shutil.copyfile(this_txt, txt_out_path)
-print('done')
