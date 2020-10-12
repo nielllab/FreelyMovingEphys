@@ -31,7 +31,7 @@ from util.ephys import format_spikes
 
 # get user inputs
 parser = argparse.ArgumentParser(description='extract mouse and prey parameters from DeepLabCut data and corresponding videos')
-parser.add_argument('-c', '--json_config_path', help='path to .json config file')
+parser.add_argument('-c', '--json_config_path', help='path to .json config file', type=str, default='C:\\Users\\Niell lab\\Desktop\\pipeline_config.json')
 args = parser.parse_args()
 
 def main():
@@ -78,13 +78,14 @@ def main():
                 trial_spike_clusters = os.path.join(trial_path, t_name,'spike_clusters.npy')
                 trial_cluster_group = os.path.join(trial_path, t_name,'cluster_group.tsv')
                 trial_templates = os.path.join(trial_path, t_name,'templates.npy')
-                trial_ephys_time = os.path.join(trial_path,t_name+'_Ephys_BonsaiTSformatted.csv')
+                trial_ephys_time = os.path.join(trial_path,t_name+'_Ephys_BonsaiTS.csv')
                 trial_cluster_info = os.path.join(trial_path, t_name,'cluster_info.tsv')
                 # read in the data for all spikes during this trial
                 ephys = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, trial_templates, trial_cluster_info, config)
                 # save out the data as a json
                 ephys.to_json(os.path.join(config['save_path'], str(t_name+'_ephys.json')))
-            except FileNotFoundError:
+            except FileNotFoundError as e:
+                print(e)
                 print('missing one or more ephys files -- assuming no ephys analysis for this trial')
 
         # analyze top views

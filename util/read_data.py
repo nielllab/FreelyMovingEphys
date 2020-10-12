@@ -17,7 +17,7 @@ import dateutil
 import cv2
 from tqdm import tqdm
 from datetime import datetime
-
+import time
 # glob for subdirectories
 def find(pattern, path):
     result = [] # initialize the list as empty
@@ -56,13 +56,23 @@ def open_time(path, dlc_len=None, force_shift=False):
     if read_time[0] == 0: # in case header == 0, which is true of some files, drop that header which will have been read in as the first entry
         read_time = read_time[1:]
     time_in = []
-    for current_time in read_time:
-        currentT = str(current_time)[:-2]
-        try:
-            time_in.append((datetime.strptime(currentT, '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
-        except ValueError:
-            time_in.append(np.nan)
-    time_in = np.array(time_in)
+    fmt = '%H:%M:%S.%f'
+    if read_time.dtype!=np.float64:
+        for current_time in read_time:
+            currentT = str(current_time).strip()
+            try:
+                t = datetime.strptime(currentT,fmt)
+            except ValueError as v:
+                ulr = len(v.args[0].partition('unconverted data remains: ')[2])
+                if ulr:
+                    currentT = currentT[:-ulr]
+            try:
+                time_in.append((datetime.strptime(currentT, '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
+            except ValueError:
+                time_in.append(np.nan)
+        time_in = np.array(time_in)
+    else:
+        time_in = read_time.values
 
     # auto check if vids were deinterlaced
     if dlc_len is not None:
