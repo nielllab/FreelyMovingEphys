@@ -21,7 +21,7 @@ def pars_args():
     # get user inputs
     parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
     parser.add_argument('-c', '--json_config_path', 
-        default='~/Desktop/',
+        default='~/Desktop/FreelyMovingData/Example_json.json',
         help='path to video analysis config file')
     args = parser.parse_args()
     return args
@@ -85,9 +85,9 @@ def run_DLC_Analysis(config):
     # get each camera type's entry in a list of lists that the json file has in it'
     for cam in config['cams']:
         # there's an entry for the name of the camera to be used
-        cam_key = cam[0]
+        cam_key = cam
         # and an entry for the config file for that camear type (this will be used by DLC)
-        cam_config = cam[1]
+        cam_config = config['cams'][cam_key]
         # if it's one of the cameras that needs to needs to be deinterlaced first, make sure and read in the deinterlaced 
         if any(cam_key in s for s in ['REYE','LEYE','WORLD']):
             # find all the videos in the data directory that are from the current camera and are deinterlaced
@@ -123,9 +123,9 @@ def extract_params(config):
     for trial_unit in trial_units:
         trial_path = trial_unit[0]
         t_name = trial_unit[1]
-        trial_cam_h5 = find((t_name+'*.h5'), trial_path)
-        trial_cam_csv = find((t_name+'*BonsaiTSformatted.csv'), trial_path)
-        trial_cam_avi = find((t_name+'*.avi'), trial_path)
+        trial_cam_h5 = find(('*.h5'), trial_path)
+        trial_cam_csv = find(('*BonsaiTSformatted.csv'), trial_path)
+        trial_cam_avi = find(('*.avi'), trial_path)
 
         trial_cam_h5 = [x for x in trial_cam_h5 if x != []]
         trial_cam_csv = [x for x in trial_cam_csv if x != []]
@@ -140,12 +140,12 @@ def extract_params(config):
             print('formatting electrophysiology recordings for ' + t_name)
             # filter the list of files for the current tiral to get to the ephys data
             try:
-                trial_spike_times = os.path.join(trial_path, t_name,'spike_times.npy')
-                trial_spike_clusters = os.path.join(trial_path, t_name,'spike_clusters.npy')
-                trial_cluster_group = os.path.join(trial_path, t_name,'cluster_group.tsv')
-                trial_templates = os.path.join(trial_path, t_name,'templates.npy')
+                trial_spike_times = os.path.join(trial_path,'spike_times.npy')
+                trial_spike_clusters = os.path.join(trial_path,'spike_clusters.npy')
+                trial_cluster_group = os.path.join(trial_path,'cluster_group.tsv')
+                trial_templates = os.path.join(trial_path,'templates.npy')
                 trial_ephys_time = os.path.join(trial_path,t_name+'_Ephys_BonsaiTS.csv')
-                trial_cluster_info = os.path.join(trial_path, t_name,'cluster_info.tsv')
+                trial_cluster_info = os.path.join(trial_path,'cluster_info.tsv')
                 # read in the data for all spikes during this trial
                 ephys = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, trial_templates, trial_cluster_info, config)
                 # save out the data as a json
@@ -283,16 +283,16 @@ def main(args):
 
 
     data_path = os.path.expanduser(config['data_path'])
-    if not args.save_path:
-        save_path = config['data_path']
+    if not config['save_path']:
+        save_path = data_path
     else: 
         save_path = os.path.expanduser(config['save_path'])
 
-    # deinterlace data
-    deinterlace_data(data_path, save_path)
-    # Get DLC Tracking
-    run_DLC_Analysis(config)
-    # Extract Parameters from DLC
+    ###### deinterlace data
+    # deinterlace_data(data_path, save_path)
+    ###### Get DLC Tracking
+    # run_DLC_Analysis(config)
+    ###### Extract Parameters from DLC
     extract_params(config)
 
 
