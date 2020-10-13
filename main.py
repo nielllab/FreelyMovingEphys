@@ -291,7 +291,7 @@ def main(args):
     ###### deinterlace data
     # deinterlace_data(data_path, save_path)
     ###### Get DLC Tracking
-    # run_DLC_Analysis(config)
+    run_DLC_Analysis(config)
     ###### Extract Parameters from DLC
     extract_params(config)
 
