@@ -1,0 +1,25 @@
+{
+    "data_path": "T:/path/to/data",
+    "save_path": "T:/path/to/save",
+    "cams": {
+        "REYE": "C:/Users/Niell Lab/Documents/EyeCamTesting-dylan-2020-07-07/config.yaml",
+        "TOP1": "C:/Users/Niell Lab/Documents/MathisNetwork2/config.yaml",
+        "TOP2": "C:/Users/Niell Lab/Documents/MathisNetwork2/config.yaml",
+        "TOP3": "C:/Users/Niell Lab/Documents/MathisNetwork2/config.yaml"
+    },
+    "lik_thresh": 0.99,
+    "has_ephys": true,
+    "coord_correction": 0,
+    "cricket": true,
+    "tear": true,
+    "pxl_thresh": 50,
+    "ell_thresh": 0.9,
+    "save_vids": true,
+    "save_figs": true,
+    "use_BonsaiTS": true,
+    "range_radius": 10,
+    "world_interp_method": "linear",
+    "num_ellipse_pts_needed": 8,
+    "dwnsmpl": 0.5,
+    "ephys_sample_rate": 30000
+}
