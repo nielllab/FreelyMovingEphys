@@ -3,7 +3,7 @@ track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-last modified September 20, 2020
+Oct. 14, 2020
 """
 
 # package imports
@@ -22,6 +22,8 @@ import json
 from math import e as e
 from numpy.linalg import eig
 import math
+import matplotlib.backends.backend_pdf
+from scipy import stats
 
 # module imports
 from util.read_data import split_xyl
@@ -106,13 +108,25 @@ def fit_ellipse(x,y):
 
 # get the ellipse parameters from DeepLabCut points and save into an xarray
 # equivilent to /niell-lab-analysis/freely moving/EyeCameraCalc1.m
-def eye_tracking(eye_data, config):
+def eye_tracking(eye_data, config, trial_name, eye_side):
     
+    pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['save_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
+
     # names of th different points
     pt_names = list(eye_data['point_loc'].values)
 
     x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['lik_thresh'])
     likelihood = likeli_vals.values
+
+    # plot of likelihood over time
+    if config['save_figs'] is True:
+        plt.figure()
+        plt.plot(likelihood.T)
+        plt.title('likelihood all timepoints')
+        plt.ylabel('likelihood'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+
     # drop tear
     # these points ought to be used, this will be addressed later
     if config['tear'] is True:
@@ -121,6 +135,15 @@ def eye_tracking(eye_data, config):
 
     # get bools of when a frame is usable with the right number of points above threshold
     usegood = np.sum(likelihood,0) >= config['num_ellipse_pts_needed']
+
+    # plot all good timepoints
+    if config['save_figs'] is True:
+        plt.figure()
+        plt.plot(np.sum(likelihood,0))
+        plt.title(str(np.round(np.mean(usegood), 3)) + ' good; thresh= ' + str(config['lik_thresh']))
+        plt.ylabel('num good eye points'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
 
     ellipse_params = np.empty([len(x_vals), 14])
 
@@ -159,12 +182,92 @@ def eye_tracking(eye_data, config):
 
     # organize data to return as an xarray of most essential parameters
     # note: here, we subtract 45 degrees (in radians) from phi
-    ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi-0.7854), 'longaxis':list(ellipse_params[:,6]), 'shortaxis':list(ellipse_params[:,5]),
+    ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,5]), 'shortaxis':list(ellipse_params[:,6]),
                                'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12])})
-    ellipse_params = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0']
-    ellipse_out = xr.DataArray(ellipse_df, coords=[('frame', range(0, len(ellipse_df))), ('ellipse_params', ellipse_params)], dims=['frame', 'ellipse_params'])
+    ellipse_param_names = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0']
+    ellipse_out = xr.DataArray(ellipse_df, coords=[('frame', range(0, len(ellipse_df))), ('ellipse_params', ellipse_param_names)], dims=['frame', 'ellipse_params'])
     ellipse_out.attrs['cam_center_x'] = cam_cent[0,0]
     ellipse_out.attrs['cam_center_y'] = cam_cent[1,0]
+
+    # ellipticity histogram
+    if config['save_figs'] is True:
+        plt.figure()
+        plt.hist(ellipticity)
+        plt.title('ellipticity; thresh= ' + str(config['ell_thresh']))
+        plt.ylabel('num good eye points'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+
+        w = ellipse_params[:,7]
+        
+        # eye axes relative to center
+        plt.figure()
+        for i in range(0,len(list2)):
+            plt.plot((ellipse_params[list2[i],11] + [-5*np.cos(w[list2[i]]), 5*np.cos(w[list2[i]])]).T, (ellipse_params[list2[i],12] + [-5*np.sin(w[list2[i]]), 5*np.sin(w[list2[i]])]).T)
+        plt.plot(cam_cent[0],cam_cent[1],'r*')
+        plt.title('eye axes relative to center')
+        pdf.savefig()
+        plt.close()
+
+        # # one example image
+        # plt.figure()
+        # i = 50
+        # w = ellipse_params[:,7] # angle to x
+        # L = ellipse_params[:,5] # long axis
+        # l = ellipse_params[:,6] # short axis
+        # x_C = ellipse_params[:,11] # x coord of ellipse
+        # y_C = ellipse_params[:,12] # y coord of ellipse
+        # rotation1 = np.array([[np.cos(w),-np.sin(w)],[np.sin(w),np.cos(w)]])
+        # L1 = np.vstack([[L,0],[0,l]])
+        # C1 = np.vstack([[x_C],[y_C]])
+        # q = np.vstack([[np.cos(R)],[np.sin(R)]])
+        # q_star = (rotation1.T @ (L1 @ q)) + C1
+        # qcirc = np.vstack([[L / scale, 0],[0,L1 @ q+C1]])
+        # qcirc2 = np.vstack([[L,0],[0,L]])@q+cam_cent
+        # theta2 = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
+        # phi2 = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
+        # new_cent = scale@np.stack(np.sin(theta2), np.sin(phi2) * np.cos(theta2))*cam_cent
+        # points_rot = new_cent + scale * np.vstack([np.cos(theta2), 0],[-np.sin(theta2)@np.sin(phi2),np.cos(phi2)])@qcirc
+
+        # plt.figure()
+        # plt.plot(q_star[0,:], q_star[1,:], 'g')
+        # plt.scatter(ellipse_params[i,11], ellipse_params[i,12], 100, 'og')
+        # plt.scatter(x_vals[i,:], y_vals[i,:], 100,'.m') # DLC points
+        # plt.scatter(cam_cent[0], cam_cent[1],100,'or') # theoretical cam center
+        # plt.scatter(qcirc2[0,:],qcirc2[1,:],50,'r.') # new center
+        # plt.scatter(points_rot[0,:],points_rot[1,:],100,'b.')# transform from red to green -- good if matches green
+        # plt.title(sprintf('angle to x = ',w*180/np.pi))
+        # pdf.savefig()
+        # plt.close()
+
+        # check calibration
+        xvals = np.linalg.norm(ellipse_params[usegood, 11:13].T - cam_cent, axis=0)
+        yvals = scale * np.sqrt(1-(ellipse_params[usegood,6]/ellipse_params[usegood,5])**2)
+        slope, intercept, r_value, p_value, std_err = stats.linregress(xvals, yvals.T)
+
+        plt.figure()
+        plt.plot(xvals, yvals, '.')
+        plt.plot(np.linspace(0,50),np.linspace(0,50),'r')
+        plt.title('scale=' + str(np.round(scale, 1)) + ' r=' + str(np.round(r_value, 1)) + ' m=' + str(np.round(slope, 1)))
+        plt.xlabel('pupil camera dist'); plt.ylabel('scale * ellipticity')
+        pdf.savefig()
+        plt.close()
+
+        # calibration of camera center
+        delta = (cam_cent - ellipse_params[:,11:13].T)
+        list3 = np.squeeze(list2)
+
+        plt.figure()
+        plt.plot(np.linalg.norm(delta[:,usegood],2,axis=0), ((delta[0,usegood].T * np.cos(ellipse_params[usegood,7])) + (delta[1,usegood].T * np.sin(ellipse_params[usegood, 7])) / np.linalg.norm(delta[:, usegood],2,axis=0).T), 'y.')
+        plt.plot(np.linalg.norm(delta[:,list3],2,axis=0), ((delta[0,list3].T * np.cos(ellipse_params[list3,7])) + (delta[1,list3].T * np.sin(ellipse_params[list3, 7])) / np.linalg.norm(delta[:, list3],2,axis=0).T), 'r.')
+        plt.title('camera center calibration')
+        plt.ylabel('abs([PC-EC]).[cosw;sinw]')
+        plt.xlabel('abs(PC-EC)')
+        plt.legend('all points','list points')
+        pdf.savefig()
+        plt.close()
+    
+    pdf.close()
 
     return ellipse_out
 

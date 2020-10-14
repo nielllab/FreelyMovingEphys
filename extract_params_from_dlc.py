@@ -7,7 +7,7 @@ outputs xarrays of original data and parameters
 each camera will have its own xarray Dataset, and ephys will have one too
 combining these views accross time happens when analysis is happening by hand downstream from this
 
-Oct. 08, 2020
+Oct. 14, 2020
 """
 
 # package imports
@@ -161,7 +161,7 @@ def main():
             eyedlc = h5_to_xr(eye_h5, eye_csv, (eye_side+'EYE'), config=config)
             # get ellipse parameters from dlc points
             print('fitting ellipse to pupil')
-            eyeparams = eye_tracking(eyedlc, config)
+            eyeparams = eye_tracking(eyedlc, config, t_name, eye_side)
             # get pupil rotation and plot video -- slow step
             if config['run_pupil_rotation'] is True:
                 rfit, shift = pupil_rotation_wrapper(eyeparams, config, t_name, eye_side)
