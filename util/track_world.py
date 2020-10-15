@@ -296,11 +296,11 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
         # save out pupil edge data into one xarray for all frames
         if step == 0:
             rfit_conv_xr = xr.DataArray(rfit_conv)
-            rfit_conv_xr['frame'] = eyevid.get(cv2.CAP_PROP_POS_FRAMES)
+            rfit_conv_xr['frame'] = step
             rfit_conv_xr = xr.DataArray.rename(rfit_conv_xr, {'dim_0':'deg'})
         if step > 0:
             rfit_conv_temp = xr.DataArray(rfit_conv)
-            rfit_conv_temp['frame'] = eyevid.get(cv2.CAP_PROP_POS_FRAMES)
+            rfit_conv_temp['frame'] = step
             rfit_conv_temp = xr.DataArray.rename(rfit_conv_temp, {'dim_0':'deg'})
             rfit_conv_xr = xr.concat([rfit_conv_xr, rfit_conv_temp], dim='frame', fill_value=np.nan)
 
@@ -416,6 +416,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
         plt.close
 
     if config['save_vids'] is True:
+        eyevid = cv2.VideoCapture(eyevidpath)
         vidsavepath = os.path.join(config['save_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + eyeext + '.avi'))
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
@@ -452,29 +453,22 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
             for d1 in d:
                 try:
                     eye_frame = cv2.circle(eye_frame, (int(round(current_centX + d1 * (np.cos(np.deg2rad(shift_smooth[current_time]+90))))),int(round(current_centY + d1 * (np.sin(np.deg2rad(shift_smooth[current_time]+90)))))),1,(0,0,0),thickness=-1)
-                except (ValueError, IndexError):
+                except (ValueError, IndexError) as e:
                     pass
 
             # plot the center of the eye on the frame as a larger dot than the others
             try:
                 eye_frame = cv2.circle(eye_frame, (int(current_centX),int(current_centY)),3,(0,0,0),thickness=-1)
-            except (ValueError, IndexError):
+            except (ValueError, IndexError) as e:
                 pass
-
-            # if user wants a few frames printed out (e.g. if only a few frames are being analyzed, this will save out every frame as a seperate .png figure)
-            # plt.figure()
-            # plt.imshow(eye_frame)
-            # plt.savefig(os.path.join(config['save_path'], (trial_name + 'frame' + str(int(eyevid.get(cv2.CAP_PROP_POS_FRAMES))) + '_imshow.png')), dpi=300)
-            # plt.close
 
             vidout.write(eye_frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+        vidout.release()
 
-            vidout.release()
-            cv2.destroyAllWindows()
-
-    shift = xr.DataArray(shift_smooth, coords=[('frame', range(0, len(shift_smooth)))], dims=['frame'])
+    # temporary: save pupil rotation values to csv in case of error during xarray formatting
+    shift_smooth_pd = pd.DataFrame(shift_smooth)
+    shift_smooth_pd.to_csv(os.path.join(config['save_path'], str(trial_name + '_shift_smooth.csv')), index=False)
+    shift = xr.DataArray(shift_smooth_pd, dims=['frame','shift'])
     print('key/value error count during sigmoid fit: ' + str(key_error_count))
     return rfit_conv_xr, shift

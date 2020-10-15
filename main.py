@@ -31,6 +31,9 @@ def deinterlace_data(data_path, save_path):
     csv_list = find('*.csv', data_path)
     h5_list = find('*.h5', data_path)
 
+    if save_path==None:
+        save_path = data_path
+
     for this_avi in avi_list:
         # make a save path that keeps the subdirectiries
         current_path = os.path.split(this_avi)[0]
@@ -75,9 +78,11 @@ def deinterlace_data(data_path, save_path):
     print('data saved at ' + save_path)
 
 # run DeepLabCut on a list of video files that share a DLC config file
-def runDLCbatch(vid_list, config_path):
+def runDLCbatch(vid_list, config_path, config):
     for vid in vid_list:
         print('analyzing ' + vid)
+        if config['crop_for_dlc'] is True:
+            deeplabcut.cropimagesandlabels(config_path, size=(400, 400), userfeedback=False)
         deeplabcut.analyze_videos(config_path, [vid])
 
 def run_DLC_Analysis(config):
@@ -102,7 +107,7 @@ def run_DLC_Analysis(config):
             print('found ' + str(len(vids_this_cam)) + ' videos from cam_key ' + cam_key)
         # analyze the videos with DeepLabCut
         # this gives the function a list of files that it will iterate over with the same DLC config file
-        runDLCbatch(vids_this_cam, cam_config)
+        runDLCbatch(vids_this_cam, cam_config, config)
         print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
 
 
@@ -124,7 +129,7 @@ def extract_params(config):
         trial_path = trial_unit[0]
         t_name = trial_unit[1]
         trial_cam_h5 = find(('*.h5'), trial_path)
-        trial_cam_csv = find(('*BonsaiTSformatted.csv'), trial_path)
+        trial_cam_csv = find(('*BonsaiTS*.csv'), trial_path)
         trial_cam_avi = find(('*.avi'), trial_path)
 
         trial_cam_h5 = [x for x in trial_cam_h5 if x != []]
@@ -149,7 +154,7 @@ def extract_params(config):
                 # read in the data for all spikes during this trial
                 ephys = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, trial_templates, trial_cluster_info, config)
                 # save out the data as a json
-                ephys.to_json(os.path.join(config['save_path'], str(t_name+'_ephys.json')))
+                ephys.to_json(os.path.join(trial_path, str(t_name+'_ephys.json')))
             except FileNotFoundError as e:
                 print(e)
                 print('missing one or more ephys files -- assuming no ephys analysis for this trial')
@@ -170,7 +175,7 @@ def extract_params(config):
                 top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
             except IndexError:
                 top_h5 = None
-            top_csv = [i for i in trial_cam_csv if top_view in i and 'formatted' in i][0]
+            top_csv = [i for i in trial_cam_csv if top_view in i][0]
             top_avi = [i for i in trial_cam_avi if top_view in i][0]
             if top_h5 is not None:
                 # make an xarray of dlc point values out of the found .h5 files
@@ -192,7 +197,7 @@ def extract_params(config):
                 # name and organize data
                 pts.name = top_view+'_pts'# ; head_theta.name = top_view+'_head_angle'; top_props = top_view+'_props'
                 trial_top_data = xr.merge([pts, xr_top_frames])#, head_theta, top_props, xr_top_frames])
-                trial_top_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+                trial_top_data.to_netcdf(os.path.join(trial_path, str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
             elif top_h5 is None:
                 # make an xarray of timestamps without dlc points, since there aren't any for a world camera
                 topdlc = h5_to_xr(pt_path=None, time_path=top_csv, view=top_view, config=config)
@@ -207,7 +212,7 @@ def extract_params(config):
                     elif len(topdlc) < len(xr_top_frames):
                         trial_top_data = xr.merge([topdlc, xr_top_frames[:-1]])
 
-                trial_top_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+                trial_top_data.to_netcdf(os.path.join(trial_path, str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
 
         # analyze eye views
         eye_sides = []
@@ -244,10 +249,10 @@ def extract_params(config):
             xr_eye_frames.name = eye_side+'EYE_video'
             if config['run_pupil_rotation'] is False:
                 trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames])
-                trial_eye_data.to_netcdf(os.path.join(config['save_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
+                trial_eye_data.to_netcdf(os.path.join(trial_path, str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
             if config['run_pupil_rotation'] is True:
                 trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, shift])
-                trial_eye_data.to_netcdf(os.path.join(config['save_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
+                trial_eye_data.to_netcdf(os.path.join(trial_path, str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
 
         # analyze world views
         if 'WORLD' in config['cams']:
@@ -268,7 +273,7 @@ def extract_params(config):
                     trial_world_data = xr.merge([worlddlc[:-1], xr_world_frames])
                 elif len(worlddlc) < len(xr_world_frames):
                     trial_world_data = xr.merge([worlddlc, xr_world_frames[:-1]])
-            trial_world_data.to_netcdf(os.path.join(config['save_path'], str(t_name+'world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 9}})
+            trial_world_data.to_netcdf(os.path.join(trial_path, str(t_name+'world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 9}})
 
     print('done with ' + str(len(trial_units)) + ' queued trials')
 
@@ -289,7 +294,7 @@ def main(args):
         save_path = os.path.expanduser(config['save_path'])
 
     ###### deinterlace data
-    # deinterlace_data(data_path, save_path)
+    # deinterlace_data(data_path, save_path=None)
     ###### Get DLC Tracking
     run_DLC_Analysis(config)
     ###### Extract Parameters from DLC
