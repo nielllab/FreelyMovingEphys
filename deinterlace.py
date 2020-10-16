@@ -22,15 +22,14 @@ from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_w
 from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
 
-def deinterlace_data(data_path, save_path):
+def deinterlace_data(config):
+    data_path = config['data_path']
+    save_path = config['save_path']
+
     # find all the files
     avi_list = find('*.avi', data_path)
     csv_list = find('*.csv', data_path)
     h5_list = find('*.h5', data_path)
-
-    # if there's no save path, save where the original data are
-    if save_path==None:
-        save_path = data_path
 
     for this_avi in avi_list:
         # make a save path that keeps the subdirectories
@@ -62,7 +61,10 @@ def deinterlace_data(data_path, save_path):
             print('starting to deinterlace and interpolate on ' + key)
             # deinterlace video with ffmpeg -- will only be done on 30fps videos
             avi_out_path = os.path.join(main_path, (key + 'deinter.avi'))
-            subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+            if config['flip_eye_during_deinter'] is True and 'EYE' in this_avi:
+                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'vflip', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+            else:
+                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
             frame_count_deinter = frame_count * 2
             if csv_present is True:
                 # write out the timestamps that have been opened and interpolated over
@@ -83,4 +85,4 @@ if __name__ == '__main__':
     with open(json_config_path, 'r') as fp:
         config = json.load(fp)
 
-    deinterlace_data(config['data_path'], save_path=None)
+    deinterlace_data(config)

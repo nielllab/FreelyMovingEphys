@@ -37,7 +37,7 @@ def main(args):
 
     # deinterlace data
     if steps['deinter'] is True:
-        deinterlace_data(data_path, save_path=None)
+        deinterlace_data(config)
     # get dlc tracking
     if steps['dlc'] is True:
         run_DLC_Analysis(config)

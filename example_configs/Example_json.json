@@ -12,8 +12,9 @@
         "TOP2": "C:/Users/Niell Lab/Documents/trained_DLC_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
         "TOP3": "C:/Users/Niell Lab/Documents/trained_DLC_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
     },
-    "crop_for_dlc":true,
-    "multianimal_TOP":false,
+    "flip_eye_during_deinter": true,
+    "crop_for_dlc": true,
+    "multianimal_TOP": false,
     "lik_thresh": 0.99,
     "has_ephys": true,
     "coord_correction": 0,
