@@ -2,33 +2,71 @@
 
 ## Setup
 
-### instillation of environments
-Install the analysis pipeliene's conda environment from `/FreelyMovingEphys/conda_env/` with the terminal command `conda env create -f /path/to/repository/FreelyMovingEphys/conda_env/environment.yml`. This is used for all deinterlacing before DeepLabCut analyzes new videos, and all analysis after DeepLabCut or Anipose.
-
-Then, install the environment DLC-GPU in order to analyze new videos, instructions [here](https://github.com/DeepLabCut/DeepLabCut/blob/master/conda-environments/README.md) To allow for three-camera configurations of the topdown view, it will be necessary to install Anipose in the DLC-GPU environment, instructions [here](https://github.com/lambdaloop/anipose/blob/master/docs/sphinx/installation.rst).
+### installation of environment
+Create a DeepLabCut environment:
+```
+conda create -n DLC-GPU2 python=3.7 tensorflow-gpu=1.13.1
+conda activate DLC-GPU2
+pip install deeplabcut==2.2b8
+pip install -U wxPython
+```
+In the FreelyMovingEphys repository, the requirements.txt file contains a list of packages required for the rest of the analysis not included with DLC. Instillation, assuming the working directory is `/FreelyMovingEphys/`:
+```
+cd env
+pip install -r requirements.txt
+```
+The machine must also have ffmpeg installed, instructions [here](https://www.wikihow.com/Install-FFmpeg-on-Windows).
+Before running the pipeline, activate the environment with `conda activate DLC-GPU2`.
 
 ## Usage
 
-### deinterlacing videos and interpolating timestamps
-Before running any analysis, any 30fps eye or world .avi videos must be deinterlaced to bring them to 60fps and corresponding .csv timestamps must be adjusted to match the new video length. To accomplish this, run `deinterlace_for_dlc.py` on a parent directory containing all .avi files, .csv files, and .txt files of notes for a given experiment. The `deinterlace_for_dlc.py` script should be given the nested folders that contain videos and timestamps that need not be deinterlaced (frame rates will be checked and files that do not need to be changed will be copied to the output directory to keep experiments together). The user could run: `python deinterlace_for_dlc.py -d '/path/to/top/of/parent/directory/' -s '/save/location/'`.
+### creating an analysis config file
+A .json config file is used to run the analysis.
 
-### running DeepLabCut on new videos
-To analyze new videos using DeepLabCut and/or Anipose, use the script `analyze_new_vids.py`.
+Parameters included:
+`data_path`: path to the parent directory of data
+`save_path`: save path for outputs of the analysis pipeline
+`steps_to_run`: a dictionary of steps to analysis and whether or not to run those steps as `True`/`False` values
+`cams`: a dictionary of camera views in the experiments and the .yaml DeepLabCut config file paths to be used to analyze the videos of each camera type
+`flip_eye_during_deinter`: whether or not to flip the eye video verticlly during deinterlacing
+`crop_for_dlc`: whether or not to crop the videos down for DLC analysis
+`multianimal_TOP`: whether or not the already trained TOP network to be used is a multianimal project (it needs to know what format the files will be in)
+`lik_thresh`: threshold to set for pose likelihood
+`cricket`: whether or not there is a cricket in the experiments
+`tear`: whether or not the outer point and tear duct of the eye was labeled in the eye videos
+`pxl_thresh`: the maximum acceptable number of pixels for radius of the pupil
+`ell_thresh`: the maximum ratio of ellipse shortaxis to longaxis
+`save_vids`: whether or not to save out videos
+`save_figs`: whether or not to save out figures
+`use_BonsaiTS`: whether to use Bonsai timestamps for Flir timestamps, where `true` would have it use Bonsai timestamps
+`range_radius`: the threshold to set for range in radius of the pupil to be used to find pupil rotation
+`world_interp_method`: the interpolation method to use for interpolating over eye timestmaps with world timestamps
+`num_ellipse_pts_needed`: the number of 'good' eye points required before an ellipse fit will be done on a frame
+`dwnsmpl`: factor by which to downsample videos before frames are added to an xarray data structure
+`ephys_sample_rate`: sample rate of ephys aquisition
+`run_pupil_rotation`: whether or not to analyze eye videos for pupil rotation
 
-### analyzing DeepLabCut outputs
-To process DeepLabCut outputs, visualize points, and get out calculations of head angle, eye ellipse parameters, pupil rotation, etc., create a .json file to be used as a config file. The config file should include the path to the parent directory of data (`data_path`), the save path for outputs of the analysis pipeline (`save_path`), the camera views in the experiments (`camera_names`), the threshold to set for pose likelihood (`lik_thresh`), the value by which to correct y coordinates (`coord_correction`), whether or not there are crickets in the experiments (`cricket`), whether or not the outer point and tear duct of the eye was labeled in the eye videos (`tear`), the maximum acceptable number of pixels for radius of the pupil (`pxl_thresh`), the maximum ratio of ellipse shortaxis to longaxis (`ell_thresh`), whether or not to save out videos (`save_vids`), whether or not to save out figures (`save_figs`), whether to use Bonsai timestamps for Flir timestamps, where `True` would have it use Bonsai timestamps (`use_BonsaiTS`), the threshold to set for range in radius (`range_radius`), and the interpolation method to use for interpolating over eye timestmaps with world timestamps (`world_interp_method`). If an argument in the .json file is related to someting that doesn't apply to the user's experiments (e.g. eye camera arguments for experiments that have no eye cameras) that argument doesn't need to be included in the dictionary.
-
+An example analysis config file (`/FreelyMovingEphys/example_configs/Example_json.json`) is reproduced below:
 ```
 {
-    "data_path": "/path/to/parent/directory/",
-    "save_path": "/save/path/",
-    "camera_names": [
-        "TOP",
-        "REYE",
-        "RWORLD"
-    ],
+    "data_path": "//new-monster/T/freely_moving_ephys/ephys_recordings/101120/G6H28P6LT/",
+    "save_path": "//new-monster/T/freely_moving_ephys/ephys_recordings/101120/G6H28P6LT/",
+    "steps_to_run":{
+        "deinter": true,
+        "dlc": true,
+        "params": true
+    },
+    "cams": {
+        "REYE": "C:/Users/Niell Lab/Documents/trained_DLC_projects/EyeCamTesting-dylan-2020-07-07/config.yaml",
+        "TOP1": "C:/Users/Niell Lab/Documents/trained_DLC_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
+        "TOP2": "C:/Users/Niell Lab/Documents/trained_DLC_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
+        "TOP3": "C:/Users/Niell Lab/Documents/trained_DLC_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
+    },
+    "flip_eye_during_deinter": true,
+    "crop_for_dlc": true,
+    "multianimal_TOP": false,
     "lik_thresh": 0.99,
-    "coord_correction": 0,
+    "has_ephys": true,
     "cricket": true,
     "tear": true,
     "pxl_thresh": 50,
@@ -37,13 +75,22 @@ To process DeepLabCut outputs, visualize points, and get out calculations of hea
     "save_figs": true,
     "use_BonsaiTS": true,
     "range_radius": 10,
-    "world_interp_method": "linear"
+    "world_interp_method": "linear",
+    "num_ellipse_pts_needed": 8,
+    "dwnsmpl": 0.5,
+    "ephys_sample_rate": 30000,
+    "run_pupil_rotation": false
 }
 ```
 
-Once this .json config file exists, batch analysis can be run with the script `extract_params_from_dlc.py` which takes only one argument, the path to the config file. The user could run: `python -W ignore extract_params_from_dlc.py -c '/path/to/pipeline_config.json'`, where `-W ignore` ignores a runtime error always generated by the ellipse calculations. Though there is build-in handling for `'TOP'`, `'LEYE'`, `'REYE'`, `'SIDE'`, `'LWORLD'`, and `'RWORLD'` camera names, any camera name outside of this list can be read in and formatted into a .nc file. It's important that experiments use the following naming system so that they will be recognized: `013120_mouse1_control_LEYE.h5`.
-
-There is also a jupyter notebook that can load in a .json file and run through the different camera views step-by-step for one trial at a time, `test_extract_params_from_dlc.ipynb`.
-
-### opening .nc files and visualizing outputs
-Once the analysis is run, there will be plots and videos for each trial and one .nc file for each camera name which contains the data from all trials that had a camear of said name. Using only the .json config file's path that was used to , the outputs of the analysis pipeline can be found, viewed, and interacted with in the jupyter notebook `check_pipeline_outputs.ipynb`. There are also examples of way to index and select data from the loaded data structures.
+### freely_moving.py
+One script runs every step of the analysis, or any subset of steps, `freely_moving.py`. Assuming the default path to the .json config file (`'~/Desktop/FreelyMovingData/Example_json.json'`) is correct, run:
+```
+conda activate DLC-GPU2
+python freely_moving.py
+```
+If the path to the config file is changed, change this to
+```
+python freely_moving.py -c \Documents\config.json
+```
+for wherever the .json is saved.
