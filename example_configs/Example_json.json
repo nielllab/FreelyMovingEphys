@@ -17,7 +17,6 @@
     "multianimal_TOP": false,
     "lik_thresh": 0.99,
     "has_ephys": true,
-    "coord_correction": 0,
     "cricket": true,
     "tear": true,
     "pxl_thresh": 50,
