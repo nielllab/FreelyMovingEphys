@@ -3,10 +3,9 @@ read_data.py
 
 functions for reading in and manipulating data and time
 
-Oct. 06, 2020
+Oct. 16, 2020
 """
 
-# package imports
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -18,6 +17,18 @@ import cv2
 from tqdm import tqdm
 from datetime import datetime
 import time
+import argparse
+
+# get user inputs
+def pars_args():
+    parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
+    parser.add_argument('-c', '--json_config_path', 
+        default='~/Desktop/FreelyMovingData/Example_json.json',
+        help='path to video analysis config file')
+    args = parser.parse_args()
+    
+    return args
+
 # glob for subdirectories
 def find(pattern, path):
     result = [] # initialize the list as empty
@@ -26,6 +37,17 @@ def find(pattern, path):
             if fnmatch.fnmatch(name,pattern):  # if the file matches the filetype append to list
                 result.append(os.path.join(root,name))
     return result # return full list of file of a given type
+
+# check if path exists, if not then create directory
+def check_path(basepath, path):
+    if path in basepath:
+        return basepath
+    elif not os.path.exists(os.path.join(basepath, path)):
+        os.makedirs(os.path.join(basepath, path))
+        print('Added Directory:'+ os.path.join(basepath, path))
+        return os.path.join(basepath, path)
+    else:
+        return os.path.join(basepath, path)
 
 # read in .h5 DLC files and manage column names
 def open_h5(path):
@@ -150,6 +172,7 @@ def split_xyl(eye_names, eye_data, thresh):
 def h5_to_xr(pt_path, time_path, view, config):
     if pt_path is not None and pt_path != []:
         if 'TOP' in view and config['multianimal_TOP'] is True:
+            # add a step to convert pickle files here?
             pts = open_ma_h5(pt_path)
         else:
             pts, names = open_h5(pt_path)

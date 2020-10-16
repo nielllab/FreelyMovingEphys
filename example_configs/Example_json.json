@@ -1,6 +1,11 @@
 {
     "data_path": "//new-monster/T/freely_moving_ephys/ephys_recordings/101120/G6H28P6LT/",
     "save_path": "//new-monster/T/freely_moving_ephys/ephys_recordings/101120/G6H28P6LT/",
+    "steps_to_run":{
+        "deinter": true,
+        "dlc": true,
+        "params": true
+    },
     "cams": {
         "REYE": "C:/Users/Niell Lab/Documents/trained_DLC_projects/EyeCamTesting-dylan-2020-07-07/config.yaml",
         "TOP1": "C:/Users/Niell Lab/Documents/trained_DLC_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
@@ -25,5 +30,4 @@
     "dwnsmpl": 0.5,
     "ephys_sample_rate": 30000,
     "run_pupil_rotation": false
-
 }
