@@ -1,5 +1,5 @@
 """
-freely_moving.py
+preprocessing.py
 
 deinterlace videos, analyze with DLC, and extract parameters
 
@@ -16,9 +16,9 @@ from glob import glob
 from multiprocessing import freeze_support
 
 from util.read_data import pars_args
-from params import extract_params
-from dlc import run_DLC_Analysis
-from interlace import deinterlace_data
+from util.params import extract_params
+from util.dlc import run_DLC_Analysis
+from util.deinterlace import deinterlace_data
 
 def main(args):
     json_config_path = os.path.expanduser(args.json_config_path)
