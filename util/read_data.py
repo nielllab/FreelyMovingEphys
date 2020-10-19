@@ -246,7 +246,7 @@ def format_frames(vid_path, config):
     vidread = cv2.VideoCapture(vid_path)
     all_frames = np.empty([int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)),
                         int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*config['dwnsmpl']),
-                        int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*config['dwnsmpl'])])
+                        int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*config['dwnsmpl'])], dtype=np.uint8)
     for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
         ret, frame = vidread.read()
         if not ret:

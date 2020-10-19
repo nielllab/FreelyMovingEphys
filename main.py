@@ -21,7 +21,7 @@ def pars_args():
     # get user inputs
     parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
     parser.add_argument('-c', '--json_config_path', 
-        default='~/Desktop/FreelyMovingData/Example_json.json',
+        default='~/Desktop/puprot_test_config.json',
         help='path to video analysis config file')
     args = parser.parse_args()
     return args
@@ -35,7 +35,7 @@ def deinterlace_data(data_path, save_path):
         save_path = data_path
 
     for this_avi in avi_list:
-        # make a save path that keeps the subdirectiries
+        # make a save path that keeps the subdirectories
         current_path = os.path.split(this_avi)[0]
         main_path = current_path.replace(data_path, save_path)
         # get out an key from the name of the video that will be shared with all other data of this trial
@@ -137,8 +137,9 @@ def extract_params(config):
         trial_cam_avi = [x for x in trial_cam_avi if x != []]
 
         # make the save path if it doesn't exist
-        if not os.path.exists(config['save_path']):
-            os.makedirs(config['save_path'])
+        if config.get('save_path') is not None:
+            if not os.path.exists(config['save_path']):
+                os.makedirs(config['save_path'])
 
         # format the ephys data
         if config['has_ephys'] is True:
@@ -167,52 +168,55 @@ def extract_params(config):
             top_views.append('TOP2')
         if 'TOP3' in config['cams']:
             top_views.append('TOP3')
-        for i in range(0,len(top_views)):
-            top_view = top_views[i]
-            print('tracking TOP for ' + t_name)
-            # filter the list of files for the current trial to get the topdown view
-            try:
-                top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
-            except IndexError:
-                top_h5 = None
-            top_csv = [i for i in trial_cam_csv if top_view in i][0]
-            top_avi = [i for i in trial_cam_avi if top_view in i][0]
-            if top_h5 is not None:
-                # make an xarray of dlc point values out of the found .h5 files
-                # also assign timestamps as coordinates of the xarray
-                topdlc = h5_to_xr(top_h5, top_csv, top_view, config)
-                # clean DLC points up
-                pts = topdown_tracking(topdlc, config, t_name, top_view) #key_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket
-                # calculate head angle
-                # print('finding head angle and mouse/cricket properties')
-                # head_theta = head_angle(pts, noseX, noseY, config, t_name, top_view) # args.lik_thresh, key_save_path, args.cricket, key, nose_x, nose_y
-                # get mouse properties (and cricket properties if there is one)
-                # top_props = get_top_props(pts, head_theta, config, t_name, top_view)
-                # make videos (only saved if config says so)
-                if config['save_vids'] is True:
-                    print('plotting points on top video')
-                    plot_top_vid(top_avi, pts, head_ang=None, config=config, trial_name=t_name, top_view=top_view)
-                # make xarray of video frames
-                xr_top_frames = format_frames(top_avi, config); xr_top_frames.name = top_view+'_video'
-                # name and organize data
-                pts.name = top_view+'_pts'# ; head_theta.name = top_view+'_head_angle'; top_props = top_view+'_props'
-                trial_top_data = xr.merge([pts, xr_top_frames])#, head_theta, top_props, xr_top_frames])
-                trial_top_data.to_netcdf(os.path.join(trial_path, str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
-            elif top_h5 is None:
-                # make an xarray of timestamps without dlc points, since there aren't any for a world camera
-                topdlc = h5_to_xr(pt_path=None, time_path=top_csv, view=top_view, config=config)
-                topdlc.name = top_view+'_pts'
-                # make xarray of video frames
-                xr_top_frames = format_frames(top_avi, config); xr_top_frames.name = top_view+'_video'
+        try:
+            for i in range(0,len(top_views)):
+                top_view = top_views[i]
+                print('tracking TOP for ' + t_name)
+                # filter the list of files for the current trial to get the topdown view
                 try:
-                    trial_top_data = xr.merge([topdlc, xr_top_frames])
-                except ValueError:
-                    if len(topdlc) > len(xr_top_frames):
-                        trial_top_data = xr.merge([topdlc[:-1], xr_top_frames])
-                    elif len(topdlc) < len(xr_top_frames):
-                        trial_top_data = xr.merge([topdlc, xr_top_frames[:-1]])
+                    top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
+                except IndexError:
+                    top_h5 = None
+                top_csv = [i for i in trial_cam_csv if top_view in i][0]
+                top_avi = [i for i in trial_cam_avi if top_view in i][0]
+                if top_h5 is not None:
+                    # make an xarray of dlc point values out of the found .h5 files
+                    # also assign timestamps as coordinates of the xarray
+                    topdlc = h5_to_xr(top_h5, top_csv, top_view, config)
+                    # clean DLC points up
+                    pts = topdown_tracking(topdlc, config, t_name, top_view) #key_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket
+                    # calculate head angle
+                    # print('finding head angle and mouse/cricket properties')
+                    # head_theta = head_angle(pts, noseX, noseY, config, t_name, top_view) # args.lik_thresh, key_save_path, args.cricket, key, nose_x, nose_y
+                    # get mouse properties (and cricket properties if there is one)
+                    # top_props = get_top_props(pts, head_theta, config, t_name, top_view)
+                    # make videos (only saved if config says so)
+                    if config['save_vids'] is True:
+                        print('plotting points on top video')
+                        plot_top_vid(top_avi, pts, head_ang=None, config=config, trial_name=t_name, top_view=top_view)
+                    # make xarray of video frames
+                    xr_top_frames = format_frames(top_avi, config); xr_top_frames.name = top_view+'_video'
+                    # name and organize data
+                    pts.name = top_view+'_pts'# ; head_theta.name = top_view+'_head_angle'; top_props = top_view+'_props'
+                    trial_top_data = xr.merge([pts, xr_top_frames])#, head_theta, top_props, xr_top_frames])
+                    trial_top_data.to_netcdf(os.path.join(trial_path, str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+                elif top_h5 is None:
+                    # make an xarray of timestamps without dlc points, since there aren't any for a world camera
+                    topdlc = h5_to_xr(pt_path=None, time_path=top_csv, view=top_view, config=config)
+                    topdlc.name = top_view+'_pts'
+                    # make xarray of video frames
+                    xr_top_frames = format_frames(top_avi, config); xr_top_frames.name = top_view+'_video'
+                    try:
+                        trial_top_data = xr.merge([topdlc, xr_top_frames])
+                    except ValueError:
+                        if len(topdlc) > len(xr_top_frames):
+                            trial_top_data = xr.merge([topdlc[:-1], xr_top_frames])
+                        elif len(topdlc) < len(xr_top_frames):
+                            trial_top_data = xr.merge([topdlc, xr_top_frames[:-1]])
 
-                trial_top_data.to_netcdf(os.path.join(trial_path, str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+                    trial_top_data.to_netcdf(os.path.join(trial_path, str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+        except IndexError:
+            pass
 
         # analyze eye views
         eye_sides = []
@@ -232,7 +236,7 @@ def extract_params(config):
             eyedlc = h5_to_xr(eye_h5, eye_csv, (eye_side+'EYE'), config=config)
             # get ellipse parameters from dlc points
             print('fitting ellipse to pupil')
-            eyeparams = eye_tracking(eyedlc, config)
+            eyeparams = eye_tracking(eyedlc, config, t_name, eye_side)
             # get pupil rotation and plot video -- slow step
             if config['run_pupil_rotation'] is True:
                 rfit, shift = pupil_rotation_wrapper(eyeparams, config, t_name, eye_side)
@@ -288,15 +292,15 @@ def main(args):
 
 
     data_path = os.path.expanduser(config['data_path'])
-    if not config['save_path']:
-        save_path = data_path
+    if config.get('save_path') is None:
+        config['save_path'] = data_path
     else: 
         save_path = os.path.expanduser(config['save_path'])
 
     ###### deinterlace data
     # deinterlace_data(data_path, save_path=None)
     ###### Get DLC Tracking
-    run_DLC_Analysis(config)
+    # run_DLC_Analysis(config)
     ###### Extract Parameters from DLC
     extract_params(config)
 

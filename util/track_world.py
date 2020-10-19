@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Oct. 09, 2020
+Oct. 16, 2020
 """
 
 # package imports
@@ -157,14 +157,13 @@ def sigm_fit_mp(d):
 # function to get into find_pupil_rotation (this will be eliminated once the pupil rotation is working well)
 def pupil_rotation_wrapper(eye_params, config, trial_name, side_letter):
     eyevidpath = find((trial_name + '*' + side_letter + 'EYEdeinter.avi'), config['data_path'])[0]
-    toptimepath = find(('*' + trial_name + '*' + 'TOP?_BonsaiTSformatted.csv'), config['data_path'])[0]
     eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTSformatted.csv'), config['data_path'])[0]
     worldtimepath = find(('*' + trial_name + '*' + 'WORLD_BonsaiTSformatted.csv'), config['data_path'])[0]
 
-    return find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['save_path'], config['world_interp_method'], config['range_radius'], config)
+    return find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['save_path'], config['world_interp_method'], config['range_radius'], config)
 
 # find pupil edge and align over time to calculate cyclotorsion
-def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, eyeext, eye_ell_params, save_path, world_interp_method, ranger, config):
+def find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, eyeext, eye_ell_params, save_path, world_interp_method, ranger, config):
 
     print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
 
@@ -174,14 +173,13 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
     # open time files
     eyeTS = open_time(eyetimepath, np.size(eye_ell_params, axis=0))
     worldTS = open_time(worldtimepath, np.size(eye_ell_params, axis=0))
-    topTS = open_time(toptimepath)
 
     # interpolate ellipse parameters to worldcam timestamps
     # eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=world_interp_method)
     eye_ell_interp_params = eye_ell_params
 
     # the very first timestamp
-    start_time = min(eyeTS[0], worldTS[0], topTS[0])
+    # start_time = min(eyeTS[0], worldTS[0], topTS[0])
 
     # get the ellipse parameters for this trial from the time-interpolated xarray
     eye_theta = eye_ell_interp_params.sel(ellipse_params='theta')
@@ -279,7 +277,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
 
                 # subtract baseline because our points aren't perfectly centered on ellipse
                 filtsize = 30
-                rfit_conv = rfit - np.convolve(rfit_interp, np.ones(filtsize)/filtsize, mode='same')
+                rfit_conv = rfit - convolve(rfit_interp, np.ones(3)/3, boundary='wrap')
                 # edges have artifact from conv, so set to NaNs
                 # could fix this by padding data with wraparound at 0 and 360deg before conv
                 # the astropy package can do this with the convolution.convolve package
@@ -291,7 +289,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
                 rfit_conv = np.empty(np.shape(rfit_conv)) # make an rfit_conv with the shape of the last one
         except (KeyError, ValueError) as e:
             key_error_count = key_error_count + 1
-            rfit_conv = np.empty(np.shape(rfit_conv))
+            rfit_conv = np.empty(360)
 
         # save out pupil edge data into one xarray for all frames
         if step == 0:
@@ -354,13 +352,16 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
 
     # xcorr of two random timepoints
     if config['save_figs'] is True:
-        t0 = np.random.random_integers(0,totalF-1); t1 = np.random.random_integers(0,totalF-1)
-        rfit2times_cc, rfit2times_lags = nanxcorr(rfit_conv_xr.isel(frame=t0).values, rfit_conv_xr.isel(frame=t1).values, 10)
-        plt.figure()
-        plt.plot(rfit2times_cc, 'b-')
-        plt.title('nanxcorr of frames ' + str(t0) + ' and ' + str(t1))
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_xcorr_of_two_times.png')), dpi=300)
-        plt.close()
+        try:
+            t0 = np.random.random_integers(0,totalF-1); t1 = np.random.random_integers(0,totalF-1)
+            rfit2times_cc, rfit2times_lags = nanxcorr(rfit_conv_xr.isel(frame=t0).values, rfit_conv_xr.isel(frame=t1).values, 10)
+            plt.figure()
+            plt.plot(rfit2times_cc, 'b-')
+            plt.title('nanxcorr of frames ' + str(t0) + ' and ' + str(t1))
+            plt.savefig(os.path.join(config['save_path'], (trial_name + '_xcorr_of_two_times.png')), dpi=300)
+            plt.close()
+        except ZeroDivisionError:
+            pass
 
     # iterative fit to alignment
     # start with mean as template
