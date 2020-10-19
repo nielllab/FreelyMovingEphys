@@ -28,8 +28,10 @@ parser = argparse.ArgumentParser(description='analyze all new videos using DeepL
 parser.add_argument('-c', '--json_config_path', help='path to video analysis config file')
 args = parser.parse_args()
 
+json_config_path = os.path.expanduser(os.path.join('~/Desktop',args.json_config_path))
+
 # open config file
-with open(args.json_config_path, 'r') as fp:
+with open(json_config_path, 'r') as fp:
     config = json.load(fp)
 
 # get each camera type's entry in a list of lists that the json file has in it'

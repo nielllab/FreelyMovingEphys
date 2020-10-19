@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Sept. 24, 2020
+Oct. 09, 2020
 """
 
 # package imports
@@ -41,9 +41,9 @@ def adjust_world(data_path, file_name, eyeext, topext, worldext, eye_ds, savepat
     top1vidpath = os.path.join(data_path, file_name) + '_' + topext + '.avi'
     eyevidpath = os.path.join(data_path, file_name) + '_' + eyeext + '.avi'
     worldvidpath = os.path.join(data_path, file_name) + '_' + worldext + '.avi'
-    top1timepath = os.path.join(data_path, file_name) + '_' + topext +'_BonsaiTS.csv'
-    eyetimepath = os.path.join(data_path, file_name) + '_' + eyeext +'_BonsaiTS.csv'
-    worldtimepath = os.path.join(data_path, file_name) + '_' + worldext +'_BonsaiTS.csv'
+    top1timepath = os.path.join(data_path, file_name) + '_' + topext +'_BonsaiTSformatted.csv'
+    eyetimepath = os.path.join(data_path, file_name) + '_' + eyeext +'_BonsaiTSformatted.csv'
+    worldtimepath = os.path.join(data_path, file_name) + '_' + worldext +'_BonsaiTSformatted.csv'
 
     # create save directory if it does not already exist
     fig_dir = savepath + '/' + file_name + '/'
@@ -156,10 +156,10 @@ def sigm_fit_mp(d):
 
 # function to get into find_pupil_rotation (this will be eliminated once the pupil rotation is working well)
 def pupil_rotation_wrapper(eye_params, config, trial_name, side_letter):
-    eyevidpath = find((trial_name + '*' + side_letter + 'EYE.avi'), config['data_path'])[0]
-    toptimepath = find(('*' + trial_name + '*' + 'TOP_BonsaiTS.csv'), config['data_path'])[0]
-    eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTS.csv'), config['data_path'])[0]
-    worldtimepath = find(('*' + trial_name + '*' + side_letter + 'WORLD_BonsaiTS.csv'), config['data_path'])[0]
+    eyevidpath = find((trial_name + '*' + side_letter + 'EYEdeinter.avi'), config['data_path'])[0]
+    toptimepath = find(('*' + trial_name + '*' + 'TOP?_BonsaiTSformatted.csv'), config['data_path'])[0]
+    eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTSformatted.csv'), config['data_path'])[0]
+    worldtimepath = find(('*' + trial_name + '*' + 'WORLD_BonsaiTSformatted.csv'), config['data_path'])[0]
 
     return find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['save_path'], config['world_interp_method'], config['range_radius'], config)
 
@@ -188,21 +188,21 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
     eye_phi = eye_ell_interp_params.sel(ellipse_params='phi')
     eye_longaxis= eye_ell_interp_params.sel(ellipse_params='longaxis')
     eye_shortaxis = eye_ell_interp_params.sel(ellipse_params='shortaxis')
-    eye_centX = eye_ell_interp_params.sel(ellipse_params='centX')
-    eye_centY = eye_ell_interp_params.sel(ellipse_params='centY')
+    eye_centX = eye_ell_interp_params.sel(ellipse_params='X0')
+    eye_centY = eye_ell_interp_params.sel(ellipse_params='Y0')
 
     # also get the the ellipse parameters that haven't been interpolated over
-    eye_raw_theta = eye_ell_params.sel(ellipse_params='theta')
-    eye_raw_phi = eye_ell_params.sel(ellipse_params='phi')
-    eye_raw_longaxis= eye_ell_params.sel(ellipse_params='longaxis')
-    eye_raw_shortaxis = eye_ell_params.sel(ellipse_params='shortaxis')
+    # eye_raw_theta = eye_ell_params.sel(ellipse_params='theta')
+    # eye_raw_phi = eye_ell_params.sel(ellipse_params='phi')
+    # eye_raw_longaxis= eye_ell_params.sel(ellipse_params='longaxis')
+    # eye_raw_shortaxis = eye_ell_params.sel(ellipse_params='shortaxis')
 
-    eyeTSminusstart = [(t-start_time).seconds for t in eyeTS]
-    worldTSminusstart = [(t-start_time).seconds for t in worldTS]
+    # eyeTSminusstart = [(t-start_time).total_seconds for t in eyeTS]
+    # worldTSminusstart = [(t-start_time).total_seconds for t in worldTS]
 
     # set up for the read-in video
     eyevid = cv2.VideoCapture(eyevidpath)
-    totalF = 3600 # int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)) # this can be changed to a small number of frames for testing
+    totalF = int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)) # this can be changed to a small number of frames for testing
     set_size = (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
     # set up for the multiprocessing that'll be used during sigmoid fit function
@@ -289,18 +289,18 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
 
             except ValueError: # in case every value in rfit is NaN
                 rfit_conv = np.empty(np.shape(rfit_conv)) # make an rfit_conv with the shape of the last one
-        except KeyError:
+        except (KeyError, ValueError) as e:
             key_error_count = key_error_count + 1
             rfit_conv = np.empty(np.shape(rfit_conv))
 
         # save out pupil edge data into one xarray for all frames
         if step == 0:
             rfit_conv_xr = xr.DataArray(rfit_conv)
-            rfit_conv_xr['frame'] = eyevid.get(cv2.CAP_PROP_POS_FRAMES)
+            rfit_conv_xr['frame'] = step
             rfit_conv_xr = xr.DataArray.rename(rfit_conv_xr, {'dim_0':'deg'})
         if step > 0:
             rfit_conv_temp = xr.DataArray(rfit_conv)
-            rfit_conv_temp['frame'] = eyevid.get(cv2.CAP_PROP_POS_FRAMES)
+            rfit_conv_temp['frame'] = step
             rfit_conv_temp = xr.DataArray.rename(rfit_conv_temp, {'dim_0':'deg'})
             rfit_conv_xr = xr.concat([rfit_conv_xr, rfit_conv_temp], dim='frame', fill_value=np.nan)
 
@@ -416,6 +416,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
         plt.close
 
     if config['save_vids'] is True:
+        eyevid = cv2.VideoCapture(eyevidpath)
         vidsavepath = os.path.join(config['save_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + eyeext + '.avi'))
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
@@ -452,30 +453,22 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
             for d1 in d:
                 try:
                     eye_frame = cv2.circle(eye_frame, (int(round(current_centX + d1 * (np.cos(np.deg2rad(shift_smooth[current_time]+90))))),int(round(current_centY + d1 * (np.sin(np.deg2rad(shift_smooth[current_time]+90)))))),1,(0,0,0),thickness=-1)
-                except (ValueError, IndexError):
+                except (ValueError, IndexError) as e:
                     pass
 
             # plot the center of the eye on the frame as a larger dot than the others
             try:
                 eye_frame = cv2.circle(eye_frame, (int(current_centX),int(current_centY)),3,(0,0,0),thickness=-1)
-            except (ValueError, IndexError):
+            except (ValueError, IndexError) as e:
                 pass
-
-            # if user wants a few frames printed out (e.g. if only a few frames are being analyzed, this will save out every frame as a seperate .png figure)
-            # plt.figure()
-            # plt.imshow(eye_frame)
-            # plt.savefig(os.path.join(config['save_path'], (trial_name + 'frame' + str(int(eyevid.get(cv2.CAP_PROP_POS_FRAMES))) + '_imshow.png')), dpi=300)
-            # plt.close
 
             vidout.write(eye_frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+        vidout.release()
 
-            vidout.release()
-            cv2.destroyAllWindows()
-
-    shift = xr.DataArray(shift_smooth, coords=[('frame',range(0,np.size(shift_smooth,0))),'timestamps'])
-    # rfit_conv_xr = xr.DataArray.rename(rfit_conv_xr, dim_0='deg')
-    print('key error count: ' + str(key_error_count))
+    # temporary: save pupil rotation values to csv in case of error during xarray formatting
+    shift_smooth_pd = pd.DataFrame(shift_smooth)
+    shift_smooth_pd.to_csv(os.path.join(config['save_path'], str(trial_name + '_shift_smooth.csv')), index=False)
+    shift = xr.DataArray(shift_smooth_pd, dims=['frame','shift'])
+    print('key/value error count during sigmoid fit: ' + str(key_error_count))
     return rfit_conv_xr, shift

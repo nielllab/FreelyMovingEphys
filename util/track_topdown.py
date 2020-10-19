@@ -194,8 +194,8 @@ def head_angle(pt_input, nose_x, nose_y, config, trial_name, top_view):
 # simpler way to get head angle
 def simple_head_angle(pts, config):
     angs = []
-    for step in tqdm(range(0,len(newpts))):
-        step_pts = newpts.isel(frame=step)
+    for step in tqdm(range(0,len(pts))):
+        step_pts = pts.isel(frame=step)
         ang = np.tan((step_pts.sel(point_loc='mouse_spine_y')-step_pts.sel(point_loc='mouse_nose_y')),
                     (step_pts.sel(point_loc='mouse_spine_x')-step_pts.sel(point_loc='mouse_nose_x')))
         angs.append(ang)
@@ -208,8 +208,8 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
     topdown_pt_names = list(topdown_data['point_loc'].values)
     topdown_interp = xr.DataArray.interpolate_na(topdown_data, dim='frame', use_coordinate='frame', method='linear')
 
-    nose_x_pts = topdown_interp.sel(point_loc='mouse_nose_x')
-    nose_y_pts = topdown_interp.sel(point_loc='mouse_nose_y')
+    nose_x_pts = topdown_interp.sel(point_loc='nose_x')
+    nose_y_pts = topdown_interp.sel(point_loc='nose_y')
     if config['save_figs'] is True:
         plt.figure()
         plt.title('mouse nose x/y path before likelihood threshold')
@@ -235,33 +235,33 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
             likeli_pt = topdown_interp.sel(point_loc=current_pt_loc)
 
             # set x/y coords to NaN where the likelihood is below threshold value
-            assoc_x_pt = assoc_x_pt.where(likeli_pt < config['lik_thresh'])
-            assoc_y_pt = assoc_y_pt.where(likeli_pt < config['lik_thresh'])
+            assoc_x_pt[likeli_pt < config['lik_thresh']] = np.nan
+            assoc_y_pt[likeli_pt < config['lik_thresh']] = np.nan
 
-            likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='frame')
+            likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='point_loc')
 
             if likeli_loop_count == 0:
                 likeli_thresh_allpts = likeli_thresh_1loc
             elif likeli_loop_count > 0:
-                likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_1loc], dim='point_loc',fill_value=np.nan)
+                likeli_thresh_allpts = xr.concat([likeli_thresh_allpts, likeli_thresh_1loc], dim='point_loc', fill_value=np.nan)
 
             likeli_loop_count = likeli_loop_count + 1
 
     # make a plot of the mouse's path, where positions that fall under threshold will be NaNs
-    nose_x_thresh_pts = likeli_thresh_allpts.sel(point_loc='mouse_nose_x')
-    nose_y_thresh_pts = likeli_thresh_allpts.sel(point_loc='mouse_nose_y')
+    # nose_x_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose_x')
+    # nose_y_thresh_pts = likeli_thresh_allpts.sel(point_loc='nose_y')
     # mask the NaNs, but only for the figure (don't want to lose time information for actual analysis)
-    nose_x_thresh_nonan_pts = nose_x_thresh_pts[np.isfinite(nose_x_thresh_pts)]
-    nose_y_thresh_nonan_pts = nose_y_thresh_pts[np.isfinite(nose_y_thresh_pts)]
+    # nose_x_thresh_nonan_pts = nose_x_thresh_pts[np.isfinite(nose_x_thresh_pts)]
+    # nose_y_thresh_nonan_pts = nose_y_thresh_pts[np.isfinite(nose_y_thresh_pts)]
 
-    if config['save_vids'] is True:
-        plt.figure()
-        plt.title('mouse nose x/y path after likelihood threshold')
-        plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))
-        plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
-        plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + top_view + '_nose_trace_thresh.png')), dpi=300)
-        plt.close()
+    # if config['save_vids'] is True:
+    #     plt.figure()
+    #     plt.title('mouse nose x/y path after likelihood threshold')
+    #     plt.plot(np.squeeze(nose_x_thresh_nonan_pts), np.squeeze(nose_y_thresh_nonan_pts))
+    #     plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[0]), (np.squeeze(nose_y_thresh_nonan_pts)[0]), 'go')  # starting point
+    #     plt.plot((np.squeeze(nose_x_thresh_nonan_pts)[-1]), (np.squeeze(nose_y_thresh_nonan_pts)[-1]), 'ro')  # ending point
+    #     plt.savefig(os.path.join(config['save_path'], (trial_name + '_' + top_view + '_nose_trace_thresh.png')), dpi=300)
+    #     plt.close()
 
     likeli_thresh_allpts['trial'] = trial_name + '_' + top_view
 
@@ -302,8 +302,8 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
                     topdownTS = dlc_data.sel(frame=frame_time)
                     # current_ang = head_ang.sel(frame=frame_time).values
                     try:
-                        td_pts_x = topdownTS.isel(point_loc=k).values[0]
-                        td_pts_y = topdownTS.isel(point_loc=k + 1).values[0]
+                        td_pts_x = topdownTS.isel(point_loc=k).values
+                        td_pts_y = topdownTS.isel(point_loc=k + 1).values
                         center_xy = (int(td_pts_x), int(td_pts_y))
                         if k == 0:
                             # plot them on the fresh topdown frame

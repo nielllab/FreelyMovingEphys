@@ -7,7 +7,7 @@ outputs xarrays of original data and parameters
 each camera will have its own xarray Dataset, and ephys will have one too
 combining these views accross time happens when analysis is happening by hand downstream from this
 
-Oct. 14, 2020
+Oct. 08, 2020
 """
 
 # package imports
@@ -28,19 +28,19 @@ from util.track_eye import plot_eye_vid, eye_tracking
 from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper
 from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
+from util.checkpath import CheckPath
 
-# get user inputs
-parser = argparse.ArgumentParser(description='extract mouse and prey parameters from DeepLabCut data and corresponding videos')
-parser.add_argument('-c', '--json_config_path', help='path to .json config file', type=str, default='C:\\Users\\Niell lab\\Desktop\\pipeline_config.json')
-args = parser.parse_args()
+def pars_args():
+    # get user inputs
+    parser = argparse.ArgumentParser(description='Extract Params')
+    parser.add_argument('-c', '--json_config_path', 
+        default='~/Desktop/',
+        help='path to video analysis config file')
+    
+    args = parser.parse_args()
+    return args
 
-def main():
-    print('config file: ' + args.json_config_path)
-
-    # open config file
-    with open(args.json_config_path, 'r') as fp:
-        config = json.load(fp)
-
+def main(config):
     # get trial name out of each avi file and make a list of the unique entries
     trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
@@ -90,11 +90,11 @@ def main():
 
         # analyze top views
         top_views = []
-        if 'TOP1' in config['camera_names']:
+        if 'TOP1' in config['cams']:
             top_views.append('TOP1')
-        if 'TOP2' in config['camera_names']:
+        if 'TOP2' in config['cams']:
             top_views.append('TOP2')
-        if 'TOP3' in config['camera_names']:
+        if 'TOP3' in config['cams']:
             top_views.append('TOP3')
         for i in range(0,len(top_views)):
             top_view = top_views[i]
@@ -145,9 +145,9 @@ def main():
 
         # analyze eye views
         eye_sides = []
-        if 'REYE' in config['camera_names']:
+        if 'REYE' in config['cams']:
             eye_sides.append('R')
-        if 'LEYE' in config['camera_names']:
+        if 'LEYE' in config['cams']:
             eye_sides.append('L')
         for i in range(0,len(eye_sides)):
             eye_side = eye_sides[i]
@@ -161,7 +161,7 @@ def main():
             eyedlc = h5_to_xr(eye_h5, eye_csv, (eye_side+'EYE'), config=config)
             # get ellipse parameters from dlc points
             print('fitting ellipse to pupil')
-            eyeparams = eye_tracking(eyedlc, config, t_name, eye_side)
+            eyeparams = eye_tracking(eyedlc, config)
             # get pupil rotation and plot video -- slow step
             if config['run_pupil_rotation'] is True:
                 rfit, shift = pupil_rotation_wrapper(eyeparams, config, t_name, eye_side)
@@ -184,7 +184,7 @@ def main():
                 trial_eye_data.to_netcdf(os.path.join(config['save_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
 
         # analyze world views
-        if 'WORLD' in config['camera_names']:
+        if 'WORLD' in config['cams']:
             print('tracking WORLD for ' + t_name)
             # filter the list of files for the current trial to get the world view of this side
             world_csv = [i for i in trial_cam_csv if ('WORLD') in i and 'formatted' in i][0]
@@ -207,4 +207,11 @@ def main():
     print('done with ' + str(len(trial_units)) + ' queued trials')
 
 if __name__ == '__main__':
-    main()
+    args = pars_args()
+    
+    json_config_path = os.path.expanduser(args.json_config_path)
+    # open config file
+    with open(json_config_path, 'r') as fp:
+        config = json.load(fp)
+
+    main(config)
