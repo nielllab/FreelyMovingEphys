@@ -28,8 +28,8 @@ def main(args):
         config = json.load(fp)
 
     data_path = os.path.expanduser(config['data_path'])
-    if not config['save_path']:
-        save_path = data_path
+    if config.get('save_path') is None:
+        config['save_path'] = data_path
     else: 
         save_path = os.path.expanduser(config['save_path'])
 

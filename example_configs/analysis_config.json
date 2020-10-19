@@ -1,0 +1,7 @@
+{
+    "file_paths": {
+        "ephys_file": "T:/path/to/ephys.json",
+        "eye_file": "T:/path/to/REYE.nc",
+        "top_file": "T:/path/to/TOP1.nc"
+    }
+}
