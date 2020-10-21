@@ -3,7 +3,7 @@ analyze_jump.py
 
 Jump tracking utilities
 
-Last modified September 07, 2020
+Sept. 07, 2020
 """
 
 # package imports
@@ -24,7 +24,7 @@ def jump_cc(global_data_path, global_save_path, trial_name, REye_ds, LEye_ds, to
     # open pdf file to save plots in
     pp = PdfPages(os.path.join(global_save_path, (key + '_jump_cc.pdf')))
     # to append data to (for making plots of pooled data):
-    all_theta = []; all_phi = []; all_div = [];
+    all_theta = []; all_phi = []; all_div = []
     all_th_gaze = []; all_th_div = []; all_th_phi = []
     # loop through every frame in the right eye view
     for frame_num in range(0, len(REye_ds)):
@@ -97,7 +97,7 @@ def jump_cc(global_data_path, global_save_path, trial_name, REye_ds, LEye_ds, to
     fig3.xlabel('head theta'); fig3.ylabel('eye theta div')
     fig3.xlim([-60,60]); plt.ylim([-60,60])
     fig3.savefig(pp, format='pdf')
-    #  xcorr with head angle
+    # xcorr with head angle
     fig4 = plt.plot()
     fig4.errorbar(lags, np.nanmean(all_th_gaze), np.std(all_th_gaze)/np.sqrt(np.size(all_th_gaze)))
     fig4.errorbar(lags, np.nanmean(all_th_div), np.std(all_th_div)/np.sqrt(np.size(all_th_div)))

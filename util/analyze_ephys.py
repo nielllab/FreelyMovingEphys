@@ -1,5 +1,5 @@
 """
-figures.py
+analyze_ephys.py
 
 camera and ephys figures
 
@@ -25,9 +25,9 @@ mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
 
 # get figures given paths to the .nc files and ephys .json
-def get_figures(config):
+def ephys_figures(config):
 
-    pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['save_path'], (trial_name + '_figures.pdf')))
+    pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_figures.pdf')))
 
     # TOP1
     top_data = xr.open_dataset(config['top_file'])

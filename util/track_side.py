@@ -14,6 +14,8 @@ import numpy as np
 # interpolate and threshold side camera dlc data
 def side_tracking(side_data, side_pt_names, lik_thresh):
 
+    side_pt_names = list(side_data['point_loc'].values)
+
     sideinterp = xr.DataArray.interpolate_na(side_data, dim='frame', use_coordinate='frame', method='linear')
 
     # likelihood threshold
@@ -40,9 +42,12 @@ def side_tracking(side_data, side_pt_names, lik_thresh):
             if likeli_loop_count == 0:
                 sidepts_out = likeli_thresh_1loc
             elif likeli_loop_count > 0:
-                sidepts_out = xr.concat([sidepts_out, likeli_thresh_1loc], dim='point_loc',
-                                                 fill_value=np.nan)
+                sidepts_out = xr.concat([sidepts_out, likeli_thresh_1loc], dim='point_loc', fill_value=np.nan)
 
             likeli_loop_count = likeli_loop_count + 1
 
     return sidepts_out
+
+def side_angle():
+
+

@@ -3,7 +3,7 @@ params.py
 
 get parameters from DLC points and generate .nc or .json files
 
-Oct. 16, 2020
+Oct. 19, 2020
 """
 
 import argparse, json, sys, os, cv2, subprocess, shutil
@@ -16,7 +16,7 @@ from glob import glob
 from multiprocessing import freeze_support
 
 from util.read_data import h5_to_xr, find, format_frames, merge_xr_by_timestamps, open_time, check_path, pars_args
-from util.track_topdown import topdown_tracking, head_angle, plot_top_vid, get_top_props
+from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking
 from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper
 from util.analyze_jump import jump_gaze_trace
@@ -37,11 +37,13 @@ def extract_params(config):
 
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_unit in trial_units:
-        trial_path = trial_unit[0]
+        config['trial_path'] = trial_unit[0]
         t_name = trial_unit[1]
-        trial_cam_h5 = find(('*.h5'), trial_path)
-        trial_cam_csv = find(('*BonsaiTS*.csv'), trial_path)
-        trial_cam_avi = find(('*.avi'), trial_path)
+        trial_cam_h5 = find(('*.h5'), config['trial_path'])
+        trial_cam_csv = find(('*BonsaiTS*.csv'), config['trial_path'])
+        trial_cam_avi = find(('*.avi'), config['trial_path'])
+
+        config['config['trial_path']'] = config['trial_path']
 
         trial_cam_h5 = [x for x in trial_cam_h5 if x != []]
         trial_cam_csv = [x for x in trial_cam_csv if x != []]
@@ -56,18 +58,18 @@ def extract_params(config):
             print('formatting electrophysiology recordings for ' + t_name)
             # filter the list of files for the current tiral to get to the ephys data
             try:
-                trial_spike_times = os.path.join(trial_path,'spike_times.npy')
-                trial_spike_clusters = os.path.join(trial_path,'spike_clusters.npy')
-                trial_cluster_group = os.path.join(trial_path,'cluster_group.tsv')
-                trial_templates = os.path.join(trial_path,'templates.npy')
-                trial_ephys_time = os.path.join(trial_path,t_name+'_Ephys_BonsaiTS.csv')
-                trial_cluster_info = os.path.join(trial_path,'cluster_info.tsv')
+                trial_spike_times = os.path.join(config['trial_path'],'spike_times.npy')
+                trial_spike_clusters = os.path.join(config['trial_path'],'spike_clusters.npy')
+                trial_cluster_group = os.path.join(config['trial_path'],'cluster_group.tsv')
+                trial_templates = os.path.join(config['trial_path'],'templates.npy')
+                trial_ephys_time = os.path.join(config['trial_path'],t_name+'_Ephys_BonsaiTS.csv')
+                trial_cluster_info = os.path.join(config['trial_path'],'cluster_info.tsv')
                 # read in the data for all spikes during this trial
                 ephys = format_spikes(trial_spike_times, trial_spike_clusters, trial_cluster_group, trial_ephys_time, trial_templates, trial_cluster_info, config)
                 # save out the data as a json
-                ephys.to_json(os.path.join(trial_path, str(t_name+'_ephys.json')))
+                print('saving...')
+                ephys.to_json(os.path.join(config['config['trial_path']'], str(t_name+'_ephys.json')))
             except FileNotFoundError as e:
-                print(e)
                 print('missing one or more ephys files -- assuming no ephys analysis for this trial')
 
         # analyze top views
@@ -94,11 +96,11 @@ def extract_params(config):
                 topdlc = h5_to_xr(top_h5, top_csv, top_view, config)
                 # clean DLC points up
                 pts = topdown_tracking(topdlc, config, t_name, top_view) #key_save_path, key, args.lik_thresh, args.coord_cor, args.topdown_pt_num, args.cricket
-                # calculate head angle
-                # print('finding head angle and mouse/cricket properties')
-                # head_theta = head_angle(pts, noseX, noseY, config, t_name, top_view) # args.lik_thresh, key_save_path, args.cricket, key, nose_x, nose_y
-                # get mouse properties (and cricket properties if there is one)
-                # top_props = get_top_props(pts, head_theta, config, t_name, top_view)
+                # calculate head angle, body angle, and get properties of the mouse (and cricket if config says one was there)
+                print('finding head angle, body angle, and mouse/cricket properties')
+                head_theta = head_angle1(pts, config, t_name, top_view)
+                body_theta = body_angle(pts, config, t_name, top_view)
+                top_props = body_props(pts, head_theta, config, t_name, top_view)
                 # make videos (only saved if config says so)
                 if config['save_vids'] is True:
                     print('plotting points on top video')
@@ -106,9 +108,10 @@ def extract_params(config):
                 # make xarray of video frames
                 xr_top_frames = format_frames(top_avi, config); xr_top_frames.name = top_view+'_video'
                 # name and organize data
-                pts.name = top_view+'_pts'# ; head_theta.name = top_view+'_head_angle'; top_props = top_view+'_props'
-                trial_top_data = xr.merge([pts, xr_top_frames])#, head_theta, top_props, xr_top_frames])
-                trial_top_data.to_netcdf(os.path.join(trial_path, str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+                print('saving...')
+                pts.name = top_view+'_pts'; head_theta.name = top_view+'_head_angle'; body_theta.name = top_view+'_body_angle'; top_props = top_view+'_props'
+                trial_top_data = xr.merge([pts, head_theta, body_theta, top_props, xr_top_frames])
+                trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
             elif top_h5 is None:
                 # make an xarray of timestamps without dlc points, since there aren't any for a world camera
                 topdlc = h5_to_xr(pt_path=None, time_path=top_csv, view=top_view, config=config)
@@ -122,8 +125,8 @@ def extract_params(config):
                         trial_top_data = xr.merge([topdlc[:-1], xr_top_frames])
                     elif len(topdlc) < len(xr_top_frames):
                         trial_top_data = xr.merge([topdlc, xr_top_frames[:-1]])
-
-                trial_top_data.to_netcdf(os.path.join(trial_path, str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+                print('saving...')
+                trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
 
         # analyze eye views
         eye_sides = []
@@ -159,11 +162,13 @@ def extract_params(config):
                 rfit.name = eye_side+'eye_radius_fit'; shift.name = eye_side+'eye_pupil_rotation'
             xr_eye_frames.name = eye_side+'EYE_video'
             if config['run_pupil_rotation'] is False:
+                print('saving...')
                 trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames])
-                trial_eye_data.to_netcdf(os.path.join(trial_path, str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
+                trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
             if config['run_pupil_rotation'] is True:
+                print('saving...')
                 trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, shift])
-                trial_eye_data.to_netcdf(os.path.join(trial_path, str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
+                trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
 
         # analyze world views
         if 'WORLD' in config['cams']:
@@ -177,6 +182,7 @@ def extract_params(config):
             # make xarray of video frames
             xr_world_frames = format_frames(world_avi, config); xr_world_frames.name = 'WORLD_video'
             # merge but make sure they're not off in lenght by one value, which happens occasionally
+            print('saving...')
             try:
                 trial_world_data = xr.merge([worlddlc, xr_world_frames])
             except ValueError:
@@ -184,10 +190,20 @@ def extract_params(config):
                     trial_world_data = xr.merge([worlddlc[:-1], xr_world_frames])
                 elif len(worlddlc) < len(xr_world_frames):
                     trial_world_data = xr.merge([worlddlc, xr_world_frames[:-1]])
-            trial_world_data.to_netcdf(os.path.join(trial_path, str(t_name+'world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 9}})
+            trial_world_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 9}})
+
+        if 'SIDE' in config['cams']:
+            print('tracking SIDE for ' + t_name)
+            # filter the list of files for the current trial to get the world view of this side
+            side_h5 = [i for i in trial_cam_h5 if 'SIDE' in i][0]
+            side_csv = [i for i in trial_cam_csv if 'SIDE' in i and 'formatted' in i][0]
+            side_avi = [i for i in trial_cam_avi if 'SIDE' in i][0]
+            # make an xarray of timestamps without dlc points, since there aren't any for a world camera
+            sideddlc = h5_to_xr(pt_path=world_h5, time_path=side_csv, view=('SIDE'), config=config)
+            sidedlc.name = 'SIDE_pts'
+            # get side parameters
 
     print('done with ' + str(len(trial_units)) + ' queued trials')
-
 
 if __name__ == '__main__':
     args = pars_args()

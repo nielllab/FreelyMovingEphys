@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Oct. 09, 2020
+Oct. 20, 2020
 """
 
 # package imports
@@ -161,12 +161,15 @@ def pupil_rotation_wrapper(eye_params, config, trial_name, side_letter):
     eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTSformatted.csv'), config['data_path'])[0]
     worldtimepath = find(('*' + trial_name + '*' + 'WORLD_BonsaiTSformatted.csv'), config['data_path'])[0]
 
-    return find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['save_path'], config['world_interp_method'], config['range_radius'], config)
+    return find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['trial_path'], config['world_interp_method'], config['range_radius'], config)
 
 # find pupil edge and align over time to calculate cyclotorsion
 def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, eyeext, eye_ell_params, save_path, world_interp_method, ranger, config):
 
     print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
+
+    if config['save_figs'] is True:
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
 
     # set up range of degrees in radians
     rad_range = np.deg2rad(np.arange(360))
@@ -190,15 +193,6 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
     eye_shortaxis = eye_ell_interp_params.sel(ellipse_params='shortaxis')
     eye_centX = eye_ell_interp_params.sel(ellipse_params='X0')
     eye_centY = eye_ell_interp_params.sel(ellipse_params='Y0')
-
-    # also get the the ellipse parameters that haven't been interpolated over
-    # eye_raw_theta = eye_ell_params.sel(ellipse_params='theta')
-    # eye_raw_phi = eye_ell_params.sel(ellipse_params='phi')
-    # eye_raw_longaxis= eye_ell_params.sel(ellipse_params='longaxis')
-    # eye_raw_shortaxis = eye_ell_params.sel(ellipse_params='shortaxis')
-
-    # eyeTSminusstart = [(t-start_time).total_seconds for t in eyeTS]
-    # worldTSminusstart = [(t-start_time).total_seconds for t in worldTS]
 
     # set up for the read-in video
     eyevid = cv2.VideoCapture(eyevidpath)
@@ -304,7 +298,6 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
             rfit_conv_temp = xr.DataArray.rename(rfit_conv_temp, {'dim_0':'deg'})
             rfit_conv_xr = xr.concat([rfit_conv_xr, rfit_conv_temp], dim='frame', fill_value=np.nan)
 
-
     # plot rfit for all trials and highlight mean
     if config['save_figs'] is True:
         plt.figure()
@@ -312,7 +305,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
         plt.plot(np.mean(rfit_conv_xr.T, 1), 'b--')
         plt.title('convolved rfit for all trials, mean in blue')
         plt.ylim([-3,3])
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_rfit_conv_alltrials.png')), dpi=300)
+        pdf.savefig()
         plt.close()
 
     # correlation across timepoints
@@ -329,7 +322,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
         ax.set_xticklabels(range(1,len(timepoint_corr_rfit)+1))
         ax.set_yticklabels(range(1,len(timepoint_corr_rfit)+1))
         fig.colorbar(im, ax=ax)
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_rfit_alltime_correlations.png')), dpi=300)
+        pdf.savefig()
         plt.close()
 
     n = np.size(rfit_conv_xr.values, 0)
@@ -344,12 +337,12 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
         plt.figure()
         plt.plot(template)
         plt.title('mean as template')
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_mean_template.png')), dpi=300)
+        pdf.savefig()
         plt.close()
 
         plt.plot(template_rfitconv_cc)
         plt.title('rfit_conv template cross correlation')
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_rfit_template_cc.png')), dpi=300)
+        pdf.savefig()
         plt.close()
 
     # xcorr of two random timepoints
@@ -359,7 +352,7 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
         plt.figure()
         plt.plot(rfit2times_cc, 'b-')
         plt.title('nanxcorr of frames ' + str(t0) + ' and ' + str(t1))
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_xcorr_of_two_times.png')), dpi=300)
+        pdf.savefig()
         plt.close()
 
     # iterative fit to alignment
@@ -385,17 +378,15 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
             plt.title('pupil_update of rep='+str(rep)+' in iterative fit')
             plt.plot(template, 'k--', alpha=0.8)
             plt.plot(pupil_update.T, alpha=0.2)
-            plt.savefig(os.path.join(config['save_path'], (trial_name + '_rep' + str(rep) + '_pupil_update.png')), dpi=300)
+            pdf.savefig()
             plt.close()
-
 
             # histogram of correlations
             plt.figure()
             plt.title('correlations of rep='+str(rep)+' in iterative fit')
             plt.hist(c)
-            plt.savefig(os.path.join(config['save_path'], (trial_name + '_rep' + str(rep) + '_correlations.png')), dpi=300)
+            pdf.savefig()
             plt.close()
-
 
     win = 3
     shift_nan = -total_shift
@@ -407,17 +398,17 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
     if config['save_figs'] is True:
         plt.figure()
         plt.plot(shift_nan)
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_shift_nan.png')), dpi=300)
+        pdf.savefig()
         plt.close()
 
         plt.figure()
         plt.plot(shift_smooth)
-        plt.savefig(os.path.join(config['save_path'], (trial_name + '_shift_smooth.png')), dpi=300)
-        plt.close
+        pdf.savefig()
+        plt.close()
 
     if config['save_vids'] is True:
         eyevid = cv2.VideoCapture(eyevidpath)
-        vidsavepath = os.path.join(config['save_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + eyeext + '.avi'))
+        vidsavepath = os.path.join(config['trial_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + eyeext + '.avi'))
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
 
@@ -468,7 +459,10 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
 
     # temporary: save pupil rotation values to csv in case of error during xarray formatting
     shift_smooth_pd = pd.DataFrame(shift_smooth)
-    shift_smooth_pd.to_csv(os.path.join(config['save_path'], str(trial_name + '_shift_smooth.csv')), index=False)
+    shift_smooth_pd.to_csv(os.path.join(config['trial_path'], str(trial_name + '_shift_smooth.csv')), index=False)
     shift = xr.DataArray(shift_smooth_pd, dims=['frame','shift'])
     print('key/value error count during sigmoid fit: ' + str(key_error_count))
+
+    pdf.close()
+
     return rfit_conv_xr, shift

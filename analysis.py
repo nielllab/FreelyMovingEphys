@@ -9,7 +9,7 @@ Oct. 19, 2020
 import argparse, json, sys, os
 
 from util.read_data import pars_args
-from util.figures import get_figures
+from util.analyze_ephys import ephys_figures
 
 def main(args):
     json_config_path = os.path.expanduser(args.json_config_path)

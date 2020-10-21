@@ -95,7 +95,7 @@ def fit_ellipse(x,y):
         # organize parameters in dictionary to return
         # makes some final modifications to values here, maybe those should be done above for cleanliness
         ellipse_dict = {'X0':X0, 'Y0':Y0, 'F':F, 'a':a, 'b':b, 'long_axis':long_axis/2, 'short_axis':short_axis/2,
-                        'angle_to_x':np.rad2deg(angle_to_x), 'angle_from_x':np.rad2deg(angle_from_x), 'cos_phi':cos_phi, 'sin_phi':sin_phi,
+                        'angle_to_x':angle_to_x, 'angle_from_x':angle_from_x, 'cos_phi':cos_phi, 'sin_phi':sin_phi,
                         'X0_in':X0_in, 'Y0_in':Y0_in, 'phi':orientation_rad}
         
     else:
@@ -110,7 +110,7 @@ def fit_ellipse(x,y):
 # equivilent to /niell-lab-analysis/freely moving/EyeCameraCalc1.m
 def eye_tracking(eye_data, config, trial_name, eye_side):
     
-    pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['save_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
+    pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
 
     # names of th different points
     pt_names = list(eye_data['point_loc'].values)
@@ -203,7 +203,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         # eye axes relative to center
         plt.figure()
         for i in range(0,len(list2)):
-            plt.plot((ellipse_params[list2[i],11] + [-5*np.cos(w[list2[i]]), 5*np.cos(w[list2[i]])]).T, (ellipse_params[list2[i],12] + [-5*np.sin(w[list2[i]]), 5*np.sin(w[list2[i]])]).T)
+            plt.plot((ellipse_params[list2[i],11] + [-5*np.cos(w[list2[i]]), 5*np.cos(w[list2[i]])]).T, (ellipse_params[list2[i],12] + [-5*np.sin(w[list2[i]]), 5*np.sin(w[list2[i]])]).T, 'k-.')
         plt.plot(cam_cent[0],cam_cent[1],'r*')
         plt.title('eye axes relative to center')
         pdf.savefig()
@@ -280,7 +280,7 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     vidread = cv2.VideoCapture(vid_path)
     width = int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    savepath = os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE_plot.avi'))
+    savepath = os.path.join(config['trial_path'], (trial_name + '_' + eye_letter + 'EYE_plot.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
