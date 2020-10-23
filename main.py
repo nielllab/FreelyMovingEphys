@@ -96,14 +96,15 @@ def run_DLC_Analysis(config):
         # if it's one of the cameras that needs to needs to be deinterlaced first, make sure and read in the deinterlaced 
         if any(cam_key in s for s in ['REYE','LEYE','WORLD']):
             # find all the videos in the data directory that are from the current camera and are deinterlaced
-            vids_this_cam = find('*'+cam_key+'*deinter.avi', config['data_path'])
+            vids_this_cam = [a for a in find('*'+cam_key+'*deinter.avi', config['data_path']) if a not in find(('*plot*.avi'), config['data_path'])]
+            # vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
             print('found ' + str(len(vids_this_cam)) + ' deinterlaced videos from cam_key ' + cam_key)
             # warn the user if there's nothing found
             if len(vids_this_cam) == 0:
                 print('no ' + cam_key + ' videos found -- maybe the videos are not deinterlaced yet?')
         else:
             # find all the videos for camera types that don't neeed to be deinterlaced
-            vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
+            vids_this_cam = [a for a in find('*'+cam_key+'*.avi', config['data_path']) if a not in find(('*plot*.avi'), config['data_path'])]
             print('found ' + str(len(vids_this_cam)) + ' videos from cam_key ' + cam_key)
         # analyze the videos with DeepLabCut
         # this gives the function a list of files that it will iterate over with the same DLC config file
@@ -130,7 +131,7 @@ def extract_params(config):
         t_name = trial_unit[1]
         trial_cam_h5 = find(('*.h5'), trial_path)
         trial_cam_csv = find(('*BonsaiTS*.csv'), trial_path)
-        trial_cam_avi = find(('*.avi'), trial_path)
+        trial_cam_avi = [a for a in find(('*.avi'), trial_path) if a not in find(('*plot*.avi'), trial_path)]
 
         trial_cam_h5 = [x for x in trial_cam_h5 if x != []]
         trial_cam_csv = [x for x in trial_cam_csv if x != []]
@@ -298,12 +299,11 @@ def main(args):
         save_path = os.path.expanduser(config['save_path'])
 
     ###### deinterlace data
-    # deinterlace_data(data_path, save_path=None)
+    deinterlace_data(data_path, save_path=None)
     ###### Get DLC Tracking
-    # run_DLC_Analysis(config)
+    run_DLC_Analysis(config)
     ###### Extract Parameters from DLC
-    extract_params(config)
-
+    # extract_params(config)
 
 if __name__ == '__main__':
     args = pars_args()

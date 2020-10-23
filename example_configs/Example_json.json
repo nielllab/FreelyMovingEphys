@@ -7,7 +7,7 @@
         "TOP2": "C:/Users/Niell Lab/Documents/trained_DLC_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
         "TOP3": "C:/Users/Niell Lab/Documents/trained_DLC_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
     },
-    "crop_for_dlc":true,
+    "crop_for_dlc":false,
     "multianimal_TOP":false,
     "lik_thresh": 0.99,
     "has_ephys": true,
@@ -25,5 +25,4 @@
     "dwnsmpl": 0.5,
     "ephys_sample_rate": 30000,
     "run_pupil_rotation": false
-
 }
