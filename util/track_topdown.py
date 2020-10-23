@@ -37,9 +37,9 @@ def body_angle(pt_input, config, trial_name, top_view):
         x2 = step_pts.sel(point_loc='spine2_x')
         y1 = step_pts.sel(point_loc='spine_y')
         y2 = step_pts.sel(point_loc='spine2_y')
-        ang = -1/((y2-y1)/(x2-x1))
+        ang = ((y2-y1)/(x2-x1))
         angs.append(ang)
-    head_theta = xr.DataArray(angs)
+    body_ang = xr.DataArray(angs, dims=['frame'])
 
     return body_ang
 
@@ -53,7 +53,7 @@ def head_angle1(pt_input, config, trial_name, top_view):
         y2 = step_pts.sel(point_loc='leftear_y')
         ang = -1/((y2-y1)/(x2-x1))
         angs.append(ang)
-    head_theta = xr.DataArray(angs)
+    head_theta = xr.DataArray(angs, dims=['frame'])
 
     return head_theta
 
@@ -64,11 +64,12 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
     cricketbodyX = 'cricket_body_x'; cricketbodyY = 'cricket_body_y'
     mousenoseX = 'spine_x'; mousenoseY = 'spine_y'
 
+    filt = np.ones([3]) / np.sum(np.ones([3]))
+
     if config['cricket'] is True:
         # cricket speed
         vx_c = np.diff(top_pts.sel(point_loc=cricketbodyX).values)
         vy_c = np.diff(top_pts.sel(point_loc=cricketbodyY).values)
-        filt = np.ones([3]) / np.sum(np.ones([3]))
         vx_c = np.convolve(vx_c, filt, mode='same')
         vy_c = np.convolve(vx_c, filt, mode='same')
         cricket_speed = np.sqrt(vx_c**2, vy_c**2)
@@ -133,7 +134,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
     elif config['cricket'] is False:
         props_out = pd.DataFrame({'d_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})
         prop_names = ['d_theta', 'mouse_speed']
-        props_out_xr = xr.DataArray(props_out, coords=[('frame',range(0,np.size(cricket_speed,0))), ('prop',prop_names)])
+        props_out_xr = xr.DataArray(props_out, coords=[('frame',range(0,np.size(mouse_speed,0))), ('prop',prop_names)])
 
         plt.subplots(1,2)
         plt.subplot(121)
@@ -404,26 +405,19 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
             break
 
         if dlc_data is not None:
-            # get current frame number to be displayed, so that it can be used to slice DLC data
-            frame_time = vidread.get(cv2.CAP_PROP_POS_FRAMES)
 
             try:
                 for k in range(0, len(dlc_data['point_loc']), 3):
-                    topdownTS = dlc_data.sel(frame=frame_time)
-                    current_ang = head_ang.sel(frame=frame_time)
+                    topdownTS = dlc_data.isel(frame=frame_num)
+                    current_ang = head_ang.isel(frame=frame_num)
                     try:
                         td_pts_x = topdownTS.isel(point_loc=k).values
                         td_pts_y = topdownTS.isel(point_loc=k + 1).values
                         center_xy = (int(td_pts_x), int(td_pts_y))
-                        if k == 0:
-                            # plot them on the fresh topdown frame
-                            frame = cv2.circle(frame, center_xy, 6, plot_color0, -1)
-                        elif k >= 3:
-                            # plot them on the topdown frame with all past topdown points
-                            frame = cv2.circle(frame, center_xy, 6, plot_color0, -1)
+                        frame = cv2.circle(frame, center_xy, 6, plot_color0, -1)
 
-                        backX = topdownTS.sel(point_loc='baseimplant_x').values
-                        backY = topdownTS.sel(point_loc='baseimplant_y').values
+                        backX = topdownTS.sel(point_loc='base_implant_x').values
+                        backY = topdownTS.sel(point_loc='base_implant_y').values
 
                         x1 = (backX * np.cos(float(current_ang))).astype(int)
                         y1 = (backY * np.sin(float(current_ang))).astype(int)
