@@ -3,7 +3,7 @@ track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-Oct. 14, 2020
+Oct. 26, 2020
 """
 
 # package imports
@@ -110,7 +110,8 @@ def fit_ellipse(x,y):
 # equivilent to /niell-lab-analysis/freely moving/EyeCameraCalc1.m
 def eye_tracking(eye_data, config, trial_name, eye_side):
     
-    pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
+    if config['save_figs'] is True:
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
 
     # names of th different points
     pt_names = list(eye_data['point_loc'].values)
@@ -267,7 +268,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         pdf.savefig()
         plt.close()
     
-    pdf.close()
+        pdf.close()
 
     return ellipse_out
 

@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Oct. 20, 2020
+Oct. 26, 2020
 """
 
 # package imports
@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+import matplotlib
 from matplotlib.ticker import FuncFormatter
 import cv2
 from scipy import signal
@@ -157,19 +158,18 @@ def sigm_fit_mp(d):
 # function to get into find_pupil_rotation (this will be eliminated once the pupil rotation is working well)
 def pupil_rotation_wrapper(eye_params, config, trial_name, side_letter):
     eyevidpath = find((trial_name + '*' + side_letter + 'EYEdeinter.avi'), config['data_path'])[0]
-    toptimepath = find(('*' + trial_name + '*' + 'TOP?_BonsaiTSformatted.csv'), config['data_path'])[0]
     eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTSformatted.csv'), config['data_path'])[0]
     worldtimepath = find(('*' + trial_name + '*' + 'WORLD_BonsaiTSformatted.csv'), config['data_path'])[0]
 
-    return find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['trial_path'], config['world_interp_method'], config['range_radius'], config)
+    return find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['trial_path'], config['world_interp_method'], config['range_radius'], config)
 
 # find pupil edge and align over time to calculate cyclotorsion
-def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, trial_name, eyeext, eye_ell_params, save_path, world_interp_method, ranger, config):
+def find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, eyeext, eye_ell_params, save_path, world_interp_method, ranger, config):
 
     print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
 
     if config['save_figs'] is True:
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eyeext + 'EYE_tracking_figs.pdf')))
 
     # set up range of degrees in radians
     rad_range = np.deg2rad(np.arange(360))
@@ -177,14 +177,10 @@ def find_pupil_rotation(eyevidpath, toptimepath, eyetimepath, worldtimepath, tri
     # open time files
     eyeTS = open_time(eyetimepath, np.size(eye_ell_params, axis=0))
     worldTS = open_time(worldtimepath, np.size(eye_ell_params, axis=0))
-    topTS = open_time(toptimepath)
 
     # interpolate ellipse parameters to worldcam timestamps
     # eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=world_interp_method)
     eye_ell_interp_params = eye_ell_params
-
-    # the very first timestamp
-    start_time = min(eyeTS[0], worldTS[0], topTS[0])
 
     # get the ellipse parameters for this trial from the time-interpolated xarray
     eye_theta = eye_ell_interp_params.sel(ellipse_params='theta')

@@ -3,7 +3,7 @@ track_topdown.py
 
 topdown tracking utilities
 
-Oct. 21, 2020
+Oct. 26, 2020
 """
 
 # package imports
@@ -30,8 +30,9 @@ def rotmat(theta):
     return m
 
 def body_angle(pt_input, config, trial_name, top_view):
+    print('getting body angle...')
     angs = []
-    for step in range(0,len(pt_input)):
+    for step in tqdm(range(0,np.size(pt_input, 1))):
         step_pts = pt_input.isel(frame=step)
         x1 = step_pts.sel(point_loc='spine_x')
         x2 = step_pts.sel(point_loc='spine2_x')
@@ -45,7 +46,8 @@ def body_angle(pt_input, config, trial_name, top_view):
 
 def head_angle1(pt_input, config, trial_name, top_view):
     angs = []
-    for step in range(0,len(pt_input)):
+    print('getting head angle...')
+    for step in tqdm(range(0,np.size(pt_input, 1))):
         step_pts = pt_input.isel(frame=step)
         x1 = step_pts.sel(point_loc='rightear_x')
         x2 = step_pts.sel(point_loc='leftear_x')
