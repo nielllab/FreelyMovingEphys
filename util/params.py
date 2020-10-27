@@ -72,6 +72,10 @@ def extract_params(config):
 
         # analyze top views
         top_views = []
+        if 'TOP' in config['cams']:
+            top_views.append('TOP')
+        if 'Top' in config['cams']:
+            top_views.append('Top')
         if 'TOP1' in config['cams']:
             top_views.append('TOP1')
         if 'TOP2' in config['cams']:
@@ -86,7 +90,10 @@ def extract_params(config):
                 top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
             except IndexError:
                 top_h5 = None
-            top_csv = [i for i in trial_cam_csv if top_view in i][0]
+            if config['run_with_form_time'] is True:
+                top_csv = [i for i in trial_cam_csv if top_view in i and 'formatted' in i][0]
+            elif config['run_with_form_time'] is False:
+                top_csv = [i for i in trial_cam_csv if top_view in i][0]
             top_avi = [i for i in trial_cam_avi if top_view in i][0]
             if top_h5 is not None:
                 # make an xarray of dlc point values out of the found .h5 files
@@ -144,7 +151,10 @@ def extract_params(config):
             print('tracking ' + eye_side + 'EYE for ' + t_name)
             # filter the list of files for the current trial to get the eye of this side
             eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i and 'deinter' in i][0]
-            eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i][0]
+            if config['run_with_form_time'] is True:
+                eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i][0]
+            elif config['run_with_form_time'] is False:
+                eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i][0]
             eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i][0]
             # make an xarray of dlc point values out of the found .h5 files
             # also assign timestamps as coordinates of the xarray
@@ -176,11 +186,20 @@ def extract_params(config):
                 trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
 
         # analyze world views
+        world_sides = []
         if 'WORLD' in config['cams']:
-            print('tracking WORLD for ' + t_name)
+            world_sides.append('WORLD')
+        if 'World' in config['cams']:
+            world_sides.append('World')    
+        for i in range(0,len(world_sides)):
+            world_side = world_sides[i]
+            print('tracking '+ world_side +' for ' + t_name)
             # filter the list of files for the current trial to get the world view of this side
-            world_csv = [i for i in trial_cam_csv if ('WORLD') in i and 'formatted' in i][0]
-            world_avi = [i for i in trial_cam_avi if ('WORLD') in i and 'deinter' in i][0]
+            if config['run_with_form_time'] is True:
+                world_csv = [i for i in trial_cam_csv if world_side in i and 'formatted' in i][0]
+            elif config['run_with_form_time'] is False:
+                world_csv = [i for i in trial_cam_csv if world_side in i][0]
+            world_avi = [i for i in trial_cam_avi if world_side in i and 'deinter' in i][0]
             # make an xarray of timestamps without dlc points, since there aren't any for a world camera
             worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=config)
             worlddlc.name = 'WORLD_times'
@@ -197,16 +216,32 @@ def extract_params(config):
                     trial_world_data = xr.merge([worlddlc, xr_world_frames[:-1]])
             trial_world_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 9}})
 
+        # analyze side views
+        side_sides = []
         if 'SIDE' in config['cams']:
-            print('tracking SIDE for ' + t_name)
+            side_sides.append('SIDE')
+        if 'Side' in config['cams']:
+            side_sides.append('Side')    
+        for i in range(0,len(side_sides)):
+            side_side = side_sides[i]
+            print('tracking '+ side_side +' for ' + t_name)
             # filter the list of files for the current trial to get the world view of this side
-            side_h5 = [i for i in trial_cam_h5 if 'SIDE' in i][0]
-            side_csv = [i for i in trial_cam_csv if 'SIDE' in i and 'formatted' in i][0]
-            side_avi = [i for i in trial_cam_avi if 'SIDE' in i][0]
+            side_h5 = [i for i in trial_cam_h5 if side_side in i][0]
+            if config['run_with_form_time'] is True:
+                side_csv = [i for i in trial_cam_csv if side_side in i and 'formatted' in i][0]
+            elif config['run_with_form_time'] is False:
+                side_csv = [i for i in trial_cam_csv if side_side in i][0]
+            side_avi = [i for i in trial_cam_avi if side_side in i][0]
             # make an xarray of timestamps without dlc points, since there aren't any for a world camera
-            sideddlc = h5_to_xr(pt_path=world_h5, time_path=side_csv, view=('SIDE'), config=config)
+            sideddlc = h5_to_xr(pt_path=world_h5, time_path=side_csv, view='SIDE', config=config)
             sidedlc.name = 'SIDE_pts'
             # get side parameters
+
+            # format frames
+            xr_side_frames = format_frames(side_avi, config); xr_side_frames.name = 'SIDE_video'
+            # save data
+            trial_side_data = xr.merge([sidedlc, xr_side_frames])
+            trial_side_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'side.nc')), engine='netcdf4', encoding={'SIDE_video':{"zlib": True, "complevel": 9}})
 
     print('done with ' + str(len(trial_units)) + ' queued trials')
 

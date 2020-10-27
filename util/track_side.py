@@ -1,9 +1,9 @@
 """
 track_side.py
 
-ide camera tracking utilities
+side camera tracking utilities
 
-Last modified August 26, 2020
+Oct. 26, 2020
 """
 
 # package imports
@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 
 # interpolate and threshold side camera dlc data
-def side_tracking(side_data, side_pt_names, lik_thresh):
+def side_tracking(side_data, config):
 
     side_pt_names = list(side_data['point_loc'].values)
 
@@ -34,8 +34,8 @@ def side_tracking(side_data, side_pt_names, lik_thresh):
             likeli_pt = sideinterp.sel(point_loc=current_pt_loc)
 
             # set x/y coords to NaN where the likelihood is below threshold value
-            assoc_x_pt[likeli_pt < lik_thresh] = np.nan
-            assoc_y_pt[likeli_pt < lik_thresh] = np.nan
+            assoc_x_pt[likeli_pt < config['lik_thresh']] = np.nan
+            assoc_y_pt[likeli_pt < config['lik_thresh']] = np.nan
 
             likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='point_loc')
 
@@ -48,6 +48,5 @@ def side_tracking(side_data, side_pt_names, lik_thresh):
 
     return sidepts_out
 
-def side_angle():
-
-
+# def side_angle():
+#     return ang

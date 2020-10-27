@@ -29,5 +29,7 @@
     "num_ellipse_pts_needed": 8,
     "dwnsmpl": 0.5,
     "ephys_sample_rate": 30000,
-    "run_pupil_rotation": false
+    "run_pupil_rotation": true,
+    "run_top_angles": true,
+    "run_with_form_time": true
 }
