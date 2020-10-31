@@ -411,21 +411,23 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
             try:
                 for k in range(0, len(dlc_data['point_loc']), 3):
                     topdownTS = dlc_data.isel(frame=frame_num)
-                    current_ang = head_ang.isel(frame=frame_num)
+                    if config['run_top_angles'] is True:
+                        current_ang = head_ang.isel(frame=frame_num)
                     try:
                         td_pts_x = topdownTS.isel(point_loc=k).values
                         td_pts_y = topdownTS.isel(point_loc=k + 1).values
                         center_xy = (int(td_pts_x), int(td_pts_y))
                         frame = cv2.circle(frame, center_xy, 6, plot_color0, -1)
 
-                        backX = topdownTS.sel(point_loc='base_implant_x').values
-                        backY = topdownTS.sel(point_loc='base_implant_y').values
+                        if config['run_top_angles'] is True:
+                            backX = topdownTS.sel(point_loc='base_implant_x').values
+                            backY = topdownTS.sel(point_loc='base_implant_y').values
 
-                        x1 = (backX * np.cos(float(current_ang))).astype(int)
-                        y1 = (backY * np.sin(float(current_ang))).astype(int)
-                        x2 = (backX + 30 * np.cos(float(current_ang))).astype(int)
-                        y2 = (backY + 30 * np.sin(float(current_ang))).astype(int)
-                        frame = cv2.line(frame, (x1,y1), (x2,y2), plot_color1, thickness=4)
+                            x1 = (backX * np.cos(float(current_ang))).astype(int)
+                            y1 = (backY * np.sin(float(current_ang))).astype(int)
+                            x2 = (backX + 30 * np.cos(float(current_ang))).astype(int)
+                            y2 = (backY + 30 * np.sin(float(current_ang))).astype(int)
+                            frame = cv2.line(frame, (x1,y1), (x2,y2), plot_color1, thickness=4)
                     except ValueError:
                         pass
             except KeyError:
