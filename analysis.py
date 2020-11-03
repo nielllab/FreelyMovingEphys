@@ -18,7 +18,7 @@ def main(args):
     with open(json_config_path, 'r') as fp:
         config = json.load(fp)
 
-    get_figures(config)
+    ephys_figures(config)
 
 if __name__ == '__main__':
     args = pars_args()

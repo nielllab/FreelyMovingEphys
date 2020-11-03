@@ -31,5 +31,6 @@
     "ephys_sample_rate": 30000,
     "run_pupil_rotation": true,
     "run_top_angles": true,
-    "run_with_form_time": true
+    "run_with_form_time": true,
+    "run_with_form_time_TOP": false
 }

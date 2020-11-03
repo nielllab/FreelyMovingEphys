@@ -6,7 +6,8 @@ analyze new videos with DeepLabCut given already trained networks
 Oct. 16, 2020
 """
 
-import argparse, json, sys, os, cv2, subprocess, shutil
+import argparse, json, sys, os, subprocess, shutil
+import cv2
 import pandas as pd
 import deeplabcut
 import numpy as np
@@ -38,22 +39,23 @@ def run_DLC_Analysis(config):
         cam_key = cam
         # and an entry for the config file for that camear type (this will be used by DLC)
         cam_config = config['cams'][cam_key]
-        # if it's one of the cameras that needs to needs to be deinterlaced first, make sure and read in the deinterlaced 
-        if any(cam_key in s for s in ['REYE','LEYE','WORLD']):
-            # find all the videos in the data directory that are from the current camera and are deinterlaced
-            vids_this_cam = find('*'+cam_key+'*deinter.avi', config['data_path'])
-            print('found ' + str(len(vids_this_cam)) + ' deinterlaced videos from cam_key ' + cam_key)
-            # warn the user if there's nothing found
-            if len(vids_this_cam) == 0:
-                print('no ' + cam_key + ' videos found -- maybe the videos are not deinterlaced yet?')
-        else:
-            # find all the videos for camera types that don't neeed to be deinterlaced
-            vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
-            print('found ' + str(len(vids_this_cam)) + ' videos from cam_key ' + cam_key)
-        # analyze the videos with DeepLabCut
-        # this gives the function a list of files that it will iterate over with the same DLC config file
-        runDLCbatch(vids_this_cam, cam_config, config)
-        print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
+        if cam_config != '':
+            # if it's one of the cameras that needs to needs to be deinterlaced first, make sure and read in the deinterlaced 
+            if any(cam_key in s for s in ['REYE','LEYE','WORLD']):
+                # find all the videos in the data directory that are from the current camera and are deinterlaced
+                vids_this_cam = find('*'+cam_key+'*deinter.avi', config['data_path'])
+                print('found ' + str(len(vids_this_cam)) + ' deinterlaced videos from cam_key ' + cam_key)
+                # warn the user if there's nothing found
+                if len(vids_this_cam) == 0:
+                    print('no ' + cam_key + ' videos found -- maybe the videos are not deinterlaced yet?')
+            else:
+                # find all the videos for camera types that don't neeed to be deinterlaced
+                vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
+                print('found ' + str(len(vids_this_cam)) + ' videos from cam_key ' + cam_key)
+            # analyze the videos with DeepLabCut
+            # this gives the function a list of files that it will iterate over with the same DLC config file
+            runDLCbatch(vids_this_cam, cam_config, config)
+            print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
 
 if __name__ == '__main__':
     args = pars_args()

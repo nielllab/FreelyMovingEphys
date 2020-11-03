@@ -6,7 +6,8 @@ get parameters from DLC points and generate .nc or .json files
 Oct. 26, 2020
 """
 
-import argparse, json, sys, os, cv2, subprocess, shutil
+import argparse, json, sys, os, subprocess, shutil
+import cv2
 import pandas as pd
 import deeplabcut
 import numpy as np
@@ -26,7 +27,7 @@ def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
     trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
-        if 'plot' not in avi:
+        if 'plot' not in avi and 'rep11' not in avi:
             split_name = avi.split('_')[:-1]
             trial = '_'.join(split_name)
             path_to_trial = os.path.join(os.path.split(trial)[0])

@@ -6,7 +6,8 @@ deinterlace videos and shift times to suit the new video frame count
 Oct. 16, 2020
 """
 
-import argparse, json, sys, os, cv2, subprocess, shutil
+import argparse, json, sys, os, subprocess, shutil
+import cv2
 import pandas as pd
 import deeplabcut
 import numpy as np

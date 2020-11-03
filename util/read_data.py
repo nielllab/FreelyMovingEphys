@@ -161,9 +161,11 @@ def split_xyl(eye_names, eye_data, thresh):
             y_pts = xr.concat([y_pts, eye_data.sel(point_loc=pt_loc)], dim='point_loc', fill_value=np.nan)
     x_pts = xr.DataArray.squeeze(x_pts)
     y_pts = xr.DataArray.squeeze(y_pts)
+    likeli_pts = xr.DataArray.squeeze(likeli_pts)
     # convert to dataframe, transpose so points are columns
     x_vals = xr.DataArray.to_pandas(x_pts).T
     y_vals = xr.DataArray.to_pandas(y_pts).T
+    likeli_pts = xr.DataArray.to_pandas(likeli_pts).T
 
     return x_vals, y_vals, likeli_pts
 
