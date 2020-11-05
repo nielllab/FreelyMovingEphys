@@ -151,20 +151,19 @@ def sigm_fit_mp(d):
         popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5], bounds=([50, 100, 5, .05],[150, 250, 20, 5]), method='trf', xtol=10**-5)
         ci = np.sqrt(np.diagonal(pcov))
     except RuntimeError:
-        popt = np.nan*np.zeros(4);
-        ci = np.nan*np.zeros(4);
+        popt = np.nan*np.zeros(4)
+        ci = np.nan*np.zeros(4)
     return (popt, ci)
 
 # function to get into find_pupil_rotation (this will be eliminated once the pupil rotation is working well)
 def pupil_rotation_wrapper(eye_params, config, trial_name, side_letter):
     eyevidpath = find((trial_name + '*' + side_letter + 'EYEdeinter.avi'), config['data_path'])[0]
     eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTSformatted.csv'), config['data_path'])[0]
-    worldtimepath = find(('*' + trial_name + '*' + 'WORLD_BonsaiTSformatted.csv'), config['data_path'])[0]
 
-    return find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, 'REYE', eye_params, config['trial_path'], config['world_interp_method'], config['range_radius'], config)
+    return find_pupil_rotation(eyevidpath, eyetimepath, trial_name, 'REYE', eye_params, config['trial_path'], config['world_interp_method'], config['range_radius'], config)
 
 # find pupil edge and align over time to calculate cyclotorsion
-def find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, eyeext, eye_ell_params, save_path, world_interp_method, ranger, config):
+def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_params, save_path, world_interp_method, ranger, config):
 
     print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
 
@@ -176,7 +175,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, eyee
 
     # open time files
     eyeTS = open_time(eyetimepath, np.size(eye_ell_params, axis=0))
-    worldTS = open_time(worldtimepath, np.size(eye_ell_params, axis=0))
+    # worldTS = open_time(worldtimepath, np.size(eye_ell_params, axis=0))
 
     # interpolate ellipse parameters to worldcam timestamps
     # eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=world_interp_method)
@@ -207,18 +206,19 @@ def find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, eyee
         try:
             # frame reading and black and white conversion
             eye_ret, eye_frame = eyevid.read()
+
             if not eye_ret:
                 break
+
             eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)
 
             # get ellisepe parameters for this time
-            current_time = step
-            current_theta = eye_theta.sel(frame=current_time).values
-            current_phi = eye_phi.sel(frame=current_time).values
-            current_longaxis = eye_longaxis.sel(frame=current_time).values
-            current_shortaxis = eye_shortaxis.sel(frame=current_time).values
-            current_centX = eye_centX.sel(frame=current_time).values
-            current_centY = eye_centY.sel(frame=current_time).values
+            current_theta = eye_theta.sel(frame=step).values
+            current_phi = eye_phi.sel(frame=step).values
+            current_longaxis = eye_longaxis.sel(frame=step).values
+            current_shortaxis = eye_shortaxis.sel(frame=step).values
+            current_centX = eye_centX.sel(frame=step).values
+            current_centY = eye_centY.sel(frame=step).values
 
             # some configuration
             meanr = 0.5 * (current_longaxis + current_shortaxis) # mean radius
@@ -408,6 +408,9 @@ def find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, eyee
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
 
+        # make a dataframe of rfit values formatted to be ready to plot
+        rfit_plot = pd.DataFrame(rfit_conv_xr.values)
+        
         print('plotting pupil rotation on eye video')
         for step in tqdm(np.arange(totalF)):
             eye_ret, eye_frame = eyevid.read()
@@ -415,39 +418,35 @@ def find_pupil_rotation(eyevidpath, eyetimepath, worldtimepath, trial_name, eyee
             if not eye_ret:
                 break
 
-            eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)
+            # eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)
 
             # get ellisepe parameters for this time
-            current_time = step
-            current_theta = eye_theta.sel(frame=current_time).values
-            current_phi = eye_phi.sel(frame=current_time).values
-            current_longaxis = eye_longaxis.sel(frame=current_time).values
-            current_shortaxis = eye_shortaxis.sel(frame=current_time).values
-            current_centX = eye_centX.sel(frame=current_time).values
-            current_centY = eye_centY.sel(frame=current_time).values
+            current_theta = eye_theta.sel(frame=step).values
+            current_phi = eye_phi.sel(frame=step).values
+            current_longaxis = eye_longaxis.sel(frame=step).values
+            current_shortaxis = eye_shortaxis.sel(frame=step).values
+            current_centX = eye_centX.sel(frame=step).values
+            current_centY = eye_centY.sel(frame=step).values
 
             # plot the ellipse edge
             rmin = 0.5 * (current_longaxis + current_shortaxis) - ranger
             for deg_th in range(0,360):
-                try:
-                    rad_th = rad_range[deg_th]
-                    eye_frame = cv2.circle(eye_frame, (int(round(current_centX+(rmin+rfit[deg_th])*np.cos(rad_th))),int(round(current_centY+(rmin+rfit[deg_th])*np.sin(rad_th)))), 1, (0,0,0), thickness=-1)
-                except ValueError:
-                    pass
+                rad_th = rad_range[deg_th]
+                edge_x = np.round(current_centX+(rmin+rfit_plot.iloc[step,deg_th])*np.cos(rad_th))
+                edge_y = np.round(current_centY+(rmin+rfit_plot.iloc[step,deg_th])*np.sin(rad_th))
+                if pd.isnull(edge_x) is False and pd.isnull(edge_y) is False:
+                    eye_frame = cv2.circle(eye_frame, (int(edge_x),int(edge_y)), 1, (235,52,155), thickness=-1)
 
             # plot the rotation of the eye as a vertical line made up of many circles
-            d = range(-20,20)
-            for d1 in d:
-                try:
-                    eye_frame = cv2.circle(eye_frame, (int(round(current_centX + d1 * (np.cos(np.deg2rad(shift_smooth[current_time]+90))))),int(round(current_centY + d1 * (np.sin(np.deg2rad(shift_smooth[current_time]+90)))))),1,(0,0,0),thickness=-1)
-                except (ValueError, IndexError) as e:
-                    pass
+            for d in range(-20,20):
+                rot_x = np.round(current_centX + d * np.cos(np.deg2rad(shift_smooth[step]+90)))
+                rot_y = np.round(current_centY + d * np.sin(np.deg2rad(shift_smooth[step]+90)))
+                if pd.isnull(rot_x) is False and pd.isnull(rot_y) is False:
+                    eye_frame = cv2.circle(eye_frame, (int(rot_x),int(rot_y)),1,(255,255,255),thickness=-1)
 
             # plot the center of the eye on the frame as a larger dot than the others
-            try:
-                eye_frame = cv2.circle(eye_frame, (int(current_centX),int(current_centY)),3,(0,0,0),thickness=-1)
-            except (ValueError, IndexError) as e:
-                pass
+            if pd.isnull(current_centX) is False and pd.isnull(current_centY) is False:
+                eye_frame = cv2.circle(eye_frame, (int(current_centX),int(current_centY)),3,(0,255,0),thickness=-1)
 
             vidout.write(eye_frame)
 

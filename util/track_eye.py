@@ -137,12 +137,12 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         likelihood = likelihood[:,:-2]
 
     # get bools of when a frame is usable with the right number of points above threshold
-    usegood = np.sum(likelihood,0) >= config['num_ellipse_pts_needed']
+    usegood = np.sum(likelihood,1) >= config['num_ellipse_pts_needed']
 
     # plot all good timepoints
     if config['save_figs'] is True:
         plt.figure()
-        plt.plot(np.sum(likelihood,0))
+        plt.plot(np.sum(likelihood,1))
         plt.title(str(np.round(np.mean(usegood), 3)) + ' good; thresh= ' + str(config['lik_thresh']))
         plt.ylabel('num good eye points'); plt.xlabel('frame')
         pdf.savefig()
@@ -184,7 +184,6 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     phi = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
 
     # organize data to return as an xarray of most essential parameters
-    # note: here, we subtract 45 degrees (in radians) from phi
     ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,5]), 'shortaxis':list(ellipse_params[:,6]),
                                'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12])})
     ellipse_param_names = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0']

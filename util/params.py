@@ -190,36 +190,39 @@ def extract_params(config):
                 trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, shift])
                 trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
 
-        # analyze world views
-        world_sides = []
-        if 'WORLD' in config['cams']:
-            world_sides.append('WORLD')
-        if 'World' in config['cams']:
-            world_sides.append('World')    
-        for i in range(0,len(world_sides)):
-            world_side = world_sides[i]
-            print('tracking '+ world_side +' for ' + t_name)
-            # filter the list of files for the current trial to get the world view of this side
-            if config['run_with_form_time'] is True:
-                world_csv = [i for i in trial_cam_csv if world_side in i and 'formatted' in i][0]
-            elif config['run_with_form_time'] is False:
-                world_csv = [i for i in trial_cam_csv if world_side in i][0]
-            world_avi = [i for i in trial_cam_avi if world_side in i and 'deinter' in i][0]
-            # make an xarray of timestamps without dlc points, since there aren't any for a world camera
-            worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=config)
-            worlddlc.name = 'WORLD_times'
-            # make xarray of video frames
-            xr_world_frames = format_frames(world_avi, config); xr_world_frames.name = 'WORLD_video'
-            # merge but make sure they're not off in lenght by one value, which happens occasionally
-            print('saving...')
-            try:
-                trial_world_data = xr.merge([worlddlc, xr_world_frames])
-            except ValueError:
-                if len(worlddlc) > len(xr_world_frames):
-                    trial_world_data = xr.merge([worlddlc[:-1], xr_world_frames])
-                elif len(worlddlc) < len(xr_world_frames):
-                    trial_world_data = xr.merge([worlddlc, xr_world_frames[:-1]])
-            trial_world_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 9}})
+        try:
+            # analyze world views
+            world_sides = []
+            if 'WORLD' in config['cams']:
+                world_sides.append('WORLD')
+            if 'World' in config['cams']:
+                world_sides.append('World')    
+            for i in range(0,len(world_sides)):
+                world_side = world_sides[i]
+                print('tracking '+ world_side +' for ' + t_name)
+                # filter the list of files for the current trial to get the world view of this side
+                if config['run_with_form_time'] is True:
+                    world_csv = [i for i in trial_cam_csv if world_side in i and 'formatted' in i][0]
+                elif config['run_with_form_time'] is False:
+                    world_csv = [i for i in trial_cam_csv if world_side in i][0]
+                world_avi = [i for i in trial_cam_avi if world_side in i and 'deinter' in i][0]
+                # make an xarray of timestamps without dlc points, since there aren't any for a world camera
+                worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=config)
+                worlddlc.name = 'WORLD_times'
+                # make xarray of video frames
+                xr_world_frames = format_frames(world_avi, config); xr_world_frames.name = 'WORLD_video'
+                # merge but make sure they're not off in lenght by one value, which happens occasionally
+                print('saving...')
+                try:
+                    trial_world_data = xr.merge([worlddlc, xr_world_frames])
+                except ValueError:
+                    if len(worlddlc) > len(xr_world_frames):
+                        trial_world_data = xr.merge([worlddlc[:-1], xr_world_frames])
+                    elif len(worlddlc) < len(xr_world_frames):
+                        trial_world_data = xr.merge([worlddlc, xr_world_frames[:-1]])
+                trial_world_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 9}})
+        except IndexError:
+            print('no WORLD trials found for ' + t_name)
 
         # analyze side views
         side_sides = []
