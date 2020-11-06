@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Oct. 26, 2020
+Nov. 05, 2020
 """
 
 # package imports
@@ -168,7 +168,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
     print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
 
     if config['save_figs'] is True:
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eyeext + 'EYE_tracking_figs.pdf')))
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eyeext + 'EYE_pupil_rotation_figs.pdf')))
 
     # set up range of degrees in radians
     rad_range = np.deg2rad(np.arange(360))
@@ -212,7 +212,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
 
             eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)
 
-            # get ellisepe parameters for this time
+            # get ellipse parameters for this time
             current_theta = eye_theta.sel(frame=step).values
             current_phi = eye_phi.sel(frame=step).values
             current_longaxis = eye_longaxis.sel(frame=step).values
@@ -230,8 +230,16 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             for i in range(0, len(r)):
                 pupil_edge[step,:,i] = eye_frame[((current_centY + r[i]*(np.sin(rad_range))).astype(int),(current_centX + r[i]*(np.cos(rad_range))).astype(int))]
             d = pupil_edge[step,:,:]
-            param_mp = [pool.apply_async(sigm_fit_mp, args=(d[n],)) for n in range(360)]
+
+            # with multiprocessing
+            param_mp = [pool.apply_async(sigm_fit_mp, args=(d[n,:],)) for n in range(360)]
             params_output = [result.get() for result in param_mp]
+
+            # no multiprocessing
+            # params_output = []
+            # for n in range(360):
+            #     params_output.append(sigm_fit_mp(d[n,:]))
+
             params = []; ci = []
             for vals in params_output:
                 params.append(vals[0])
@@ -247,25 +255,11 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             # then, remove if luminance goes the wrong way (e.g. from reflectance)
             for deg_th in range(0,360):
                 rfit[deg_th] = np.where(ci[deg_th,2] > fit_thresh, np.nan, rfit[deg_th])
-                rfit[deg_th] = np.where((ci[deg_th,1] - ci[deg_th,0]) < 0, np.nan, rfit[deg_th])
-
-            # interpolate because convolution will create large NaN holes
-            # is interpolation a good idea here? either way, the way this is done can be improved
-            interp_x = [item for sublist in np.argwhere(np.isnan(rfit)) for item in sublist]
-            interp_xp = [item for sublist in np.argwhere(~np.isnan(rfit)) for item in sublist]
-            interp_fp = rfit[~np.isnan(rfit)]
+                rfit[deg_th] = np.where((params[deg_th,1] - params[deg_th,0]) < 0, np.nan, rfit[deg_th])
 
             try:
-                rfit_interp_vals = np.interp(interp_x, interp_xp, interp_fp)
-                # replace values in rfit_interp if they were NaN with the values found in interpolation
-                rfit_interp = rfit; j=0
-                for i in range(0,len(rfit_interp)):
-                    if np.isnan(rfit_interp[i]):
-                        rfit_interp[i] = rfit_interp_vals[j]
-                        j = j + 1
-
                 # median filter
-                rfit_interp = signal.medfilt(rfit_interp,3)
+                rfit_interp = signal.medfilt(rfit,3)
 
                 # subtract baseline because our points aren't perfectly centered on ellipse
                 filtsize = 30
@@ -357,12 +351,11 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
     # then recalculate mean template
     print('doing iterative fit on frames to find alignment for each frame')
     for rep in tqdm(range(0,12)):
-        eyevid = cv2.VideoCapture(eyevidpath)
 
         # for each frame, get correlation, and shift
         for frame_num in range(0,n):
             xc, lags = nanxcorr(template, pupil_update[frame_num,:], 10)
-            c[frame_num] = np.amax(xc)
+            c[frame_num] = np.amax(xc) # as of 110520 -- getting TypeError because xc is NoneType
             peaklag = np.argmax(xc)
             peak[frame_num] = lags[peaklag]
             total_shift[frame_num] = total_shift[frame_num] + peak[frame_num]
@@ -409,7 +402,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
 
         # make a dataframe of rfit values formatted to be ready to plot
-        rfit_plot = pd.DataFrame(rfit_conv_xr.values)
+        rfit_plot = pd.DataFrame(rfit)
         
         print('plotting pupil rotation on eye video')
         for step in tqdm(np.arange(totalF)):
@@ -417,8 +410,6 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
 
             if not eye_ret:
                 break
-
-            # eye_frame = cv2.cvtColor(eye_frame, cv2.COLOR_BGR2GRAY)
 
             # get ellisepe parameters for this time
             current_theta = eye_theta.sel(frame=step).values
@@ -454,7 +445,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
 
     # temporary: save pupil rotation values to csv in case of error during xarray formatting
     shift_smooth_pd = pd.DataFrame(shift_smooth)
-    shift_smooth_pd.to_csv(os.path.join(config['trial_path'], str(trial_name + '_shift_smooth.csv')), index=False)
+    # shift_smooth_pd.to_csv(os.path.join(config['trial_path'], str(trial_name + '_shift_smooth.csv')), index=False)
     shift = xr.DataArray(shift_smooth_pd, dims=['frame','shift'])
     print('key/value error count during sigmoid fit: ' + str(key_error_count))
 

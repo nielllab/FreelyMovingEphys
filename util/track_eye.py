@@ -3,7 +3,7 @@ track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-Oct. 26, 2020
+Nov 05, 2020
 """
 
 # package imports
@@ -55,9 +55,11 @@ def fit_ellipse(x,y):
     eig_val, eig_vec = eig(Q)
     
     # get angle to long axis
-    angle_to_x = np.arctan2(eig_vec[1,0], eig_vec[0,0])
+    if eig_val[0] < eig_val[1]:
+      angle_to_x = np.arctan2(eig_vec[1,0], eig_vec[0,0])
+    else:
+      angle_to_x = np.arctan2(eig_vec[1,1], eig_vec[0,1])
     angle_from_x = angle_to_x
-    
 
     orientation_rad = 0.5 * np.arctan2(b, (c-a))
     cos_phi = np.cos(orientation_rad)
@@ -103,7 +105,7 @@ def fit_ellipse(x,y):
         ellipse_dict = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
                         'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
                         'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
-        
+
     return ellipse_dict
 
 # get the ellipse parameters from DeepLabCut points and save into an xarray
@@ -137,7 +139,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         likelihood = likelihood[:,:-2]
 
     # get bools of when a frame is usable with the right number of points above threshold
-    usegood = np.sum(likelihood,1) >= config['num_ellipse_pts_needed']
+    usegood = np.sum(likelihood >= config['lik_thresh'], 1) >= config['num_ellipse_pts_needed']
 
     # plot all good timepoints
     if config['save_figs'] is True:
@@ -165,6 +167,13 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
                                     e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
                                     e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
 
+    # if config['save_figs'] is True:
+    #     plt.figure()
+    #     plt.scatter(ellipse_params[:,11], ellipse_params[:,0])
+    #     plt.title('X0_in vs X0')
+    #     pdf.savefig()
+    #     plt.close()
+
     # list of all places where the ellipse meets threshold
     R = np.linspace(0,2*np.pi, 100)
     list1 = np.where((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh']) # short axis / long axis
@@ -182,6 +191,28 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # angles
     theta = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
     phi = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
+
+    # if config['save_figs'] is True:
+    #     plt.figure()
+    #     plt.scatter(ellipse_params[:,7], phi)
+    #     plt.title('angle_to_x vs phi')
+    #     pdf.savefig()
+    #     plt.close()
+
+    if config['save_figs'] is True:
+        plt.figure()
+        plt.plot(np.rad2deg(phi))
+        plt.title('phi')
+        plt.ylabel('deg'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+
+        plt.figure()
+        plt.plot(np.rad2deg(theta))
+        plt.title('theta')
+        plt.ylabel('deg'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
 
     # organize data to return as an xarray of most essential parameters
     ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,5]), 'shortaxis':list(ellipse_params[:,6]),
@@ -309,9 +340,9 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
                 pts = dlc_data.sel(frame=frame_num)
                 for k in range(0, len(pts), 3):
                     pt_cent = (int(pts.isel(point_loc=k).values), int(pts.isel(point_loc=k+1).values))
-                    if pts.isel(point_loc=k+2).values < 0.90: # bad points in red
+                    if pts.isel(point_loc=k+2).values < config['lik_thresh']: # bad points in red
                         frame = cv2.circle(frame, pt_cent, 3, (0,0,255), -1)
-                    elif pts.isel(point_loc=k+2).values >= 0.90: # good points in green
+                    elif pts.isel(point_loc=k+2).values >= config['lik_thresh']: # good points in green
                         frame = cv2.circle(frame, pt_cent, 3, (0,255,0), -1)
 
             except (ValueError, KeyError):

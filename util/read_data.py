@@ -254,10 +254,7 @@ def nanxcorr(x, y, maxlag=25):
         x_use = x_arr[use]; yshift_use = yshift_arr[use]
         # normalize
         x_use = (x_use - np.mean(x_use)) / (np.std(x_use) * len(x_use))
-        try:
-            yshift_use = (yshift_use - np.mean(yshift_use)) / (np.std(yshift_use))
-        except ZeroDivisionError:
-            yshift_use = (yshift_use - np.mean(yshift_use))
+        yshift_use = (yshift_use - np.mean(yshift_use)) / (np.std(yshift_use))
         # get correlation
         cc.append(np.correlate(x_use, yshift_use))
     cc_out = np.hstack(np.stack(cc))
@@ -265,7 +262,6 @@ def nanxcorr(x, y, maxlag=25):
 
 # add videos to xarray
 # will downsample by ratio in config file and convert to black and white uint8
-# might want to improve the way this is done -- requires lot of memory for each video
 def format_frames(vid_path, config):
     print('formatting video into DataArray')
     vidread = cv2.VideoCapture(vid_path)
