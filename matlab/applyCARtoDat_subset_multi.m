@@ -35,7 +35,7 @@ chunkSize = 1000000;
 done=0;
 nf = 0; %%% number of files
 while ~done
-    [f p] = uigetfile('*.bin')
+    [f p] = uigetfile('*.bin','ephys file to merge')
     if f~=0
         nf =nf+1;
         fileList{nf} = f;
@@ -45,7 +45,7 @@ while ~done
     end
 end
 
-[f p ]= uiputfile('*.bin');
+[f p ]= uiputfile('*.bin', 'merged output file');
 outputFilename = fullfile(p,f);
 
 try
