@@ -7,4 +7,8 @@ medfilt = 1;
 subset = [9:24];
 isuint16 = 1;
 
-applyCARtoDat_subset(fname,nchan,outpath,medfilt,subset,isuint16);
+%single dataset
+%applyCARtoDat_subset(fname,nchan,outpath,medfilt,subset,isuint16);
+
+%merge datasets
+applyCARtoDat_subset_multi(nchan,medfilt,subset,isuint16);
