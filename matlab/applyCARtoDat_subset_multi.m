@@ -9,8 +9,6 @@ function [allData medianTrace] = applyCARtoDat_subset_multi(nChansTotal, doMedia
 % based on cortex repository by N. Steinmetz
 % edited by cmn 2020
 %
-% outputDir is optional (can leave empty), by default will write to the directory of the input file
-%
 % should make chunk size as big as possible so that the medians of the
 % channels differ little from chunk to chunk.
 %
@@ -19,6 +17,9 @@ function [allData medianTrace] = applyCARtoDat_subset_multi(nChansTotal, doMedia
 % subChans = subset of channels to includie in output
 % isUint16 = raw data is uint16,so convert to int16
 % returns processed traces (allData) and CAR median (medianTrace)
+%
+% gui will ask for .bin files to merge. 'cancel' when done'
+% next, will ask for .bin output file to save merged data into
 
 if ~exist('doMedian','var') | isempty(doMedian)
     doMedian = 1;
@@ -34,6 +35,8 @@ end
 chunkSize = 1000000;
 done=0;
 nf = 0; %%% number of files
+
+%%% select files to merge
 while ~done
     [f p] = uigetfile('*.bin','ephys file to merge')
     if f~=0
@@ -45,6 +48,7 @@ while ~done
     end
 end
 
+%%% select output file
 [f p ]= uiputfile('*.bin', 'merged output file');
 outputFilename = fullfile(p,f);
 
