@@ -240,6 +240,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             # for n in range(360):
             #     params_output.append(sigm_fit_mp(d[n,:]))
 
+            # unpack outputs of sigmoid fit
             params = []; ci = []
             for vals in params_output:
                 params.append(vals[0])
@@ -282,11 +283,20 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             rfit_conv_xr = xr.DataArray(rfit_conv)
             rfit_conv_xr['frame'] = step
             rfit_conv_xr = xr.DataArray.rename(rfit_conv_xr, {'dim_0':'deg'})
+
+            rfit_xr = xr.DataArray(rfit)
+            rfit_xr['frame'] = step
+            rfit_xr = xr.DataArray.rename(rfit_xr, {'dim_0':'deg'})
         if step > 0:
             rfit_conv_temp = xr.DataArray(rfit_conv)
             rfit_conv_temp['frame'] = step
             rfit_conv_temp = xr.DataArray.rename(rfit_conv_temp, {'dim_0':'deg'})
             rfit_conv_xr = xr.concat([rfit_conv_xr, rfit_conv_temp], dim='frame', fill_value=np.nan)
+
+            rfit_temp = xr.DataArray(rfit)
+            rfit_temp['frame'] = step
+            rfit_temp = xr.DataArray.rename(rfit_temp, {'dim_0':'deg'})
+            rfit_xr = xr.concat([rfit_xr, rfit_temp], dim='frame', fill_value=np.nan)
 
     # plot rfit for all trials and highlight mean
     if config['save_figs'] is True:
@@ -355,11 +365,15 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         # for each frame, get correlation, and shift
         for frame_num in range(0,n):
             xc, lags = nanxcorr(template, pupil_update[frame_num,:], 10)
-            c[frame_num] = np.amax(xc) # as of 110520 -- getting TypeError because xc is NoneType
-            peaklag = np.argmax(xc)
-            peak[frame_num] = lags[peaklag]
-            total_shift[frame_num] = total_shift[frame_num] + peak[frame_num]
-            pupil_update[frame_num,:] = np.roll(pupil_update[frame_num,:], int(peak[frame_num]))
+            try:
+                c[frame_num] = np.amax(xc) # as of 110520 -- getting TypeError because xc is NoneType
+                peaklag = np.argmax(xc)
+                peak[frame_num] = lags[peaklag]
+                total_shift[frame_num] = total_shift[frame_num] + peak[frame_num]
+                pupil_update[frame_num,:] = np.roll(pupil_update[frame_num,:], int(peak[frame_num]))
+            except TypeError:
+                total_shift[frame_num] = np.zeros(np.shape(total_shift[frame_num-1]))
+                pupil_update[frame_num] = np.zeros(np.shape(pupil_update[frame_num-1]))
 
         if config['save_figs'] is True:
             # plot template with pupil_update for each iteration of fit
@@ -400,9 +414,6 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         vidsavepath = os.path.join(config['trial_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + eyeext + '.avi'))
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
-
-        # make a dataframe of rfit values formatted to be ready to plot
-        rfit_plot = pd.DataFrame(rfit)
         
         print('plotting pupil rotation on eye video')
         for step in tqdm(np.arange(totalF)):
@@ -423,8 +434,8 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             rmin = 0.5 * (current_longaxis + current_shortaxis) - ranger
             for deg_th in range(0,360):
                 rad_th = rad_range[deg_th]
-                edge_x = np.round(current_centX+(rmin+rfit_plot.iloc[step,deg_th])*np.cos(rad_th))
-                edge_y = np.round(current_centY+(rmin+rfit_plot.iloc[step,deg_th])*np.sin(rad_th))
+                edge_x = np.round(current_centX+(rmin+rfit_xr.isel(frame=step,deg=deg_th).values)*np.cos(rad_th))
+                edge_y = np.round(current_centY+(rmin+rfit_xr.isel(frame=step,deg=deg_th).values)*np.sin(rad_th))
                 if pd.isnull(edge_x) is False and pd.isnull(edge_y) is False:
                     eye_frame = cv2.circle(eye_frame, (int(edge_x),int(edge_y)), 1, (235,52,155), thickness=-1)
 
@@ -451,4 +462,4 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
 
     pdf.close()
 
-    return rfit_conv_xr, shift
+    return rfit_xr, rfit_conv_xr, shift

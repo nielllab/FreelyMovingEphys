@@ -169,7 +169,7 @@ def extract_params(config):
             eyeparams = eye_tracking(eyedlc, config, t_name, eye_side)
             # get pupil rotation and plot video -- slow step
             if config['run_pupil_rotation'] is True:
-                rfit, shift = pupil_rotation_wrapper(eyeparams, config, t_name, eye_side)
+                rfit, rfit_conv, shift = pupil_rotation_wrapper(eyeparams, config, t_name, eye_side)
             # make videos (only if config says so)
             if config['save_vids'] is True:
                 print('plotting parameters on video')
@@ -179,7 +179,7 @@ def extract_params(config):
             # name and organize data
             eyedlc.name = eye_side+'EYE_pts'; eyeparams.name = eye_side+'EYE_ellipse_params'
             if config['run_pupil_rotation'] is True:
-                rfit.name = eye_side+'eye_radius_fit'; shift.name = eye_side+'eye_pupil_rotation'
+                rfit_conv.name = eye_side+'radius_fit_conv'; rfit.name = eye_side+'radius_fit'; shift.name = eye_side+'eye_pupil_rotation'
             xr_eye_frames.name = eye_side+'EYE_video'
             if config['run_pupil_rotation'] is False:
                 print('saving...')
@@ -187,7 +187,7 @@ def extract_params(config):
                 trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
             if config['run_pupil_rotation'] is True:
                 print('saving...')
-                trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, shift])
+                trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, rfit_conv, shift])
                 trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
 
         try:
