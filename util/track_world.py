@@ -396,7 +396,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
     win = 3
     shift_nan = -total_shift
     shift_nan[c < 0.2] = np.nan # started at [c < 0.4], is it alright to change this? many values go to NaN otherwise
-    shift_nan[shift_nan > 0.75] = np.nan; shift_nan[shift_nan < -0.75] = np.nan # get rid of very large shifts which probably aren't real
+    shift_nan[shift_nan > 0.6] = np.nan; shift_nan[shift_nan < -0.6] = np.nan # get rid of very large shifts
     shift_smooth = convolve(shift_nan, np.ones(win)/win, boundary='wrap') # convolve using astopy.convolution.convolve, which should work like nanconv by interpolating over nans as appropriate
     shift_smooth = shift_smooth - np.nanmedian(shift_smooth)
     shift_nan = shift_nan - np.nanmedian(shift_nan)
