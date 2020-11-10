@@ -3,7 +3,7 @@ read_data.py
 
 functions for reading in and manipulating data and time
 
-Oct. 26, 2020
+Nov. 09, 2020
 """
 
 import pandas as pd
@@ -254,7 +254,7 @@ def nanxcorr(x, y, maxlag=25):
         x_use = x_arr[use]; yshift_use = yshift_arr[use]
         # normalize
         x_use = (x_use - np.mean(x_use)) / (np.std(x_use) * len(x_use))
-        yshift_use = (yshift_use - np.mean(yshift_use)) / (np.std(yshift_use))
+        yshift_use = (yshift_use - np.mean(yshift_use)) / np.std(yshift_use)
         # get correlation
         cc.append(np.correlate(x_use, yshift_use))
     cc_out = np.hstack(np.stack(cc))

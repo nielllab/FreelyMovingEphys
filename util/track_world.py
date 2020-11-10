@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Nov. 05, 2020
+Nov. 09, 2020
 """
 
 # package imports
@@ -231,11 +231,11 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
                 pupil_edge[step,:,i] = eye_frame[((current_centY + r[i]*(np.sin(rad_range))).astype(int),(current_centX + r[i]*(np.cos(rad_range))).astype(int))]
             d = pupil_edge[step,:,:]
 
-            # with multiprocessing
+            # apply sigmoid fit with multiprocessing
             param_mp = [pool.apply_async(sigm_fit_mp, args=(d[n,:],)) for n in range(360)]
             params_output = [result.get() for result in param_mp]
 
-            # no multiprocessing
+            # apply signoid fit without multiprocessing
             # params_output = []
             # for n in range(360):
             #     params_output.append(sigm_fit_mp(d[n,:]))
@@ -364,16 +364,16 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
 
         # for each frame, get correlation, and shift
         for frame_num in range(0,n):
-            xc, lags = nanxcorr(template, pupil_update[frame_num,:], 10)
             try:
-                c[frame_num] = np.amax(xc) # as of 110520 -- getting TypeError because xc is NoneType
-                peaklag = np.argmax(xc)
+                xc, lags = nanxcorr(template, pupil_update[frame_num,:], 10)
+                c[frame_num] = np.amax(xc) # value of max
+                peaklag = np.argmax(xc) # position of max
                 peak[frame_num] = lags[peaklag]
                 total_shift[frame_num] = total_shift[frame_num] + peak[frame_num]
                 pupil_update[frame_num,:] = np.roll(pupil_update[frame_num,:], int(peak[frame_num]))
-            except TypeError:
-                total_shift[frame_num] = np.zeros(np.shape(total_shift[frame_num-1]))
-                pupil_update[frame_num] = np.zeros(np.shape(pupil_update[frame_num-1]))
+            except ZeroDivisionError:
+                total_shift[frame_num] = np.nan
+                pupil_update[frame_num,:] = np.nan
 
         if config['save_figs'] is True:
             # plot template with pupil_update for each iteration of fit
@@ -387,13 +387,16 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             # histogram of correlations
             plt.figure()
             plt.title('correlations of rep='+str(rep)+' in iterative fit')
-            plt.hist(c)
+            plt.hist(c, bins=300)
             pdf.savefig()
             plt.close()
+
+    total_shift[np.mean(rfit_conv,1) > 25] = np.nan
 
     win = 3
     shift_nan = -total_shift
     shift_nan[c < 0.2] = np.nan # started at [c < 0.4], is it alright to change this? many values go to NaN otherwise
+    shift_nan[shift_nan > 0.75] = np.nan; shift_nan[shift_nan < -0.75] = np.nan # get rid of very large shifts which probably aren't real
     shift_smooth = convolve(shift_nan, np.ones(win)/win, boundary='wrap') # convolve using astopy.convolution.convolve, which should work like nanconv by interpolating over nans as appropriate
     shift_smooth = shift_smooth - np.nanmedian(shift_smooth)
     shift_nan = shift_nan - np.nanmedian(shift_nan)
@@ -401,13 +404,17 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
     if config['save_figs'] is True:
         plt.figure()
         plt.plot(shift_nan)
+        plt.title('shift nan')
         pdf.savefig()
         plt.close()
 
         plt.figure()
         plt.plot(shift_smooth)
+        plt.title('shift smooth')
         pdf.savefig()
         plt.close()
+
+    shift_smooth1 = xr.DataArray(shift_smooth, dims=['frame'])
 
     if config['save_vids'] is True:
         eyevid = cv2.VideoCapture(eyevidpath)
@@ -434,15 +441,15 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             rmin = 0.5 * (current_longaxis + current_shortaxis) - ranger
             for deg_th in range(0,360):
                 rad_th = rad_range[deg_th]
-                edge_x = np.round(current_centX+(rmin+rfit_xr.isel(frame=step,deg=deg_th).values)*np.cos(rad_th))
-                edge_y = np.round(current_centY+(rmin+rfit_xr.isel(frame=step,deg=deg_th).values)*np.sin(rad_th))
+                edge_x = np.round(current_centX+(rmin+rfit.isel(frame=step,deg=deg_th).values)*np.cos(rad_th))
+                edge_y = np.round(current_centY+(rmin+rfit.isel(frame=step,deg=deg_th).values)*np.sin(rad_th))
                 if pd.isnull(edge_x) is False and pd.isnull(edge_y) is False:
                     eye_frame = cv2.circle(eye_frame, (int(edge_x),int(edge_y)), 1, (235,52,155), thickness=-1)
 
             # plot the rotation of the eye as a vertical line made up of many circles
-            for d in range(-20,20):
-                rot_x = np.round(current_centX + d * np.cos(np.deg2rad(shift_smooth[step]+90)))
-                rot_y = np.round(current_centY + d * np.sin(np.deg2rad(shift_smooth[step]+90)))
+            for d in np.linspace(-0.5,0.5,100):
+                rot_x = np.round(current_centX + d*(np.rad2deg(np.cos(shift_smooth1.isel(frame=step).values))))
+                rot_y = np.round(current_centY + d*(np.rad2deg(np.sin(shift_smooth1.isel(frame=step).values))))
                 if pd.isnull(rot_x) is False and pd.isnull(rot_y) is False:
                     eye_frame = cv2.circle(eye_frame, (int(rot_x),int(rot_y)),1,(255,255,255),thickness=-1)
 
