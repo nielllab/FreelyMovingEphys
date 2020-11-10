@@ -391,7 +391,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             pdf.savefig()
             plt.close()
 
-    total_shift[np.mean(rfit_conv,1) > 25] = np.nan
+    # total_shift[np.mean(rfit_conv,1) > 25] = np.nan
 
     win = 3
     shift_nan = -total_shift
@@ -441,8 +441,8 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             rmin = 0.5 * (current_longaxis + current_shortaxis) - ranger
             for deg_th in range(0,360):
                 rad_th = rad_range[deg_th]
-                edge_x = np.round(current_centX+(rmin+rfit.isel(frame=step,deg=deg_th).values)*np.cos(rad_th))
-                edge_y = np.round(current_centY+(rmin+rfit.isel(frame=step,deg=deg_th).values)*np.sin(rad_th))
+                edge_x = np.round(current_centX+(rmin+rfit_xr.isel(frame=step,deg=deg_th).values)*np.cos(rad_th))
+                edge_y = np.round(current_centY+(rmin+rfit_xr.isel(frame=step,deg=deg_th).values)*np.sin(rad_th))
                 if pd.isnull(edge_x) is False and pd.isnull(edge_y) is False:
                     eye_frame = cv2.circle(eye_frame, (int(edge_x),int(edge_y)), 1, (235,52,155), thickness=-1)
 
