@@ -130,7 +130,7 @@ try
     
     %%% save .mat with info to separate phy output
     matFname = [outputFilename(1:end-4) '.mat'];
-    save(matFname,'pathList','fileList','nSamps');
+    save(matFname,'pathList','fileList','nSamps','doMedian','subChans');
     
 catch me
     
