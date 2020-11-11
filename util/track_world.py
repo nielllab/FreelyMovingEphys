@@ -263,14 +263,12 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
                 rfit_interp = signal.medfilt(rfit,3)
 
                 # subtract baseline because our points aren't perfectly centered on ellipse
-                filtsize = 30
-                rfit_conv = rfit - convolve(rfit_interp, np.ones(3)/3, boundary='wrap')
+                filtsize = 31
+                rfit_conv = rfit - convolve(rfit_interp, np.ones(filtsize)/filtsize, boundary='wrap')
                 # edges have artifact from conv, so set to NaNs
-                # could fix this by padding data with wraparound at 0 and 360deg before conv
-                # the astropy package can do this with the convolution.convolve package
-                # TO DO: test and impliment wraparound convolution with astropy function convolve
-                rfit_conv[range(0,int(filtsize/2+1))] = np.nan
-                rfit_conv[range((len(rfit_conv)-int(filtsize/2-1)),len(rfit_conv))] = np.nan
+                #   no edge artifacts anymore -- astropy convolve wraps around
+                # rfit_conv[range(0,int(filtsize/2+1))] = np.nan
+                # rfit_conv[range((len(rfit_conv)-int(filtsize/2-1)),len(rfit_conv))] = np.nan
 
             except ValueError: # in case every value in rfit is NaN
                 rfit_conv = np.empty(np.shape(rfit_conv)) # make an rfit_conv with the shape of the last one
@@ -397,7 +395,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
     shift_nan = -total_shift
     shift_nan[c < 0.2] = np.nan # started at [c < 0.4], is it alright to change this? many values go to NaN otherwise
     shift_nan[shift_nan > 0.6] = np.nan; shift_nan[shift_nan < -0.6] = np.nan # get rid of very large shifts
-    shift_smooth = convolve(shift_nan, np.ones(win)/win, boundary='wrap') # convolve using astopy.convolution.convolve, which should work like nanconv by interpolating over nans as appropriate
+    shift_smooth = np.convolve(shift_nan, np.ones(win)/win, mode='same')
     shift_smooth = shift_smooth - np.nanmedian(shift_smooth)
     shift_nan = shift_nan - np.nanmedian(shift_nan)
 
@@ -413,6 +411,22 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         plt.title('shift smooth')
         pdf.savefig()
         plt.close()
+
+        plt.figure()
+        plt.plot(rfit_xr.T)
+        plt.plot(np.nanmean(rfit_xr.T,1), 'b--')
+        plt.title('rfit')
+        pdf.savefig()
+        plt.close()
+
+        plt.figure()
+        plt.plot(rfit_conv_xr.T)
+        plt.plot(np.nanmean(rfit_conv_xr.T,1), 'b--')
+        plt.title('rfit conv')
+        pdf.savefig()
+        plt.close()
+
+        # rfit, rfit_conv, plot astropy and numpy conv
 
     shift_smooth1 = xr.DataArray(shift_smooth, dims=['frame'])
 
