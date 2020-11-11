@@ -1,0 +1,36 @@
+{
+    "data_path": "T:/path/to/date/directory/",
+    "steps_to_run":{
+        "deinter": true,
+        "dlc": true,
+        "params": true
+    },
+    "cams": {
+        "WORLD": "",
+        "REYE": "C:/Users/Niell Lab/Documents/EyeCamTesting-dylan-2020-07-07/config.yaml",
+        "TOP1": "C:/Users/Niell Lab/Documents/FreelyMovingEphys_DLCprojects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
+        "TOP2": "C:/Users/Niell Lab/Documents/FreelyMovingEphys_DLCprojects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
+        "TOP3": "C:/Users/Niell Lab/Documents/FreelyMovingEphys_DLCprojects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
+    },
+    "flip_eye_during_deinter": true,
+    "crop_for_dlc": true,
+    "multianimal_TOP": false,
+    "lik_thresh": 0.99,
+    "has_ephys": true,
+    "cricket": true,
+    "tear": true,
+    "pxl_thresh": 50,
+    "ell_thresh": 0.9,
+    "save_vids": true,
+    "save_figs": true,
+    "use_BonsaiTS": true,
+    "range_radius": 10,
+    "world_interp_method": "linear",
+    "num_ellipse_pts_needed": 8,
+    "dwnsmpl": 0.5,
+    "ephys_sample_rate": 30000,
+    "run_pupil_rotation": true,
+    "run_top_angles": true,
+    "run_with_form_time": true,
+    "run_with_form_time_TOP": false
+}

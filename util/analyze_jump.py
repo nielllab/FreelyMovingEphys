@@ -1,9 +1,9 @@
 """
 analyze_jump.py
 
-Jump tracking utilities
+jump tracking utilities
 
-Last modified September 07, 2020
+Oct. 26, 2020
 """
 
 # package imports
@@ -15,30 +15,30 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_pdf import PdfPages
+from tqdm import tqdm
 
 # module imports
-from util.track_world import nanxcorr
+from util.read_data import nanxcorr
 
 # get cross-correlation
 def jump_cc(global_data_path, global_save_path, trial_name, REye_ds, LEye_ds, top_ds, side_ds):
     # open pdf file to save plots in
     pp = PdfPages(os.path.join(global_save_path, (key + '_jump_cc.pdf')))
     # to append data to (for making plots of pooled data):
-    all_theta = []; all_phi = []; all_div = [];
+    all_theta = []; all_phi = []; all_div = []
     all_th_gaze = []; all_th_div = []; all_th_phi = []
     # loop through every frame in the right eye view
-    for frame_num in range(0, len(REye_ds)):
+    print('analyzing frames')
+    for frame_num in tqdm(range(0, len(REye_ds))):
 
         REye_now = REye_ds.sel(frame=frame_num)
         LEye_now = LEye_ds.sel(frame=frame_num)
 
-        RTheta = REye_now.sel(ellipse_param='theta') - np.nanmedian(REye_now.sel(ellipse_param='theta'))
-        RPhi = REye_now.sel(ellipse_param='phi') - np.nanmedian(REye_now.sel(ellipse_param='phi'))
-        LTheta = LEye_now.sel(ellipse_param='theta') -  np.nanmedian(LEye_now.sel(ellipse_param='theta'))
-        LPhi = LEye_now.sel(ellipse_param='phi') - np.nanmedian(LEye_now.sel(ellipse_param='phi'))
+        RTheta = (REye_now.sel(ellipse_param='theta') - np.nanmedian(REye_now.sel(ellipse_param='theta'))).values
+        RPhi = (REye_now.sel(ellipse_param='phi') - np.nanmedian(REye_now.sel(ellipse_param='phi'))).values
+        LTheta = (LEye_now.sel(ellipse_param='theta') -  np.nanmedian(LEye_now.sel(ellipse_param='theta'))).values
+        LPhi = (LEye_now.sel(ellipse_param='phi') - np.nanmedian(LEye_now.sel(ellipse_param='phi'))).values
         head_theta = SIDE_interp.sel(head_param='theta').values
-        RTheta = RTheta.values; RPhi = RPhi.values
-        LTheta = LTheta.values; LPhi = LPhi.values
 
         # zero-center head theta, and get rid of wrap-around effect (mod 360)
         th = head_theta * 180 / np.pi; th = (th + 360) % 360
@@ -97,7 +97,7 @@ def jump_cc(global_data_path, global_save_path, trial_name, REye_ds, LEye_ds, to
     fig3.xlabel('head theta'); fig3.ylabel('eye theta div')
     fig3.xlim([-60,60]); plt.ylim([-60,60])
     fig3.savefig(pp, format='pdf')
-    #  xcorr with head angle
+    # xcorr with head angle
     fig4 = plt.plot()
     fig4.errorbar(lags, np.nanmean(all_th_gaze), np.std(all_th_gaze)/np.sqrt(np.size(all_th_gaze)))
     fig4.errorbar(lags, np.nanmean(all_th_div), np.std(all_th_div)/np.sqrt(np.size(all_th_div)))
@@ -111,7 +111,7 @@ def jump_cc(global_data_path, global_save_path, trial_name, REye_ds, LEye_ds, to
 def jump_gaze_trace(datapath, savepath, trialname, REye, LEye, TOP, SIDE, Rvid, Lvid, Svid, Tvid):
     # setup the file to save out of this
 
-    savepath = str(savepath) + '/' + str(trial_name) + '_gaze_trace.avi'
+    savepath = str(savepath) + '/' + str(trial_name) + '_side_gaze_trace.avi'
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (width, height))
 

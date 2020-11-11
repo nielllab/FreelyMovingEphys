@@ -3,7 +3,7 @@ track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-Oct. 14, 2020
+Nov 05, 2020
 """
 
 # package imports
@@ -29,7 +29,7 @@ from scipy import stats
 from util.read_data import split_xyl
 
 # finds the best fit to an ellipse for the given set of points in a single frame
-# inputs should be x and y values of points aroudn pupil as numpy arrays
+# inputs should be x and y values of points around pupil as two numpy arrays
 # outputs dictionary of ellipse parameters for a single frame
 # adapted from /niell-lab-analysis/freely moving/fit_ellipse2.m
 def fit_ellipse(x,y):
@@ -55,9 +55,11 @@ def fit_ellipse(x,y):
     eig_val, eig_vec = eig(Q)
     
     # get angle to long axis
-    angle_to_x = np.arctan2(eig_vec[1,0], eig_vec[0,0])
+    if eig_val[0] < eig_val[1]:
+      angle_to_x = np.arctan2(eig_vec[1,0], eig_vec[0,0])
+    else:
+      angle_to_x = np.arctan2(eig_vec[1,1], eig_vec[0,1])
     angle_from_x = angle_to_x
-    
 
     orientation_rad = 0.5 * np.arctan2(b, (c-a))
     cos_phi = np.cos(orientation_rad)
@@ -95,7 +97,7 @@ def fit_ellipse(x,y):
         # organize parameters in dictionary to return
         # makes some final modifications to values here, maybe those should be done above for cleanliness
         ellipse_dict = {'X0':X0, 'Y0':Y0, 'F':F, 'a':a, 'b':b, 'long_axis':long_axis/2, 'short_axis':short_axis/2,
-                        'angle_to_x':np.rad2deg(angle_to_x), 'angle_from_x':np.rad2deg(angle_from_x), 'cos_phi':cos_phi, 'sin_phi':sin_phi,
+                        'angle_to_x':angle_to_x, 'angle_from_x':angle_from_x, 'cos_phi':cos_phi, 'sin_phi':sin_phi,
                         'X0_in':X0_in, 'Y0_in':Y0_in, 'phi':orientation_rad}
         
     else:
@@ -103,14 +105,15 @@ def fit_ellipse(x,y):
         ellipse_dict = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
                         'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
                         'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
-        
+
     return ellipse_dict
 
 # get the ellipse parameters from DeepLabCut points and save into an xarray
 # equivilent to /niell-lab-analysis/freely moving/EyeCameraCalc1.m
 def eye_tracking(eye_data, config, trial_name, eye_side):
     
-    pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['save_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
+    if config['save_figs'] is True:
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
 
     # names of th different points
     pt_names = list(eye_data['point_loc'].values)
@@ -119,36 +122,38 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     likelihood = likeli_vals.values
 
     # plot of likelihood over time
-    if config['save_figs'] is True:
-        plt.figure()
-        plt.plot(likelihood.T)
-        plt.title('likelihood all timepoints')
-        plt.ylabel('likelihood'); plt.xlabel('frame')
-        pdf.savefig()
-        plt.close()
+    # removed -- doesn't show all that much since it's such a dense plot
+    # if config['save_figs'] is True:
+    #     plt.figure()
+    #     plt.plot(likelihood.T)
+    #     plt.title('likelihood all timepoints')
+    #     plt.ylabel('likelihood'); plt.xlabel('frame')
+    #     pdf.savefig()
+    #     plt.close()
 
     # drop tear
     # these points ought to be used, this will be addressed later
     if config['tear'] is True:
         x_vals = x_vals.iloc[:,:-2]
         y_vals = y_vals.iloc[:,:-2]
+        likelihood = likelihood[:,:-2]
 
     # get bools of when a frame is usable with the right number of points above threshold
-    usegood = np.sum(likelihood,0) >= config['num_ellipse_pts_needed']
+    usegood = np.sum(likelihood >= config['lik_thresh'], 1) >= config['num_ellipse_pts_needed']
 
     # plot all good timepoints
     if config['save_figs'] is True:
         plt.figure()
-        plt.plot(np.sum(likelihood,0))
+        plt.plot(np.sum(likelihood,1))
         plt.title(str(np.round(np.mean(usegood), 3)) + ' good; thresh= ' + str(config['lik_thresh']))
         plt.ylabel('num good eye points'); plt.xlabel('frame')
         pdf.savefig()
         plt.close()
 
-    ellipse_params = np.empty([len(x_vals), 14])
+    ellipse_params = np.empty([len(usegood), 14])
 
     # step through each frame, fit an ellipse to points, and add ellipse parameters to array with data for all frames together
-    for step in tqdm(range(0,len(x_vals))):
+    for step in tqdm(range(0,len(usegood))):
         if usegood[step] == True:
             e_t = fit_ellipse(x_vals.iloc[step].values, y_vals.iloc[step].values)
             ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
@@ -161,6 +166,13 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
             ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
                                     e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
                                     e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
+
+    # if config['save_figs'] is True:
+    #     plt.figure()
+    #     plt.scatter(ellipse_params[:,11], ellipse_params[:,0])
+    #     plt.title('X0_in vs X0')
+    #     pdf.savefig()
+    #     plt.close()
 
     # list of all places where the ellipse meets threshold
     R = np.linspace(0,2*np.pi, 100)
@@ -180,8 +192,29 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     theta = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
     phi = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
 
+    # if config['save_figs'] is True:
+    #     plt.figure()
+    #     plt.scatter(ellipse_params[:,7], phi)
+    #     plt.title('angle_to_x vs phi')
+    #     pdf.savefig()
+    #     plt.close()
+
+    if config['save_figs'] is True:
+        plt.figure()
+        plt.plot(np.rad2deg(phi))
+        plt.title('phi')
+        plt.ylabel('deg'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+
+        plt.figure()
+        plt.plot(np.rad2deg(theta))
+        plt.title('theta')
+        plt.ylabel('deg'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+
     # organize data to return as an xarray of most essential parameters
-    # note: here, we subtract 45 degrees (in radians) from phi
     ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,5]), 'shortaxis':list(ellipse_params[:,6]),
                                'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12])})
     ellipse_param_names = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0']
@@ -203,7 +236,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         # eye axes relative to center
         plt.figure()
         for i in range(0,len(list2)):
-            plt.plot((ellipse_params[list2[i],11] + [-5*np.cos(w[list2[i]]), 5*np.cos(w[list2[i]])]).T, (ellipse_params[list2[i],12] + [-5*np.sin(w[list2[i]]), 5*np.sin(w[list2[i]])]).T)
+            plt.plot((ellipse_params[list2[i],11] + [-5*np.cos(w[list2[i]]), 5*np.cos(w[list2[i]])]), (ellipse_params[list2[i],12] + [-5*np.sin(w[list2[i]]), 5*np.sin(w[list2[i]])]))
         plt.plot(cam_cent[0],cam_cent[1],'r*')
         plt.title('eye axes relative to center')
         pdf.savefig()
@@ -246,7 +279,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         slope, intercept, r_value, p_value, std_err = stats.linregress(xvals, yvals.T)
 
         plt.figure()
-        plt.plot(xvals, yvals, '.')
+        plt.plot(xvals, yvals, '.', markersize=1)
         plt.plot(np.linspace(0,50),np.linspace(0,50),'r')
         plt.title('scale=' + str(np.round(scale, 1)) + ' r=' + str(np.round(r_value, 1)) + ' m=' + str(np.round(slope, 1)))
         plt.xlabel('pupil camera dist'); plt.ylabel('scale * ellipticity')
@@ -258,8 +291,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         list3 = np.squeeze(list2)
 
         plt.figure()
-        plt.plot(np.linalg.norm(delta[:,usegood],2,axis=0), ((delta[0,usegood].T * np.cos(ellipse_params[usegood,7])) + (delta[1,usegood].T * np.sin(ellipse_params[usegood, 7])) / np.linalg.norm(delta[:, usegood],2,axis=0).T), 'y.')
-        plt.plot(np.linalg.norm(delta[:,list3],2,axis=0), ((delta[0,list3].T * np.cos(ellipse_params[list3,7])) + (delta[1,list3].T * np.sin(ellipse_params[list3, 7])) / np.linalg.norm(delta[:, list3],2,axis=0).T), 'r.')
+        plt.plot(np.linalg.norm(delta[:,usegood],2,axis=0), ((delta[0,usegood].T * np.cos(ellipse_params[usegood,7])) + (delta[1,usegood].T * np.sin(ellipse_params[usegood, 7]))) / np.linalg.norm(delta[:, usegood],2,axis=0).T, 'y.', markersize=1)
+        plt.plot(np.linalg.norm(delta[:,list3],2,axis=0), ((delta[0,list3].T * np.cos(ellipse_params[list3,7])) + (delta[1,list3].T * np.sin(ellipse_params[list3, 7]))) / np.linalg.norm(delta[:, list3],2,axis=0).T, 'r.', markersize=1)
         plt.title('camera center calibration')
         plt.ylabel('abs([PC-EC]).[cosw;sinw]')
         plt.xlabel('abs(PC-EC)')
@@ -267,7 +300,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         pdf.savefig()
         plt.close()
     
-    pdf.close()
+        pdf.close()
 
     return ellipse_out
 
@@ -280,7 +313,7 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     vidread = cv2.VideoCapture(vid_path)
     width = int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    savepath = os.path.join(config['save_path'], (trial_name + '_' + eye_letter + 'EYE_plot.avi'))
+    savepath = os.path.join(config['trial_path'], (trial_name + '_' + eye_letter + 'EYE_plot.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
@@ -307,9 +340,9 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
                 pts = dlc_data.sel(frame=frame_num)
                 for k in range(0, len(pts), 3):
                     pt_cent = (int(pts.isel(point_loc=k).values), int(pts.isel(point_loc=k+1).values))
-                    if pts.isel(point_loc=k+2).values < 0.90: # bad points in red
+                    if pts.isel(point_loc=k+2).values < config['lik_thresh']: # bad points in red
                         frame = cv2.circle(frame, pt_cent, 3, (0,0,255), -1)
-                    elif pts.isel(point_loc=k+2).values >= 0.90: # good points in green
+                    elif pts.isel(point_loc=k+2).values >= config['lik_thresh']: # good points in green
                         frame = cv2.circle(frame, pt_cent, 3, (0,255,0), -1)
 
             except (ValueError, KeyError):

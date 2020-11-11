@@ -3,10 +3,9 @@ read_data.py
 
 functions for reading in and manipulating data and time
 
-Oct. 06, 2020
+Nov. 09, 2020
 """
 
-# package imports
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -18,6 +17,18 @@ import cv2
 from tqdm import tqdm
 from datetime import datetime
 import time
+import argparse
+
+# get user inputs
+def pars_args():
+    parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
+    parser.add_argument('-c', '--json_config_path', 
+        default='~/Desktop/preprocessing_config.json',
+        help='path to video analysis config file')
+    args = parser.parse_args()
+    
+    return args
+
 # glob for subdirectories
 def find(pattern, path):
     result = [] # initialize the list as empty
@@ -26,6 +37,17 @@ def find(pattern, path):
             if fnmatch.fnmatch(name,pattern):  # if the file matches the filetype append to list
                 result.append(os.path.join(root,name))
     return result # return full list of file of a given type
+
+# check if path exists, if not then create directory
+def check_path(basepath, path):
+    if path in basepath:
+        return basepath
+    elif not os.path.exists(os.path.join(basepath, path)):
+        os.makedirs(os.path.join(basepath, path))
+        print('Added Directory:'+ os.path.join(basepath, path))
+        return os.path.join(basepath, path)
+    else:
+        return os.path.join(basepath, path)
 
 # read in .h5 DLC files and manage column names
 def open_h5(path):
@@ -139,9 +161,11 @@ def split_xyl(eye_names, eye_data, thresh):
             y_pts = xr.concat([y_pts, eye_data.sel(point_loc=pt_loc)], dim='point_loc', fill_value=np.nan)
     x_pts = xr.DataArray.squeeze(x_pts)
     y_pts = xr.DataArray.squeeze(y_pts)
+    likeli_pts = xr.DataArray.squeeze(likeli_pts)
     # convert to dataframe, transpose so points are columns
     x_vals = xr.DataArray.to_pandas(x_pts).T
     y_vals = xr.DataArray.to_pandas(y_pts).T
+    likeli_pts = xr.DataArray.to_pandas(likeli_pts).T
 
     return x_vals, y_vals, likeli_pts
 
@@ -150,6 +174,7 @@ def split_xyl(eye_names, eye_data, thresh):
 def h5_to_xr(pt_path, time_path, view, config):
     if pt_path is not None and pt_path != []:
         if 'TOP' in view and config['multianimal_TOP'] is True:
+            # add a step to convert pickle files here?
             pts = open_ma_h5(pt_path)
         else:
             pts, names = open_h5(pt_path)
@@ -229,10 +254,7 @@ def nanxcorr(x, y, maxlag=25):
         x_use = x_arr[use]; yshift_use = yshift_arr[use]
         # normalize
         x_use = (x_use - np.mean(x_use)) / (np.std(x_use) * len(x_use))
-        try:
-            yshift_use = (yshift_use - np.mean(yshift_use)) / (np.std(yshift_use))
-        except ZeroDivisionError:
-            yshift_use = (yshift_use - np.mean(yshift_use))
+        yshift_use = (yshift_use - np.mean(yshift_use)) / np.std(yshift_use)
         # get correlation
         cc.append(np.correlate(x_use, yshift_use))
     cc_out = np.hstack(np.stack(cc))
@@ -240,7 +262,6 @@ def nanxcorr(x, y, maxlag=25):
 
 # add videos to xarray
 # will downsample by ratio in config file and convert to black and white uint8
-# might want to improve the way this is done -- requires lot of memory for each video
 def format_frames(vid_path, config):
     print('formatting video into DataArray')
     vidread = cv2.VideoCapture(vid_path)
