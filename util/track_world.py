@@ -335,7 +335,12 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
     template = np.nanmean(rfit_conv_xr.values, 0)
 
     # calculate mean as template
-    template_rfitconv_cc, template_rfit_cc_lags = nanxcorr(rfit_conv_xr[7].values, template, 30)
+    try:
+        template_rfitconv_cc, template_rfit_cc_lags = nanxcorr(rfit_conv_xr[7].values, template, 30)
+        template_nanxcorr = True
+    except ZeroDivisionError:
+        template_nanxcorr = False
+
     if config['save_figs'] is True:
         plt.figure()
         plt.plot(template)
@@ -343,20 +348,26 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         pdf.savefig()
         plt.close()
 
-        plt.plot(template_rfitconv_cc)
-        plt.title('rfit_conv template cross correlation')
-        pdf.savefig()
-        plt.close()
+        if template_nanxcorr is True:
+            plt.plot(template_rfitconv_cc)
+            plt.title('rfit_conv template cross correlation')
+            pdf.savefig()
+            plt.close()
 
     # xcorr of two random timepoints
     if config['save_figs'] is True:
-        t0 = np.random.random_integers(0,totalF-1); t1 = np.random.random_integers(0,totalF-1)
-        rfit2times_cc, rfit2times_lags = nanxcorr(rfit_conv_xr.isel(frame=t0).values, rfit_conv_xr.isel(frame=t1).values, 10)
-        plt.figure()
-        plt.plot(rfit2times_cc, 'b-')
-        plt.title('nanxcorr of frames ' + str(t0) + ' and ' + str(t1))
-        pdf.savefig()
-        plt.close()
+        try:
+            t0 = np.random.random_integers(0,totalF-1); t1 = np.random.random_integers(0,totalF-1)
+            rfit2times_cc, rfit2times_lags = nanxcorr(rfit_conv_xr.isel(frame=t0).values, rfit_conv_xr.isel(frame=t1).values, 10)
+            rand_frames = True
+        except ZeroDivisionError:
+            rand_frames = False
+        if rand_frames is True:
+            plt.figure()
+            plt.plot(rfit2times_cc, 'b-')
+            plt.title('nanxcorr of frames ' + str(t0) + ' and ' + str(t1))
+            pdf.savefig()
+            plt.close()
 
     # iterative fit to alignment
     # start with mean as template
