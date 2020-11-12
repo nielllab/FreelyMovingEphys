@@ -296,6 +296,11 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             rfit_temp = xr.DataArray.rename(rfit_temp, {'dim_0':'deg'})
             rfit_xr = xr.concat([rfit_xr, rfit_temp], dim='frame', fill_value=np.nan)
 
+    # threshold out any frames with large or small rfit_conv distributions
+    for frame in range(0,np.size(rfit_conv_xr,0)):
+        if np.min(rfit_conv_xr[frame,:]) < -10 or np.max(rfit_conv_xr[frame,:]) > 10:
+            rfit_conv_xr[frame,:] = np.nan
+
     # plot rfit for all trials and highlight mean
     if config['save_figs'] is True:
         plt.figure()
