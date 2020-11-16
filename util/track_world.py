@@ -409,6 +409,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             plt.close()
 
     win = 3
+    total_shift = np.deg2rad(total_shift)
     shift_nan = -total_shift
     shift_nan[c < 0.2] = np.nan # started at [c < 0.4], is it alright to change this? many values go to NaN otherwise
     shift_nan[shift_nan > 0.6] = np.nan; shift_nan[shift_nan < -0.6] = np.nan # get rid of very large shifts
