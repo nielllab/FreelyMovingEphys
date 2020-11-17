@@ -272,10 +272,8 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
                 # rfit_conv[range((len(rfit_conv)-int(filtsize/2-1)),len(rfit_conv))] = np.nan
 
             except ValueError as e: # in case every value in rfit is NaN
-                print(e)
                 rfit_conv = np.nan*np.zeros(360)
         except (KeyError, ValueError) as e:
-            print(e)
             key_error_count = key_error_count + 1
             rfit_conv = np.nan*np.zeros(360)
 
@@ -376,11 +374,10 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
     # start with mean as template
     # on each iteration, shift individual frames to max xcorr with template
     # then recalculate mean template
-    print('doing iterative fit on frames to find alignment for each frame')
-    for rep in tqdm(range(0,12)):
-
+    print('doing iterative fit for alignment of each frame')
+    for rep in tqdm(range(0,12)): # twelve iterations
         # for each frame, get correlation, and shift
-        for frame_num in range(0,n):
+        for frame_num in range(0,n): # do all frames
             try:
                 xc, lags = nanxcorr(template, pupil_update[frame_num,:], 10)
                 c[frame_num] = np.amax(xc) # value of max
@@ -446,9 +443,9 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
 
         # plot of 10 random frames' rfit_conv
         plt.figure()
-        fig, axs = plt.subplots(2,5)
+        fig, axs = plt.subplots(5,1)
         axs = axs.ravel()
-        for i in range(0,10):
+        for i in range(0,5):
             rand_num = np.random.randint(0,totalF-1)
             axs[i].plot(rfit_conv_xr.isel(frame=rand_num))
             axs[i].set_title(('rfit conv; frame ' + str(rand_num)))

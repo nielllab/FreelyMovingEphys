@@ -3,7 +3,7 @@ read_data.py
 
 functions for reading in and manipulating data and time
 
-Nov. 09, 2020
+Nov. 17, 2020
 """
 
 import pandas as pd
@@ -122,6 +122,33 @@ def open_time(path, dlc_len=None, force_shift=False):
         time_out[1::2] = time_in + 0.25 * timestep
 
     return time_out
+
+# read in the timestamps for a camera when they come from a csv file with data in it
+# this does not read or open a file, it takes in a DataFrame column
+# assumes that timestamps have 10 characters on the front end, %Y-%m-%dT and 6 on the back end, -08:00
+# written to be used with ball rotation timestamps
+def open_time1(read_time):
+    time_in = []
+    fmt = '%H:%M:%S.%f'
+    if read_time.dtype!=np.float64:
+        for current_time in read_time:
+            current_time = current_time[11:-6]
+            currentT = str(current_time).strip()
+            try:
+                t = datetime.strptime(currentT,fmt)
+            except ValueError as v:
+                ulr = len(v.args[0].partition('unconverted data remains: ')[2])
+                if ulr:
+                    currentT = currentT[:-ulr]
+            try:
+                time_in.append((datetime.strptime(currentT, '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
+            except ValueError:
+                time_in.append(np.nan)
+        time_in = np.array(time_in)
+    else:
+        time_in = read_time.values
+
+    return time_in
 
 # convert xarray DataArray of DLC x and y positions and likelihood values into separate pandas data structures
 def split_xyl(eye_names, eye_data, thresh):
