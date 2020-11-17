@@ -16,6 +16,7 @@ from util.read_data import open_time1
 # track the movement of the ball
 # TO DO: add converstion to cm
 def ball_tracking(csv_path, config):
+    # get coordinates on screen where optical mouse is centered out of preprocessing config file
     screen_center = config['optical_mouse_screen_center']
     centX = screen_center['x']; centY = screen_center['y']
     # read in one csv file with timestamps, x position, and y position in three columns

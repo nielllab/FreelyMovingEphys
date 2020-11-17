@@ -19,16 +19,6 @@ from datetime import datetime
 import time
 import argparse
 
-# get user inputs
-def pars_args():
-    parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
-    parser.add_argument('-c', '--json_config_path', 
-        default='~/Desktop/preprocessing_config.json',
-        help='path to video analysis config file')
-    args = parser.parse_args()
-    
-    return args
-
 # glob for subdirectories
 def find(pattern, path):
     result = [] # initialize the list as empty
