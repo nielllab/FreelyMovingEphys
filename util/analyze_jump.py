@@ -67,7 +67,7 @@ def jump_cc(global_data_path, global_save_path, trial_name, REye_ds, LEye_ds, to
         f1_ax1.set_title(trial_name)
         f1_ax1.ylabel('deg'); f1_ax1.xlabel('frames')
         f1_ax1.legend(['head_theta', 'eye_theta','eye_divergence','eye_phi'])
-        f1_ax1.plot(th); f1_ax1.plot(gaze_th); f1_ax1.plot(div); f1_ax1.plot(gaze_phi);
+        f1_ax1.plot(th); f1_ax1.plot(gaze_th); f1_ax1.plot(div); f1_ax1.plot(gaze_phi)
         f1_ax2 = fig1.add_subplot(gs[1, 0])
         f1_ax2.set_title('head theta xcorr')
         f1_ax2.plot(lags, th_gaze); f1_ax2.plot(lags, th_div); f1_ax2.plot(lags, th_phi)

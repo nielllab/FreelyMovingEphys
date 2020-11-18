@@ -12,26 +12,28 @@ import pandas as pd
 import numpy as np
 
 # interpolate and threshold side camera dlc data
-def side_tracking(side_data, config):
+def side_tracking(sidedlc, config):
 
-    side_pt_names = list(side_data['point_loc'].values)
-
-    sideinterp = xr.DataArray.interpolate_na(side_data, dim='frame', use_coordinate='frame', method='linear')
+    # get point names
+    side_pt_names = list(sidedlc['point_loc'].values)
 
     # likelihood threshold
     likeli_loop_count = 0
     for pt_num in range(0, len(side_pt_names)):
+
         current_pt_loc = side_pt_names[pt_num]
+        
+        # threshold based on likleihood
         if 'likelihood' in current_pt_loc:
             # find the associated x and y points of the selected likelihood
             # assumes order is x, y, likelihood, will cause problems if isn't true of data...
             assoc_x_pos = side_pt_names[pt_num - 2]
-            assoc_x_pt = sideinterp.sel(point_loc=assoc_x_pos)
+            assoc_x_pt = sidedlc.sel(point_loc=assoc_x_pos)
             assoc_y_pos = side_pt_names[pt_num - 1]
-            assoc_y_pt = sideinterp.sel(point_loc=assoc_y_pos)
+            assoc_y_pt = sidedlc.sel(point_loc=assoc_y_pos)
 
             # select only the likelihood data for this point
-            likeli_pt = sideinterp.sel(point_loc=current_pt_loc)
+            likeli_pt = sidedlc.sel(point_loc=current_pt_loc)
 
             # set x/y coords to NaN where the likelihood is below threshold value
             assoc_x_pt[likeli_pt < config['lik_thresh']] = np.nan
@@ -48,5 +50,22 @@ def side_tracking(side_data, config):
 
     return sidepts_out
 
-# def side_angle():
-#     return ang
+# get angle of head from side view
+# outputs list of angles in degrees
+def side_angle(sidepts):
+    head_ang = []
+    # loop through each frame and get the angle for each
+    for frame_num in range(0,len(sidepts)):
+        nosex = sidepts.sel(point_loc='Nose_x', frame=frame_num)
+        nosey = sidepts.sel(point_loc='Nose_y', frame=frame_num)
+        backx = sidepts.sel(point_loc='BackNeck_x', frame=frame_num)
+        backy = sidepts.sel(point_loc='BackNeck_y', frame=frame_num)
+
+        x_dist = (backx - nosex)
+        y_dist = (backy - nosey)
+        th = np.arctan(y_dist/x_dist)
+        th_deg = np.rad2deg(th)
+
+        head_ang.append(float(th_deg.values))
+
+    return head_ang
