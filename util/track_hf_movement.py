@@ -23,7 +23,7 @@ def ball_tracking(csv_path, config):
     csv_data = pd.read_csv(csv_path)
     # should have date in timestamp
     # output will be in seconds since the midnight before the trial
-    time = open_time1(csv_data['Timestamp'])
+    time = open_time1(csv_data['Timestamp.TimeOfDay'])
     # get the speed at each sample time
     diff = pd.DataFrame([csv_data['Value.X']-centX,csv_data['Value.Y']-centY]).T
     speed = [np.sqrt((diff.iloc[i,0])**2 + (diff.iloc[i,1])**2) for i in range(0,len(csv_data))] # pixels/sample
@@ -34,5 +34,3 @@ def ball_tracking(csv_path, config):
     xr_out = xr.DataArray(all_data, dims={'frame','move_params'})
 
     return xr_out
-
-

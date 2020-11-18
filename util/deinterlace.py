@@ -16,7 +16,7 @@ import warnings
 from glob import glob
 from multiprocessing import freeze_support
 
-from util.read_data import h5_to_xr, find, format_frames, merge_xr_by_timestamps, open_time, check_path, pars_args
+from util.read_data import h5_to_xr, find, format_frames, merge_xr_by_timestamps, open_time, check_path
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking
 from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper

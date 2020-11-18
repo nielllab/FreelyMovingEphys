@@ -113,16 +113,14 @@ def open_time(path, dlc_len=None, force_shift=False):
 
     return time_out
 
-# read in the timestamps for a camera when they come from a csv file with data in it
+# read in the timestamps for a camera when they come from a csv file
 # this does not read or open a file, it takes in a DataFrame column
-# assumes that timestamps have 10 characters on the front end, %Y-%m-%dT and 6 on the back end, -08:00
 # written to be used with ball rotation timestamps
 def open_time1(read_time):
     time_in = []
     fmt = '%H:%M:%S.%f'
     if read_time.dtype!=np.float64:
         for current_time in read_time:
-            current_time = current_time[11:-6]
             currentT = str(current_time).strip()
             try:
                 t = datetime.strptime(currentT,fmt)
