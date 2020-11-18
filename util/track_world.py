@@ -247,16 +247,16 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
                 ci.append(vals[1])
             params = np.stack(params); ci = np.stack(ci)
 
-            fit_thresh = 1
-
             # extract radius variable from parameters
             rfit = params[:,2] - 1
 
             # if confidence interval in estimate is > fit_thresh pix, set to to NaN
-            # then, remove if luminance goes the wrong way (e.g. from reflectance)
-            for deg_th in range(0,360):
-                rfit[deg_th] = np.where(ci[deg_th,2] > fit_thresh, np.nan, rfit[deg_th])
-                rfit[deg_th] = np.where((params[deg_th,1] - params[deg_th,0]) < 0, np.nan, rfit[deg_th])
+            ci_temp = ci[:,2] > 1
+            rfit[ci_temp] = np.nan
+
+            # remove if luminance goes the wrong way (e.g. from reflectance)
+            params_temp = (params[:,1] - params[:,0]) < 0
+            rfit[params_temp] = np.nan
 
             try:
                 # median filter
