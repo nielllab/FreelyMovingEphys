@@ -153,11 +153,21 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     ellipse_params = np.empty([len(usegood), 14])
 
     # step through each frame, fit an ellipse to points, and add ellipse parameters to array with data for all frames together
+    linalgerror = 0
     for step in tqdm(range(0,len(usegood))):
         if usegood[step] == True:
-            e_t = fit_ellipse(x_vals.iloc[step].values, y_vals.iloc[step].values)
-            ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
-                                    e_t['long_axis'], e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
+            try:
+                e_t = fit_ellipse(x_vals.iloc[step].values, y_vals.iloc[step].values)
+                ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
+                                        e_t['long_axis'], e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
+                                        e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
+            except np.linalg.LinAlgError as e:
+                linalgerror = linalgerror + 1
+                e_t = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
+                            'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
+                            'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
+                ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
+                                    e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
                                     e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
         elif usegood[step] == False:
             e_t = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
@@ -166,7 +176,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
             ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
                                     e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
                                     e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
-
+    print('lin alg error count = ' + str(linalgerror))
+    
     # if config['save_figs'] is True:
     #     plt.figure()
     #     plt.scatter(ellipse_params[:,11], ellipse_params[:,0])

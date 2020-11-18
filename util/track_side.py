@@ -61,11 +61,11 @@ def side_angle(sidepts):
         backx = sidepts.sel(point_loc='BackNeck_x', frame=frame_num)
         backy = sidepts.sel(point_loc='BackNeck_y', frame=frame_num)
 
-        x_dist = (backx - nosex)
-        y_dist = (backy - nosey)
+        x_dist = (nosex - backx)
+        y_dist = (nosey - backy)
         th = np.arctan(y_dist/x_dist)
         th_deg = np.rad2deg(th)
 
-        head_ang.append(float(th_deg.values))
+        head_ang.append(float(th_deg))
 
     return head_ang

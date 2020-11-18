@@ -428,7 +428,7 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
                             x2 = (backX + 30 * np.cos(float(current_ang))).astype(int)
                             y2 = (backY + 30 * np.sin(float(current_ang))).astype(int)
                             frame = cv2.line(frame, (x1,y1), (x2,y2), plot_color1, thickness=4)
-                    except ValueError:
+                    except (ValueError, OverflowError) as e:
                         pass
             except KeyError:
                 pass
