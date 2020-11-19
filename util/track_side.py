@@ -68,4 +68,6 @@ def side_angle(sidepts):
 
         head_ang.append(float(th_deg))
 
-    return head_ang
+    xr_out = xr.DataArray([head_ang], dims=['frame'])
+
+    return xr_out

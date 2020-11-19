@@ -321,8 +321,15 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
     topdown_pt_names = list(topdown_data['point_loc'].values)
     topdown_interp = xr.DataArray.interpolate_na(topdown_data, dim='frame', use_coordinate='frame', method='linear')
 
-    nose_x_pts = topdown_interp.sel(point_loc='nose_x')
-    nose_y_pts = topdown_interp.sel(point_loc='nose_y')
+    try:
+        # for ephys top down network: FreelyMovingTOP_wGear-dylan-2020-10-08
+        nose_x_pts = topdown_interp.sel(point_loc='nose_x')
+        nose_y_pts = topdown_interp.sel(point_loc='nose_y')
+    except KeyError:
+        # for jumping topdown network: Jumping2-Elliott-2020-06-30
+        nose_x_pts = topdown_interp.sel(point_loc='Nose_x')
+        nose_y_pts = topdown_interp.sel(point_loc='Nose_y')
+        
     if config['save_figs'] is True:
         plt.figure()
         plt.title('mouse nose x/y path before likelihood threshold')

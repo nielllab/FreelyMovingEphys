@@ -23,6 +23,7 @@ from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_w
 from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
 from util.track_hf_movement import ball_tracking
+from util.track_side import side_angle, side_tracking
 
 def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
@@ -95,9 +96,9 @@ def extract_params(config):
                     top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
                 except IndexError:
                     top_h5 = None
-                if config['run_with_form_time_TOP'] is True:
+                if config['run_with_form_time'] is True:
                     top_csv = [i for i in trial_cam_csv if top_view in i and 'formatted' in i][0]
-                elif config['run_with_form_time_TOP'] is False:
+                elif config['run_with_form_time'] is False:
                     top_csv = [i for i in trial_cam_csv if top_view in i][0]
                 top_avi = [i for i in trial_cam_avi if top_view in i][0]
                 if top_h5 is not None:
@@ -159,12 +160,14 @@ def extract_params(config):
                 eye_side = eye_sides[i]
                 print('tracking ' + eye_side + 'EYE for ' + t_name)
                 # filter the list of files for the current trial to get the eye of this side
-                eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i and 'deinter' in i][0]
                 if config['run_with_form_time'] is True:
+                    eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i and 'deinter' in i][0]
                     eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i][0]
+                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i][0]
                 elif config['run_with_form_time'] is False:
+                    eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i][0]
                     eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i][0]
-                eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i][0]
+                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i][0]
                 # make an xarray of dlc point values out of the found .h5 files
                 # also assign timestamps as coordinates of the xarray
                 eyedlc = h5_to_xr(eye_h5, eye_csv, (eye_side+'EYE'), config=config)
@@ -209,9 +212,10 @@ def extract_params(config):
                 # filter the list of files for the current trial to get the world view of this side
                 if config['run_with_form_time'] is True:
                     world_csv = [i for i in trial_cam_csv if world_side in i and 'formatted' in i][0]
+                    world_avi = [i for i in trial_cam_avi if world_side in i and 'deinter' in i][0]
                 elif config['run_with_form_time'] is False:
                     world_csv = [i for i in trial_cam_csv if world_side in i][0]
-                world_avi = [i for i in trial_cam_avi if world_side in i and 'deinter' in i][0]
+                    world_avi = [i for i in trial_cam_avi if world_side in i][0]
                 # make an xarray of timestamps without dlc points, since there aren't any for a world camera
                 worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=config)
                 worlddlc.name = 'WORLD_times'
@@ -235,7 +239,7 @@ def extract_params(config):
         if 'SIDE' in config['cams']:
             side_sides.append('SIDE')
         if 'Side' in config['cams']:
-            side_sides.append('Side')    
+            side_sides.append('Side')
         for i in range(0,len(side_sides)):
             side_side = side_sides[i]
             print('tracking '+ side_side +' for ' + t_name)
@@ -243,18 +247,21 @@ def extract_params(config):
             side_h5 = [i for i in trial_cam_h5 if side_side in i][0]
             if config['run_with_form_time'] is True:
                 side_csv = [i for i in trial_cam_csv if side_side in i and 'formatted' in i][0]
+                side_avi = [i for i in trial_cam_avi if side_side in i][0]
             elif config['run_with_form_time'] is False:
                 side_csv = [i for i in trial_cam_csv if side_side in i][0]
-            side_avi = [i for i in trial_cam_avi if side_side in i][0]
+                side_avi = [i for i in trial_cam_avi if side_side in i][0]
             # make an xarray of timestamps without dlc points, since there aren't any for a world camera
-            sideddlc = h5_to_xr(pt_path=side_h5, time_path=side_csv, view='SIDE', config=config)
-            sidedlc.name = 'SIDE_pts'
+            sidedlc = h5_to_xr(pt_path=side_h5, time_path=side_csv, view='SIDE', config=config)
+            # threshold and preprocess dlc pts
+            side_pts = side_tracking(sidedlc, config); side_pts.name = 'SIDE_pts'
             # get side parameters
-
+            side_theta = side_angle(side_pts); side_theta.name = 'SIDE_theta'
             # format frames
             xr_side_frames = format_frames(side_avi, config); xr_side_frames.name = 'SIDE_video'
             # save data
-            trial_side_data = xr.merge([sidedlc, xr_side_frames])
+            print('saving...')
+            trial_side_data = xr.merge([side_pts, side_theta, xr_side_frames])
             trial_side_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_side.nc')), engine='netcdf4', encoding={'SIDE_video':{"zlib": True, "complevel": 9}})
 
         # analyze ball movements
