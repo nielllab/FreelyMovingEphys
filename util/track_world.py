@@ -235,7 +235,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             param_mp = [pool.apply_async(sigm_fit_mp, args=(d[n,:],)) for n in range(360)]
             params_output = [result.get() for result in param_mp]
 
-            # apply signoid fit without multiprocessing
+            # apply sigmoid fit without multiprocessing
             # params_output = []
             # for n in range(360):
             #     params_output.append(sigm_fit_mp(d[n,:]))
@@ -247,34 +247,35 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
                 ci.append(vals[1])
             params = np.stack(params); ci = np.stack(ci)
 
-            fit_thresh = 1
-
             # extract radius variable from parameters
             rfit = params[:,2] - 1
 
             # if confidence interval in estimate is > fit_thresh pix, set to to NaN
-            # then, remove if luminance goes the wrong way (e.g. from reflectance)
-            for deg_th in range(0,360):
-                rfit[deg_th] = np.where(ci[deg_th,2] > fit_thresh, np.nan, rfit[deg_th])
-                rfit[deg_th] = np.where((params[deg_th,1] - params[deg_th,0]) < 0, np.nan, rfit[deg_th])
+            ci_temp = ci[:,2] > 1
+            rfit[ci_temp] = np.nan
+
+            # remove if luminance goes the wrong way (e.g. from reflectance)
+            params_temp = (params[:,1] - params[:,0]) < 0
+            rfit[params_temp] = np.nan
 
             try:
                 # median filter
-                rfit_interp = signal.medfilt(rfit,3)
+                rfit_filt = signal.medfilt(rfit,3)
 
                 # subtract baseline because our points aren't perfectly centered on ellipse
                 filtsize = 31
-                rfit_conv = rfit - convolve(rfit_interp, np.ones(filtsize)/filtsize, boundary='wrap')
+                # rfit_conv = rfit - np.convolve(rfit_interp, np.ones(filtsize)/filtsize, mode='same')
+                rfit_conv = rfit - convolve(rfit_filt, np.ones(filtsize)/filtsize, boundary='wrap')
                 # edges have artifact from conv, so set to NaNs
                 #   no edge artifacts anymore -- astropy convolve wraps around
                 # rfit_conv[range(0,int(filtsize/2+1))] = np.nan
                 # rfit_conv[range((len(rfit_conv)-int(filtsize/2-1)),len(rfit_conv))] = np.nan
 
-            except ValueError: # in case every value in rfit is NaN
-                rfit_conv = np.empty(np.shape(rfit_conv)) # make an rfit_conv with the shape of the last one
+            except ValueError as e: # in case every value in rfit is NaN
+                rfit_conv = np.nan*np.zeros(360)
         except (KeyError, ValueError) as e:
             key_error_count = key_error_count + 1
-            rfit_conv = np.empty(360)
+            rfit_conv = np.nan*np.zeros(360)
 
         # save out pupil edge data into one xarray for all frames
         if step == 0:
@@ -329,9 +330,9 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         plt.close()
 
     n = np.size(rfit_conv_xr.values, 0)
-    pupil_update = rfit_conv_xr.values
+    pupil_update = rfit_conv_xr.values.copy()
     total_shift = np.zeros(n); peak = np.zeros(n)
-    c = total_shift
+    c = total_shift.copy()
     template = np.nanmean(rfit_conv_xr.values, 0)
 
     # calculate mean as template
@@ -373,11 +374,10 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
     # start with mean as template
     # on each iteration, shift individual frames to max xcorr with template
     # then recalculate mean template
-    print('doing iterative fit on frames to find alignment for each frame')
-    for rep in tqdm(range(0,12)):
-
+    print('doing iterative fit for alignment of each frame')
+    for rep in tqdm(range(0,12)): # twelve iterations
         # for each frame, get correlation, and shift
-        for frame_num in range(0,n):
+        for frame_num in range(0,n): # do all frames
             try:
                 xc, lags = nanxcorr(template, pupil_update[frame_num,:], 10)
                 c[frame_num] = np.amax(xc) # value of max
@@ -405,9 +405,8 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             pdf.savefig()
             plt.close()
 
-    # total_shift[np.mean(rfit_conv,1) > 25] = np.nan
-
     win = 3
+    total_shift = np.deg2rad(total_shift)
     shift_nan = -total_shift
     shift_nan[c < 0.2] = np.nan # started at [c < 0.4], is it alright to change this? many values go to NaN otherwise
     shift_nan[shift_nan > 0.6] = np.nan; shift_nan[shift_nan < -0.6] = np.nan # get rid of very large shifts
@@ -442,7 +441,16 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         pdf.savefig()
         plt.close()
 
-        # rfit, rfit_conv, plot astropy and numpy conv
+        # plot of 10 random frames' rfit_conv
+        plt.figure()
+        fig, axs = plt.subplots(5,1)
+        axs = axs.ravel()
+        for i in range(0,5):
+            rand_num = np.random.randint(0,totalF-1)
+            axs[i].plot(rfit_conv_xr.isel(frame=rand_num))
+            axs[i].set_title(('rfit conv; frame ' + str(rand_num)))
+        pdf.savefig()
+        plt.close()
 
     shift_smooth1 = xr.DataArray(shift_smooth, dims=['frame'])
 
