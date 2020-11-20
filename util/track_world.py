@@ -148,7 +148,8 @@ def curve_func(xval, a, b, c, d):
 # multiprocessing-ready fit to sigmoid function
 def sigm_fit_mp(d):
     try:
-        popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5], bounds=([50, 100, 5, .05],[150, 250, 20, 5]), method='trf', xtol=10**-5)
+        popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5],
+                                bounds=([50, 100, 5, .05],[150, 250, 20, 5]), method='trf', xtol=10**-3)
         ci = np.sqrt(np.diagonal(pcov))
     except RuntimeError:
         popt = np.nan*np.zeros(4)
@@ -255,8 +256,10 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             rfit[ci_temp] = np.nan
 
             # remove if luminance goes the wrong way (e.g. from reflectance)
-            params_temp = (params[:,1] - params[:,0]) < 0
-            rfit[params_temp] = np.nan
+            params_temp1 = (params[:,1] - params[:,0]) < 0
+            params_temp2 = params[:,1] > 240
+            rfit[params_temp1] = np.nan
+            rfit[params_temp2] = np.nan
 
             try:
                 # median filter
@@ -307,8 +310,8 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         plt.figure()
         plt.plot(rfit_conv_xr.T, alpha=0.3)
         plt.plot(np.mean(rfit_conv_xr.T, 1), 'b--')
-        plt.title('convolved rfit for all trials, mean in blue')
-        plt.ylim([-3,3])
+        plt.title('convolved rfit for all frames, mean in blue')
+        # plt.ylim([-3,3])
         pdf.savefig()
         plt.close()
 
@@ -370,6 +373,9 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             pdf.savefig()
             plt.close()
 
+    num_rfit_samples_to_plot = 100
+    ind2plot_rfit = sorted(np.random.randint(0,totalF-1,num_rfit_samples_to_plot))
+
     # iterative fit to alignment
     # start with mean as template
     # on each iteration, shift individual frames to max xcorr with template
@@ -394,14 +400,14 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             plt.figure()
             plt.title('pupil_update of rep='+str(rep)+' in iterative fit')
             plt.plot(template, 'k--', alpha=0.8)
-            plt.plot(pupil_update.T, alpha=0.2)
+            plt.plot(pupil_update[ind2plot_rfit,:].T, alpha=0.2)
             pdf.savefig()
             plt.close()
 
             # histogram of correlations
             plt.figure()
             plt.title('correlations of rep='+str(rep)+' in iterative fit')
-            plt.hist(c, bins=300)
+            plt.hist(c[c>0], bins=300) # gets rid of NaNs in plot
             pdf.savefig()
             plt.close()
 
@@ -428,20 +434,20 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         plt.close()
 
         plt.figure()
-        plt.plot(rfit_xr.T)
-        plt.plot(np.nanmean(rfit_xr.T,1), 'b--')
-        plt.title('rfit')
+        plt.plot(rfit_xr.isel(frame=ind2plot_rfit).T, alpha=0.2)
+        plt.plot(np.nanmean(rfit_xr.T,1), 'b--', alpha=0.8)
+        plt.title('rfit for 100 random frames')
         pdf.savefig()
         plt.close()
 
         plt.figure()
-        plt.plot(rfit_conv_xr.T)
-        plt.plot(np.nanmean(rfit_conv_xr.T,1), 'b--')
-        plt.title('rfit conv')
+        plt.plot(rfit_conv_xr.isel(frame=ind2plot_rfit).T, alpha=0.2)
+        plt.plot(np.nanmean(rfit_conv_xr.T,1), 'b--', alpha=0.8)
+        plt.title('rfit_conv for 100 random frames')
         pdf.savefig()
         plt.close()
 
-        # plot of 10 random frames' rfit_conv
+        # plot of 5 random frames' rfit_conv
         plt.figure()
         fig, axs = plt.subplots(5,1)
         axs = axs.ravel()
