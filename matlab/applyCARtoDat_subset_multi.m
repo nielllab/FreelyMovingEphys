@@ -116,12 +116,14 @@ try
                 title(fileList{fnum})
             end
         end
+        savefig(['CAR_' fileList{fnum}(1:end-4) '_fig1'])
         
         %%% bar plot of stdev for each channel (noise measure)
         figure
         bar(std(double(allData),[],2));
         xlabel('chan'); ylabel('stdev')
         title(fileList{fnum})
+        savefig(['CAR_' fileList{fnum}(1:end-4) '_fig2'])
         
         fclose(fid);
         
