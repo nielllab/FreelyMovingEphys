@@ -55,7 +55,7 @@ def side_tracking(sidedlc, config):
 def side_angle(sidepts):
     head_ang = []
     # loop through each frame and get the angle for each
-    for frame_num in range(0,len(sidepts)):
+    for frame_num in range(0,np.size(sidepts['frame'].values)):
         nosex = sidepts.sel(point_loc='Nose_x', frame=frame_num)
         nosey = sidepts.sel(point_loc='Nose_y', frame=frame_num)
         backx = sidepts.sel(point_loc='BackNeck_x', frame=frame_num)
@@ -68,6 +68,6 @@ def side_angle(sidepts):
 
         head_ang.append(float(th_deg))
 
-    xr_out = xr.DataArray([head_ang], dims=['frame'])
+    xr_out = xr.DataArray(head_ang, dims=['frame'])
 
     return xr_out

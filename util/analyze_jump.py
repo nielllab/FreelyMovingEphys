@@ -131,14 +131,14 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
     # find the first shared frame for the four video feeds and play them starting at that shared frame
     # td_startframe, td_endframe, left_startframe, left_endframe, right_startframe, right_endframe, side_startframe, side_endframe, first_real_time, last_real_time = find_start_end(TOP, LEye, REye, SIDE)
 
-    sidecap = cv2.VideoCapture(Svid).set(cv2.CAP_PROP_POS_FRAMES, int(side_startframe))
+    sidecap = cv2.VideoCapture(Svid)#.set(cv2.CAP_PROP_POS_FRAMES, int(side_startframe))
 
     width = int(sidecap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(sidecap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     savepath = os.path.join(config['data_path'], (config['trial_name'] + '_side_gaze_trace.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (width, height))
+    vid_out = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
     for frame_num in tqdm(range(0,int(sidecap.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # read in videos
@@ -146,19 +146,12 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
 
         if not SIDE_ret:
             break
-        if not TOP_ret:
-            break
-        if not REye_ret:
-            break
-        if not LEye_ret:
-            break
 
         # get current ellipse parameters
-        framenow = sidecap.get(cv2.CAP_PROP_POS_FRAMES)
-        REye_now = REye_params.sel(frame=framenow)
-        LEye_now = LEye_params.sel(frame=framenow)
-        SIDE_par_now = Sids_params.sel(frame=framenow)
-        SIDE_pts_now = Sids_pts.sel(frame=framenow)
+        REye_now = REye_params.sel(frame=frame_num)
+        LEye_now = LEye_params.sel(frame=frame_num)
+        SIDE_par_now = Side_params.sel(frame=frame_num)
+        SIDE_pts_now = Side_pts.sel(frame=frame_num)
 
         # interpolate time
         REye_interp = REye_now.interplike(other=TOP, method='linear')
@@ -191,7 +184,7 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
 
         # plot mouse head poisiton with small blue 'tracers'
         for i in range(0,15):
-            frame_before = framenow - i
+            frame_before = frame_num - i
             SIDE_before = SIDE_pts_interp.sel(frame=frame_before)
             head_x = SIDE_before.sel(point_loc='LEye_x').values
             head_y = SIDE_before.sel(point_loc='LEye_y').values
@@ -224,10 +217,6 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
         # cyan line of gaze direction
         SIDE_frame = cv2.line(SIDE_frame, (gazeV_x1,gazeV_y1), (gazeV_x2,gazeV_y2), (0,255,255), thickness=2)
 
-        vidout.write(SIDE_frame)
+        vid_out.write(SIDE_frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-        out_vid.release()
-        cv2.destroyAllWindows()
+    vid_out.release()
