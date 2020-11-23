@@ -96,10 +96,7 @@ def extract_params(config):
                     top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
                 except IndexError:
                     top_h5 = None
-                if config['run_with_form_time'] is True:
-                    top_csv = [i for i in trial_cam_csv if top_view in i and 'formatted' in i][0]
-                elif config['run_with_form_time'] is False:
-                    top_csv = [i for i in trial_cam_csv if top_view in i][0]
+                top_csv = [i for i in trial_cam_csv if top_view in i][0]
                 top_avi = [i for i in trial_cam_avi if top_view in i][0]
                 if top_h5 is not None:
                     # make an xarray of dlc point values out of the found .h5 files
