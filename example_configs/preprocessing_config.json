@@ -13,6 +13,7 @@
         "TOP3": "C:/Users/Niell Lab/Documents/FreelyMovingEphys_DLCprojects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
     },
     "flip_eye_during_deinter": true,
+    "flip_world_during_deinter": true,
     "crop_for_dlc": true,
     "multianimal_TOP": false,
     "lik_thresh": 0.99,
@@ -32,6 +33,5 @@
     "run_pupil_rotation": true,
     "run_top_angles": false,
     "run_with_form_time": true,
-    "run_with_form_time_TOP": false,
     "optical_mouse_screen_center":{"x":960,"y":540}
 }

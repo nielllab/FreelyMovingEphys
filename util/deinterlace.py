@@ -3,7 +3,7 @@ deinterlace.py
 
 deinterlace videos and shift times to suit the new video frame count
 
-Oct. 16, 2020
+Nov. 23, 2020
 """
 
 import argparse, json, sys, os, subprocess, shutil
@@ -62,8 +62,13 @@ def deinterlace_data(config):
             print('starting to deinterlace and interpolate on ' + key)
             # deinterlace video with ffmpeg -- will only be done on 30fps videos
             avi_out_path = os.path.join(main_path, (key + 'deinter.avi'))
+            # optional flip to eye videos
             if config['flip_eye_during_deinter'] is True and 'EYE' in this_avi:
-                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'vflip', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'vflip, yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+            # optional flip to world videos
+            elif config['flip_world_during_deinter'] is True and 'WORLD' in this_avi:
+                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'vflip, yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+            # or, don't flip eye/world videos
             else:
                 subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
             frame_count_deinter = frame_count * 2
