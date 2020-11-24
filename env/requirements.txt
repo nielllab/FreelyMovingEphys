@@ -10,3 +10,4 @@ scipy
 tqdm
 xarray
 netCDF4
+wavio
