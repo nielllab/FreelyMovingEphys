@@ -22,7 +22,7 @@
     "tear": true,
     "pxl_thresh": 50,
     "ell_thresh": 0.85,
-    "eye_std_thresh": 2,
+    "eye_dist_thresh": 100,
     "save_vids": true,
     "save_figs": true,
     "use_BonsaiTS": true,
