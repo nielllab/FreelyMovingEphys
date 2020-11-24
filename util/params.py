@@ -264,8 +264,7 @@ def extract_params(config):
         # analyze ball movements
         if trial_ball_csv != []:
             print('tracking ball movement for ' + t_name)
-            ball_read = pd.read_csv(trial_ball_csv)
-            speed_data = ball_tracking(ball_read, config)
+            speed_data = ball_tracking(trial_ball_csv[0], config)
             speed_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_speed.nc')))
 
     print('done with ' + str(len(trial_units)) + ' queued trials')
