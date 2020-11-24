@@ -43,7 +43,10 @@ def run_DLC_Analysis(config):
             # if it's one of the cameras that needs to needs to be deinterlaced first, make sure and read in the deinterlaced 
             if any(cam_key in s for s in ['REYE','LEYE']):
                 # find all the videos in the data directory that are from the current camera and are deinterlaced
-                vids_this_cam = find('*'+cam_key+'*deinter.avi', config['data_path'])
+                if config['run_with_form_time'] is True:
+                    vids_this_cam = find('*'+cam_key+'*deinter.avi', config['data_path'])
+                elif config['run_with_form_time'] is False:
+                    vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
                 print('found ' + str(len(vids_this_cam)) + ' deinterlaced videos from cam_key ' + cam_key)
                 # warn the user if there's nothing found
                 if len(vids_this_cam) == 0:
