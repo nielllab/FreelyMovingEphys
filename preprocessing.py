@@ -21,6 +21,16 @@ from util.params import extract_params
 from util.dlc import run_DLC_Analysis
 from util.deinterlace import deinterlace_data
 
+# get user inputs
+def pars_args():
+    parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
+    parser.add_argument('-c', '--json_config_path', 
+        default='~/Desktop/preprocessing_config_jump1.json',
+        help='path to video analysis config file')
+    args = parser.parse_args()
+    
+    return args
+
 def main(args):
     json_config_path = os.path.expanduser(args.json_config_path)
 

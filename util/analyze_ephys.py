@@ -3,7 +3,7 @@ analyze_ephys.py
 
 camera and ephys figures
 
-Oct. 19, 2020
+Nov. 23, 2020
 """
 
 from netCDF4 import Dataset
@@ -11,6 +11,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
+import subprocess
 import cv2
 import pickle
 import time
@@ -20,9 +21,265 @@ import wavio
 mpl.rcParams['animation.ffmpeg_path'] = r'C:/Program Files/ffmpeg/bin/ffmpeg.exe'
 from scipy.interpolate import interp1d
 from numpy import nan
+import matplotlib.backends.backend_pdf
 
-mpl.rcParams['pdf.fonttype'] = 42
-mpl.rcParams['ps.fonttype'] = 42
+from util.read_data import find
+
+def plot_worldcam_timing(worldT):
+    fig, axs = plt.subplots(1,2)
+    axs[0].plot(np.diff(worldT)); axs[0].set_xlabel('frame'); axs[0].set_ylabel('deltaT'); axs[0].set_title('world cam')
+    axs[1].hist(np.diff(worldT),100);axs[1].set_xlabel('deltaT')
+    return fig
+
+def plot_mean_world_img(world_vid):
+    fig, axs = plt.figure()
+    axs = plt.imshow(np.mean(world_vid,axis=0))
+    axs = plt.title('mean world image')
+    return fig
+
+def plot_eye_frame(eye_vid):
+    fig, axs = plt.figure()
+    axs = plt.imshow(eye_vid[0,:,:])
+    axs = plt.title('eye cam, frame=0')
+    return fig
+
+def plot_eyecam_timing(eyeT):
+    fig, axs = plt.subplots(1,2)
+    axs[0].plot(np.diff(eyeT)); axs[0].set_xlabel('frame'); axs[0].set_ylabel('deltaT'); axs[0].set_title('eye cam')
+    axs[1].hist(np.diff(eyeT),100)
+    return fig
+
+def plot_eye_position(eye_params):
+    fig, axs = plt.figure()
+    axs = plt.plot(eye_params.sel(ellipse_params = 'theta')*180/3.1415,eye_params.sel(ellipse_params = 'phi')*180/3.1415,'.')
+    axs = plt.xlabel('theta'); axs = plt.ylabel('phi')
+    return fig
+
+def plot_eye_variables(eye_params, eyeT):
+    fig, axs = plt.subplots(4,1)
+    for i,val in enumerate(eye_params.ellipse_params[0:4]):
+        axs[i].plot(eyeT,eye_params.sel(ellipse_params = val))
+        axs[i].set_ylabel(val.values)
+    return fig
+
+def plot_sound_video(eye_vid, eyeT, world_vid, worldT, eyeInterp, worldInterp, goodcells, ephys_data, trial_name, datarate):
+    #unit to plot/record
+    this_unit = 0
+
+    #set up figure
+    fig = plt.figure(figsize = (6,8))
+    gs = fig.add_gridspec(4,2)
+    axEye = fig.add_subplot(gs[0,0])
+    axWorld = fig.add_subplot(gs[0,1])
+    axTheta = fig.add_subplot(gs[1,:])
+    axdTheta = fig.add_subplot(gs[2,:])
+    axR = fig.add_subplot(gs[3,:])
+    #axRad = fig.add_subplot(gs[3,:])
+
+    #timerange and center frame (only)
+    tr = [5, 35]
+    fr = np.mean(tr) # time for frame
+    eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
+    worldFr = np.abs(worldT-fr).argmin(dim = "frame")
+
+    axEye.cla(); axEye.axis('off'); 
+    axEye.imshow(eye_vid[eyeFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+    #axEye.plot(eye_params.sel(ellipse_params = 'X0')[fr]/2,eye_params.sel(ellipse_params = 'Y0')[fr]/2,'r.')
+    axEye.set_xlim(0,160); axEye.set_ylim(0,120)
+
+    axWorld.cla(); axWorld.axis('off'); 
+    axWorld.imshow(np.flipud(world_vid[worldFr,:,:]),'gray',vmin=0,vmax=255,aspect = "equal")
+   
+    #plot eye position
+    axTheta.cla()
+    axTheta.plot(eyeT,0.25*eye_params.sel(ellipse_params = 'theta')*180/3.14159)
+    axTheta.set_xlim(tr[0],tr[1]); 
+    axTheta.set_ylabel('theta - deg'); axTheta.set_ylim(-45,45)
+
+    # plot eye velocity
+    axdTheta.cla()
+    axdTheta.plot(eyeT[0:-1],0.25*dEye*60); ax.set_ylabel('dtheta')
+    #sacc = np.transpose(np.where(np.abs(dEye)>10))
+    #axdTheta.plot(sacc,np.sign(dEye[sacc])*20,'.')
+    axdTheta.set_xlim(tr[0],tr[1]); 
+    axdTheta.set_ylim(-23*60,30*60); axdTheta.set_ylabel('eye vel - deg/sec')
+
+    #plot radius?
+    #axRad.cla()
+    #axRad.plot(eye_params.sel(ellipse_params = 'longaxis')[frameRange])
+    #axRad.set_xlim(0,frameRange[-1]-frameRange[0]); 
+    #axRad.set_ylabel('radius'); axRad.set_xlabel('frame #'); axRad.set_ylim(0,40)
+
+    # plot spikes
+    axR.fontsize = 20
+    for i,ind in enumerate(goodcells.index):
+        axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5)
+    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5)
+
+    axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , 5); axR.set_xlabel('secs'); axR.set_ylabel('unit #')
+    axR.spines['right'].set_visible(False)
+    axR.spines['top'].set_visible(False)
+
+    plt.tight_layout()
+
+    # now animate
+    writer = FFMpegWriter(fps=30)
+    with writer.saving(fig, os.path.join(trial_path, (trial_name + '_ephys_plot.mp4')), 100):
+        for t in np.arange(tr[0],tr[1],1/30):
+            
+            # show eye and world frames
+            axEye.cla(); axEye.axis('off'); 
+            axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
+            axEye.set_xlim(0,160); axEye.set_ylim(0,120)
+            
+            axWorld.cla(); axWorld.axis('off'); 
+            axWorld.imshow(np.flipud(worldInterp(t)),'gray',vmin=0,vmax=255,aspect = "equal")
+            
+            #plot line for time, then remove
+            ln = axR.vlines(t,-0.5,30,'b')
+            writer.grab_frame()
+            ln.remove()
+
+    # generate wave file
+    sp = np.array(ephys_data.at[units[this_unit],'spikeT'])-tr[0]
+    sp = sp[sp>0]
+    f = 440.0 # sound frequency (Hz)
+    # compute waveform samples
+    tmax = tr[1]-tr[0]
+    t = np.linspace(0, tr[1]-tr[0], (tr[1]-tr[0])*datarate,endpoint=False)
+    x = np.zeros(np.size(t))
+    for spt in sp[sp<tmax]:
+        x[np.int64(spt*datarate) : np.int64(spt*datarate +30)] = 1
+        x[np.int64(spt*datarate)+31 : np.int64(spt*datarate +60)] =- 1
+    plt.plot(x)
+
+    # write the samples to a file
+    wavio.write(os.path.join(trial_path, (trial_name + '_ephys_plot.wav')), x, datarate, sampwidth=1)
+
+def merge_sound_video(trial_path, trial_name):
+    wav_path = os.path.join(trial_path, (trial_name + '_ephys_plot.wav'))
+    mp4_path = os.path.join(trial_path, (trial_name + '_ephys_plot.mp4'))
+    save_path = os.path.join(trial_path, (trial_name + '_ephys_plot_merged.mp4'))
+    subprocess.call(['ffmpeg', '-i', mp4_path, '-i', wav_path, '-c:v', 'copy', '-c:a', 'aac', save_path])
+
+def plot_norm_world(std_im, world_vid):
+    fig, axs = plt.subplots(1,2)
+    axs[0] = plt.imshow(std_im)
+    axs[0] = plt.title('std dev of image')
+    axs[1] = plt.imshow(np.mean(world_vid,axis=0),vmin=0,vmax=255)
+    axs[1] = plt.title('mean of image')
+    return fig
+
+def plot_world_contrast(worldT, contrast):
+    fig, axs = plt.figure()
+    axs = plt.plot(worldT[0:6000],contrast[0:6000])
+    axs = plt.xlabel('time')
+    axs = plt.ylabel('contrast')
+    return fig
+
+def plot_interp_contrast(contrast_interp):
+    fig, axs = plt.figure()
+    axs = plt.plot(contrast_interp[0:600])
+    return fig
+
+# headfixed figures
+def headfixed_figures(config):
+
+    pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (config['recording_name'] + '_figures.pdf')))
+
+    eye_file = find(config['recording_name'] + '*eye.nc', config['trial_path'])
+    world_file = find(config['recording_name'] + '*world.nc', config['trial_path'])
+    ephys_file = find(config['recording_name'] + '*ephys_merge.json', config['trial_path'])
+
+    world_data = xr.open_dataset(world_file)
+    world_vid_raw = np.uint8(world_data['WORLD_video'])
+
+    # resize worldcam to make more manageable
+    sz = world_vid_raw.shape
+    downsamp = 0.5
+    world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
+    for f in range(sz[0]):
+        world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
+    worldT = world_data.timestamps.copy()
+
+    # plot worldcam timing
+    pdf.savefig(plot_worldcam_timing(worldT))
+
+    # plot mean world image
+    pdf.savefig(plot_mean_world_img(world_vid))
+
+    # read ephys data
+    ephys_data = pd.read_json(ephys_file)
+
+    # get first ephys timestamp
+    ephysT0 = ephys_data.iloc[0,12]
+    # select good cells
+    goodcells = ephys_data.loc[ephys_data['group']=='good']
+    units = goodcells.index.values
+
+    #load eye data
+    eye_data = xr.open_dataset(eye_file)
+    eye_vid = np.uint8(eye_data['REYE_video'])
+    eyeT = eye_data.timestamps.copy()
+
+    # plot first frame of eyecam
+    pdf.savefig(plot_eye_frame(eye_vid))
+    
+    # plot eye timestamps
+    pdf.savefig(plot_eyecam_timing(eyeT))
+
+    # plot eye postion across recording
+    eye_params = eye_data['REYE_ellipse_params']
+    pdf.savefig(plot_eye_postion(eye_params))
+
+    # adjust eye/world/top times relative to ephys
+    eyeT = eye_data.timestamps  - ephysT0
+    if eyeT[0]<-600:
+        eyeT = eyeT + 8*60*60 # 8hr offset for some data
+    worldT = world_data.timestamps - ephysT0
+    if worldT[0]<-600:
+        worldT = worldT + 8*60*60
+    
+    # plot eye variables
+    pdf.savefig(plot_eye_variables(eye_params, eyeT))
+
+    # calculate eye veloctiy
+    dEye = np.diff(eye_params.sel(ellipse_params = 'theta'))*180/3.14159
+
+    # normalize world movie and calculate contrast
+    img_norm = (world_vid-np.mean(world_vid,axis=0))/np.std(world_vid,axis=0)
+    contrast = np.empty(worldT.size)
+    for i in range(worldT.size):
+        contrast[i] = np.std(img_norm[i,:,:])
+    pdf.savefig(plot_world_contrast(worldT, contrast))
+
+    # set up interpolators for eye and world videos
+    eyeInterp = interp1d(eyeT,eye_vid,axis=0)
+    worldInterp = interp1d(worldT,world_vid,axis=0)
+
+    # write .mp4 and .wav files
+    plot_sound_video(eye_vid, eyeT, world_vid, worldT, eyeInterp, worldInterp, goodcells, ephys_data, trial_name, datarate)
+    # then merge the two files into an mp4 with sound
+    merge_sound_video(trial_path, trial_name)
+
+    # normalize world video
+    std_im = np.std(world_vid,axis=0)
+    std_im[std_im<10] = 10
+    img_norm = (world_vid-np.mean(world_vid,axis=0))/std_im
+    # and plot
+    pdf.savefig(plot_norm_world(std_im, world_vid))
+
+    #set up timebase for subsequent analysis
+    dt = 0.025
+    t = np.arange(0, np.max(worldT),dt)
+
+    # interpolate and plot contrast
+    newc =interp1d(worldT,contrast)
+    contrast_interp = newc(t[0:-1])
+    pdf.savefig(plot_interp_contrast)
+
+    pdf.close()
+
 
 # get figures given paths to the .nc files and ephys .json
 def ephys_figures(config):
@@ -39,6 +296,7 @@ def ephys_figures(config):
     spiney = ptNames.sel(point_loc = 'spine_y')
     spinep = ptNames.sel(point_loc = 'spine_likelihood')
 
+    # mouse speed
     box = np.ones(11)/11
     spinex = np.convolve(spinex, box, mode='same')
     spiney = np.convolve(spiney, box, mode='same')
@@ -83,7 +341,7 @@ def ephys_figures(config):
     fig, ax = plt.subplots(figsize=(20,8))
     ax.fontsize = 20
     for i,ind in enumerate(goodcells.index):
-    plt.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25)
+        plt.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25)
     plt.xlim(0, 10); plt.xlabel('secs',fontsize = 20); plt.ylabel('unit #',fontsize=20)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
