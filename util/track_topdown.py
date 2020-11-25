@@ -3,7 +3,7 @@ track_topdown.py
 
 topdown tracking utilities
 
-Oct. 26, 2020
+Nov. 25, 2020
 """
 
 # package imports
@@ -38,8 +38,11 @@ def body_angle(pt_input, config, trial_name, top_view):
         x2 = step_pts.sel(point_loc='spine2_x')
         y1 = step_pts.sel(point_loc='spine_y')
         y2 = step_pts.sel(point_loc='spine2_y')
-        ang = ((y2-y1)/(x2-x1))
-        angs.append(ang)
+        x_dist = x1 - x2
+        y_dist = y1 - y2
+        th = np.arctan(ydist/x_dist)
+        th_deg = np.rad2deg(th)
+        angs.append(float(th_deg))
     body_ang = xr.DataArray(angs, dims=['frame'])
 
     return body_ang
@@ -53,8 +56,11 @@ def head_angle1(pt_input, config, trial_name, top_view):
         x2 = step_pts.sel(point_loc='leftear_x')
         y1 = step_pts.sel(point_loc='rightear_y')
         y2 = step_pts.sel(point_loc='leftear_y')
-        ang = -1/((y2-y1)/(x2-x1))
-        angs.append(ang)
+        x_dist = x1 - x2
+        y_dist = y1 - y2
+        th = np.arctan(ydist/x_dist)
+        th_deg = np.rad2deg(th)
+        angs.append(float(th_deg))
     head_theta = xr.DataArray(angs, dims=['frame'])
 
     return head_theta
