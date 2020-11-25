@@ -3,7 +3,7 @@ preprocessing.py
 
 deinterlace videos, analyze with DLC, and extract parameters
 
-Oct. 16, 2020
+Nov. 17, 2020
 """
 
 import argparse, json, sys, os, subprocess, shutil
@@ -16,7 +16,6 @@ import warnings
 from glob import glob
 from multiprocessing import freeze_support
 
-from util.read_data import pars_args
 from util.params import extract_params
 from util.dlc import run_DLC_Analysis
 from util.deinterlace import deinterlace_data

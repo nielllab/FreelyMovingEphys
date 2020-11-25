@@ -19,10 +19,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 from tqdm import tqdm
 
 # module imports
-from util.read_data import nanxcorr
+from util.read_data import nanxcorr, find_start_end
 
 # get cross-correlation
-def jump_cc(global_data_path, global_save_path, trial_name, REye_ds, LEye_ds, top_ds, side_ds):
+def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     # open pdf file to save plots in
     pdf = PdfPages(os.path.join(config['data_path'], (config['recording_name'] + '_jump_cc.pdf')))
     # organize data
@@ -118,14 +118,13 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
     Side_pts = SIDE.SIDE_pts
     Side_params = SIDE.SIDE_theta
 
-    savepath = str(savepath) + '/' + str(trial_name) + '_side_gaze_trace.avi'
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (width, height))
+    # find the first shared frame for the four video feeds and play them starting at that shared frame
+    # td_startframe, td_endframe, left_startframe, left_endframe, right_startframe, right_endframe, side_startframe, side_endframe, first_real_time, last_real_time = find_start_end(TOP, LEye, REye, SIDE)
 
     sidecap = cv2.VideoCapture(Svid) #.set(cv2.CAP_PROP_POS_FRAMES, int(side_startframe))
 
-    # find the first shared frame for the four video feeds and play them starting at that shared frame
-    td_startframe, td_endframe, left_startframe, left_endframe, right_startframe, right_endframe, side_startframe, side_endframe, first_real_time, last_real_time = find_start_end(TOP, LEye, REye, SIDE)
+    width = int(sidecap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(sidecap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     savepath = os.path.join(config['data_path'], (config['recording_name'] + '_side_gaze_trace.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -139,18 +138,9 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
 
     for frame_num in tqdm(range(0,int(sidecap.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # read in videos
-        SIDE_ret, SIDE_frame = sidevid.read()
-        TOP_ret, TOP_frame = sidevid.read()
-        REye_ret, REye_frame = sidevid.read()
-        LEye_ret, LEye_frame = sidevid.read()
+        SIDE_ret, SIDE_frame = sidecap.read()
 
         if not SIDE_ret:
-            break
-        if not TOP_ret:
-            break
-        if not REye_ret:
-            break
-        if not LEye_ret:
             break
 
         # get current ellipse parameters
@@ -181,7 +171,7 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
         # gaze (mean phi of eyes)
         gaze_phi = (RPhi + LPhi) * 0.5
 
-        # plot mouse head poisiton with 'tracers'
+        # plot mouse head poisiton with small blue 'tracers'
         for i in range(0,15):
             frame_before = frame_num - i
             if frame_before >= 0:
@@ -224,10 +214,6 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
         except ValueError:
             pass
 
-        vidout.write(SIDE_frame)
+        vid_out.write(SIDE_frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-        out_vid.release()
-        cv2.destroyAllWindows()
+    vid_out.release()

@@ -148,7 +148,8 @@ def curve_func(xval, a, b, c, d):
 # multiprocessing-ready fit to sigmoid function
 def sigm_fit_mp(d):
     try:
-        popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5], bounds=([50, 100, 5, .05],[150, 250, 20, 5]), method='trf', xtol=10**-5)
+        popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d, p0=[100,200,10,0.5],
+                                bounds=([50, 100, 5, .05],[150, 250, 20, 5]), method='trf', xtol=10**-3)
         ci = np.sqrt(np.diagonal(pcov))
     except RuntimeError:
         popt = np.nan*np.zeros(4)
@@ -235,7 +236,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             param_mp = [pool.apply_async(sigm_fit_mp, args=(d[n,:],)) for n in range(360)]
             params_output = [result.get() for result in param_mp]
 
-            # apply signoid fit without multiprocessing
+            # apply sigmoid fit without multiprocessing
             # params_output = []
             # for n in range(360):
             #     params_output.append(sigm_fit_mp(d[n,:]))
@@ -247,36 +248,37 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
                 ci.append(vals[1])
             params = np.stack(params); ci = np.stack(ci)
 
-            fit_thresh = 1
-
             # extract radius variable from parameters
             rfit = params[:,2] - 1
 
             # if confidence interval in estimate is > fit_thresh pix, set to to NaN
-            # then, remove if luminance goes the wrong way (e.g. from reflectance)
-            for deg_th in range(0,360):
-                rfit[deg_th] = np.where(ci[deg_th,2] > fit_thresh, np.nan, rfit[deg_th])
-                rfit[deg_th] = np.where((params[deg_th,1] - params[deg_th,0]) < 0, np.nan, rfit[deg_th])
+            ci_temp = ci[:,2] > 1
+            rfit[ci_temp] = np.nan
+
+            # remove if luminance goes the wrong way (e.g. from reflectance)
+            params_temp1 = (params[:,1] - params[:,0]) < 0
+            params_temp2 = params[:,1] > 240
+            rfit[params_temp1] = np.nan
+            rfit[params_temp2] = np.nan
 
             try:
                 # median filter
-                rfit_interp = signal.medfilt(rfit,3)
+                rfit_filt = signal.medfilt(rfit,3)
 
                 # subtract baseline because our points aren't perfectly centered on ellipse
-                filtsize = 30
-                rfit_conv = rfit - np.convolve(rfit_interp, np.ones(filtsize)/filtsize, mode='same')
+                filtsize = 31
+                # rfit_conv = rfit - np.convolve(rfit_interp, np.ones(filtsize)/filtsize, mode='same')
+                rfit_conv = rfit - convolve(rfit_filt, np.ones(filtsize)/filtsize, boundary='wrap')
                 # edges have artifact from conv, so set to NaNs
-                # could fix this by padding data with wraparound at 0 and 360deg before conv
-                # the astropy package can do this with the convolution.convolve package
-                # TO DO: test and impliment wraparound convolution with astropy function convolve
-                rfit_conv[range(0,int(filtsize/2+1))] = np.nan
-                rfit_conv[range((len(rfit_conv)-int(filtsize/2-1)),len(rfit_conv))] = np.nan
+                #   no edge artifacts anymore -- astropy convolve wraps around
+                # rfit_conv[range(0,int(filtsize/2+1))] = np.nan
+                # rfit_conv[range((len(rfit_conv)-int(filtsize/2-1)),len(rfit_conv))] = np.nan
 
-            except ValueError: # in case every value in rfit is NaN
-                rfit_conv = np.empty(np.shape(rfit_conv)) # make an rfit_conv with the shape of the last one
+            except ValueError as e: # in case every value in rfit is NaN
+                rfit_conv = np.nan*np.zeros(360)
         except (KeyError, ValueError) as e:
             key_error_count = key_error_count + 1
-            rfit_conv = np.empty(np.shape(rfit_conv))
+            rfit_conv = np.nan*np.zeros(360)
 
         # save out pupil edge data into one xarray for all frames
         if step == 0:
@@ -298,13 +300,18 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             rfit_temp = xr.DataArray.rename(rfit_temp, {'dim_0':'deg'})
             rfit_xr = xr.concat([rfit_xr, rfit_temp], dim='frame', fill_value=np.nan)
 
+    # threshold out any frames with large or small rfit_conv distributions
+    for frame in range(0,np.size(rfit_conv_xr,0)):
+        if np.min(rfit_conv_xr[frame,:]) < -10 or np.max(rfit_conv_xr[frame,:]) > 10:
+            rfit_conv_xr[frame,:] = np.nan
+
     # plot rfit for all trials and highlight mean
     if config['save_figs'] is True:
         plt.figure()
         plt.plot(rfit_conv_xr.T, alpha=0.3)
         plt.plot(np.mean(rfit_conv_xr.T, 1), 'b--')
-        plt.title('convolved rfit for all trials, mean in blue')
-        plt.ylim([-3,3])
+        plt.title('convolved rfit for all frames, mean in blue')
+        # plt.ylim([-3,3])
         pdf.savefig()
         plt.close()
 
@@ -326,13 +333,18 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         plt.close()
 
     n = np.size(rfit_conv_xr.values, 0)
-    pupil_update = rfit_conv_xr.values
+    pupil_update = rfit_conv_xr.values.copy()
     total_shift = np.zeros(n); peak = np.zeros(n)
-    c = total_shift
+    c = total_shift.copy()
     template = np.nanmean(rfit_conv_xr.values, 0)
 
     # calculate mean as template
-    template_rfitconv_cc, template_rfit_cc_lags = nanxcorr(rfit_conv_xr[7].values, template, 30)
+    try:
+        template_rfitconv_cc, template_rfit_cc_lags = nanxcorr(rfit_conv_xr[7].values, template, 30)
+        template_nanxcorr = True
+    except ZeroDivisionError:
+        template_nanxcorr = False
+
     if config['save_figs'] is True:
         plt.figure()
         plt.plot(template)
@@ -340,30 +352,38 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         pdf.savefig()
         plt.close()
 
-        plt.plot(template_rfitconv_cc)
-        plt.title('rfit_conv template cross correlation')
-        pdf.savefig()
-        plt.close()
+        if template_nanxcorr is True:
+            plt.plot(template_rfitconv_cc)
+            plt.title('rfit_conv template cross correlation')
+            pdf.savefig()
+            plt.close()
 
     # xcorr of two random timepoints
     if config['save_figs'] is True:
-        t0 = np.random.random_integers(0,totalF-1); t1 = np.random.random_integers(0,totalF-1)
-        rfit2times_cc, rfit2times_lags = nanxcorr(rfit_conv_xr.isel(frame=t0).values, rfit_conv_xr.isel(frame=t1).values, 10)
-        plt.figure()
-        plt.plot(rfit2times_cc, 'b-')
-        plt.title('nanxcorr of frames ' + str(t0) + ' and ' + str(t1))
-        pdf.savefig()
-        plt.close()
+        try:
+            t0 = np.random.random_integers(0,totalF-1); t1 = np.random.random_integers(0,totalF-1)
+            rfit2times_cc, rfit2times_lags = nanxcorr(rfit_conv_xr.isel(frame=t0).values, rfit_conv_xr.isel(frame=t1).values, 10)
+            rand_frames = True
+        except ZeroDivisionError:
+            rand_frames = False
+        if rand_frames is True:
+            plt.figure()
+            plt.plot(rfit2times_cc, 'b-')
+            plt.title('nanxcorr of frames ' + str(t0) + ' and ' + str(t1))
+            pdf.savefig()
+            plt.close()
+
+    num_rfit_samples_to_plot = 100
+    ind2plot_rfit = sorted(np.random.randint(0,totalF-1,num_rfit_samples_to_plot))
 
     # iterative fit to alignment
     # start with mean as template
     # on each iteration, shift individual frames to max xcorr with template
     # then recalculate mean template
-    print('doing iterative fit on frames to find alignment for each frame')
-    for rep in tqdm(range(0,12)):
-
+    print('doing iterative fit for alignment of each frame')
+    for rep in tqdm(range(0,12)): # twelve iterations
         # for each frame, get correlation, and shift
-        for frame_num in range(0,n):
+        for frame_num in range(0,n): # do all frames
             try:
                 xc, lags = nanxcorr(template, pupil_update[frame_num,:], 10)
                 c[frame_num] = np.amax(xc) # value of max
@@ -380,24 +400,23 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             plt.figure()
             plt.title('pupil_update of rep='+str(rep)+' in iterative fit')
             plt.plot(template, 'k--', alpha=0.8)
-            plt.plot(pupil_update.T, alpha=0.2)
+            plt.plot(pupil_update[ind2plot_rfit,:].T, alpha=0.2)
             pdf.savefig()
             plt.close()
 
             # histogram of correlations
             plt.figure()
             plt.title('correlations of rep='+str(rep)+' in iterative fit')
-            plt.hist(c, bins=300)
+            plt.hist(c[c>0], bins=300) # gets rid of NaNs in plot
             pdf.savefig()
             plt.close()
 
-    # total_shift[np.mean(rfit_conv,1) > 25] = np.nan
-
     win = 3
+    total_shift = np.deg2rad(total_shift)
     shift_nan = -total_shift
     shift_nan[c < 0.2] = np.nan # started at [c < 0.4], is it alright to change this? many values go to NaN otherwise
     shift_nan[shift_nan > 0.6] = np.nan; shift_nan[shift_nan < -0.6] = np.nan # get rid of very large shifts
-    shift_smooth = convolve(shift_nan, np.ones(win)/win, boundary='wrap') # convolve using astopy.convolution.convolve, which should work like nanconv by interpolating over nans as appropriate
+    shift_smooth = np.convolve(shift_nan, np.ones(win)/win, mode='same')
     shift_smooth = shift_smooth - np.nanmedian(shift_smooth)
     shift_nan = shift_nan - np.nanmedian(shift_nan)
 
@@ -411,6 +430,31 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         plt.figure()
         plt.plot(shift_smooth)
         plt.title('shift smooth')
+        pdf.savefig()
+        plt.close()
+
+        plt.figure()
+        plt.plot(rfit_xr.isel(frame=ind2plot_rfit).T, alpha=0.2)
+        plt.plot(np.nanmean(rfit_xr.T,1), 'b--', alpha=0.8)
+        plt.title('rfit for 100 random frames')
+        pdf.savefig()
+        plt.close()
+
+        plt.figure()
+        plt.plot(rfit_conv_xr.isel(frame=ind2plot_rfit).T, alpha=0.2)
+        plt.plot(np.nanmean(rfit_conv_xr.T,1), 'b--', alpha=0.8)
+        plt.title('rfit_conv for 100 random frames')
+        pdf.savefig()
+        plt.close()
+
+        # plot of 5 random frames' rfit_conv
+        plt.figure()
+        fig, axs = plt.subplots(5,1)
+        axs = axs.ravel()
+        for i in range(0,5):
+            rand_num = np.random.randint(0,totalF-1)
+            axs[i].plot(rfit_conv_xr.isel(frame=rand_num))
+            axs[i].set_title(('rfit conv; frame ' + str(rand_num)))
         pdf.savefig()
         plt.close()
 

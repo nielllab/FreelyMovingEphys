@@ -94,9 +94,12 @@ try
         plot(allData(i,1:3000));
         axis off
     end
+    savefig(['CAR_' filename(1:end-4) '_fig1'])
+    
     figure
     bar(std(double(allData),[],2));
     xlabel('chan'); ylabel('stdev')
+    savefig(['CAR_' filename(1:end-4) '_fig2'])
     
 catch me
     
