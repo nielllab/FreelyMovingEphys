@@ -71,7 +71,7 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     plt.ylabel('eye div deg'); plt.xlabel('head th deg')
     plt.plot([-40,40],[40,-40], 'r:')
     plt.xlim([-40,40]); plt.ylim([-40,40])
-    plt.scatter(th, div)
+    plt.scatter(np.rad2deg(th), np.rad2deg(div))
     pdf.savefig()
     plt.close()
 
@@ -79,7 +79,7 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     plt.ylabel('eye phi deg'); plt.xlabel('head th deg')
     plt.plot([-40,40],[-40,40], 'r:')
     plt.xlim([-40,40]); plt.ylim([-40,40])
-    plt.scatter(th, gaze_phi)
+    plt.scatter(np.rad2deg(th), np.rad2deg(gaze_phi))
     pdf.savefig()
     plt.close()
 
