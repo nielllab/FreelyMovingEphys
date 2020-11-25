@@ -3,7 +3,7 @@ track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-Nov 05, 2020
+Nov 24, 2020
 """
 
 # package imports
@@ -150,14 +150,36 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         pdf.savefig()
         plt.close()
 
+    # threshold out pts more than a given distance away from nanmean of that point
+    std_thresh_x = np.empty(np.shape(x_vals))
+    for point_loc in range(0,np.size(x_vals, 1)):
+        std_thresh_x[:,point_loc] = np.absolute(np.nanmean(x_vals.iloc[:,point_loc]) - x_vals.iloc[:,point_loc]) > config['eye_dist_thresh']
+    std_thresh_y = np.empty(np.shape(y_vals))
+    for point_loc in range(0,np.size(x_vals, 1)):
+        std_thresh_y[:,point_loc] = np.absolute(np.nanmean(y_vals.iloc[:,point_loc]) - y_vals.iloc[:,point_loc]) > config['eye_dist_thresh']
+    std_thresh_x = np.nanmean(std_thresh_x, 1)
+    std_thresh_y = np.nanmean(std_thresh_y, 1)
+    x_vals[std_thresh_x > 0] = np.nan
+    y_vals[std_thresh_y > 0] = np.nan
+
     ellipse_params = np.empty([len(usegood), 14])
 
     # step through each frame, fit an ellipse to points, and add ellipse parameters to array with data for all frames together
+    linalgerror = 0
     for step in tqdm(range(0,len(usegood))):
         if usegood[step] == True:
-            e_t = fit_ellipse(x_vals.iloc[step].values, y_vals.iloc[step].values)
-            ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
-                                    e_t['long_axis'], e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
+            try:
+                e_t = fit_ellipse(x_vals.iloc[step].values, y_vals.iloc[step].values)
+                ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
+                                        e_t['long_axis'], e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
+                                        e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
+            except np.linalg.LinAlgError as e:
+                linalgerror = linalgerror + 1
+                e_t = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
+                            'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
+                            'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
+                ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
+                                    e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
                                     e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
         elif usegood[step] == False:
             e_t = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
@@ -166,7 +188,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
             ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
                                     e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
                                     e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
-
+    print('lin alg error count = ' + str(linalgerror))
+    
     # if config['save_figs'] is True:
     #     plt.figure()
     #     plt.scatter(ellipse_params[:,11], ellipse_params[:,0])

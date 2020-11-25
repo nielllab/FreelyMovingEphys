@@ -1,8 +1,8 @@
 {
-    "file_paths": {
-        "ephys_file": "T:/path/to/ephys.json",
-        "eye_file": "T:/path/to/REYE.nc",
-        "world_file": "T:/path/to/WORLD.nc",
-        "top_file": "T:/path/to/TOP1.nc"
+    "trial_name": "010101_example_name",
+    "data_path": "T:/path/to/parent/directory",
+    "exp_type": {
+        "jumping": true,
+        "freelymovingephys": false
     }
 }

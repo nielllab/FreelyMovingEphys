@@ -3,7 +3,7 @@ ephys.py
 
 organize and combine ephys data
 
-Oct. 07, 2020
+Nov. 17, 2020
 """
 
 # package imports
@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import os
+from scipy.io import loadmat
 
 # module imports
 from util.read_data import open_time
@@ -39,3 +40,59 @@ def format_spikes(spike_times_path, spike_clusters_path, cluster_group_path, eph
     ephys_data['t0'] = open_time(ephys_time_path)[0]
 
     return ephys_data
+
+# format spikes as seperate json files
+# merge file should be .mat file, config should be preprocessing .json
+def format_spikes_multi(merge_file, config):
+    # open 
+    merge_info = loadmat(merge_file)
+    fileList = merge_info['fileList']
+    pathList = merge_info['pathList']
+    nSamps = merge_info['nSamps']
+
+    #load phy output data
+    phy_path = os.path.split(merge_file)
+    allSpikeT = np.load(os.path.join(phy_path[0],'spike_times.npy'))
+    clust = np.load(os.path.join(phy_path[0],'spike_clusters.npy'))
+    templates = np.load(os.path.join(phy_path[0],'templates.npy'))
+
+    # ephys_data_master holds information that is same for all recordings (i.e. cluster information + waveform)
+    ephys_data_master = pd.read_csv(os.path.join(phy_path[0],'cluster_info.tsv'),sep = '\t',index_col=0)
+
+    # insert waveforms
+    ephys_data_master['waveform'] = np.nan
+    ephys_data_master['waveform'] = ephys_data_master['waveform'].astype(object) # does this need to be an object? spikeT is an object because they are all diff length, but I don't think these need to be -cmn
+    for i, ind in enumerate(ephys_data_master.index):
+        ephys_data_master.at[ind,'waveform'] = templates[ind,21:,ephys_data_master.at[ind,'ch']]
+
+    # create boundaries between recordings (in terms of timesamples)
+    boundaries = np.concatenate((np.array([0]),np.cumsum(nSamps)))
+
+    # loop over each recording and create/save ephys_data for each one
+    for s in range(len(nSamps)+1):
+
+        # select spikes in this timerange
+        use = (allSpikeT >= boundaries[s]) & (allSpikeT<boundaries[s+1] )
+        theseSpikes = allSpikeT[use]
+        theseClust = clust[use[:,0]]
+
+        # place spikes into ephys data structure
+        ephys_data = ephys_data_master.copy()
+        ephys_data['spikeT'] = np.NaN
+        ephys_data['spikeT'] = ephys_data['spikeT'].astype(object)
+        for c in np.unique(clust):
+            ephys_data.at[c,'spikeT'] =(theseSpikes[theseClust==c].flatten() - boundaries[s])/config['ephys_sample_rate'] 
+        
+        # get timestamp from csv for this recording
+        fname = fileList[0,s][0].copy()
+        fname = fname[0:-4] + '_BonsaiTS.csv'
+        ephys_time_path = os.path.join(pathList[0,s][0],fname)
+        ephys_data['t0'] = open_time(ephys_time_path)[0]
+        
+        # write ephys data into json file
+        fname = fileList[0,s][0].copy()
+        fname = fname[0:-10] + '_ephys_merge.json'
+        ephys_json_path = os.path.join(pathList[0,s][0],fname)
+        ephys_data.to_json(ephys_json_path)
+
+
