@@ -3,7 +3,7 @@ track_hf_movement.py
 
 tracking mouse movement on ball or running wheel
 
-Nov. 17, 2020
+Nov. 30, 2020
 """
 
 import pandas as pd
@@ -26,9 +26,11 @@ def ball_tracking(csv_path, config):
     time = open_time1(csv_data['Timestamp.TimeOfDay'])
     # get the speed at each sample time
     diff = pd.DataFrame([csv_data['Value.X']-centX,csv_data['Value.Y']-centY]).T
-    speed = [np.sqrt((diff.iloc[i,0])**2 + (diff.iloc[i,1])**2) for i in range(0,len(csv_data))] # pixels/sample
+    pixpersamp = [np.sqrt((diff.iloc[i,0])**2 + (diff.iloc[i,1])**2) for i in range(0,len(csv_data))] # pixels/sample
+    # convert to cm/sec
+    cmpersec = pixpersamp * (1/config['optical_mouse_pix2cm']) * (1/config['optical_mouse_sample_rate_ms']) * 1000 # 1000 converts to s from ms
     # assemble together components
-    all_data = pd.DataFrame([time, csv_data['Value.X'], csv_data['Value.Y'], speed]).T
+    all_data = pd.DataFrame([time, csv_data['Value.X'], csv_data['Value.Y'], pixpersamp, cmpersec]).T
     all_data.columns=['timestamps','x_pos','y_pos','pix_per_sample']
     # and build into xarray before returning
     xr_out = xr.DataArray(all_data, dims={'frame','move_params'})

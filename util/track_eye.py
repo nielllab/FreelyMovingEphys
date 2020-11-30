@@ -3,7 +3,7 @@ track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-Nov 24, 2020
+Nov 30, 2020
 """
 
 # package imports
@@ -153,17 +153,16 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # threshold out pts more than a given distance away from nanmean of that point
     std_thresh_x = np.empty(np.shape(x_vals))
     for point_loc in range(0,np.size(x_vals, 1)):
-        std_thresh_x[:,point_loc] = np.absolute(np.nanmean(x_vals.iloc[:,point_loc]) - x_vals.iloc[:,point_loc]) > config['eye_dist_thresh']
+        std_thresh_x[:,point_loc] = (np.absolute(np.nanmean(x_vals.iloc[:,point_loc]) - x_vals.iloc[:,point_loc]) / config['eyecam_pxl_per_cm']) > config['eye_dist_thresh_cm']
     std_thresh_y = np.empty(np.shape(y_vals))
     for point_loc in range(0,np.size(x_vals, 1)):
-        std_thresh_y[:,point_loc] = np.absolute(np.nanmean(y_vals.iloc[:,point_loc]) - y_vals.iloc[:,point_loc]) > config['eye_dist_thresh']
+        std_thresh_y[:,point_loc] = (np.absolute(np.nanmean(y_vals.iloc[:,point_loc]) - y_vals.iloc[:,point_loc]) / config['eyecam_pxl_per_cm']) > config['eye_dist_thresh_cm']
     std_thresh_x = np.nanmean(std_thresh_x, 1)
     std_thresh_y = np.nanmean(std_thresh_y, 1)
     x_vals[std_thresh_x > 0] = np.nan
     y_vals[std_thresh_y > 0] = np.nan
 
     ellipse_params = np.empty([len(usegood), 14])
-
     # step through each frame, fit an ellipse to points, and add ellipse parameters to array with data for all frames together
     linalgerror = 0
     for step in tqdm(range(0,len(usegood))):

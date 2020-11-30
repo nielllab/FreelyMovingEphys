@@ -22,7 +22,8 @@
     "tear": true,
     "pxl_thresh": 50,
     "ell_thresh": 0.85,
-    "eye_dist_thresh": 100,
+    "eye_dist_thresh_cm": 100,
+    "eyecam_pxl_per_cm": 24,
     "save_vids": true,
     "save_figs": true,
     "use_BonsaiTS": true,
@@ -34,5 +35,7 @@
     "run_pupil_rotation": true,
     "run_top_angles": false,
     "run_with_form_time": true,
-    "optical_mouse_screen_center":{"x":960,"y":540}
+    "optical_mouse_screen_center":{"x":960,"y":540},
+    "optical_mouse_pix2cm": 2840,
+    "optical_mouse_sample_rate_ms": 200
 }
