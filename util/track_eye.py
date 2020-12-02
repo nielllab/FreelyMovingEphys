@@ -3,7 +3,7 @@ track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-Nov 30, 2020
+Dec. 02, 2020
 """
 
 # package imports
@@ -24,9 +24,8 @@ from numpy.linalg import eig
 import math
 import matplotlib.backends.backend_pdf
 from scipy import stats
-
 # module imports
-from util.read_data import split_xyl
+from util.format_data import split_xyl
 
 # finds the best fit to an ellipse for the given set of points in a single frame
 # inputs should be x and y values of points around pupil as two numpy arrays

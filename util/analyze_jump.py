@@ -1,11 +1,10 @@
 """
 analyze_jump.py
 
-jump tracking utilities
+jump tracking analysis
 
-Oct. 26, 2020
+Dec. 02, 2020
 """
-
 # package imports
 import xarray as xr
 import cv2
@@ -17,9 +16,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_pdf import PdfPages
 from tqdm import tqdm
-
 # module imports
-from util.read_data import nanxcorr, find_start_end
+from util.paths import find
+from util.aux_funcs import nanxcorr
+from util.time import find_start_end
 
 # get cross-correlation
 def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
@@ -36,7 +36,8 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     LPhi = (LEye_now.sel(ellipse_params='phi') - np.nanmedian(LEye_now.sel(ellipse_params='phi')))
 
     # zero-center head theta, and get rid of wrap-around effect (mod 360)
-    th = head_theta * 180 / np.pi; th = (th + 360) % 360
+    # th = head_theta * 180 / np.pi
+    th = (head_theta + np.deg2rad(360)) % np.deg2rad(360)
     th = th - np.nanmean(th); th = -th
 
     # eye divergence (theta)
@@ -55,8 +56,8 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     plt.figure()
     plt.title(config['recording_name'])
     plt.ylabel('deg'); plt.xlabel('frames')
+    plt.plot(np.rad2deg(th)); plt.plot(np.rad2deg(gaze_th)); plt.plot(np.rad2deg(div)); plt.plot(np.rad2deg(gaze_phi))
     plt.legend(['head_theta', 'eye_theta','eye_divergence','eye_phi'])
-    plt.plot(th); plt.plot(gaze_th); plt.plot(div); plt.plot(gaze_phi)
     pdf.savefig()
     plt.close()
 
@@ -162,7 +163,9 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
 
         # zero-center head theta, and get rid of wrap-around effect (mod 360)
         # add pi/8 since this is roughly head tilt in movies relative to mean theta
-        th = head_theta - np.nanmedian(SIDE_par_interp) + np.pi + np.pi/8
+        th = (head_theta + np.deg2rad(360)) % np.deg2rad(360)
+        th = th - np.nanmean(th)
+        th = th - np.pi# - (np.pi/8)
 
         # eye divergence (theta)
         div = 0.5 * (RTheta - LTheta)
@@ -172,7 +175,7 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
         gaze_phi = (RPhi + LPhi) * 0.5
 
         # plot mouse head poisiton with small blue 'tracers'
-        for i in range(0,15):
+        for i in range(0,20):
             frame_before = frame_num - i
             if frame_before >= 0:
                 head_x = SIDE_pts_interp.sel(point_loc='LEye_x', frame=frame_before).values
@@ -193,21 +196,22 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
         # calculate and plot head vector
         headV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
         headV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
-        headV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values + 200 * np.cos(th)
-        headV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values + 200 * np.sin(th)
+        headV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values * np.rad2deg(np.cos(th + np.pi/8))
+        headV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values * np.rad2deg(np.sin(th + np.pi/8))
         # black line of the head vector
         try:
-            SIDE_frame = cv2.line(SIDE_frame, (int(headV_x1),int(headV_y1)), (int(headV_x2),int(headV_y2)), (255,255,255), thickness=2)
+            SIDE_frame = cv2.line(SIDE_frame, (int(headV_x1),int(headV_y1)), (int(headV_x2),int(headV_y2)), (0,0,0), thickness=2)
         except ValueError:
             pass
 
         # calculate gaze direction (head and eyes)
         # subtract off the pi/8 that was added above
-        rth = th - div * np.pi/180 - np.pi/8
+        # rth = th - div * np.pi/180 - np.pi/8
+        rth = (th - div)# + np.pi/8
         gazeV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
         gazeV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
-        gazeV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values + 200 * np.cos(rth)
-        gazeV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values + 200 * np.sin(rth)
+        gazeV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values + np.rad2deg(np.cos(rth))
+        gazeV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values + np.rad2deg(np.sin(rth))
         # cyan line of gaze direction
         try:
             SIDE_frame = cv2.line(SIDE_frame, (int(gazeV_x1),int(gazeV_y1)), (int(gazeV_x2),int(gazeV_y2)), (255,255,0), thickness=2)

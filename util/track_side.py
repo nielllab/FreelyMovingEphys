@@ -51,22 +51,21 @@ def side_tracking(sidedlc, config):
     return sidepts_out
 
 # get angle of head from side view
-# outputs list of angles in degrees
+# outputs list of angles in radians
 def side_angle(sidepts):
     head_ang = []
     # loop through each frame and get the angle for each
     for frame_num in range(0,np.size(sidepts['frame'].values)):
         nosex = sidepts.sel(point_loc='Nose_x', frame=frame_num)
         nosey = sidepts.sel(point_loc='Nose_y', frame=frame_num)
-        backx = sidepts.sel(point_loc='BackNeck_x', frame=frame_num)
-        backy = sidepts.sel(point_loc='BackNeck_y', frame=frame_num)
+        earx = sidepts.sel(point_loc='LEar_x', frame=frame_num)
+        eary = sidepts.sel(point_loc='LEar_y', frame=frame_num)
 
-        x_dist = (nosex - backx)
-        y_dist = (nosey - backy)
-        th = np.arctan(y_dist/x_dist)
-        th_deg = np.rad2deg(th)
+        x_dist = (nosex - earx)
+        y_dist = (nosey - eary)
+        th = np.arctan2(y_dist, x_dist)
 
-        head_ang.append(float(th_deg))
+        head_ang.append(float(th))
 
     xr_out = xr.DataArray(head_ang, dims=['frame'])
 

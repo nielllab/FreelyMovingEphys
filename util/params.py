@@ -3,9 +3,9 @@ params.py
 
 get parameters from DLC points and generate .nc or .json files
 
-Oct. 26, 2020
+Dec. 02, 2020
 """
-
+# package imports
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
@@ -15,14 +15,16 @@ import xarray as xr
 import warnings
 from glob import glob
 from multiprocessing import freeze_support
-
-from util.read_data import h5_to_xr, find, format_frames, merge_xr_by_timestamps, open_time, check_path
+# module imports
+from util.format_data import h5_to_xr, format_frames
+from util.paths import find, check_path
+from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking
 from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper
 from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
-from util.track_hf_movement import ball_tracking
+from util.track_ball import ball_tracking
 from util.track_side import side_angle, side_tracking
 
 def extract_params(config):

@@ -3,7 +3,7 @@ track_topdown.py
 
 topdown tracking utilities
 
-Nov. 25, 2020
+Dec. 02, 2020
 """
 
 # package imports
@@ -22,7 +22,8 @@ import matplotlib.gridspec as gridspec
 from tqdm import tqdm
 
 # module imports
-from util.read_data import split_xyl, open_time
+from util.time import open_time
+from util.format_data import split_xyl
 
 # matrix rotation, used to find head angle
 def rotmat(theta):

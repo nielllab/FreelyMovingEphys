@@ -1,9 +1,9 @@
 """
-track_hf_movement.py
+track_ball.py
 
 tracking mouse movement on ball or running wheel
 
-Nov. 30, 2020
+Dec. 02, 2020
 """
 
 import pandas as pd
@@ -11,7 +11,7 @@ import numpy as np
 import xarray as xr
 from datetime import datetime
 
-from util.read_data import open_time1
+from util.time import open_time1
 
 # track the movement of the ball
 # TO DO: add converstion to cm

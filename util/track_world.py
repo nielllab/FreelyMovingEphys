@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Nov. 09, 2020
+Dec. 02, 2020
 """
 
 # package imports
@@ -30,7 +30,9 @@ import matplotlib as mpl
 from astropy.convolution import convolve
 
 # module imports
-from util.read_data import open_time, find, nanxcorr
+from util.time import open_time
+from util.paths import find
+from util.aux_funcs import nanxcorr
 
 # basic world shifting without pupil rotation
 def adjust_world(data_path, file_name, eyeext, topext, worldext, eye_ds, savepath):
