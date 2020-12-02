@@ -305,25 +305,15 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         if np.min(rfit_conv_xr[frame,:]) < -10 or np.max(rfit_conv_xr[frame,:]) > 10:
             rfit_conv_xr[frame,:] = np.nan
 
-    # plot rfit for all trials and highlight mean
-    if config['save_figs'] is True:
-        plt.figure()
-        plt.plot(rfit_conv_xr.T, alpha=0.3)
-        plt.plot(np.mean(rfit_conv_xr.T, 1), 'b--')
-        plt.title('convolved rfit for all frames, mean in blue')
-        # plt.ylim([-3,3])
-        pdf.savefig()
-        plt.close()
-
     # correlation across timepoints
-    timepoint_corr_rfit = pd.DataFrame(rfit_conv_xr.values).T.corr()
+    timepoint_corr_rfit = pd.DataFrame(rfit_conv_xr.isel(frame=range(0,3600)).values).T.corr()
 
     # plot the correlation matrix of rfit over all timepoints
     if config['save_figs'] is True:
         plt.figure()
         fig, ax = plt.subplots()
         im = ax.imshow(timepoint_corr_rfit)
-        ax.set_title('correlation of radius fit across timepoints')
+        ax.set_title('correlation of radius fit during first min. of recording')
         ax.set_xticks(np.arange(len(timepoint_corr_rfit)))
         ax.set_yticks(np.arange(len(timepoint_corr_rfit)))
         ax.set_xticklabels(range(1,len(timepoint_corr_rfit)+1))

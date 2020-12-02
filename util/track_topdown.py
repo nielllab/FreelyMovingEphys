@@ -40,9 +40,8 @@ def body_angle(pt_input, config, trial_name, top_view):
         y2 = step_pts.sel(point_loc='spine2_y')
         x_dist = x1 - x2
         y_dist = y1 - y2
-        th = np.arctan(ydist/x_dist)
-        th_deg = np.rad2deg(th)
-        angs.append(float(th_deg))
+        th = np.arctan2(ydist/x_dist)
+        angs.append(float(th))
     body_ang = xr.DataArray(angs, dims=['frame'])
 
     return body_ang
@@ -58,9 +57,8 @@ def head_angle1(pt_input, config, trial_name, top_view):
         y2 = step_pts.sel(point_loc='leftear_y')
         x_dist = x1 - x2
         y_dist = y1 - y2
-        th = np.arctan(ydist/x_dist)
-        th_deg = np.rad2deg(th)
-        angs.append(float(th_deg))
+        th = np.arctan2(ydist/x_dist)
+        angs.append(float(th))
     head_theta = xr.DataArray(angs, dims=['frame'])
 
     return head_theta
