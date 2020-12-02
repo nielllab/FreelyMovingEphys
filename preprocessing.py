@@ -30,8 +30,11 @@ def pars_args():
     
     return args
 
-def main(args):
-    json_config_path = os.path.expanduser(args.json_config_path)
+def main(args=None, json_config_path=None):
+    if (args == None) & (json_config_path != None):
+        json_config_path = os.path.expanduser(json_config_path)
+    else:
+        json_config_path = os.path.expanduser(args.json_config_path)
 
     # open config file
     with open(json_config_path, 'r') as fp:
