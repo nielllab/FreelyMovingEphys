@@ -22,7 +22,7 @@
     "tear": true,
     "pxl_thresh": 50,
     "ell_thresh": 0.85,
-    "eye_dist_thresh_cm": 100,
+    "eye_dist_thresh_cm": 4.1,
     "eyecam_pxl_per_cm": 24,
     "save_avi_vids": true,
     "num_save_frames": 3600,
