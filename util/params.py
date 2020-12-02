@@ -29,7 +29,7 @@ def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
     trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
-        if 'plot' not in avi and 'rep11' not in avi and 'betafpv' not in avi:
+        if 'plot' not in avi and 'rep11' not in avi and 'betafpv' not in avi and 'side_gaze' not in avi:
             split_name = avi.split('_')[:-1]
             trial = '_'.join(split_name)
             path_to_trial = os.path.join(os.path.split(trial)[0])

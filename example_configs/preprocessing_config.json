@@ -25,6 +25,7 @@
     "eye_dist_thresh_cm": 100,
     "eyecam_pxl_per_cm": 24,
     "save_vids": true,
+    "num_save_frames": 3600,
     "save_figs": true,
     "use_BonsaiTS": true,
     "range_radius": 10,

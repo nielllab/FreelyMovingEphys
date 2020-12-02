@@ -412,7 +412,12 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
     plot_color0 = (225, 255, 0)
     plot_color1 = (0, 255, 255)
 
-    for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
+    if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))):
+        num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))
+    else:
+        num_save_frames = config['num_save_frames']
+
+    for frame_num in tqdm(range(0,num_save_frames)):
         # read the frame for this pass through while loop
         ret, frame = vidread.read()
 

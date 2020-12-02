@@ -24,7 +24,7 @@ from util.deinterlace import deinterlace_data
 def pars_args():
     parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
     parser.add_argument('-c', '--json_config_path', 
-        default='~/Desktop/preprocessing_config_jump1.json',
+        default='~/Desktop/preprocessing_config.json',
         help='path to video analysis config file')
     args = parser.parse_args()
     

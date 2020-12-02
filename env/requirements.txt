@@ -1,7 +1,7 @@
-astropy
+astropy==4.1
 h5py
 matplotlib
-numpy
+numpy==1.16.4
 opencv-python
 pandas
 tables

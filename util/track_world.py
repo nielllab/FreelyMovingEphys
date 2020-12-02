@@ -466,8 +466,13 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
         
+        if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))):
+            num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))
+        else:
+            num_save_frames = config['num_save_frames']
+
         print('plotting pupil rotation on eye video')
-        for step in tqdm(np.arange(totalF)):
+        for step in tqdm(range(0,num_save_frames)):
             eye_ret, eye_frame = eyevid.read()
 
             if not eye_ret:

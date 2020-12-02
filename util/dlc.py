@@ -57,7 +57,8 @@ def run_DLC_Analysis(config):
                 print('found ' + str(len(vids_this_cam)) + ' videos from cam_key ' + cam_key)
             # analyze the videos with DeepLabCut
             # this gives the function a list of files that it will iterate over with the same DLC config file
-            runDLCbatch(vids_this_cam, cam_config, config)
+            vids2run = [vid for vid in vids_this_cam if 'plot' not in vid]
+            runDLCbatch(vids2run, cam_config, config)
             print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
 
 if __name__ == '__main__':
