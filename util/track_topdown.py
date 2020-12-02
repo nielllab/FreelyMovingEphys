@@ -288,7 +288,7 @@ def head_angle(pt_input, nose_x, nose_y, config, trial_name, top_view):
     except ZeroDivisionError:
         thetaout = xr.DataArray(np.zeros(np.shape(theta_good)))
 
-    if config['save_vids'] is True:
+    if config['save_figs'] is True:
         fig1 = plt.figure(constrained_layout=True)
         gs = fig1.add_gridspec(5,2)
         f1_ax1 = fig1.add_subplot(gs[0, :])
