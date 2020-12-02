@@ -13,6 +13,8 @@ import deeplabcut
 import numpy as np
 import xarray as xr
 import warnings
+import tkinter as tk
+from tkinter import filedialog
 from glob import glob
 from multiprocessing import freeze_support
 
@@ -32,14 +34,16 @@ def pars_args():
 
 def main(args=None, json_config_path=None):
     if (args == None) & (json_config_path != None):
-        json_config_path = os.path.expanduser(json_config_path)
+        json_config_path = os.path.normpath(os.path.expanduser(json_config_path))
     else:
-        json_config_path = os.path.expanduser(args.json_config_path)
+        json_config_path = os.path.normpath(os.path.expanduser(args.json_config_path))
 
     # open config file
     with open(json_config_path, 'r') as fp:
         config = json.load(fp)
 
+    print('Config: ')    
+    print(json.dumps(config, indent=1))
     data_path = os.path.expanduser(config['data_path'])
     if config.get('save_path') is None:
         config['save_path'] = data_path
@@ -60,4 +64,9 @@ def main(args=None, json_config_path=None):
 
 if __name__ == '__main__':
     args = pars_args()
-    main(args)
+    
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename()
+    
+    main(args,json_config_path=file_path)
