@@ -338,8 +338,8 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
-    if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))):
-        num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))
+    if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
+        num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
     else:
         num_save_frames = config['num_save_frames']
 

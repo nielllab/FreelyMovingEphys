@@ -202,20 +202,20 @@ def extract_params(config):
                 if config['run_pupil_rotation'] is True:
                     rfit_conv.name = eye_side+'EYE_radius_fit_conv'; rfit.name = eye_side+'EYE_radius_fit'; shift.name = eye_side+'EYE_eye_pupil_rotation'
                 if config['save_nc_vids'] is True:
-                    elif config['run_pupil_rotation'] is False:
+                    if config['run_pupil_rotation'] is False:
                         print('saving...')
                         trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames])
                         trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
-                    if config['run_pupil_rotation'] is True:
+                    elif config['run_pupil_rotation'] is True:
                         print('saving...')
                         trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, rfit_conv, shift])
                         trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
                 elif config['save_nc_vids'] is False:
-                    elif config['run_pupil_rotation'] is False:
+                    if config['run_pupil_rotation'] is False:
                         print('saving...')
                         trial_eye_data = xr.merge([eyedlc, eyeparams])
                         trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')))
-                    if config['run_pupil_rotation'] is True:
+                    elif config['run_pupil_rotation'] is True:
                         print('saving...')
                         trial_eye_data = xr.merge([eyedlc, eyeparams, rfit, rfit_conv, shift])
                         trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')))

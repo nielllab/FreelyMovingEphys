@@ -458,8 +458,8 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
         
-        if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))):
-            num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))
+        if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
+            num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
         else:
             num_save_frames = config['num_save_frames']
 
@@ -470,7 +470,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             if not eye_ret:
                 break
 
-            # get ellisepe parameters for this time
+            # get ellipse parameters for this time
             current_theta = eye_theta.sel(frame=step).values
             current_phi = eye_phi.sel(frame=step).values
             current_longaxis = eye_longaxis.sel(frame=step).values

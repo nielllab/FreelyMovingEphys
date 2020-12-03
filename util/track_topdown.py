@@ -41,7 +41,7 @@ def body_angle(pt_input, config, trial_name, top_view):
         y2 = step_pts.sel(point_loc='spine2_y')
         x_dist = x1 - x2
         y_dist = y1 - y2
-        th = np.arctan2(ydist/x_dist)
+        th = np.arctan2(y_dist, x_dist)
         angs.append(float(th))
     body_ang = xr.DataArray(angs, dims=['frame'])
 
@@ -58,7 +58,7 @@ def head_angle1(pt_input, config, trial_name, top_view):
         y2 = step_pts.sel(point_loc='leftear_y')
         x_dist = x1 - x2
         y_dist = y1 - y2
-        th = np.arctan2(ydist/x_dist)
+        th = np.arctan2(y_dist, x_dist)
         angs.append(float(th))
     head_theta = xr.DataArray(angs, dims=['frame'])
 
@@ -335,14 +335,14 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
         nose_x_pts = topdown_interp.sel(point_loc='Nose_x')
         nose_y_pts = topdown_interp.sel(point_loc='Nose_y')
         
-    if config['save_figs'] is True:
-        plt.figure()
-        plt.title('mouse nose x/y path before likelihood threshold')
-        plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
-        plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
-        plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
-        plt.savefig(os.path.join(config['trial_path'], (trial_name + '_' + top_view + '_nose_trace.png')), dpi=300)
-        plt.close()
+    # if config['save_figs'] is True:
+    #     plt.figure()
+    #     plt.title('mouse nose x/y path before likelihood threshold')
+    #     plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
+    #     plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
+    #     plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
+    #     plt.savefig(os.path.join(config['trial_path'], (trial_name + '_' + top_view + '_nose_trace.png')), dpi=300)
+    #     plt.close()
 
     # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
     likeli_loop_count = 0
@@ -411,8 +411,8 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
     plot_color0 = (225, 255, 0)
     plot_color1 = (0, 255, 255)
 
-    if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))):
-        num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))
+    if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
+        num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
     else:
         num_save_frames = config['num_save_frames']
 

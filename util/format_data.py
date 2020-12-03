@@ -18,6 +18,9 @@ from tqdm import tqdm
 from datetime import datetime
 import time
 import argparse
+# module imports
+from util.open_data import open_h5, open_ma_h5
+from util.time import open_time
 
 # add videos to xarray
 # will downsample by ratio in config file and convert to black and white uint8
