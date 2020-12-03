@@ -226,13 +226,13 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
             # some configuration
             meanr = 0.5 * (current_longaxis + current_shortaxis) # mean radius
             r = range(int(meanr - ranger), int(meanr + ranger)) # range of values over mean radius (meanr)
-            pupil_edge = np.zeros([totalF, 360, len(r)]) # empty array that the calculated edge of the pupil will be put into
+            pupil_edge = np.zeros([360, len(r)]) # empty array that the calculated edge of the pupil will be put into
 
             rad_range = np.deg2rad(np.arange(360))
             # get cross-section of pupil at each angle 1-360 and fit to sigmoid
             for i in range(0, len(r)):
-                pupil_edge[step,:,i] = eye_frame[((current_centY + r[i]*(np.sin(rad_range))).astype(int),(current_centX + r[i]*(np.cos(rad_range))).astype(int))]
-            d = pupil_edge[step,:,:]
+                pupil_edge[:,i] = eye_frame[((current_centY + r[i]*(np.sin(rad_range))).astype(int),(current_centX + r[i]*(np.cos(rad_range))).astype(int))]
+            d = pupil_edge[:,:]
 
             # apply sigmoid fit with multiprocessing
             param_mp = [pool.apply_async(sigm_fit_mp, args=(d[n,:],)) for n in range(360)]
