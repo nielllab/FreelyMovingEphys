@@ -452,7 +452,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
 
     shift_smooth1 = xr.DataArray(shift_smooth, dims=['frame'])
 
-    if config['save_vids'] is True:
+    if config['save_avi_vids'] is True:
         eyevid = cv2.VideoCapture(eyevidpath)
         vidsavepath = os.path.join(config['trial_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + eyeext + '.avi'))
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
