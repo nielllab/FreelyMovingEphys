@@ -3,9 +3,9 @@ dlc.py
 
 analyze new videos with DeepLabCut given already trained networks
 
-Oct. 16, 2020
+Dec. 02, 2020
 """
-
+# package imports
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
@@ -15,8 +15,10 @@ import xarray as xr
 import warnings
 from glob import glob
 from multiprocessing import freeze_support
-
-from util.read_data import h5_to_xr, find, format_frames, merge_xr_by_timestamps, open_time, check_path
+# module imports
+from util.format_data import h5_to_xr, format_frames
+from util.paths import find, check_path
+from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking
 from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper
@@ -57,7 +59,8 @@ def run_DLC_Analysis(config):
                 print('found ' + str(len(vids_this_cam)) + ' videos from cam_key ' + cam_key)
             # analyze the videos with DeepLabCut
             # this gives the function a list of files that it will iterate over with the same DLC config file
-            runDLCbatch(vids_this_cam, cam_config, config)
+            vids2run = [vid for vid in vids_this_cam if 'plot' not in vid]
+            runDLCbatch(vids2run, cam_config, config)
             print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
 
 if __name__ == '__main__':

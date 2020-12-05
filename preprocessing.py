@@ -5,7 +5,7 @@ deinterlace videos, analyze with DLC, and extract parameters
 
 Nov. 17, 2020
 """
-
+# package imports
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
@@ -17,7 +17,7 @@ import tkinter as tk
 from tkinter import filedialog
 from glob import glob
 from multiprocessing import freeze_support
-
+# module imports
 from util.params import extract_params
 from util.dlc import run_DLC_Analysis
 from util.deinterlace import deinterlace_data

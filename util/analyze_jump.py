@@ -1,122 +1,113 @@
 """
 analyze_jump.py
 
-jump tracking utilities
+jump tracking analysis
 
-Oct. 26, 2020
+Dec. 02, 2020
 """
-
 # package imports
 import xarray as xr
 import cv2
 import os
 import numpy as np
+import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_pdf import PdfPages
 from tqdm import tqdm
-
 # module imports
-from util.read_data import nanxcorr, find_start_end
+from util.paths import find
+from util.aux_funcs import nanxcorr
+from util.time import find_start_end
 
 # get cross-correlation
 def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     # open pdf file to save plots in
-    pdf = PdfPages(os.path.join(config['data_path'], (config['trial_name'] + '_jump_cc.pdf')))
-    # to append data to (for making plots of pooled data):
-    all_theta = []; all_phi = []; all_div = []
-    all_th_gaze = []; all_th_div = []; all_th_phi = []
-    # loop through every frame in the right eye view
-    print('analyzing frames')
-    for frame_num in tqdm(range(0, len(REye_ds))):
+    pdf = PdfPages(os.path.join(config['data_path'], (config['recording_name'] + '_jump_cc.pdf')))
+    # organize data
+    REye_now = REye_ds.REYE_ellipse_params
+    LEye_now = LEye_ds.LEYE_ellipse_params
+    head_theta = side_ds.SIDE_theta
 
-        REye_now = REye_ds.sel(frame=frame_num)
-        LEye_now = LEye_ds.sel(frame=frame_num)
-        Side_now = side_ds.sel(frame=frame_num)
+    RTheta = (REye_now.sel(ellipse_params='theta') - np.nanmedian(REye_now.sel(ellipse_params='theta')))
+    RPhi = (REye_now.sel(ellipse_params='phi') - np.nanmedian(REye_now.sel(ellipse_params='phi')))
+    LTheta = (LEye_now.sel(ellipse_params='theta') -  np.nanmedian(LEye_now.sel(ellipse_params='theta')))
+    LPhi = (LEye_now.sel(ellipse_params='phi') - np.nanmedian(LEye_now.sel(ellipse_params='phi')))
 
-        RTheta = (REye_now.sel(ellipse_param='theta') - np.nanmedian(REye_now.sel(ellipse_param='theta'))).values
-        RPhi = (REye_now.sel(ellipse_param='phi') - np.nanmedian(REye_now.sel(ellipse_param='phi'))).values
-        LTheta = (LEye_now.sel(ellipse_param='theta') -  np.nanmedian(LEye_now.sel(ellipse_param='theta'))).values
-        LPhi = (LEye_now.sel(ellipse_param='phi') - np.nanmedian(LEye_now.sel(ellipse_param='phi'))).values
-        head_theta = Side_now.sel(head_param='theta').values
+    # zero-center head theta, and get rid of wrap-around effect (mod 360)
+    # th = head_theta * 180 / np.pi
+    th = (head_theta + np.deg2rad(360)) % np.deg2rad(360)
+    th = th - np.nanmean(th); th = -th
 
-        # zero-center head theta, and get rid of wrap-around effect (mod 360)
-        th = head_theta * 180 / np.pi; th = (th + 360) % 360
-        th = th - np.nanmean(th); th = -th
+    # eye divergence (theta)
+    div = 0.5 * (RTheta - LTheta)
+    # gaze (mean theta of eyes)
+    gaze_th = (RTheta + LTheta) * 0.5
+    # gaze (mean phi of eyes)
+    gaze_phi = (RPhi + LPhi) * 0.5
 
-        # eye divergence (theta)
-        div = 0.5 * (RTheta - LTheta)
-        # gaze (mean theta of eyes)
-        gaze_th = (RTheta + LTheta) * 0.5
-        # gaze (mean phi of eyes)
-        gaze_phi = (RPhi + LPhi) * 0.5
+    # calculate xcorrs
+    th_gaze, lags = nanxcorr(th.values, gaze_th.values, 30)
+    th_div, lags = nanxcorr(th.values, div.values, 30)
+    th_phi, lags = nanxcorr(th.values, gaze_phi.values, 30)
 
-        # calculate xcorrs
-        th_gaze, lags = nanxcorr(th, gaze_th, 30)
-        th_div, lags = nanxcorr(th, div, 30)
-        th_phi, lags = nanxcorr(th, gaze_phi, 30)
-
-        # for pooled data
-        all_theta.append(th); all_phi.append(gaze_phi); all_div.append(div)
-        all_th_gaze.append(th_gaze); all_th_div.append(th_div); all_th_phi.append(th_phi)
-
-        # plots
-        plt.figure()
-        plt.title(config['trial_name'])
-        plt.ylabel('deg'); plt.xlabel('frames')
-        plt.legend(['head_theta', 'eye_theta','eye_divergence','eye_phi'])
-        plt.plot(th); plt.plot(gaze_th); plt.plot(div); plt.plot(gaze_phi)
-        pdf.savefig()
-        plt.close()
-
-        plt.figure()
-        plt.title('head theta xcorr')
-        plt.plot(lags, th_gaze); plt.plot(lags, th_div); plt.plot(lags, th_phi)
-        plt.legend(['gaze', 'div', 'phi'])
-        pdf.savefig()
-        plt.close()
-
-        plt.figure()
-        plt.ylabel('eye div deg'); plt.xlabel('head th deg')
-        plt.plot([-40,40],[40,-40], 'r:')
-        plt.xlim([-40,40]); plt.ylim([-40,40])
-        plt.scatter(th, div, '.')
-        pdf.savefig()
-        plt.close()
-
-        plt.figure()
-        plt.ylabel('eye phi deg'); plt.xlabel('head th deg')
-        plt.plot([-40,40],[-40,40], 'r:')
-        plt.xlim([-40,40]); plt.ylim([-40,40])
-        plt.scatter(th, gaze_phi, '.')
-        pdf.savefig()
-        plt.close()
-
-    # plot pooled data
-    # head theta, phi
+    # plots
     plt.figure()
-    plt.plot(all_theta, all_phi, '.')
-    plt.xlabel('head theta'); fig2.ylabel('phi')
-    plt.xlim([-60,60]); plt.ylim([-60,60])
+    plt.title(config['recording_name'])
+    plt.ylabel('deg'); plt.xlabel('frames')
+    plt.plot(np.rad2deg(th)); plt.plot(np.rad2deg(gaze_th)); plt.plot(np.rad2deg(div)); plt.plot(np.rad2deg(gaze_phi))
+    plt.legend(['head_theta', 'eye_theta','eye_divergence','eye_phi'])
     pdf.savefig()
     plt.close()
-    # head theta, eye theta divergence
+
     plt.figure()
-    plt.plot(all_theta, all_div, '.')
-    plt.xlabel('head theta'); plt.ylabel('eye theta div')
-    plt.xlim([-60,60]); plt.ylim([-60,60])
+    plt.title('head theta xcorr')
+    plt.plot(lags, th_gaze); plt.plot(lags, th_div); plt.plot(lags, th_phi)
+    plt.legend(['gaze', 'div', 'phi'])
     pdf.savefig()
     plt.close()
-    # xcorr with head angle
+
     plt.figure()
-    plt.errorbar(lags, np.nanmean(all_th_gaze), np.std(all_th_gaze)/np.sqrt(np.size(all_th_gaze)))
-    plt.errorbar(lags, np.nanmean(all_th_div), np.std(all_th_div)/np.sqrt(np.size(all_th_div)))
-    plt.errorbar(lags, np.nanmean(all_th_phi), np.std(all_th_phi)/np.sqrt(np.size(all_th_phi)))
-    plt.ylim([-1,1]); fig4.ylabel('correlation'); fig4.title('xcorr with head angle')
-    plt.legend(['mean theta', 'mean theta divergence', 'mean phi'])
+    plt.ylabel('eye div deg'); plt.xlabel('head th deg')
+    plt.plot([-40,40],[40,-40], 'r:')
+    plt.xlim([-40,40]); plt.ylim([-40,40])
+    plt.scatter(np.rad2deg(th), np.rad2deg(div))
     pdf.savefig()
     plt.close()
+
+    plt.figure()
+    plt.ylabel('eye phi deg'); plt.xlabel('head th deg')
+    plt.plot([-40,40],[-40,40], 'r:')
+    plt.xlim([-40,40]); plt.ylim([-40,40])
+    plt.scatter(np.rad2deg(th), np.rad2deg(gaze_phi))
+    pdf.savefig()
+    plt.close()
+
+    # # plot pooled data
+    # # head theta, phi
+    # plt.figure()
+    # plt.plot(all_theta, all_phi, '.')
+    # plt.xlabel('head theta'); plt.ylabel('phi')
+    # plt.xlim([-60,60]); plt.ylim([-60,60])
+    # pdf.savefig()
+    # plt.close()
+    # # head theta, eye theta divergence
+    # plt.figure()
+    # plt.plot(all_theta, all_div, '.')
+    # plt.xlabel('head theta'); plt.ylabel('eye theta div')
+    # plt.xlim([-60,60]); plt.ylim([-60,60])
+    # pdf.savefig()
+    # plt.close()
+    # # xcorr with head angle
+    # plt.figure()
+    # plt.errorbar(lags, np.nanmean(all_th_gaze), np.std(all_th_gaze)/np.sqrt(np.size(all_th_gaze)))
+    # plt.errorbar(lags, np.nanmean(all_th_div), np.std(all_th_div)/np.sqrt(np.size(all_th_div)))
+    # plt.errorbar(lags, np.nanmean(all_th_phi), np.std(all_th_phi)/np.sqrt(np.size(all_th_phi)))
+    # plt.ylim([-1,1]); plt.ylabel('correlation'); plt.title('xcorr with head angle')
+    # plt.legend(['mean theta', 'mean theta divergence', 'mean phi'])
+    # pdf.savefig()
+    # plt.close()
 
     pdf.close()
 
@@ -126,19 +117,25 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
     REye_params = REye.REYE_ellipse_params
     LEye_params = LEye.LEYE_ellipse_params
     Side_pts = SIDE.SIDE_pts
-    Side_params = SIDE.SIDE_params
+    Side_params = SIDE.SIDE_theta
 
     # find the first shared frame for the four video feeds and play them starting at that shared frame
     # td_startframe, td_endframe, left_startframe, left_endframe, right_startframe, right_endframe, side_startframe, side_endframe, first_real_time, last_real_time = find_start_end(TOP, LEye, REye, SIDE)
 
-    sidecap = cv2.VideoCapture(Svid)#.set(cv2.CAP_PROP_POS_FRAMES, int(side_startframe))
+    sidecap = cv2.VideoCapture(Svid) #.set(cv2.CAP_PROP_POS_FRAMES, int(side_startframe))
 
     width = int(sidecap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(sidecap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    savepath = os.path.join(config['data_path'], (config['trial_name'] + '_side_gaze_trace.avi'))
+    savepath = os.path.join(config['data_path'], (config['recording_name'] + '_side_gaze_trace.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     vid_out = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
+
+    # interpolate time
+    REye_interp = REye_params.interp_like(other=TOP, method='linear')
+    LEye_interp = LEye_params.interp_like(other=TOP, method='linear')
+    SIDE_par_interp = np.deg2rad(Side_params.interp_like(other=TOP, method='linear')) # plus, convert to radians
+    SIDE_pts_interp = Side_pts.interp_like(other=TOP, method='linear')
 
     for frame_num in tqdm(range(0,int(sidecap.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # read in videos
@@ -148,74 +145,78 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
             break
 
         # get current ellipse parameters
-        REye_now = REye_params.sel(frame=frame_num)
-        LEye_now = LEye_params.sel(frame=frame_num)
-        SIDE_par_now = Side_params.sel(frame=frame_num)
-        SIDE_pts_now = Side_pts.sel(frame=frame_num)
-
-        # interpolate time
-        REye_interp = REye_now.interplike(other=TOP, method='linear')
-        LEye_interp = LEye_now.interplike(other=TOP, method='linear')
-        SIDE_par_interp = SIDE_par_now.interplike(other=TOP, method='linear')
-        SIDE_pts_interp = SIDE_pts_now.interplike(other=TOP, method='linear')
+        REye_now = REye_interp.sel(frame=frame_num)
+        LEye_now = LEye_interp.sel(frame=frame_num)
+        SIDE_par_now = SIDE_par_interp.sel(frame=frame_num)
+        SIDE_pts_now = SIDE_pts_interp.sel(frame=frame_num)
 
         # # scale
-        # R = R * SIDE_interp.sel(head_param='scaleR') / 50
-        # L = L * SIDE_interp.sel(head_param='scaleL') / 50
+        # REye_now = REye_now * SIDE_par_now.sel(head_param='scaleR') / 50
+        # LEye_now = LEye_now * SIDE_par_now.sel(head_param='scaleL') / 50
 
         # split apart parameters
-        RTheta = REye_interp.sel(ellipse_param='theta').values
-        RPhi = REye_interp.sel(ellipse_param='phi').values
-        LTheta = LEye_interp.sel(ellipse_param='theta').values
-        LPhi = LEye_interp.sel(ellipse_param='phi').values
-        head_theta = SIDE_par_interp.values
+        RTheta = REye_now.sel(ellipse_params='theta').values
+        RPhi = REye_now.sel(ellipse_params='phi').values
+        LTheta = LEye_now.sel(ellipse_params='theta').values
+        LPhi = LEye_now.sel(ellipse_params='phi').values
+        head_theta = SIDE_par_now.values
 
         # zero-center head theta, and get rid of wrap-around effect (mod 360)
         # add pi/8 since this is roughly head tilt in movies relative to mean theta
-        th = head_theta - np.nanmedian(head_theta) + np.pi + np.pi/8
+        th = (head_theta + np.deg2rad(360)) % np.deg2rad(360)
+        th = th - np.nanmean(th)
+        th = th - np.pi# - (np.pi/8)
 
         # eye divergence (theta)
         div = 0.5 * (RTheta - LTheta)
-
         # gaze (mean theta of eyes)
         gaze_th = (RTheta + LTheta) * 0.5
         # gaze (mean phi of eyes)
         gaze_phi = (RPhi + LPhi) * 0.5
 
         # plot mouse head poisiton with small blue 'tracers'
-        for i in range(0,15):
+        for i in range(0,20):
             frame_before = frame_num - i
-            SIDE_before = SIDE_pts_interp.sel(frame=frame_before)
-            head_x = SIDE_before.sel(point_loc='LEye_x').values
-            head_y = SIDE_before.sel(point_loc='LEye_y').values
-            SIDE_frame = cv2.point(SIDE_frame, (head_x,head_y), (0,0,255), 1)
+            if frame_before >= 0:
+                head_x = SIDE_pts_interp.sel(point_loc='LEye_x', frame=frame_before).values
+                head_y = SIDE_pts_interp.sel(point_loc='LEye_y', frame=frame_before).values
+                try:
+                    SIDE_frame = cv2.circle(SIDE_frame, (int(head_x),int(head_y)), 2, (255,0,0), -1)
+                except ValueError:
+                    pass
 
         # blue circle over the current position of the eye
-        SIDE_current = SIDE_pts_interp.sel(frame=frame_before)
-        eyecent_x = SIDE_current.sel(point_loc='LEye_x').values
-        eyecent_y = SIDE_current.sel(point_loc='LEye_y').values
-        SIDE_frame = cv2.point(SIDE_frame, (eyecent_x,eyecent_y), (0,0,255), 6)
+        eyecent_x = SIDE_pts_now.sel(point_loc='LEye_x').values
+        eyecent_y = SIDE_pts_now.sel(point_loc='LEye_y').values
+        try:
+            SIDE_frame = cv2.circle(SIDE_frame, (int(eyecent_x),int(eyecent_y)), 3, (255,0,0), -1)
+        except ValueError:
+            pass
 
         # calculate and plot head vector
-        hx = 200 * np.cos(th)
-        hy = 200 * np.sin(th)
-        # plot head vector
-        headV_x1 = SIDE_pts_interp.sel(head_params='LEye_x').values
-        headV_y1 = SIDE_pts_interp.sel(head_params='LEye_y').values
-        headV_x2 = SIDE_pts_interp.sel(head_params='LEye_x').values + hx
-        headV_y2 = SIDE_pts_interp.sel(head_params='LEye_y').values + hy
+        headV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
+        headV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
+        headV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values * np.rad2deg(np.cos(th + np.pi/8))
+        headV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values * np.rad2deg(np.sin(th + np.pi/8))
         # black line of the head vector
-        SIDE_frame = cv2.line(SIDE_frame, (headV_x1,headV_y1), (headV_x2,headV_y2), (255,255,255), thickness=2)
+        try:
+            SIDE_frame = cv2.line(SIDE_frame, (int(headV_x1),int(headV_y1)), (int(headV_x2),int(headV_y2)), (0,0,0), thickness=2)
+        except ValueError:
+            pass
 
         # calculate gaze direction (head and eyes)
         # subtract off the pi/8 that was added above
-        rth = th - div * np.pi/180 - np.pi/8
-        gazeV_x1 = SIDE_pts_interp.sel(head_params='LEye_x').values
-        gazeV_y1 = SIDE_pts_interp.sel(head_params='LEye_y').values
-        gazeV_x2 = SIDE_pts_interp.sel(head_params='LEye_x').values + 200 * np.cos(rth)
-        gazeV_y2 = SIDE_pts_interp.sel(head_params='LEye_y').values + 200 * np.sin(rth)
+        # rth = th - div * np.pi/180 - np.pi/8
+        rth = (th - div)# + np.pi/8
+        gazeV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
+        gazeV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
+        gazeV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values + np.rad2deg(np.cos(rth))
+        gazeV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values + np.rad2deg(np.sin(rth))
         # cyan line of gaze direction
-        SIDE_frame = cv2.line(SIDE_frame, (gazeV_x1,gazeV_y1), (gazeV_x2,gazeV_y2), (0,255,255), thickness=2)
+        try:
+            SIDE_frame = cv2.line(SIDE_frame, (int(gazeV_x1),int(gazeV_y1)), (int(gazeV_x2),int(gazeV_y2)), (255,255,0), thickness=2)
+        except ValueError:
+            pass
 
         vid_out.write(SIDE_frame)
 

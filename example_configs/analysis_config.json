@@ -1,8 +1,10 @@
 {
-    "trial_name": "010101_example_name",
+    "recording_name": "010101_example_name",
     "data_path": "T:/path/to/parent/directory",
     "exp_type": {
         "jumping": true,
         "freelymovingephys": false
-    }
+    },
+    "hf": true,
+    "fm": false
 }

@@ -7,11 +7,12 @@ searches desktop for config, opens dialogue box for file to split
 
 Nov. 17, 2020
 """
-
+# package imports
 import argparse, json, sys, os, subprocess, shutil
-from util.ephys import format_spikes_multi
 import tkinter as tk
 from tkinter import filedialog
+# module imports
+from util.ephys import format_spikes_multi
 
 # get user inputs
 def pars_args():
