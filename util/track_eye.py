@@ -237,8 +237,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # organize data to return as an xarray of most essential parameters
     ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,5]), 'shortaxis':list(ellipse_params[:,6]),
-                               'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12])})
-    ellipse_param_names = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0']
+                               'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12]), 'ellipse_phi':list(ellipse_params[:,7])})
+    ellipse_param_names = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0', 'ellipse_phi']
     ellipse_out = xr.DataArray(ellipse_df, coords=[('frame', range(0, len(ellipse_df))), ('ellipse_params', ellipse_param_names)], dims=['frame', 'ellipse_params'])
     ellipse_out.attrs['cam_center_x'] = cam_cent[0,0]
     ellipse_out.attrs['cam_center_y'] = cam_cent[1,0]
@@ -355,7 +355,7 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
                 ell_data_thistime = ell_data.sel(frame=frame_num)
                 # get out ellipse parameters and plot them on the video
                 ellipse_axes = (int(ell_data_thistime.sel(ellipse_params='longaxis').values), int(ell_data_thistime.sel(ellipse_params='shortaxis').values))
-                ellipse_phi = int(np.rad2deg(ell_data_thistime.sel(ellipse_params='phi').values))
+                ellipse_phi = int(np.rad2deg(ell_data_thistime.sel(ellipse_params='ellipse_phi').values))
                 ellipse_cent = (int(ell_data_thistime.sel(ellipse_params='X0').values), int(ell_data_thistime.sel(ellipse_params='Y0').values))
                 frame = cv2.ellipse(frame, ellipse_cent, ellipse_axes, ellipse_phi, 0, 360, (255,0,0), 2) # ellipse in blue
             except (ValueError, KeyError):
