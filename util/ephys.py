@@ -3,18 +3,16 @@ ephys.py
 
 organize and combine ephys data
 
-Nov. 17, 2020
+Dec. 02, 2020
 """
-
 # package imports
 import pandas as pd
 import numpy as np
 import xarray as xr
 import os
 from scipy.io import loadmat
-
 # module imports
-from util.read_data import open_time
+from util.time import open_time
 
 # format ephys data read in from Phy2 output files
 # returns DataFrame of ephys data

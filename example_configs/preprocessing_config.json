@@ -1,5 +1,5 @@
 {
-    "data_path": "T:/path/to/date/directory/",
+    "data_path": "T:/path/to/animal/directory/",
     "steps_to_run":{
         "deinter": true,
         "dlc": true,
@@ -7,10 +7,10 @@
     },
     "cams": {
         "WORLD": "",
-        "REYE": "C:/Users/Niell Lab/Documents/EyeCamTesting-dylan-2020-07-07/config.yaml",
-        "TOP1": "C:/Users/Niell Lab/Documents/FreelyMovingEphys_DLCprojects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
-        "TOP2": "C:/Users/Niell Lab/Documents/FreelyMovingEphys_DLCprojects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
-        "TOP3": "C:/Users/Niell Lab/Documents/FreelyMovingEphys_DLCprojects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
+        "REYE": "C:/Users/Niell Lab/Documents/deeplabcut_projects/EphysEyeCams-dylan-2020-12-01/config.yaml",
+        "TOP1": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
+        "TOP2": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
+        "TOP3": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
     },
     "flip_eye_during_deinter": true,
     "flip_world_during_deinter": true,
@@ -22,17 +22,22 @@
     "tear": true,
     "pxl_thresh": 50,
     "ell_thresh": 0.85,
-    "eye_dist_thresh": 100,
-    "save_vids": true,
+    "eye_dist_thresh_cm": 4.1,
+    "eyecam_pxl_per_cm": 24,
+    "save_avi_vids": true,
+    "num_save_frames": 3600,
+    "save_nc_vids": true,
     "save_figs": true,
     "use_BonsaiTS": true,
     "range_radius": 10,
     "world_interp_method": "linear",
     "num_ellipse_pts_needed": 7,
-    "dwnsmpl": 0.5,
+    "dwnsmpl": 0.25,
     "ephys_sample_rate": 30000,
     "run_pupil_rotation": true,
     "run_top_angles": false,
     "run_with_form_time": true,
-    "optical_mouse_screen_center":{"x":960,"y":540}
+    "optical_mouse_screen_center":{"x":960,"y":540},
+    "optical_mouse_pix2cm": 2840,
+    "optical_mouse_sample_rate_ms": 200
 }

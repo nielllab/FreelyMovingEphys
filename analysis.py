@@ -11,7 +11,7 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 
-from util.read_data import find
+from util.paths import find
 from util.analyze_ephys import headfixed_figures
 from util.analyze_jump import jump_cc, jump_gaze_trace
 

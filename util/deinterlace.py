@@ -3,9 +3,9 @@ deinterlace.py
 
 deinterlace videos and shift times to suit the new video frame count
 
-Nov. 23, 2020
+Dec. 02, 2020
 """
-
+# package imports
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
@@ -15,8 +15,10 @@ import xarray as xr
 import warnings
 from glob import glob
 from multiprocessing import freeze_support
-
-from util.read_data import h5_to_xr, find, format_frames, merge_xr_by_timestamps, open_time, check_path
+# module imports
+from util.format_data import h5_to_xr, format_frames
+from util.paths import find, check_path
+from util.time import merge_xr_by_timestamps, open_time
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking
 from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper

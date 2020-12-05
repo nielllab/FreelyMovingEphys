@@ -3,7 +3,7 @@ track_topdown.py
 
 topdown tracking utilities
 
-Nov. 25, 2020
+Dec. 02, 2020
 """
 
 # package imports
@@ -22,7 +22,8 @@ import matplotlib.gridspec as gridspec
 from tqdm import tqdm
 
 # module imports
-from util.read_data import split_xyl, open_time
+from util.time import open_time
+from util.format_data import split_xyl
 
 # matrix rotation, used to find head angle
 def rotmat(theta):
@@ -40,9 +41,8 @@ def body_angle(pt_input, config, trial_name, top_view):
         y2 = step_pts.sel(point_loc='spine2_y')
         x_dist = x1 - x2
         y_dist = y1 - y2
-        th = np.arctan(ydist/x_dist)
-        th_deg = np.rad2deg(th)
-        angs.append(float(th_deg))
+        th = np.arctan2(y_dist, x_dist)
+        angs.append(float(th))
     body_ang = xr.DataArray(angs, dims=['frame'])
 
     return body_ang
@@ -58,9 +58,8 @@ def head_angle1(pt_input, config, trial_name, top_view):
         y2 = step_pts.sel(point_loc='leftear_y')
         x_dist = x1 - x2
         y_dist = y1 - y2
-        th = np.arctan(ydist/x_dist)
-        th_deg = np.rad2deg(th)
-        angs.append(float(th_deg))
+        th = np.arctan2(y_dist, x_dist)
+        angs.append(float(th))
     head_theta = xr.DataArray(angs, dims=['frame'])
 
     return head_theta
@@ -290,7 +289,7 @@ def head_angle(pt_input, nose_x, nose_y, config, trial_name, top_view):
     except ZeroDivisionError:
         thetaout = xr.DataArray(np.zeros(np.shape(theta_good)))
 
-    if config['save_vids'] is True:
+    if config['save_figs'] is True:
         fig1 = plt.figure(constrained_layout=True)
         gs = fig1.add_gridspec(5,2)
         f1_ax1 = fig1.add_subplot(gs[0, :])
@@ -336,14 +335,14 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
         nose_x_pts = topdown_interp.sel(point_loc='Nose_x')
         nose_y_pts = topdown_interp.sel(point_loc='Nose_y')
         
-    if config['save_figs'] is True:
-        plt.figure()
-        plt.title('mouse nose x/y path before likelihood threshold')
-        plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
-        plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
-        plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
-        plt.savefig(os.path.join(config['trial_path'], (trial_name + '_' + top_view + '_nose_trace.png')), dpi=300)
-        plt.close()
+    # if config['save_figs'] is True:
+    #     plt.figure()
+    #     plt.title('mouse nose x/y path before likelihood threshold')
+    #     plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
+    #     plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
+    #     plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
+    #     plt.savefig(os.path.join(config['trial_path'], (trial_name + '_' + top_view + '_nose_trace.png')), dpi=300)
+    #     plt.close()
 
     # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
     likeli_loop_count = 0
@@ -412,7 +411,12 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
     plot_color0 = (225, 255, 0)
     plot_color1 = (0, 255, 255)
 
-    for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
+    if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
+        num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
+    else:
+        num_save_frames = config['num_save_frames']
+
+    for frame_num in tqdm(range(0,num_save_frames)):
         # read the frame for this pass through while loop
         ret, frame = vidread.read()
 

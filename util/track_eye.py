@@ -3,7 +3,7 @@ track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-Nov 24, 2020
+Dec. 02, 2020
 """
 
 # package imports
@@ -24,9 +24,8 @@ from numpy.linalg import eig
 import math
 import matplotlib.backends.backend_pdf
 from scipy import stats
-
 # module imports
-from util.read_data import split_xyl
+from util.format_data import split_xyl
 
 # finds the best fit to an ellipse for the given set of points in a single frame
 # inputs should be x and y values of points around pupil as two numpy arrays
@@ -153,17 +152,16 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # threshold out pts more than a given distance away from nanmean of that point
     std_thresh_x = np.empty(np.shape(x_vals))
     for point_loc in range(0,np.size(x_vals, 1)):
-        std_thresh_x[:,point_loc] = np.absolute(np.nanmean(x_vals.iloc[:,point_loc]) - x_vals.iloc[:,point_loc]) > config['eye_dist_thresh']
+        std_thresh_x[:,point_loc] = (np.absolute(np.nanmean(x_vals.iloc[:,point_loc]) - x_vals.iloc[:,point_loc]) / config['eyecam_pxl_per_cm']) > config['eye_dist_thresh_cm']
     std_thresh_y = np.empty(np.shape(y_vals))
     for point_loc in range(0,np.size(x_vals, 1)):
-        std_thresh_y[:,point_loc] = np.absolute(np.nanmean(y_vals.iloc[:,point_loc]) - y_vals.iloc[:,point_loc]) > config['eye_dist_thresh']
+        std_thresh_y[:,point_loc] = (np.absolute(np.nanmean(y_vals.iloc[:,point_loc]) - y_vals.iloc[:,point_loc]) / config['eyecam_pxl_per_cm']) > config['eye_dist_thresh_cm']
     std_thresh_x = np.nanmean(std_thresh_x, 1)
     std_thresh_y = np.nanmean(std_thresh_y, 1)
     x_vals[std_thresh_x > 0] = np.nan
     y_vals[std_thresh_y > 0] = np.nan
 
     ellipse_params = np.empty([len(usegood), 14])
-
     # step through each frame, fit an ellipse to points, and add ellipse parameters to array with data for all frames together
     linalgerror = 0
     for step in tqdm(range(0,len(usegood))):
@@ -239,8 +237,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # organize data to return as an xarray of most essential parameters
     ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,5]), 'shortaxis':list(ellipse_params[:,6]),
-                               'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12])})
-    ellipse_param_names = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0']
+                               'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12]), 'ellipse_phi':list(ellipse_params[:,7])})
+    ellipse_param_names = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0', 'ellipse_phi']
     ellipse_out = xr.DataArray(ellipse_df, coords=[('frame', range(0, len(ellipse_df))), ('ellipse_params', ellipse_param_names)], dims=['frame', 'ellipse_params'])
     ellipse_out.attrs['cam_center_x'] = cam_cent[0,0]
     ellipse_out.attrs['cam_center_y'] = cam_cent[1,0]
@@ -340,7 +338,12 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
-    for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
+    if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
+        num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
+    else:
+        num_save_frames = config['num_save_frames']
+
+    for frame_num in tqdm(range(0,num_save_frames)):
         ret, frame = vidread.read()
 
         if not ret:
@@ -352,7 +355,7 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
                 ell_data_thistime = ell_data.sel(frame=frame_num)
                 # get out ellipse parameters and plot them on the video
                 ellipse_axes = (int(ell_data_thistime.sel(ellipse_params='longaxis').values), int(ell_data_thistime.sel(ellipse_params='shortaxis').values))
-                ellipse_phi = int(np.rad2deg(ell_data_thistime.sel(ellipse_params='phi').values))
+                ellipse_phi = int(np.rad2deg(ell_data_thistime.sel(ellipse_params='ellipse_phi').values))
                 ellipse_cent = (int(ell_data_thistime.sel(ellipse_params='X0').values), int(ell_data_thistime.sel(ellipse_params='Y0').values))
                 frame = cv2.ellipse(frame, ellipse_cent, ellipse_axes, ellipse_phi, 0, 360, (255,0,0), 2) # ellipse in blue
             except (ValueError, KeyError):
