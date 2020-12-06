@@ -35,22 +35,26 @@ outputFilename = [imuFile(1:end-4) '.mat'];
 
 try    
     % open file and read data
+    display('reading data')
     fid = fopen(imuFile, 'r');
     allData = fread(fid, [nChans Inf], 'uint16');
     fclose(fid);
     
     % convert to -5 to 5V
+    display('converting data')
     allData = 10 * (double(allData)/(2^16) - 0.5);
     
     % downsample data
+    display('downsampling data')
     allData = allData(:,1:downSamp:end);
     sampFreq = sampFreq/downSamp;
+    ts = (0:(size(allData,2)-1))/sampFreq;
     
     %%% plot trace of each channel
     figure
     for i = 1:nChans
         subplot(nChans,1,i)
-        plot((1:length(allData(i,1:30:end)))*30/sampFreq, allData(i,1:30:end));
+        plot(ts(1:30:end), allData(i,1:30:end));
         if i==1
             title(imuFile)
         end
