@@ -1,10 +1,11 @@
-function [allData] = readIMU(nChans, imuFile, sampFreq)
+function [allData] = readIMU(nChans, imuFile, sampFreq, downSamp)
 % reads IMU data as recorded from openEphys ADC in Bonsai
 
 % input:
 %nChans = # of channels (this must be correct or data will not be read in properly (default = 8)
 %imuFile = .bin file containing data
 %sampFreq = sampling frequency of ADC
+% downSamp = fraction to downsample by
 
 %output:
 %allData = [nchans x nsamps] voltages (converted form uint16 to -5 to 5V)
@@ -26,6 +27,10 @@ if ~exist('sampFreq','var') | isempty(sampFreq)
     sampFreq = 30000;
 end
 
+if ~exist('downSamp','var') | isempty(downSamp)
+    downSamp = 10;
+end
+
 outputFilename = [imuFile(1:end-4) '.mat'];
 
 try    
@@ -37,8 +42,11 @@ try
     % convert to -5 to 5V
     allData = 10 * (double(allData)/(2^16) - 0.5);
     
+    % downsample data
+    allData = allData(:,1:downSamp:end);
+    sampFreq = sampFreq/downSamp;
+    
     %%% plot trace of each channel
-    sampFreq = 30000;
     figure
     for i = 1:nChans
         subplot(nChans,1,i)
@@ -58,6 +66,7 @@ try
     xlabel('chan'); ylabel('stdev')
     title(imuFile)
     % savefig([imuFile(1:end-4) '_IMU_fig2']) % not saving for some reason
+    
     
     save(outputFilename,'allData','-v7.3');
     
