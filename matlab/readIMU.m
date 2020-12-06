@@ -1,25 +1,17 @@
-function [allData medianTrace] = readIMU(nChans, imuFile)
-% Subtracts median of each channel, then subtracts median of each time
-% point. Also, can select a subset of channels first (so don't include
-% noise in median filter)
-%
-% this version will merge multiple recordings into one .bin for kilosort
-% and creates a corresponding .mat file that will allow separation
-%
-% based on cortex repository by N. Steinmetz
-% edited by cmn 2020
-%
-% should make chunk size as big as possible so that the medians of the
-% channels differ little from chunk to chunk.
-%
-% doMedian = option to subtract medians (1) or not (0) - latter is if you
-% only want to subset
-% subChans = subset of channels to includie in output
-% isUint16 = raw data is uint16,so convert to int16
-% returns processed traces (allData) and CAR median (medianTrace)
-%
-% gui will ask for .bin files to merge. 'cancel' when done'
-% next, will ask for .bin output file to save merged data into
+function [allData] = readIMU(nChans, imuFile, sampFreq)
+% reads IMU data as recorded from openEphys ADC in Bonsai
+
+% input:
+%nChans = # of channels (this must be correct or data will not be read in properly (default = 8)
+%imuFile = .bin file containing data
+%sampFreq = sampling frequency of ADC
+
+%output:
+%allData = [nchans x nsamps] voltages (converted form uint16 to -5 to 5V)
+% also saves allData into .mat file
+
+% cmn 2020
+
 
 if ~exist('nChans','var') | isempty(nChans)
     nChans = 8;
@@ -30,46 +22,47 @@ if ~exist('imuFile','var') | isempty(imuFile)
     imuFile = fullfile(p,f)
 end
 
-chunkSize = 1000000;
-done=0;
-nf = 0; %%% number of files
+if ~exist('sampFreq','var') | isempty(sampFreq)
+    sampFreq = 30000;
+end
 
 outputFilename = [imuFile(1:end-4) '.mat'];
-try
-    fid = fopen(imuFile, 'r');
-    
 
-    allData = fread(fid, [nChans Inf], 'uint16');  
-    allData = 10 * (double(allData)/(2^16) - 0.5); % convert to 0-5V
+try    
+    % open file and read data
+    fid = fopen(imuFile, 'r');
+    allData = fread(fid, [nChans Inf], 'uint16');
+    fclose(fid);
+    
+    % convert to -5 to 5V
+    allData = 10 * (double(allData)/(2^16) - 0.5);
     
     %%% plot trace of each channel
-    samprate = 30000;
+    sampFreq = 30000;
     figure
     for i = 1:nChans
         subplot(nChans,1,i)
-        plot((1:length(allData(i,1:30:end)))*30/samprate, allData(i,1:30:end));
+        plot((1:length(allData(i,1:30:end)))*30/sampFreq, allData(i,1:30:end));
         if i==1
             title(imuFile)
         end
-      %  xlim([0 30])
+        %  xlim([0 30])
         ylim([0 5])
     end
     xlabel('secs'); ylabel('volts')
-   % savefig([imuFile(1:end-4) '_IMU_fig1'])
+    % savefig([imuFile(1:end-4) '_IMU_fig1']) % not saving for some reason
     
     %%% bar plot of stdev for each channel (noise measure)
     figure
     bar(std(double(allData),[],2));
     xlabel('chan'); ylabel('stdev')
     title(imuFile)
-   % savefig([imuFile(1:end-4) '_IMU_fig2'])
-    
-    fclose(fid);
+    % savefig([imuFile(1:end-4) '_IMU_fig2']) % not saving for some reason
     
     save(outputFilename,'allData','-v7.3');
     
 catch me
-
+    
     rethrow(me)
     
 end
