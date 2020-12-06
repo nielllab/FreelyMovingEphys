@@ -1,4 +1,4 @@
-function [allData medianTrace] = applyCARtoDat_subset_multi(nChansTotal, doMedian, subChans, isUint16)
+function [allData medianTrace] = applyCARtoDat_subset_multi(nChansTotal, doMedian, subChans, isUint16, chanMap)
 % Subtracts median of each channel, then subtracts median of each time
 % point. Also, can select a subset of channels first (so don't include
 % noise in median filter)
@@ -14,8 +14,10 @@ function [allData medianTrace] = applyCARtoDat_subset_multi(nChansTotal, doMedia
 %
 % doMedian = option to subtract medians (1) or not (0) - latter is if you
 % only want to subset
-% subChans = subset of channels to includie in output
+% subChans = subset of channels to includie in output (note - subsetting occurs after channel remapping, so select probe sites to include)
 % isUint16 = raw data is uint16,so convert to int16
+% chanMap = list of data channels to be mapped to each probe site (e.g. chanmap(1) = 42 means that the data recorded in channel 42 is assigned to probe site 1
+%
 % returns processed traces (allData) and CAR median (medianTrace)
 %
 % gui will ask for .bin files to merge. 'cancel' when done'
@@ -27,6 +29,10 @@ end
 
 if ~exist('subChans','var') | isempty(subChans)
     subChans = 1:nChansTotal;
+end
+
+if ~exist('chanMap','var') | isempty(chanMap)
+    chanMap = 1:nChansTotal;
 end
 
 if ~exist('isUint16','var')
@@ -82,7 +88,10 @@ try
             end
             
             if ~isempty(dat)
-
+                
+                % perform remapping
+                dat = dat(chanMap,:);
+                
                 %%% select appropriate channels
                 dat = dat(subChans,:);
                 
@@ -108,13 +117,19 @@ try
      
         %%% plot trace of each channel
         figure
+        map64 = [1:2:64 2:2:64];
         for i = 1:length(subChans)
-            subplot(ceil(length(subChans)/2),2,i)
-            plot(allData(i,1:3000));
+            subplot(length(subChans),i)
+            if length(subChans)==64
+                subplot(32,2,map64(i));
+            end
+                
+                plot(allData(i,1:3000));
             axis off
             if i==1
                 title(fileList{fnum})
             end
+            xlabel(num2str(i));
         end
         savefig(['CAR_' fileList{fnum}(1:end-4) '_fig1'])
         
