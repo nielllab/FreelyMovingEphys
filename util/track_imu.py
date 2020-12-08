@@ -17,7 +17,7 @@ from util.time import open_time1
 # expected binary channel order: acc first, empty channel, then gyro, then empty channel
 # returns a dataarray of constructed timestamps and imu readings from -5V to 5V
 # dataarray values are downsampled by value in input dictionary config
-def read_8ch_imu(imu_data, csv_data, config):
+def read_8ch_imu(imupath, timepath, config):
     # set up datatypes and names for each channel
     dtypes = np.dtype([
         ("acc_x",np.uint16),

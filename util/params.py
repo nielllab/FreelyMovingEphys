@@ -307,7 +307,7 @@ def extract_params(config):
         if trial_imu_bin != []:
             print('reading imu data for ' + t_name)
             trial_imu_csv = [i for i in trial_cam_csv if 'IMU' in i][0]
-            imu_data = read_8ch_imu(trial_imu_bin, trial_imu_csv, config)
+            imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
             imu_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_imu.nc')))
 
     print('done with ' + str(len(trial_units)) + ' queued trials')
