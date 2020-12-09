@@ -44,8 +44,9 @@ def read_8ch_imu(imupath, timepath, config):
     # make timestamps for all subsequent samples
     newtime = pd.DataFrame(np.linspace(t0, t_end, num=num_samp))
     # collect the data together to return
-    all_data = pd.concat([newtime, data])
-    all_data.columns = ['time', 'acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
-    imu_out = xr.DataArray(all_data, dims={'sample','imu_props'})
+    all_data = data.copy()
+    all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
+    imu_out = xr.DataArray(all_data, dims={'sample','channel'})
+    imu_out = imu_out.assign_coords(timestamps=('sample',list(newtime.iloc[:,0])))
     
     return imu_out
