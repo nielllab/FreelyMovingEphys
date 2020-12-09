@@ -307,7 +307,7 @@ def extract_params(config):
         if trial_imu_bin != []:
             print('reading imu data for ' + t_name)
             trial_imu_csv = [i for i in trial_cam_csv if 'IMU' in i][0]
-            imu_data imu_timepath = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
+            imu_data, imu_timepath = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
             imu_acc, imu_gyro = convert_acc_gyro(imu_data, imu_timepath, config)
             imu_data.name = 'IMU_data'; imu_acc.name='ACC_data'; imu_gyro.name='GYRO_data'
             trial_imu_data = xr.merge(imu_data, imu_acc, imu_gyro)
