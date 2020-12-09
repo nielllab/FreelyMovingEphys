@@ -9,6 +9,7 @@ Dec. 07, 2020
 import xarray as xr
 import pandas as pd
 import numpy as np
+from scipy.signal import medfilt
 # module imports
 from util.time import open_time1
 
@@ -39,7 +40,7 @@ def read_8ch_imu(imupath, timepath, config):
     samp_freq = config['imu_sample_rate'] / config['imu_downsample']
     # read in timestamps
     time = pd.DataFrame(open_time1(pd.read_csv(timepath).iloc[:,0]))
-    # get first/last timepoint, num samples
+    # get first/last timepoint, num_samples
     t0 = time.iloc[0,0]; num_samp = np.size(data,0)
     # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
     newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
@@ -53,3 +54,27 @@ def read_8ch_imu(imupath, timepath, config):
         imu_out = imu_out.assign_coords(timestamps=('channel',list(newtime.iloc[:,0])))       
     
     return imu_out
+
+# convert acc and gyro to g and deg/sec
+def convert_acc_gyro(imu_out, timepath, config):
+    # read in timestamps
+    time = pd.DataFrame(open_time1(pd.read_csv(timepath).iloc[:,0]))
+    # get first/last timepoint, num_samples
+    t0 = time.iloc[0]; t_end = time.iloc[-1]; num_samp = np.size(data,0)
+    # make timestamps for all subsequent samples
+    newtime = pd.DataFrame(np.linspace(t0, t_end, num=num_samp))
+    # convert from V to deg/sec for gyro
+    samp_freq = config['imu_sample_rate'] / config['imu_downsample']
+    gyro = imu_out.isel(sample=range(3,6)) * (400 / samp_freq)
+    # median filter and conversion for acc
+    filt_win = 5
+    filt_acc = (medfilt(imu_out.isel(sample=range(0,3)), filt_win)-2.5)*1.6
+    filt_acc[filt_acc>1] = 1; filt_acc[filt_acc<-1] = -1
+    acc = np.rad2deg(np.arcsin(filt_acc))
+    # change format of acc back to xarray since this was lost during conversion
+    acc = pd.DataFrame(acc)
+    acc.columns = ['acc_x', 'acc_y', 'acc_z']
+    acc_xr = xr.DataArray(acc, dims=['sample', 'channel'])
+    acc_xr = acc_xr.assign_coords(timestamps=('channel',list(newtime.iloc[:,0])))
+
+    return acc_xr, gyro
