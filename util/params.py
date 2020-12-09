@@ -26,7 +26,7 @@ from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
 from util.track_ball import ball_tracking
 from util.track_side import side_angle, side_tracking
-from util.track_imu import read_8ch_imu
+from util.track_imu import read_8ch_imu, convert_acc_gyro
 
 def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
@@ -301,14 +301,17 @@ def extract_params(config):
         # analyze ball movements
         if trial_ball_csv != []:
             print('tracking ball movement for ' + t_name)
-            speed_data = ball_tracking(trial_ball_csv[0], config)
+            speed_data = ball_tracking(trial_ball_csv[0], config); speed_data.name = 'BALL_data'
             speed_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_speed.nc')))
 
         if trial_imu_bin != []:
             print('reading imu data for ' + t_name)
             trial_imu_csv = [i for i in trial_cam_csv if 'IMU' in i][0]
-            imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
-            imu_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_imu.nc')))
+            imu_data imu_timepath = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
+            imu_acc, imu_gyro = convert_acc_gyro(imu_data, imu_timepath, config)
+            imu_data.name = 'IMU_data'; imu_acc.name='ACC_data'; imu_gyro.name='GYRO_data'
+            trial_imu_data = xr.merge(imu_data, imu_acc, imu_gyro)
+            trial_imu_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_imu.nc')))
 
     print('done with ' + str(len(trial_units)) + ' queued trials')
 
