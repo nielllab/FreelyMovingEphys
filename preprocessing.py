@@ -13,6 +13,8 @@ import deeplabcut
 import numpy as np
 import xarray as xr
 import warnings
+import tkinter as tk
+from tkinter import filedialog
 from glob import glob
 from multiprocessing import freeze_support
 # module imports
@@ -23,20 +25,20 @@ from util.deinterlace import deinterlace_data
 # get user inputs
 def pars_args():
     parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
-    parser.add_argument('-c', '--json_config_path', 
-        default='~/Desktop/preprocessing_config.json',
+    parser.add_argument('-c', '--json_config_path',
         help='path to video analysis config file')
     args = parser.parse_args()
     
     return args
 
-def main(args):
-    json_config_path = os.path.expanduser(args.json_config_path)
+def main(args=None, json_config_path=None):
 
     # open config file
     with open(json_config_path, 'r') as fp:
         config = json.load(fp)
 
+    print('Config: ')    
+    print(json.dumps(config, indent=1))
     data_path = os.path.expanduser(config['data_path'])
     if config.get('save_path') is None:
         config['save_path'] = data_path
@@ -56,5 +58,10 @@ def main(args):
         extract_params(config)
 
 if __name__ == '__main__':
-    args = pars_args()
-    main(args)
+    # args = pars_args()
+    
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename()
+    
+    main(args=None,json_config_path=file_path)

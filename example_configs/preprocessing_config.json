@@ -39,5 +39,7 @@
     "run_with_form_time": true,
     "optical_mouse_screen_center":{"x":960,"y":540},
     "optical_mouse_pix2cm": 2840,
-    "optical_mouse_sample_rate_ms": 200
+    "optical_mouse_sample_rate_ms": 200,
+    "imu_sample_rate": 30000,
+    "imu_downsample": 100
 }

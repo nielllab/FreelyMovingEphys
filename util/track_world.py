@@ -182,7 +182,7 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
 
     # interpolate ellipse parameters to worldcam timestamps
     # eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=world_interp_method)
-    eye_ell_interp_params = eye_ell_params
+    eye_ell_interp_params = eye_ell_params.copy()
 
     # get the ellipse parameters for this trial from the time-interpolated xarray
     eye_theta = eye_ell_interp_params.sel(ellipse_params='theta')
@@ -458,8 +458,8 @@ def find_pupil_rotation(eyevidpath, eyetimepath, trial_name, eyeext, eye_ell_par
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
         
-        if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
-            num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
+        if config['num_save_frames'] > int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)):
+            num_save_frames = int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT))
         else:
             num_save_frames = config['num_save_frames']
 

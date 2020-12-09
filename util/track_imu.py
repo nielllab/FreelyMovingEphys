@@ -1,9 +1,9 @@
 """
 track_imu.py
 
-track and interpret imu from binary
+read imu from binary
 
-Dec. 02, 2020
+Dec. 07, 2020
 """
 # package imports
 import xarray as xr
@@ -11,21 +11,6 @@ import pandas as pd
 import numpy as np
 from scipy.signal import medfilt
 # module imports
-<<<<<<< Updated upstream
-from util.open_data import read_imu_binary
-
-def format_acc():
-
-    return imu
-
-def format_gyro():
-
-    return gyro
-
-def track_imu():
-
-    return imu, gyro
-=======
 from util.time import open_time1
 
 # read an 8-channel binary file of variable length
@@ -90,4 +75,3 @@ def convert_acc_gyro(imu_out, timepath, config):
     acc_xr = acc_xr.assign_coords(timestamps=('channel',list(newtime.iloc[:,0])))
 
     return acc_xr, gyro
->>>>>>> Stashed changes

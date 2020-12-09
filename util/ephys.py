@@ -67,7 +67,7 @@ def format_spikes_multi(merge_file, config):
     boundaries = np.concatenate((np.array([0]),np.cumsum(nSamps)))
 
     # loop over each recording and create/save ephys_data for each one
-    for s in range(len(nSamps)+1):
+    for s in range(np.size(nSamps)):
 
         # select spikes in this timerange
         use = (allSpikeT >= boundaries[s]) & (allSpikeT<boundaries[s+1] )
