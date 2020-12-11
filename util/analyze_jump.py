@@ -142,13 +142,15 @@ def pooled_jump_analysis(pooled, config):
     plt.plot(all_theta, all_phi, 'k.')
     plt.xlabel('head theta'); plt.ylabel('phi')
     plt.xlim([-60,60]); plt.ylim([-60,60])
-    plt.show()
+    pdf.savefig()
+    plt.close()
     # head theta, eye theta divergence
     plt.figure()
     plt.plot(all_theta, all_div, 'k.')
     plt.xlabel('head theta'); plt.ylabel('eye theta div')
     plt.xlim([-60,60]); plt.ylim([-60,60])
-    plt.show()
+    pdf.savefig()
+    plt.close()
     # xcorr with head angle
     plt.figure()
     plt.errorbar(lags, np.nanmean(all_th_gaze,0),yerr=(np.nanstd(all_th_gaze,0)/np.sqrt(np.size(all_th_gaze,0))))
@@ -158,6 +160,8 @@ def pooled_jump_analysis(pooled, config):
     plt.legend(['mean theta', 'theta divergence', 'mean phi'])
     pdf.savefig()
     plt.close()
+
+    pdf.close()
 
 # create movies of pursuit with eye positions
 def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
