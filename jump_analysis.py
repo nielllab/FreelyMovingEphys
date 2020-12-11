@@ -15,7 +15,7 @@ import tkinter as tk
 from tkinter import filedialog
 # module imports
 from util.paths import find
-from util.analyze_jump import jump_cc, jump_gaze_trace
+from util.analyze_jump import jump_cc, jump_gaze_trace, pooled_jump_analysis
 
 def main(json_config_path):
     # open config file
@@ -47,16 +47,22 @@ def main(json_config_path):
         side_vid = find((trial_name + '*Side*.avi'), head)[0]
         # correlation figures
         trial_cc_data = jump_cc(reye, leye, top, side, config)
+        trial_cc_data.name = config['recording_name']
         # plot over video
-        trial_gaze_data = jump_gaze_trace(reye, leye, top, side, side_vid, config)
+        jump_gaze_trace(reye, leye, top, side, side_vid, config)
 
-        # merge all data for this trial here... should be an xarray...
-        # this will depend on the format of the trial data
+        if trial_path == text_file_list[0]:
+            pooled_data = trial_cc_data.copy()
+        else:
+            pooled_data = xr.merge([pooled_data, trial_cc_data])
+    
+    # save out an xarray of pooled data
+    pooled_data.to_netcdf(os.path.join(config['data_path'], 'pooled_jump_data.nc'))
 
-        # if trial_path == text_file_list[0]:
-        #     pooled_data = trial_data_xr.copy()
-        # else:
-        #     pooled_data = xr.merge([pooled_data, trial_data)
+    # make a pdf of pooled data
+    # pooled_jump_analysis(pooled_data, jump)
+
+    print('done analyzing ' + str(len(text_file_list)) + ' trials')
 
 if __name__ == '__main__':
     # args = pars_args()
