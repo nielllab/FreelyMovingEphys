@@ -26,14 +26,14 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     # open pdf file to save plots in
     pdf = PdfPages(os.path.join(config['trial_head'], (config['recording_name'] + '_jump_cc.pdf')))
     # organize data
-    REye_now = REye_ds.REYE_ellipse_params
-    LEye_now = LEye_ds.LEYE_ellipse_params
+    REye = REye_ds.REYE_ellipse_params
+    LEye = LEye_ds.LEYE_ellipse_params
     head_theta = side_ds.SIDE_theta
 
-    RTheta = np.rad2deg(REye_now.sel(ellipse_params='theta') - np.nanmedian(REye_now.sel(ellipse_params='theta')))
-    RPhi = np.rad2deg(REye_now.sel(ellipse_params='phi') - np.nanmedian(REye_now.sel(ellipse_params='phi')))
-    LTheta = np.rad2deg(LEye_now.sel(ellipse_params='theta') -  np.nanmedian(LEye_now.sel(ellipse_params='theta')))
-    LPhi = np.rad2deg(LEye_now.sel(ellipse_params='phi') - np.nanmedian(LEye_now.sel(ellipse_params='phi')))
+    RTheta = np.rad2deg(REye.sel(ellipse_params='theta')) - np.rad2deg(np.nanmedian(REye.sel(ellipse_params='theta')))
+    RPhi = np.rad2deg(REye.sel(ellipse_params='phi')) - np.rad2deg(np.nanmedian(REye.sel(ellipse_params='phi')))
+    LTheta = np.rad2deg(LEye.sel(ellipse_params='theta')) -  np.rad2deg(np.nanmedian(LEye.sel(ellipse_params='theta')))
+    LPhi = np.rad2deg(LEye.sel(ellipse_params='phi')) - np.rad2deg(np.nanmedian(LEye.sel(ellipse_params='phi')))
 
     # zero-center head theta, and get rid of wrap-around effect (mod 360)
     th = np.rad2deg(head_theta)
@@ -43,7 +43,7 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     th = -th
 
     # eye divergence (theta)
-    div = 0.5 * (RTheta - LTheta)
+    div = (RTheta - LTheta) * 0.5
     # gaze (mean theta of eyes)
     gaze_th = (RTheta + LTheta) * 0.5
     # gaze (mean phi of eyes)
@@ -64,6 +64,11 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     th_div, lags = nanxcorr(th.values, div.values, 30)
     th_phi, lags = nanxcorr(th.values, gaze_phi.values, 30)
 
+    # make an xarray of this trial's data to be used in pooled analysis
+    trial_outputs = pd.DataFrame([th, gaze_th, div, gaze_phi,th_gaze,th_div,th_phi]).T
+    trial_outputs.columns = ['head_th','mean_eye_th','eye_th_div','mean_eye_phi','th_gaze','th_div','th_phi']
+    trial_xr = xr.DataArray(trial_outputs, dims=['frame','jump_params'])
+
     # plots
     plt.figure()
     plt.title(config['recording_name'])
@@ -72,6 +77,22 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     plt.legend(['head_theta', 'eye_theta','eye_divergence','eye_phi'])
     pdf.savefig()
     plt.close()
+
+    plt.figure()
+    plt.subplots(2,1)
+    plt.subplot(211)
+    plt.plot(LTheta)
+    plt.plot(RTheta)
+    plt.plot(gaze_th)
+    plt.title('theta')
+    plt.legend(['left','right','mean'])
+    plt.subplot(212)
+    plt.plot(LPhi)
+    plt.plot(RPhi)
+    plt.plot(gaze_phi)
+    plt.title('phi')
+    plt.legend(['left','right','mean'])
+    pdf.savefig()
 
     plt.figure()
     plt.title('head theta xcorr')
@@ -96,32 +117,47 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     pdf.savefig()
     plt.close()
 
-    # # plot pooled data
-    # # head theta, phi
-    # plt.figure()
-    # plt.plot(all_theta, all_phi, '.')
-    # plt.xlabel('head theta'); plt.ylabel('phi')
-    # plt.xlim([-60,60]); plt.ylim([-60,60])
-    # pdf.savefig()
-    # plt.close()
-    # # head theta, eye theta divergence
-    # plt.figure()
-    # plt.plot(all_theta, all_div, '.')
-    # plt.xlabel('head theta'); plt.ylabel('eye theta div')
-    # plt.xlim([-60,60]); plt.ylim([-60,60])
-    # pdf.savefig()
-    # plt.close()
-    # # xcorr with head angle
-    # plt.figure()
-    # plt.errorbar(lags, np.nanmean(all_th_gaze), np.std(all_th_gaze)/np.sqrt(np.size(all_th_gaze)))
-    # plt.errorbar(lags, np.nanmean(all_th_div), np.std(all_th_div)/np.sqrt(np.size(all_th_div)))
-    # plt.errorbar(lags, np.nanmean(all_th_phi), np.std(all_th_phi)/np.sqrt(np.size(all_th_phi)))
-    # plt.ylim([-1,1]); plt.ylabel('correlation'); plt.title('xcorr with head angle')
-    # plt.legend(['mean theta', 'mean theta divergence', 'mean phi'])
-    # pdf.savefig()
-    # plt.close()
-
     pdf.close()
+
+    return trial_xr
+
+# make plots using the pooled jumping data
+def pooled_jump_analysis(pooled, config):
+
+    pdf = PdfPages(os.path.join(config['trial_head'], 'pooled_jump_plots.pdf'))
+    
+    # convert to dataarray so that indexing can be done accross recordings
+    pooled_da = pooled.to_array()
+    # then, get data out for each parameter
+    all_theta = pooled_da.sel(jump_params='head_th').values
+    all_phi = pooled_da.sel(jump_params='mean_eye_phi').values
+    all_div = pooled_da.sel(jump_params='eye_th_div').values
+    all_th_gaze = pooled_da.sel(jump_params='th_gaze').values
+    all_th_div = pooled_da.sel(jump_params='th_div').values
+    all_th_phi = pooled_da.sel(jump_params='th_phi').values
+    lags = range(-30, 30)
+    
+    # head theta, phi
+    plt.figure()
+    plt.plot(all_theta, all_phi, 'k.')
+    plt.xlabel('head theta'); plt.ylabel('phi')
+    plt.xlim([-60,60]); plt.ylim([-60,60])
+    plt.show()
+    # head theta, eye theta divergence
+    plt.figure()
+    plt.plot(all_theta, all_div, 'k.')
+    plt.xlabel('head theta'); plt.ylabel('eye theta div')
+    plt.xlim([-60,60]); plt.ylim([-60,60])
+    plt.show()
+    # xcorr with head angle
+    plt.figure()
+    plt.errorbar(lags, np.nanmean(all_th_gaze,0),yerr=(np.nanstd(all_th_gaze,0)/np.sqrt(np.size(all_th_gaze,0))))
+    plt.errorbar(lags, np.nanmean(all_th_div,0),yerr=(np.nanstd(all_th_div,0)/np.sqrt(np.size(all_th_div,0))))
+    plt.errorbar(lags, np.nanmean(all_th_phi,0),yerr=(np.nanstd(all_th_phi,0)/np.sqrt(np.size(all_th_phi,0))))
+    plt.ylim([-1,1]); plt.ylabel('correlation'); plt.title('xcorr with head angle')
+    plt.legend(['mean theta', 'theta divergence', 'mean phi'])
+    pdf.savefig()
+    plt.close()
 
 # create movies of pursuit with eye positions
 def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
@@ -139,7 +175,7 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
     width = int(sidecap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(sidecap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    savepath = os.path.join(config['data_path'], (config['recording_name'] + '_side_gaze_trace.avi'))
+    savepath = os.path.join(config['trial_head'], (config['recording_name'] + '_side_gaze_trace.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     vid_out = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
@@ -157,16 +193,16 @@ def jump_gaze_trace(REye, LEye, TOP, SIDE, Svid, config):
             break
 
         # get current ellipse parameters
-        REye_now = REye_interp.sel(frame=frame_num)
-        LEye_now = LEye_interp.sel(frame=frame_num)
+        REye = REye_interp.sel(frame=frame_num)
+        LEye = LEye_interp.sel(frame=frame_num)
         SIDE_par_now = SIDE_par_interp.sel(frame=frame_num)
         SIDE_pts_now = SIDE_pts_interp.sel(frame=frame_num)
 
         # split apart parameters
-        RTheta = REye_now.sel(ellipse_params='theta').values
-        RPhi = REye_now.sel(ellipse_params='phi').values
-        LTheta = LEye_now.sel(ellipse_params='theta').values
-        LPhi = LEye_now.sel(ellipse_params='phi').values
+        RTheta = REye.sel(ellipse_params='theta').values
+        RPhi = REye.sel(ellipse_params='phi').values
+        LTheta = LEye.sel(ellipse_params='theta').values
+        LPhi = LEye.sel(ellipse_params='phi').values
         head_theta = SIDE_par_now.values
 
         # zero-center head theta, and get rid of wrap-around effect (mod 360)
