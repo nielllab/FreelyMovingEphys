@@ -49,7 +49,8 @@ def main(json_config_path):
         trial_cc_data = jump_cc(reye, leye, top, side, config)
         trial_cc_data.name = config['recording_name']
         # plot over video
-        jump_gaze_trace(reye, leye, top, side, side_vid, config)
+        if config['plot_avi_vids'] is True:
+            jump_gaze_trace(reye, leye, top, side, side_vid, config)
 
         if trial_path == text_file_list[0]:
             pooled_data = trial_cc_data.copy()
@@ -60,7 +61,7 @@ def main(json_config_path):
     pooled_data.to_netcdf(os.path.join(config['data_path'], 'pooled_jump_data.nc'))
 
     # make a pdf of pooled data
-    # pooled_jump_analysis(pooled_data, jump)
+    pooled_jump_analysis(pooled_data, config)
 
     print('done analyzing ' + str(len(text_file_list)) + ' trials')
 

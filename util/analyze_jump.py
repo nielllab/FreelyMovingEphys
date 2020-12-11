@@ -124,7 +124,7 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
 # make plots using the pooled jumping data
 def pooled_jump_analysis(pooled, config):
 
-    pdf = PdfPages(os.path.join(config['trial_head'], 'pooled_jump_plots.pdf'))
+    pdf = PdfPages(os.path.join(config['data_path'], 'pooled_jump_plots.pdf'))
     
     # convert to dataarray so that indexing can be done accross recordings
     pooled_da = pooled.to_array()
@@ -132,9 +132,9 @@ def pooled_jump_analysis(pooled, config):
     all_theta = pooled_da.sel(jump_params='head_th').values
     all_phi = pooled_da.sel(jump_params='mean_eye_phi').values
     all_div = pooled_da.sel(jump_params='eye_th_div').values
-    all_th_gaze = pooled_da.sel(jump_params='th_gaze').values
-    all_th_div = pooled_da.sel(jump_params='th_div').values
-    all_th_phi = pooled_da.sel(jump_params='th_phi').values
+    all_th_gaze = pooled_da.sel(jump_params='th_gaze', frame=range(60)).values
+    all_th_div = pooled_da.sel(jump_params='th_div', frame=range(60)).values
+    all_th_phi = pooled_da.sel(jump_params='th_phi', frame=range(60)).values
     lags = range(-30, 30)
     
     # head theta, phi
@@ -153,9 +153,9 @@ def pooled_jump_analysis(pooled, config):
     plt.close()
     # xcorr with head angle
     plt.figure()
-    plt.errorbar(lags, np.nanmean(all_th_gaze,0),yerr=(np.nanstd(all_th_gaze,0)/np.sqrt(np.size(all_th_gaze,0))))
-    plt.errorbar(lags, np.nanmean(all_th_div,0),yerr=(np.nanstd(all_th_div,0)/np.sqrt(np.size(all_th_div,0))))
-    plt.errorbar(lags, np.nanmean(all_th_phi,0),yerr=(np.nanstd(all_th_phi,0)/np.sqrt(np.size(all_th_phi,0))))
+    plt.errorbar(lags, np.nanmean(all_th_gaze,0), yerr=(np.nanstd(np.array(all_th_gaze,dtype=np.float64),0)/np.sqrt(np.size(all_th_gaze,0))))
+    plt.errorbar(lags, np.nanmean(all_th_div,0), yerr=(np.nanstd(np.array(all_th_div,dtype=np.float64),0)/np.sqrt(np.size(all_th_div,0))))
+    plt.errorbar(lags, np.nanmean(all_th_phi,0), yerr=(np.nanstd(np.array(all_th_phi,dtype=np.float64),0)/np.sqrt(np.size(all_th_phi,0))))
     plt.ylim([-1,1]); plt.ylabel('correlation'); plt.title('xcorr with head angle')
     plt.legend(['mean theta', 'theta divergence', 'mean phi'])
     pdf.savefig()
