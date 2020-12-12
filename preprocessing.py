@@ -25,18 +25,13 @@ from util.deinterlace import deinterlace_data
 # get user inputs
 def pars_args():
     parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
-    parser.add_argument('-c', '--json_config_path', 
-        default='~/Desktop/preprocessing_config.json',
+    parser.add_argument('-c', '--json_config_path',
         help='path to video analysis config file')
     args = parser.parse_args()
     
     return args
 
 def main(args=None, json_config_path=None):
-    if (args == None) & (json_config_path != None):
-        json_config_path = os.path.normpath(os.path.expanduser(json_config_path))
-    else:
-        json_config_path = os.path.normpath(os.path.expanduser(args.json_config_path))
 
     # open config file
     with open(json_config_path, 'r') as fp:
@@ -63,10 +58,10 @@ def main(args=None, json_config_path=None):
         extract_params(config)
 
 if __name__ == '__main__':
-    args = pars_args()
+    # args = pars_args()
     
     root = tk.Tk()
     root.withdraw()
     file_path = filedialog.askopenfilename()
     
-    main(args,json_config_path=file_path)
+    main(args=None,json_config_path=file_path)

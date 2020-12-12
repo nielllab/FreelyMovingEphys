@@ -40,8 +40,4 @@ def open_ma_h5(path):
     pts.columns = ['_'.join(col[:][1:]).strip() for col in pts.columns.values]
 
     return pts
-
-# read in the binary file from accelerometer/gyro
-def read_imu_binary(binary_path):
-
-    return imu
+    

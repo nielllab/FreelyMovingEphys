@@ -26,6 +26,7 @@ from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
 from util.track_ball import ball_tracking
 from util.track_side import side_angle, side_tracking
+from util.track_imu import read_8ch_imu
 
 def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
@@ -48,11 +49,13 @@ def extract_params(config):
         trial_cam_csv = find(('*BonsaiTS*.csv'), config['trial_path'])
         trial_cam_avi = find(('*.avi'), config['trial_path'])
         trial_ball_csv = find(('*BALLMOUSE*.csv'), config['trial_path'])
+        trial_imu_bin = find(('*IMU.bin'), config['trial_path'])
 
         trial_cam_h5 = [x for x in trial_cam_h5 if x != []]
         trial_cam_csv = [x for x in trial_cam_csv if x != []]
         trial_cam_avi = [x for x in trial_cam_avi if x != []]
         trial_ball_csv = [x for x in trial_ball_csv if x != []]
+        trial_imu_bin = [x for x in trial_imu_bin if x != []]
 
         # make the save path if it doesn't exist
         if not os.path.exists(config['save_path']):
@@ -300,6 +303,12 @@ def extract_params(config):
             print('tracking ball movement for ' + t_name)
             speed_data = ball_tracking(trial_ball_csv[0], config)
             speed_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_speed.nc')))
+
+        if trial_imu_bin != []:
+            print('reading imu data for ' + t_name)
+            trial_imu_csv = [i for i in trial_cam_csv if 'IMU' in i][0]
+            imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
+            imu_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_imu.nc')))
 
     print('done with ' + str(len(trial_units)) + ' queued trials')
 
