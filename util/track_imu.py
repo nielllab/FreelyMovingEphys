@@ -39,16 +39,14 @@ def read_8ch_imu(imupath, timepath, config):
     samp_freq = config['imu_sample_rate'] / config['imu_downsample']
     # read in timestamps
     time = pd.DataFrame(open_time1(pd.read_csv(timepath).iloc[:,0]))
-    # get first/last timepoint, num_samples
-    t0 = time.iloc[0]; t_end = time.iloc[-1]; num_samp = np.size(data,0)
-    # make timestamps for all subsequent samples
-    newtime = pd.DataFrame(np.linspace(t0, t_end, num=num_samp))
-    #newtime = pd.DataFrame(t0 + np.linspace(0, num_samp-1, num_samp)*config['imu_downsample']/config['sampfreq']) 
+    # get first/last timepoint, num samples
+    t0 = time.iloc[0,0]; num_samp = np.size(data,0)
     # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
+    newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) * samp_freq))
     # collect the data together to return
     all_data = data.copy()
     all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
-    imu_out = xr.DataArray(all_data, dims={'sample','channel'})
+    imu_out = xr.DataArray(all_data, dims={'channel','sample'})
     imu_out = imu_out.assign_coords(timestamps=('sample',list(newtime.iloc[:,0])))
     
     return imu_out
