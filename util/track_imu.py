@@ -42,7 +42,7 @@ def read_8ch_imu(imupath, timepath, config):
     # get first/last timepoint, num samples
     t0 = time.iloc[0,0]; num_samp = np.size(data,0)
     # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
-    newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) * samp_freq))
+    newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
     # collect the data together to return
     all_data = data.copy()
     all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
