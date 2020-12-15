@@ -49,6 +49,10 @@ def run_DLC_Analysis(config):
                     vids_this_cam = find('*'+cam_key+'*deinter.avi', config['data_path'])
                 elif config['run_with_form_time'] is False:
                     vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
+                    # remove unflipped videos generated during jumping analysis
+                    bad_vids = find('*'+cam_key+'*unflipped*.avi', config['data_path'])
+                    for x in bad_vids:
+                        vids_this_cam.remove(x)
                 print('found ' + str(len(vids_this_cam)) + ' deinterlaced videos from cam_key ' + cam_key)
                 # warn the user if there's nothing found
                 if len(vids_this_cam) == 0:

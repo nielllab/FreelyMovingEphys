@@ -21,14 +21,24 @@ from util.paths import find
 from util.aux_funcs import nanxcorr
 from util.time import find_start_end
 
-# get cross-correlation
-def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
+# get figures and process data for individual jump recordings
+def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
+    # handle metadata
+    jump_num = config['recording_name'].split('_')[-1].lstrip('0') # get the jump number without preceing 0
+    vals = [] # the values in the dictionary for this jump
+    cam_points = [] # theentries in time metadata dictionary
+    for cam_point in time:
+        cam_values = time[came_point]
+        vals.append(cam_values[jump_num])
+        cam_points.append(cam_point)
+    time_dict = {cam_points[i] : vals[i] for i in range(len(cam_points))} # make the dictionary for only this jump
+
     # open pdf file to save plots in
     pdf = PdfPages(os.path.join(config['trial_head'], (config['recording_name'] + '_jump_cc.pdf')))
     # organize data
     REye = REye_ds.REYE_ellipse_params
     LEye = LEye_ds.LEYE_ellipse_params
-    head_theta = side_ds.SIDE_theta
+    head_pitch = side_ds.SIDE_theta
 
     RTheta = np.rad2deg(REye.sel(ellipse_params='theta')) - np.rad2deg(np.nanmedian(REye.sel(ellipse_params='theta')))
     RPhi = np.rad2deg(REye.sel(ellipse_params='phi')) - np.rad2deg(np.nanmedian(REye.sel(ellipse_params='phi')))
@@ -36,62 +46,88 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     LPhi = np.rad2deg(LEye.sel(ellipse_params='phi')) - np.rad2deg(np.nanmedian(LEye.sel(ellipse_params='phi')))
 
     # zero-center head theta, and get rid of wrap-around effect (mod 360)
-    th = np.rad2deg(head_theta)
-    # th = th * 180 / np.pi
-    th = ((th+360) % 360)
-    th = th - np.nanmean(th)
-    th = -th
+    pitch = np.rad2deg(head_pitch)
+    pitch = ((pitch+360) % 360)
+    pitch = -pitch
+    pitch = 180 - pitch
+    pitch = pitch - np.nanmean(pitch)
+
+    # interpolate over eye paramters to match head pitch
+    RTheta_interp = RTheta.interp_like(pitch, method='linear')
+    RPhi_interp = RPhi.interp_like(pitch, method='linear')
+    LTheta_interp = LTheta.interp_like(pitch, method='linear')
+    LPhi_interp = LPhi.interp_like(pitch, method='linear')
+
+    # plot to check interpolation
+    plt.subplots(4,1)
+    plt.subplot(411)
+    plt.plot(RTheta_interp); plt.plot(RTheta); plt.plot(pitch)
+    plt.legend(['interp','raw','head_pitch']); plt.title('RTheta')
+    plt.subplot(412)
+    plt.plot(RPhi_interp); plt.plot(RPhi); plt.plot(pitch)
+    plt.title('RPhi')
+    plt.subplot(413)
+    plt.plot(LTheta_interp); plt.plot(LTheta); plt.plot(pitch)
+    plt.title('LTheta')
+    plt.subplot(414)
+    plt.plot(LPhi_interp); plt.plot(LPhi); plt.plot(pitch)
+    plt.title('LPhi')
+    plt.tight_layout()
+    pdf.savefig()
+    plt.close()
 
     # eye divergence (theta)
-    div = (RTheta - LTheta) * 0.5
+    div = (RTheta_interp - LTheta_interp) * 0.5
     # gaze (mean theta of eyes)
-    gaze_th = (RTheta + LTheta) * 0.5
+    gaze_th = (RTheta_interp + LTheta_interp) * 0.5
     # gaze (mean phi of eyes)
-    gaze_phi = (RPhi + LPhi) * 0.5
+    gaze_phi = (RPhi_interp + LPhi_interp) * 0.5
 
     # correct lengths when off
-    th_len = len(th.values); gaze_th_len = len(gaze_th.values); div_len = len(div.values); gaze_phi_len = len(gaze_phi.values)
-    min_len = np.min([th_len, gaze_th_len, div_len, gaze_phi_len])
-    max_len = np.max([th_len, gaze_th_len, div_len, gaze_phi_len])
+    pitch_len = len(pitch.values); gaze_th_len = len(gaze_th.values); div_len = len(div.values); gaze_phi_len = len(gaze_phi.values)
+    min_len = np.min([pitch_len, gaze_th_len, div_len, gaze_phi_len])
+    max_len = np.max([pitch_len, gaze_th_len, div_len, gaze_phi_len])
     if max_len != min_len:
-        th = th.isel(frame=range(0,min_len))
+        pitch = pitch.isel(frame=range(0,min_len))
         gaze_th = gaze_th.isel(frame=range(0,min_len))
         div = div.isel(frame=range(0,min_len))
         gaze_phi = gaze_phi.isel(frame=range(0,min_len))
 
     # calculate xcorrs
-    th_gaze, lags = nanxcorr(th.values, gaze_th.values, 30)
-    th_div, lags = nanxcorr(th.values, div.values, 30)
-    th_phi, lags = nanxcorr(th.values, gaze_phi.values, 30)
+    th_gaze, lags = nanxcorr(pitch.values, gaze_th.values, 30)
+    th_div, lags = nanxcorr(pitch.values, div.values, 30)
+    th_phi, lags = nanxcorr(pitch.values, gaze_phi.values, 30)
 
     # make an xarray of this trial's data to be used in pooled analysis
-    trial_outputs = pd.DataFrame([th, gaze_th, div, gaze_phi,th_gaze,th_div,th_phi]).T
-    trial_outputs.columns = ['head_th','mean_eye_th','eye_th_div','mean_eye_phi','th_gaze','th_div','th_phi']
+    trial_outputs = pd.DataFrame([pitch, gaze_th, div, gaze_phi,th_gaze,th_div,th_phi]).T
+    trial_outputs.columns = ['head_pitch','mean_eye_th','eye_th_div','mean_eye_phi','th_gaze','th_div','th_phi']
     trial_xr = xr.DataArray(trial_outputs, dims=['frame','jump_params'])
+    trial_xr.attrs['timepoints'] = time_dict
 
     # plots
     plt.figure()
     plt.title(config['recording_name'])
     plt.ylabel('deg'); plt.xlabel('frames')
-    plt.plot(th); plt.plot(gaze_th); plt.plot(div); plt.plot(gaze_phi)
-    plt.legend(['head_theta', 'eye_theta','eye_divergence','eye_phi'])
+    plt.plot(pitch); plt.plot(gaze_th); plt.plot(div); plt.plot(gaze_phi)
+    plt.legend(['head_pitch', 'eye_theta','eye_divergence','eye_phi'])
     pdf.savefig()
     plt.close()
 
     plt.figure()
     plt.subplots(2,1)
     plt.subplot(211)
-    plt.plot(LTheta)
-    plt.plot(RTheta)
+    plt.plot(LTheta_interp)
+    plt.plot(RTheta_interp)
     plt.plot(gaze_th)
-    plt.title('theta')
+    plt.title('theta interp_like pitch')
     plt.legend(['left','right','mean'])
     plt.subplot(212)
-    plt.plot(LPhi)
-    plt.plot(RPhi)
+    plt.plot(LPhi_interp)
+    plt.plot(RPhi_interp)
     plt.plot(gaze_phi)
-    plt.title('phi')
+    plt.title('phi interp_like pitch')
     plt.legend(['left','right','mean'])
+    plt.tight_layout()
     pdf.savefig()
 
     plt.figure()
@@ -102,18 +138,18 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, config):
     plt.close()
 
     plt.figure()
-    plt.ylabel('eye div deg'); plt.xlabel('head th deg')
+    plt.ylabel('eye div deg'); plt.xlabel('head pitch deg')
     plt.plot([-40,40],[40,-40], 'r:')
     plt.xlim([-40,40]); plt.ylim([-40,40])
-    plt.scatter(th, div)
+    plt.scatter(pitch, div)
     pdf.savefig()
     plt.close()
 
     plt.figure()
-    plt.ylabel('eye phi deg'); plt.xlabel('head th deg')
+    plt.ylabel('eye phi deg'); plt.xlabel('head pitch deg')
     plt.plot([-40,40],[-40,40], 'r:')
     plt.xlim([-40,40]); plt.ylim([-40,40])
-    plt.scatter(th, gaze_phi)
+    plt.scatter(pitch, gaze_phi)
     pdf.savefig()
     plt.close()
 
@@ -129,7 +165,7 @@ def pooled_jump_analysis(pooled, config):
     # convert to dataarray so that indexing can be done accross recordings
     pooled_da = pooled.to_array()
     # then, get data out for each parameter
-    all_theta = pooled_da.sel(jump_params='head_th').values
+    all_pitch = pooled_da.sel(jump_params='head_pitch').values
     all_phi = pooled_da.sel(jump_params='mean_eye_phi').values
     all_div = pooled_da.sel(jump_params='eye_th_div').values
     all_th_gaze = pooled_da.sel(jump_params='th_gaze', frame=range(60)).values
@@ -139,14 +175,14 @@ def pooled_jump_analysis(pooled, config):
     
     # head theta, phi
     plt.figure()
-    plt.plot(all_theta, all_phi, 'k.')
+    plt.plot(all_pitch, all_phi, 'k.')
     plt.xlabel('head theta'); plt.ylabel('phi')
     plt.xlim([-60,60]); plt.ylim([-60,60])
     pdf.savefig()
     plt.close()
     # head theta, eye theta divergence
     plt.figure()
-    plt.plot(all_theta, all_div, 'k.')
+    plt.plot(all_pitch, all_div, 'k.')
     plt.xlabel('head theta'); plt.ylabel('eye theta div')
     plt.xlim([-60,60]); plt.ylim([-60,60])
     pdf.savefig()
@@ -156,7 +192,7 @@ def pooled_jump_analysis(pooled, config):
     plt.errorbar(lags, np.nanmean(all_th_gaze,0), yerr=(np.nanstd(np.array(all_th_gaze,dtype=np.float64),0)/np.sqrt(np.size(all_th_gaze,0))))
     plt.errorbar(lags, np.nanmean(all_th_div,0), yerr=(np.nanstd(np.array(all_th_div,dtype=np.float64),0)/np.sqrt(np.size(all_th_div,0))))
     plt.errorbar(lags, np.nanmean(all_th_phi,0), yerr=(np.nanstd(np.array(all_th_phi,dtype=np.float64),0)/np.sqrt(np.size(all_th_phi,0))))
-    plt.ylim([-1,1]); plt.ylabel('correlation'); plt.title('xcorr with head angle')
+    plt.ylim([-1,1]); plt.ylabel('correlation'); plt.title('xcorr with head pitch')
     plt.legend(['mean theta', 'theta divergence', 'mean phi'])
     pdf.savefig()
     plt.close()
