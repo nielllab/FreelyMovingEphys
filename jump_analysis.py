@@ -39,6 +39,12 @@ def main(json_config_path):
         head, trial_name_long = os.path.split(trial_path_noext)
         trial_name = '_'.join(trial_name_long.split('_')[:-1])
         config['recording_name'] = trial_name; config['trial_head'] = head
+        # get the metadata out of vidclip text file
+        for time_text_path in vidclip_file_list:
+            if trial_name in time_text_path:
+                with open(time_text_path) as f:
+                    time_txt = f.read()
+        time_dict = json.loads(time_txt)
         # find the matching sets of .nc files produced during preprocessing
         leye = xr.open_dataset(find((trial_name + '*Leye.nc'), head)[0])
         reye = xr.open_dataset(find((trial_name + '*Reye.nc'), head)[0])
@@ -46,7 +52,7 @@ def main(json_config_path):
         top = xr.open_dataset(find((trial_name + '*top.nc'), head)[0])
         side_vid = find((trial_name + '*Side*.avi'), head)[0]
         # correlation figures
-        trial_cc_data = jump_cc(reye, leye, top, side, config)
+        trial_cc_data = jump_cc(reye, leye, top, side, time_dict, trial_metadata, config)
         trial_cc_data.name = config['recording_name']
         # plot over video
         if config['plot_avi_vids'] is True:

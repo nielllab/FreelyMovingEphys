@@ -32,7 +32,7 @@ def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
     trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
-        if 'plot' not in avi and 'rep11' not in avi and 'betafpv' not in avi and 'side_gaze' not in avi:
+        if 'plot' not in avi and 'rep11' not in avi and 'betafpv' not in avi and 'side_gaze' not in avi and 'unflipped' not in avi:
             split_name = avi.split('_')[:-1]
             trial = '_'.join(split_name)
             path_to_trial = os.path.join(os.path.split(trial)[0])
@@ -179,11 +179,11 @@ def extract_params(config):
                 if config['run_with_form_time'] is True:
                     eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i and 'deinter' in i][0]
                     eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i][0]
-                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i][0]
+                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i and 'unflipped' not in i][0]
                 elif config['run_with_form_time'] is False:
                     eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i][0]
                     eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i][0]
-                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i][0]
+                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'unflipped' not in i][0]
                 # make an xarray of dlc point values out of the found .h5 files
                 # also assign timestamps as coordinates of the xarray
                 eyedlc = h5_to_xr(eye_h5, eye_csv, (eye_side+'EYE'), config=config)
