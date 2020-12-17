@@ -350,7 +350,6 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
             break
 
         if dlc_data is not None and ell_data is not None:
-            # get current frame number to be displayed, so that it can be used to slice DLC data
             try:
                 ell_data_thistime = ell_data.sel(frame=frame_num)
                 # get out ellipse parameters and plot them on the video
@@ -361,7 +360,6 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
             except (ValueError, KeyError):
                 pass
 
-            # get out the DLC points and plot them on the video
             try:
                 pts = dlc_data.sel(frame=frame_num)
                 for k in range(0, len(pts), 3):
