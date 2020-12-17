@@ -24,10 +24,12 @@ def main(json_config_path):
 
     # find all the text files that contain recording metadata
     text_file_list = find('*.txt', config['data_path'])
+
     # remove vidclip files from the metadata list
     vidclip_file_list = find('*vidclip*.txt', config['data_path'])
     for x in vidclip_file_list:
         text_file_list.remove(x)
+        
     # iterate through the text files
     for trial_path in text_file_list:
         # read the trial metadata data in
