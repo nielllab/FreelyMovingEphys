@@ -35,10 +35,16 @@ def body_angle(pt_input, config, trial_name, top_view):
     angs = []
     for step in tqdm(range(0,np.size(pt_input, 1))):
         step_pts = pt_input.isel(frame=step)
-        x1 = step_pts.sel(point_loc='spine_x')
-        x2 = step_pts.sel(point_loc='spine2_x')
-        y1 = step_pts.sel(point_loc='spine_y')
-        y2 = step_pts.sel(point_loc='spine2_y')
+        try:
+            x1 = step_pts.sel(point_loc='spine_x')
+            x2 = step_pts.sel(point_loc='spine2_x')
+            y1 = step_pts.sel(point_loc='spine_y')
+            y2 = step_pts.sel(point_loc='spine2_y')
+        except KeyError:
+            x1 = step_pts.sel(point_loc='MidSpine1_x')
+            x2 = step_pts.sel(point_loc='MidSpine2_x')
+            y1 = step_pts.sel(point_loc='MidSpine1_y')
+            y2 = step_pts.sel(point_loc='MidSpine2_y')
         x_dist = x1 - x2
         y_dist = y1 - y2
         th = np.arctan2(y_dist, x_dist)
@@ -52,10 +58,16 @@ def head_angle1(pt_input, config, trial_name, top_view):
     print('getting head angle...')
     for step in tqdm(range(0,np.size(pt_input, 1))):
         step_pts = pt_input.isel(frame=step)
-        x1 = step_pts.sel(point_loc='rightear_x')
-        x2 = step_pts.sel(point_loc='leftear_x')
-        y1 = step_pts.sel(point_loc='rightear_y')
-        y2 = step_pts.sel(point_loc='leftear_y')
+        try:
+            x1 = step_pts.sel(point_loc='rightear_x')
+            x2 = step_pts.sel(point_loc='leftear_x')
+            y1 = step_pts.sel(point_loc='rightear_y')
+            y2 = step_pts.sel(point_loc='leftear_y')
+        except KeyError:
+            x1 = step_pts.sel(point_loc='Nose_x')
+            x2 = step_pts.sel(point_loc='BackNeck_x')
+            y1 = step_pts.sel(point_loc='Nose_y')
+            y2 = step_pts.sel(point_loc='BackNeck_y')
         x_dist = x1 - x2
         y_dist = y1 - y2
         th = np.arctan2(y_dist, x_dist)
