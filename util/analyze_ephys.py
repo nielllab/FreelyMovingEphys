@@ -293,7 +293,296 @@ def ephys_figures(file_dict):
     # merge video and audio
     subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', vidfile[0:-4] + '_merge.mp4']) 
 
+    if free_move:
+        plt.plot(eyeT[0:-1],np.diff(th_switch),label = 'dTheta')
+        plt.plot(accT-0.1,(gz-3)*10, label = 'gyro')
+        plt.xlim(30:40); plt.ylim(-12,12); plt.legend(); plt.xlabel('secs')
+        diagnostic_pdf.savefig()
+        plt.close()
 
+    # set up timebase for subsequent analysis
+    dt = 0.025
+    t = np.arange(0, np.max(worldT),dt)
+
+    # interpolate and plot contrast
+    newc =interp1d(worldT,contrast)
+    contrast_interp = newc(t[0:-1])
+    contrast_interp.shape
+    plt.plot(t[0:600],contrast_interp[0:600])
+    plt.xlabel('secs'); plt.ylabel('world contrast')
+    diagnostic_pdf.savefig()
+    plt.close()
+
+    # calculate firing rate at new timebase
+    ephys_data['rate'] = nan
+    ephys_data['rate'] = ephys_data['rate'].astype(object)
+    for i,ind in enumerate(ephys_data.index):
+        ephys_data.at[ind,'rate'],bins = np.histogram(ephys_data.at[ind,'spikeT'],t)
+    ephys_data['rate']= ephys_data['rate']/dt
+    goodcells = ephys_data.loc[ephys_data['group']=='good']
+
+    # calculate contrast - response functions
+    # mean firing rate in timebins correponding to contrast ranges
+    resp = np.empty((n_units,12))
+    crange = np.arange(0,1.2,0.1)
+    for i,ind in enumerate(goodcells.index):
+        for c,cont in enumerate(crange):
+            resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
+    plt.plot(crange,np.transpose(resp))
+    #plt.ylim(0,10)
+    plt.xlabel('contrast')
+    plt.ylabel('sp/sec')
+    plt.title('mean firing rate in timebins correponding to contrast ranges')
+    detail_pdf.savefig()
+    plt.close()
+
+    # plot individual contrast response functions in subplots
+    fig = plt.figure(figsize = (6,np.ceil(n_units/2)))
+    for i, ind in enumerate(goodcells.index):
+        plt.subplot(np.ceil(n_units/4),4,i+1)
+        plt.plot(crange[2:-1],resp[i,2:-1])
+    # plt.ylim([0 , max(resp[i,1:-3])*1.2])
+        plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
+    plt.tight_layout()
+    plt.title('individual contrast reponse')
+    detail_pdf.savefig()
+    plt.close()
+
+    # create interpolator for movie data so we can evaluate at same timebins are firing rat
+    img_norm[img_norm<-2] = -2
+    movInterp = interp1d(worldT,img_norm,axis=0)
+
+    # calculate spike-triggered average
+    spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
+
+    staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
+    lag = 0.125;
+    plt.figure(figsize = (12,np.ceil(n_units/2)))
+    for c, ind in enumerate(goodcells.index):
+        r = goodcells.at[ind,'rate']
+        sta = 0; nsp = 0
+        sp = goodcells.at[ind,'spikeT'].copy()
+        if c==1:
+            ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
+        for s in sp:
+            if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                nsp = nsp+1
+                im = movInterp((s-lag)*spike_corr);
+                if c==1:
+                    ensemble[nsp-1,:,:] = im
+                sta = sta+im;
+        plt.subplot(np.ceil(n_units/4),4,c+1)
+        sta = sta/nsp
+        #sta[abs(sta)<0.1]=0
+        plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+        staAll[c,:,:] = sta;
+    plt.title('soike triggered average (lag=0.125)')
+    plt.tight_layout()
+    detail_pdf.savefig()
+    plt.close()
+
+    # calculate spike-triggered average
+    spike_corr = 1 + 0.125/1200
+    sta = 0
+    lag = 0.075
+    lagRange = np.arange(0,0.25,0.05)
+    plt.figure(figsize = (12,2*n_units))
+    for c, ind in enumerate(goodcells.index):
+        sp = goodcells.at[ind,'spikeT'].copy()
+        for  lagInd, lag in enumerate(lagRange):
+            sta = 0; nsp = 0
+            for s in sp:
+                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                    nsp = nsp+1
+                    sta = sta+movInterp((s-lag)*spike_corr)
+            plt.subplot(n_units,6,(c*6)+lagInd + 1)
+            sta = sta/nsp
+        #sta[abs(sta)<0.1]=0
+            plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
+            plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
+    plt.tight_layout()
+    detail_pdf.savefig()
+    plt.close()
+
+    # calculate spike-triggered variance
+    sta = 0
+    lag = 0.125
+    plt.figure(figsize = (12,np.ceil(n_units/2)))
+    for c, ind in enumerate(goodcells.index):
+        r = goodcells.at[ind,'rate']
+        sta = 0
+        for i in range(5,t.size-10):
+            sta = sta+r[i]*(movInterp(t[i]-lag))**2
+        plt.subplot(np.ceil(n_units/4),4,c+1)
+        sta = sta/np.sum(r)
+        plt.imshow(sta - np.mean(img_norm**2,axis=0),vmin=-1,vmax=1)
+    plt.tight_layout()
+    detail_pdf.savefig()
+    plt.close()
+
+    # calculate saccade-locked psth
+    spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
+    dEye= np.diff(th_switch)
+
+    fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
+    trange = np.arange(-1,1.1,0.1)
+    sthresh = 5;
+    upsacc = eyeT[np.append(dEye,0)>sthresh]/spike_corr
+    upsacc = upsacc[upsacc>5]
+    upsacc = upsacc[upsacc<np.max(t)-5]
+    downsacc= eyeT[np.append(dEye,0)<-sthresh]/spike_corr
+    downsacc = downsacc[downsacc>5]
+    downsacc = downsacc[downsacc<np.max(t)-5]
+    upsacc_avg = np.zeros((units.size,trange.size))
+    downsacc_avg = np.zeros((units.size,trange.size))
+    for i, ind in enumerate(goodcells.index):
+        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
+        for s in upsacc:
+            upsacc_avg[i,:] = upsacc_avg[i,:]+ rateInterp(np.array(s)+trange)/upsacc.size
+        for s in downsacc:
+            downsacc_avg[i,:]= downsacc_avg[i,:]+ rateInterp(np.array(s)+trange)/downsacc.size
+        plt.subplot(np.ceil(n_units/4),4,i+1)
+        plt.plot(trange,upsacc_avg[i,:])
+        plt.plot(trange,downsacc_avg[i,:],'r')
+        plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
+        plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
+        plt.ylabel('sp/sec')
+    plt.tight_layout()
+    detail_pdf.savefig()
+    plt.close()
+
+    # rasters around positive saccades
+    fig = plt.figure(figsize = (12,n_units)) 
+    for i, ind in enumerate(goodcells.index): 
+        sp = np.array(goodcells.at[units[i],'spikeT']) *spike_corr
+        plt.subplot(np.ceil(n_units/4),4,i+1) 
+        n = 0 
+        for s in upsacc: 
+            n= n+1 
+            sd = np.abs(sp-np.array(s))<10 
+            sacc_sp = sp[sd] 
+            plt.vlines(sacc_sp-np.array(s),n-0.25,n+0.25) 
+        plt.xlim(-1,1); #plt.ylim(0,50)
+    detail_pdf.savefig()
+    plt.close()
+
+    #rasters around negative saccades
+    fig = plt.figure(figsize = (12,n_units))
+    for i, ind in enumerate(goodcells.index):
+        sp = np.array(goodcells.at[units[i],'spikeT'])
+        plt.subplot(np.ceil(n_units/4),4,i+1)
+        n = 0
+        for s in downsacc:
+            n= n+1
+            sd = np.abs(sp-np.array(s))<10
+            sacc_sp = sp[sd]
+            plt.vlines(sacc_sp-np.array(s),n-0.25,n+0.25)
+        plt.xlim(-1,1)
+    detail_pdf.savefig()
+    plt.close()
+
+    # normalize and plot eye radius
+    eyeR = eye_params.sel(ellipse_params = 'longaxis').copy()
+    Rnorm = (eyeR - np.mean(eyeR))/np.std(eyeR)
+    plt.plot(eyeT,Rnorm)
+    plt.xlim([0,60])
+    plt.xlabel('secs')
+    plt.ylabel('normalized pupil R')
+    diagnostic_pdf.savefig()
+    plt.close()
+
+    # plot rate vs pupil
+    n_units = len(goodcells)
+    R_range = np.arange(-4,4,0.5)
+    useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
+    useR = Rnorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
+    R_scatter = np.zeros((n_units,len(useR)))
+    R_tuning = np.zeros((n_units,len(R_range)-1))
+    R_tuning_err =R_tuning.copy()
+    for i, ind in enumerate(goodcells.index):
+        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
+        R_scatter[i,:] = rateInterp(useEyeT)
+        for j in range(len(R_range)-1):
+            usePts =(useR>R_range[j]) & (useR<R_range[j+1])
+            R_tuning[i,j] = np.mean(R_scatter[i,usePts])
+            R_tuning_err[i,j] = np.std(R_scatter[i,usePts])/np.sqrt(np.count_nonzero(usePts))
+    fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
+    for i in range(n_units):
+        plt.subplot(np.ceil(n_units/4),4,i+1)
+        plt.errorbar(R_range[:-1],R_tuning[i,:],yerr=R_tuning_err[i,:])
+        plt.ylim(0,np.nanmax(R_tuning[i,2:-2]*1.2))
+        plt.xlim([-2, 2])
+        plt.xlabel('normalized pupil R'); plt. ylabel('sp/sec'); plt.title(i)
+    plt.tight_layout()
+    details_pdf.savefig()
+    plt.close()
+
+    # normalize eye position
+    eyeTheta = eye_params.sel(ellipse_params = 'theta').copy()
+    thetaNorm = (eyeTheta - np.mean(eyeTheta))/np.std(eyeTheta)
+    plt.plot(eyeT[0:3600],thetaNorm[0:3600])
+    plt.xlabel('secs'); plt.ylabel('normalized eye theta')
+    diagnostic_pdf.savefig()
+    plt.close()
+
+    # plot rate vs theta
+    n_units = len(goodcells)
+    th_range = np.arange(-2,3,0.5)
+    useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
+    useTh = thetaNorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
+    th_scatter = np.zeros((n_units,len(useR)))
+    th_tuning = np.zeros((n_units,len(th_range)-1))
+    th_tuning_err =th_tuning.copy()
+    for i, ind in enumerate(goodcells.index):
+        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
+        th_scatter[i,:] = rateInterp(useEyeT)
+        for j in range(len(th_range)-1):
+            usePts =(useTh>th_range[j]) & (useTh<th_range[j+1])
+            th_tuning[i,j] = np.mean(th_scatter[i,usePts])
+            th_tuning_err[i,j] = np.std(th_scatter[i,usePts])/np.sqrt(np.count_nonzero(usePts))
+    fig = plt.figure(figsize = (3*np.ceil(n_units/2),6))
+    for i in range(n_units):
+        plt.subplot(2,np.ceil(n_units/2),i+1)
+        plt.errorbar(th_range[:-1],th_tuning[i,:],yerr=th_tuning_err[i,:])
+        plt.ylim(0,np.nanmax(th_tuning[i,:]*1.2))
+        plt.xlim([-2, 2])
+        plt.xlabel('normalized pupil theta'); plt. ylabel('sp/sec'); plt.title(i)
+    plt.tight_layout()
+    detail_pdf.savefig()
+    plt.close()
+
+    # generate summary plot
+    samprate = 30000  # ephys sample rate
+    plt.figure(figsize = (12,np.ceil(n_units)*2))
+    for i, ind in enumerate(goodcells.index): 
+        # plot waveform
+        plt.subplot(n_units,4,i*4 + 1)
+        wv = goodcells.at[ind,'waveform']
+        plt.plot(np.arange(len(wv))*1000/samprate,goodcells.at[ind,'waveform'])
+        plt.xlabel('msec'); plt.title(str(i) + ' ' + goodcells.at[ind,'KSLabel']  +  ' cont='+ str(goodcells.at[ind,'ContamPct']))
+        
+        # plot CRF
+        plt.subplot(n_units,4,i*4 + 2)
+        plt.plot(crange[2:-1],resp[i,2:-1])
+        plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
+                                    
+        #plot STA
+        plt.subplot(n_units,4,i*4 + 3)
+        sta = staAll[i,:,:]
+        staRange = np.max(np.abs(sta))*1.2
+        if staRange<0.25:
+            staRange=0.25
+        plt.imshow(staAll[i,:,:],vmin = -staRange, vmax= staRange, cmap = 'jet')
+                                    
+        #plot eye movements
+        plt.subplot(n_units,4,i*4 + 4)
+        plt.plot(trange,upsacc_avg[i,:])
+        plt.plot(trange,downsacc_avg[i,:],'r')
+        plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
+        plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
+        plt.ylabel('sp/sec')
+    plt.tight_layout()
+    overview_pdf.savefig()
+    plt.close()
 
     overview_pdf.close(); detail_pdf.close(); diagnostic_pdf.close()
-
