@@ -47,6 +47,9 @@ def read_8ch_imu(imupath, timepath, config):
     all_data = data.copy()
     all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
     imu_out = xr.DataArray(all_data, dims={'channel','sample'})
-    imu_out = imu_out.assign_coords(timestamps=('sample',list(newtime.iloc[:,0])))
+    try:
+        imu_out = imu_out.assign_coords(timestamps=('sample',list(newtime.iloc[:,0])))
+    except ValueError:
+        imu_out = imu_out.assign_coords(timestamps=('channel',list(newtime.iloc[:,0])))       
     
     return imu_out
