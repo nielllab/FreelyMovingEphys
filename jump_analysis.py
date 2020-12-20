@@ -30,8 +30,10 @@ def main(json_config_path):
     for x in vidclip_file_list:
         text_file_list.remove(x)
         
+    trial_count = 0
     # iterate through the text files
     for trial_path in text_file_list:
+        trial_count = trial_count + 1
         # read the trial metadata data in
         with open(trial_path) as f:
             trial_contents = f.read()
@@ -40,8 +42,8 @@ def main(json_config_path):
         trial_path_noext = os.path.splitext(trial_path)[0]
         head, trial_name_long = os.path.split(trial_path_noext)
         trial_name = '_'.join(trial_name_long.split('_')[:-1])
-        print('analyzing '+config['recording_name'])
         config['recording_name'] = trial_name; config['trial_head'] = head
+        print('analyzing '+config['recording_name'])
         # get the metadata out of vidclip text file
         for time_text_path in vidclip_file_list:
             if trial_name in time_text_path:
@@ -78,18 +80,23 @@ def main(json_config_path):
         trial_cc_data = jump_cc(reye, leye, top, side, time_dict, trial_metadata, config)
         trial_cc_data.name = config['recording_name']
         # plot over video
-        # if config['plot_avi_vids'] is True:
-            # jump_gaze_trace(reye, leye, top, side, side_vid, config)
-            # animated_gaze_plot(reye, leye, top, side, side_vid, leye_vid, reye_vid, top_vid, config)
+        if config['plot_avi_vids'] is True:
+            print('plotting jump gaze for side view of ' + config['recording_name'])
+            jump_gaze_trace(reye, leye, top, side, side_vid, config)
+            print('plotting videos with animated plots for ' + config['recording_name'])
+            animated_gaze_plot(reye, leye, top, side, side_vid, leye_vid, reye_vid, top_vid, config)
 
         if trial_path == text_file_list[0]:
             pooled_data = trial_cc_data.copy()
         else:
             pooled_data = xr.merge([pooled_data, trial_cc_data])
+        print('done with trial '+str(trial_count)+' of '+str(len(text_file_list)))
     
+    print('saving pooled data at ' + config['data_path'])
     # save out an xarray of pooled data
     pooled_data.to_netcdf(os.path.join(config['data_path'], 'pooled_jump_data.nc'))
 
+    print('making plots of pooled data for all trials')
     # make a pdf of pooled data
     pooled_jump_analysis(pooled_data, config)
 

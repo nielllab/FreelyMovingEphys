@@ -47,14 +47,14 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
 
     # zero-center theta and phi for each eye, and flip sign of phi
     RTheta = np.rad2deg(REye.sel(ellipse_params='theta')) - np.rad2deg(np.nanmedian(REye.sel(ellipse_params='theta')))
-    RPhi = - np.rad2deg(REye.sel(ellipse_params='phi')) - np.rad2deg(np.nanmedian(REye.sel(ellipse_params='phi')))
+    RPhi = (np.rad2deg(REye.sel(ellipse_params='phi')) - np.rad2deg(np.nanmedian(REye.sel(ellipse_params='phi'))))
     LTheta = np.rad2deg(LEye.sel(ellipse_params='theta')) -  np.rad2deg(np.nanmedian(LEye.sel(ellipse_params='theta')))
-    LPhi = - np.rad2deg(LEye.sel(ellipse_params='phi')) - np.rad2deg(np.nanmedian(LEye.sel(ellipse_params='phi')))
+    LPhi = (np.rad2deg(LEye.sel(ellipse_params='phi')) - np.rad2deg(np.nanmedian(LEye.sel(ellipse_params='phi'))))
 
     # zero-center head pitch, and get rid of wrap-around effect (mod 360)
     pitch = np.rad2deg(head_pitch)
     pitch = ((pitch+360) % 360)
-    pitch = -pitch
+    # pitch = -pitch 
     pitch = 180 - pitch
     pitch = pitch - np.nanmean(pitch)
 
@@ -65,22 +65,22 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
     LPhi_interp = LPhi.interp_like(pitch, method='linear')
 
     # plot to check interpolation
-    plt.subplots(4,1)
-    plt.subplot(411)
-    plt.plot(RTheta_interp); plt.plot(RTheta); plt.plot(pitch)
-    plt.legend(['interp','raw','head_pitch']); plt.title('RTheta')
-    plt.subplot(412)
-    plt.plot(RPhi_interp); plt.plot(RPhi); plt.plot(pitch)
-    plt.title('RPhi')
-    plt.subplot(413)
-    plt.plot(LTheta_interp); plt.plot(LTheta); plt.plot(pitch)
-    plt.title('LTheta')
-    plt.subplot(414)
-    plt.plot(LPhi_interp); plt.plot(LPhi); plt.plot(pitch)
-    plt.title('LPhi')
-    plt.tight_layout()
-    pdf.savefig()
-    plt.close()
+    # plt.subplots(4,1)
+    # plt.subplot(411)
+    # plt.plot(RTheta_interp.values); plt.plot(RTheta); plt.plot(pitch)
+    # plt.legend(['interp','raw','head_pitch']); plt.title('RTheta')
+    # plt.subplot(412)
+    # plt.plot(RPhi_interp.values); plt.plot(RPhi); plt.plot(pitch)
+    # plt.title('RPhi')
+    # plt.subplot(413)
+    # plt.plot(LTheta_interp.values); plt.plot(LTheta); plt.plot(pitch)
+    # plt.title('LTheta')
+    # plt.subplot(414)
+    # plt.plot(LPhi_interp.values); plt.plot(LPhi); plt.plot(pitch)
+    # plt.title('LPhi')
+    # plt.tight_layout()
+    # pdf.savefig()
+    # plt.close()
 
     # eye divergence (theta)
     div = (RTheta_interp - LTheta_interp) * 0.5
@@ -137,7 +137,7 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
     pdf.savefig()
 
     plt.figure()
-    plt.title('head theta xcorr')
+    plt.title('head_pitch xcorr')
     plt.plot(lags, th_gaze); plt.plot(lags, th_div); plt.plot(lags, th_phi)
     plt.legend(['gaze', 'div', 'phi'])
     pdf.savefig()
@@ -145,16 +145,16 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
 
     plt.figure()
     plt.ylabel('eye div deg'); plt.xlabel('head pitch deg')
-    plt.plot([-40,40],[40,-40], 'r:')
-    plt.xlim([-40,40]); plt.ylim([-40,40])
+    plt.plot([-30,30],[30,-30], 'r:')
+    plt.xlim([-30,30]); plt.ylim([-30,30])
     plt.scatter(pitch, div)
     pdf.savefig()
     plt.close()
 
     plt.figure()
     plt.ylabel('eye phi deg'); plt.xlabel('head pitch deg')
-    plt.plot([-40,40],[-40,40], 'r:')
-    plt.xlim([-40,40]); plt.ylim([-40,40])
+    plt.plot([-30,30],[-30,30], 'r:')
+    plt.xlim([-30,30]); plt.ylim([-30,30])
     plt.scatter(pitch, gaze_phi)
     pdf.savefig()
     plt.close()
@@ -169,7 +169,7 @@ def pooled_jump_analysis(pooled, config):
     pdf = PdfPages(os.path.join(config['data_path'], 'pooled_jump_plots.pdf'))
     
     # convert to dataarray so that indexing can be done accross recordings
-    # this is only needed if there's more than one trial read in, so a try/except is needed
+    # this is only needed if there's more than one trial read in, so a try/except is used
     try:
         pooled_da = pooled.to_array()
     except AttributeError:
@@ -331,12 +331,12 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
     REye_vid = cv2.VideoCapture(REye_vid_path)
     LEye_vid = cv2.VideoCapture(LEye_vid_path)
     Side_vid = cv2.VideoCapture(Side_vid_path)
-    set_width = int(REye_vid.get(cv2.CAP_PROP_FRAME_WIDTH)) + int(LEye_vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-    set_height = int(REye_vid.get(cv2.CAP_PROP_FRAME_HEIGHT)) * 4
+    set_width = int(REye_vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    set_height = int(REye_vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     savepath = os.path.join(config['trial_head'], (config['recording_name'] + '_animated_gaze_plot.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    vid_out = cv2.VideoWriter(savepath, fourcc, 60.0, (set_width, set_height))
+    vid_out = cv2.VideoWriter(savepath, fourcc, 60.0, (set_width*2, set_height* 3))
 
     for frame_num in tqdm(range(0,int(Top_vid.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # read in videos
@@ -350,15 +350,18 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
                 break
 
         # get current parameters
-        REye_now = REye_params.sel(frame=frame_num)
-        LEye_now = LEye_params.sel(frame=frame_num)
-        REye_pts_now = REye_pts.sel(frame=frame_num)
-        LEye_pts_now = LEye_pts.sel(frame=frame_num)
-        SIDE_par_now = Side_params.sel(frame=frame_num)
-        SIDE_pts_now = Side_pts.sel(frame=frame_num)
-        TOP_pts_now = Top_pts.sel(frame=frame_num)
-        TOP_head_th_now = Top_head_th.sel(frame=frame_num)
-        TOP_body_th_now = Top_body_th.sel(frame=frame_num)
+        try:
+            REye_now = REye_params.sel(frame=frame_num)
+            LEye_now = LEye_params.sel(frame=frame_num)
+            REye_pts_now = REye_pts.sel(frame=frame_num)
+            LEye_pts_now = LEye_pts.sel(frame=frame_num)
+            SIDE_par_now = Side_params.sel(frame=frame_num)
+            SIDE_pts_now = Side_pts.sel(frame=frame_num)
+            TOP_pts_now = Top_pts.sel(frame=frame_num)
+            TOP_head_th_now = Top_head_th.sel(frame=frame_num)
+            TOP_body_th_now = Top_body_th.sel(frame=frame_num)
+        except KeyError:
+            break
 
         # split apart eye ellipse parameters
         RTheta = REye_now.sel(ellipse_params='theta').values
@@ -386,7 +389,7 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
         except (ValueError, KeyError):
             pass
 
-        # then do the same on the left eye... should probably do this better
+        # then do the same on the left eye... should probably do this in a more compact way
         try:
             # get out ellipse parameters and plot them on the video
             ellipse_axes = (int(LEye_now.sel(ellipse_params='longaxis').values), int(LEye_now.sel(ellipse_params='shortaxis').values))
@@ -412,25 +415,25 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
                     td_pts_x = TOP_pts_now.isel(point_loc=k).values
                     td_pts_y = TOP_pts_now.isel(point_loc=k + 1).values
                     center_xy = (int(td_pts_x), int(td_pts_y))
-                    TOP_frame = cv2.circle(TOP_frame, center_xy, 6, (255,0,0), -1)
+                    TOP_frame = cv2.circle(TOP_frame, center_xy, 6, (255,0,0), -1) # topdown pts in blue
 
-                    backX = TOP_pts_now.sel(point_loc='BackNeck_x').values
-                    backY = TOP_pts_now.sel(point_loc='BackNeck_y').values
+                    # backX = TOP_pts_now.sel(point_loc='BackNeck_x').values
+                    # backY = TOP_pts_now.sel(point_loc='BackNeck_y').values
 
-                    head_x1 = (backX * np.cos(float(TOP_head_th_now))).astype(int)
-                    head_y1 = (backY * np.sin(float(TOP_head_th_now))).astype(int)
-                    head_x2 = (backX + 30 * np.cos(float(TOP_head_th_now))).astype(int)
-                    head_y2 = (backY + 30 * np.sin(float(TOP_head_th_now))).astype(int)
-                    TOP_frame = cv2.line(TOP_frame, (head_x1,head_y1), (head_x2,head_y2), (0,0,0), thickness=4)
+                    # head_x1 = (backX).astype(int)
+                    # head_y1 = (backY).astype(int)
+                    # head_x2 = (backX + 30 * np.cos(float(TOP_head_th_now))).astype(int)
+                    # head_y2 = (backY + 30 * np.sin(float(TOP_head_th_now))).astype(int)
+                    # TOP_frame = cv2.line(TOP_frame, (head_x1,head_y1), (head_x2,head_y2), (0,0,0), thickness=4) # line for head angle in black
 
                     backX = TOP_pts_now.sel(point_loc='MidSpine2_x').values
                     backY = TOP_pts_now.sel(point_loc='MidSpine2_y').values
 
-                    body_x1 = (backX * np.cos(float(TOP_body_th_now))).astype(int)
-                    body_y1 = (backY * np.sin(float(TOP_body_th_now))).astype(int)
-                    body_x2 = (backX + 30 * np.cos(float(TOP_body_th_now))).astype(int)
-                    body_y2 = (backY + 30 * np.sin(float(TOP_body_th_now))).astype(int)
-                    TOP_frame = cv2.line(TOP_frame, (body_x1,body_y1), (body_x2,body_y2), (0,0,0), thickness=4)
+                    body_x1 = (backX).astype(int)
+                    body_y1 = (backY).astype(int)
+                    body_x2 = (backX + 200 * np.cos(float(TOP_body_th_now))).astype(int)
+                    body_y2 = (backY + 200 * np.sin(float(TOP_body_th_now))).astype(int)
+                    TOP_frame = cv2.line(TOP_frame, (body_x1,body_y1), (body_x2,body_y2), (0,0,0), thickness=4) # line for body angle in black also
                 except (ValueError, OverflowError) as e:
                     pass
         except KeyError:
@@ -442,7 +445,7 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
         # add pi/8 since this is roughly head tilt in movies relative to mean theta
         pitch = np.rad2deg(head_pitch)
         pitch = ((pitch+360) % 360)
-        pitch = -pitch
+        # pitch = -pitch
         pitch = 180 - pitch
         pitch = pitch - np.nanmean(pitch)
 
@@ -475,8 +478,8 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
         # calculate and plot head vector
         headV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
         headV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
-        headV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values + 200 * np.cos(pitch)
-        headV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values + 200 * np.sin(pitch)
+        headV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values + 200 * np.cos(np.deg2rad(pitch))
+        headV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values + 200 * np.sin(np.deg2rad(pitch))
         # black line of the head vector
         try:
             SIDE_frame = cv2.line(SIDE_frame, (int(headV_x1),int(headV_y1)), (int(headV_x2),int(headV_y2)), (0,0,0), thickness=2)
@@ -484,7 +487,7 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
             pass
 
         # calculate gaze direction (head and eyes)
-        gaze_direc = pitch - div
+        gaze_direc = np.deg2rad(pitch) - np.deg2rad(div)
         # rth = (th - div) + np.pi/8
         gazeV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
         gazeV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
@@ -496,25 +499,28 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
         except ValueError:
             pass
 
-        TOP_resize = cv2.resize(TOP_frame, (set_width, set_height))
-        SIDE_resize = cv2.resize(SIDE_frame, (set_width, set_height))
-        row_of_eyes = np.concatenate((REYE_frame, LEYE_frame), axis=1)
+        TOP_resize = cv2.resize(TOP_frame, (set_width*2, set_height))
+        SIDE_resize = cv2.resize(SIDE_frame, (set_width*2, set_height))
+        LEYE_resize = cv2.resize(LEYE_frame, (set_width, set_height))
+        # also resize the LEYE in case it's off from REYE
+        row_of_eyes = np.concatenate((REYE_frame, LEYE_resize), axis=1)
         eyes_and_side = np.concatenate((row_of_eyes, SIDE_resize), axis=0)
         all_vids = np.concatenate((eyes_and_side, TOP_resize), axis=0)
 
-        # add animated plots
-        fig, axs = plt.subplots(4,1)
-        axs[0] = plt.plot(pitch); axs[0] = plt.title('pitch'); axs[0] = plt.vlines(frame_num,-360,360)
-        axs[1] = plt.plot(gaze_th); axs[1] = plt.title('mean th'); axs[1] = plt.vlines(frame_num,-360,360)
-        axs[2] = plt.plot(gaze_phi); axs[2] = plt.title('mean phi'); axs[2] = plt.vlines(frame_num,-360,360)
-        axs[3] = plt.plot(div); axs[3] = plt.title('th div'); axs[3] = plt.vlines(frame_num,-360,360)
-        plt.tight_layout()
-        fig.canvas.draw()
-        data = np.fromstring(fig.canvas.tostring_rgb(),dtype=np.uint8,sep='')
-        data_resized = np.resize(data, (int(set_height/4), set_width))
-        data_3d = np.stack((data_resized,)*3, axis=-1)
-        plt.close()
+        # # add animated plots
+        # fig, axs = plt.subplots(4,1)
+        # axs[0] = plt.plot(pitch); axs[0] = plt.title('pitch'); axs[0] = plt.vlines(frame_num,-360,360)
+        # axs[1] = plt.plot(gaze_th); axs[1] = plt.title('mean th'); axs[1] = plt.vlines(frame_num,-360,360)
+        # axs[2] = plt.plot(gaze_phi); axs[2] = plt.title('mean phi'); axs[2] = plt.vlines(frame_num,-360,360)
+        # axs[3] = plt.plot(div); axs[3] = plt.title('th div'); axs[3] = plt.vlines(frame_num,-360,360)
+        # plt.tight_layout()
+        # fig.draw()
+        # data = np.fromstring(fig.canvas.tostring_rgb(),dtype=np.uint8,sep='')
+        # data_resized = np.resize(data, (int(set_height/4), set_width))
+        # data_3d = np.stack((data_resized,)*3, axis=-1)
+        # plt.close()
 
-        animated_all = np.concatenate((all_vids, data_3d),axis=0)
+        # animated_all = np.concatenate((all_vids, data_3d),axis=0)
 
-        vid_out.write(animated_all)
+        vid_out.write(all_vids)
+    vid_out.release()
