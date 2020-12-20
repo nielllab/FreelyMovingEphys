@@ -37,8 +37,12 @@ def main(args=None, json_config_path=None):
     with open(json_config_path, 'r') as fp:
         config = json.load(fp)
 
-    print('Config: ')    
-    print(json.dumps(config, indent=1))
+    # print('Config: ')    
+    # print(json.dumps(config, indent=1))
+
+    # update the config read in with default values if any required keys aren't there
+    config = set_preprocessing_config_defaults(config)
+
     data_path = os.path.expanduser(config['data_path'])
     if config.get('save_path') is None:
         config['save_path'] = data_path
