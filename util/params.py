@@ -32,15 +32,15 @@ def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
     trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
-        for bad in ['plot','IR','rep11','betafpv','side_gaze']: # don't use trials that have these strings in their path
-            if bad not in avi:
-                split_name = avi.split('_')[:-1]
-                trial = '_'.join(split_name)
-                path_to_trial = os.path.join(os.path.split(trial)[0])
-                trial_name = os.path.split(trial)[1]
-                if trial_name not in name_check:
-                    trial_units.append([path_to_trial, trial_name])
-                    path_check.append(path_to_trial); name_check.append(trial_name)
+        bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
+        if all(bad not in avi for bad in bad_list):
+            split_name = avi.split('_')[:-1]
+            trial = '_'.join(split_name)
+            path_to_trial = os.path.join(os.path.split(trial)[0])
+            trial_name = os.path.split(trial)[1]
+            if trial_name not in name_check:
+                trial_units.append([path_to_trial, trial_name])
+                path_check.append(path_to_trial); name_check.append(trial_name)
 
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_unit in trial_units:
