@@ -103,7 +103,7 @@ def extract_params(config):
                 except IndexError:
                     top_h5 = None
                 top_csv = [i for i in trial_cam_csv if top_view in i][0]
-                top_avi = [i for i in trial_cam_avi if top_view in i][0]
+                top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i][0]
                 if top_h5 is not None:
                     # make an xarray of dlc point values out of the found .h5 files
                     # also assign timestamps as coordinates of the xarray
