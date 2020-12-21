@@ -15,6 +15,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.animation import FFMpegWriter
 from tqdm import tqdm
 # module imports
 from util.paths import find
@@ -54,9 +55,7 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
     # zero-center head pitch, and get rid of wrap-around effect (mod 360)
     pitch = np.rad2deg(head_pitch)
     pitch = ((pitch+360) % 360)
-    # pitch = -pitch 
-    pitch = 180 - pitch
-    pitch = pitch - np.nanmean(pitch)
+    pitch = pitch - np.nanmean(pitch) # have to mean center as last step so that it's comparable on plots--is it okay for this to be different in video plotting? I would think so
 
     # interpolate over eye paramters to match head pitch
     RTheta_interp = RTheta.interp_like(pitch, method='linear')
@@ -159,8 +158,31 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
     pdf.savefig()
     plt.close()
 
-    pdf.close()
+    # if config['save_avi_vids'] is True:
 
+    # make an animated plot of these parameters
+    print('saving animated plots')
+    fig, (ax1,ax2,ax3,ax4) = plt.subplots(4,1)
+    ax1.plot(pitch, 'b-'); ax1.set_title('pitch')
+    ax2.plot(gaze_th, 'b-'); ax2.set_title('mean th')
+    ax3.plot(gaze_phi, 'b-'); ax3.set_title('mean phi')
+    ax4.plot(div, 'b-'); ax4.set_title('th div')
+    plt.tight_layout()
+    pdf.savefig()
+
+    ani_save_path = os.path.join(config['trial_head'], (config['recording_name'] + '_params_animation.avi'))
+    writer = FFMpegWriter(fps=60, bitrate=-1)
+    with writer.saving(fig, ani_save_path, 150):
+        for t in tqdm(range(0,len(pitch))):
+            ln1 = ax1.vlines(t,-40,40)
+            ln2 = ax2.vlines(t,-40,40)
+            ln3 = ax3.vlines(t,-40,40)
+            ln4 = ax4.vlines(t,-40,40)
+            writer.grab_frame()
+            ln1.remove(); ln2.remove(); ln3.remove(); ln4.remove()
+
+        # plt.close('all')
+    pdf.close()
     return trial_xr
 
 # make plots using the pooled jumping data
@@ -327,6 +349,8 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
     Top_body_th = Top.Top_body_angle
 
     # read in each camera and get out the size that it'll need to be set to
+    ani_save_path = os.path.join(config['trial_head'], (config['recording_name'] + '_params_animation.avi'))
+    ani_vid = cv2.VideoCapture(ani_save_path)
     Top_vid = cv2.VideoCapture(Top_vid_path)
     REye_vid = cv2.VideoCapture(REye_vid_path)
     LEye_vid = cv2.VideoCapture(LEye_vid_path)
@@ -336,7 +360,7 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
 
     savepath = os.path.join(config['trial_head'], (config['recording_name'] + '_animated_gaze_plot.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    vid_out = cv2.VideoWriter(savepath, fourcc, 60.0, (set_width*2, set_height* 3))
+    vid_out = cv2.VideoWriter(savepath, fourcc, 60.0, (set_width*4, set_height* 3))
 
     for frame_num in tqdm(range(0,int(Top_vid.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # read in videos
@@ -344,8 +368,9 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
         TOP_ret, TOP_frame = Top_vid.read()
         LEYE_ret, LEYE_frame = LEye_vid.read()
         REYE_ret, REYE_frame = REye_vid.read()
+        ani_ret, ani_frame = ani_vid.read()
 
-        for ret in [SIDE_ret, TOP_ret, LEYE_ret, REYE_ret]:
+        for ret in [SIDE_ret, TOP_ret, LEYE_ret, REYE_ret, ani_ret]:
             if not ret:
                 break
 
@@ -445,9 +470,7 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
         # add pi/8 since this is roughly head tilt in movies relative to mean theta
         pitch = np.rad2deg(head_pitch)
         pitch = ((pitch+360) % 360)
-        # pitch = -pitch
-        pitch = 180 - pitch
-        pitch = pitch - np.nanmean(pitch)
+        # pitch = (180 + pitch)
 
         # eye divergence (theta)
         div = (RTheta - LTheta) * 0.5
@@ -487,7 +510,7 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
             pass
 
         # calculate gaze direction (head and eyes)
-        gaze_direc = np.deg2rad(pitch) - np.deg2rad(div)
+        gaze_direc = np.deg2rad(pitch) - div
         # rth = (th - div) + np.pi/8
         gazeV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
         gazeV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
@@ -502,25 +525,14 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
         TOP_resize = cv2.resize(TOP_frame, (set_width*2, set_height))
         SIDE_resize = cv2.resize(SIDE_frame, (set_width*2, set_height))
         LEYE_resize = cv2.resize(LEYE_frame, (set_width, set_height))
+        ani_resized = cv2.resize(ani_frame, (set_width*2, set_height*3))
         # also resize the LEYE in case it's off from REYE
         row_of_eyes = np.concatenate((REYE_frame, LEYE_resize), axis=1)
         eyes_and_side = np.concatenate((row_of_eyes, SIDE_resize), axis=0)
         all_vids = np.concatenate((eyes_and_side, TOP_resize), axis=0)
 
-        # # add animated plots
-        # fig, axs = plt.subplots(4,1)
-        # axs[0] = plt.plot(pitch); axs[0] = plt.title('pitch'); axs[0] = plt.vlines(frame_num,-360,360)
-        # axs[1] = plt.plot(gaze_th); axs[1] = plt.title('mean th'); axs[1] = plt.vlines(frame_num,-360,360)
-        # axs[2] = plt.plot(gaze_phi); axs[2] = plt.title('mean phi'); axs[2] = plt.vlines(frame_num,-360,360)
-        # axs[3] = plt.plot(div); axs[3] = plt.title('th div'); axs[3] = plt.vlines(frame_num,-360,360)
-        # plt.tight_layout()
-        # fig.draw()
-        # data = np.fromstring(fig.canvas.tostring_rgb(),dtype=np.uint8,sep='')
-        # data_resized = np.resize(data, (int(set_height/4), set_width))
-        # data_3d = np.stack((data_resized,)*3, axis=-1)
-        # plt.close()
+        animated_all = np.concatenate((all_vids, ani_resized),axis=1)
 
-        # animated_all = np.concatenate((all_vids, data_3d),axis=0)
+        vid_out.write(animated_all)
 
-        vid_out.write(all_vids)
     vid_out.release()
