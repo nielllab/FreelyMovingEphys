@@ -510,7 +510,7 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
             pass
 
         # calculate gaze direction (head and eyes)
-        gaze_direc = np.deg2rad(pitch) - div
+        gaze_direc = np.deg2rad(pitch) + div
         # rth = (th - div) + np.pi/8
         gazeV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
         gazeV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
