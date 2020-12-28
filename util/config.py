@@ -20,6 +20,6 @@ def set_preprocessing_config_defaults(novel_config):
     for default_key, default_val in default_config:
         if default_key not in novel_config:
             novel_config[default_key] = default_val
-            print('filling default value for config option '+default_key +' -- new value will be '+str(default_key))
+            print('filling default value for config option '+default_key +' -- value will be '+str(default_key))
 
     return novel_config

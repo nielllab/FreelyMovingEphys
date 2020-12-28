@@ -2,8 +2,11 @@
     "data_path": "T:/path/to/animal/directory/",
     "steps_to_run":{
         "deinter": true,
+        "get_calibration_params": true,
+        "calibrate_recording": true,
         "dlc": true,
-        "params": true
+        "params": true,
+        "addtl_params": true
     },
     "cams": {
         "WORLD": "",
@@ -11,6 +14,10 @@
         "TOP1": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
         "TOP2": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
         "TOP3": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
+    },
+    "calibration":{
+        "eye_LED_config":"C:/Users/Niell Lab/Documents/deeplabcut_projects/namenamename/config.yaml",
+        "world_LED_config":"C:/Users/Niell Lab/Documents/deeplabcut_projects/namenamename/config.yaml"
     },
     "flip_eye_during_deinter": true,
     "flip_world_during_deinter": true,
@@ -29,7 +36,7 @@
     "save_nc_vids": true,
     "save_figs": true,
     "use_BonsaiTS": true,
-    "range_radius": 10,
+    "range_radius": 15,
     "world_interp_method": "linear",
     "num_ellipse_pts_needed": 7,
     "dwnsmpl": 0.25,

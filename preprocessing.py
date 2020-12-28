@@ -21,6 +21,7 @@ from multiprocessing import freeze_support
 from util.params import extract_params
 from util.dlc import run_DLC_Analysis
 from util.deinterlace import deinterlace_data
+from util.track_world import track_LED
 
 # get user inputs
 def pars_args():
@@ -54,12 +55,19 @@ def main(args=None, json_config_path=None):
     # deinterlace data
     if steps['deinter'] is True:
         deinterlace_data(config)
+    if steps['get_calibration_params'] is True:
+        get_calibration_params(config)
+    if steps['calibrate_recording'] is True:
+        calibrate_new_world_vids(config)
+        calibrate_new_top_vids(config)
     # get dlc tracking
     if steps['dlc'] is True:
         run_DLC_Analysis(config)
     # extract parameters from dlc
     if steps['params'] is True:
         extract_params(config)
+    if steps['addtl_params']:
+        track_LED(config)
 
 if __name__ == '__main__':
     # args = pars_args()

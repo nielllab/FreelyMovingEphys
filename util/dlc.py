@@ -67,6 +67,11 @@ def run_DLC_Analysis(config):
             runDLCbatch(vids2run, cam_config, config)
             print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
 
+def run_DLC_on_LED(dlc_config,cam,vid_path):
+    vids2run = find('*IR_LED*'+cam+'.avi', vid_path)
+    vids2run = [vid for vid in vids2run if 'plot' not in vid]
+    runDLCbatch(vids2run, dlc_config, {'crop_for_dlc':False})
+
 if __name__ == '__main__':
     args = pars_args()
     
