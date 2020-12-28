@@ -32,7 +32,8 @@ def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
     trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
-        if 'plot' not in avi and 'rep11' not in avi and 'betafpv' not in avi and 'side_gaze' not in avi:
+        bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
+        if all(bad not in avi for bad in bad_list):
             split_name = avi.split('_')[:-1]
             trial = '_'.join(split_name)
             path_to_trial = os.path.join(os.path.split(trial)[0])
@@ -102,7 +103,7 @@ def extract_params(config):
                 except IndexError:
                     top_h5 = None
                 top_csv = [i for i in trial_cam_csv if top_view in i][0]
-                top_avi = [i for i in trial_cam_avi if top_view in i][0]
+                top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i][0]
                 if top_h5 is not None:
                     # make an xarray of dlc point values out of the found .h5 files
                     # also assign timestamps as coordinates of the xarray
@@ -306,7 +307,7 @@ def extract_params(config):
 
         if trial_imu_bin != []:
             print('reading imu data for ' + t_name)
-            trial_imu_csv = [i for i in trial_cam_csv if 'IMU' in i][0]
+            trial_imu_csv = os.path.join(config['trial_path'],t_name+'_Ephys_BonsaiTS.csv') # use ephys timestamps
             imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
             imu_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_imu.nc')))
 
