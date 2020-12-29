@@ -9,7 +9,7 @@ Dec. 28, 2020
 import numpy as np
 import pandas as pd
 import cv2
-import os, json, 
+import os, json
 import xarray as xr
 from tqdm import tqdm
 # module imports
@@ -31,7 +31,7 @@ def get_checkerboard_calib(checker_vid_path, save_path, cam_save_name):
     # read in file path of video
     calib_vid = cv2.VideoCapture(checker_vid_path)
 
-    print('getting calibration parameters')
+    print('getting calibration parameters for each frame')
     for step in tqdm(range(0,int(calib_vid.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # open frame
         ret, img = calib_vid.read()
@@ -46,12 +46,12 @@ def get_checkerboard_calib(checker_vid_path, save_path, cam_save_name):
             objpoints.append(objp)
             corners2 = cv2.cornerSubPix(gray,corners, (11,11), (-1,-1), criteria)
             imgpoints.append(corners)
+    print('calibrating camera')
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
-    #format as xarray
-    checker_df = pd.DataFrame({'mtx':mtx, 'dist':dist, 'rvecs':rvecs, 'tvecs':tvecs})
-    checker_arr = np.array(checker_df)
-    save_name = os.path.join(save_path, cam_save_name+'_checkerboard_calib.npy')
-    np.save(save_name, checker_arr)
+    # format as xarray
+    print('formatting caibration parameters together')
+    save_name = os.path.join(save_path, cam_save_name+'_checkerboard_calib.npz')
+    np.savez(save_name, mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
     print('checkerboard calibration file saved as ' + save_name)
 
 # save out an undistorted video
@@ -67,22 +67,25 @@ def undistort_vid(vid, savepath, mtx, dist, rvecs, tvecs):
         undist_frame = cv2.undistort(frame, mtx, dist, None, mtx)
         out_vid.write(frame)
     out_vid.release()
+    print('new video saved at '+savepath)
 
 # get out the parameters that can be used to calibrate videos
 # looks for the checkerboard recording
 def get_calibration_params(config):
+    calib_config = config['calibration']
     # world first
-    world_vid_path = find('*checker*WORLDdeinter.avi',config['data_path'])[0]
+    world_vid_path = calib_config['world_checker_vid']
     get_checkerboard_calib(world_vid_path, config['save_path'], 'world')
     # then top
-    top_vid_path = find('*checker*TOP1.avi',config['data_path'])[0]
+    top_vid_path = calib_config['top_checker_vid']
     get_checkerboard_calib(top_vid_path, config['save_path'], 'top1')
 
 # calibrate novel world videos using previously genreated .npy of parameters
 def calibrate_new_world_vids(config):
     # load the parameters
-    checker_in = pd.DataFrame(np.load(os.path.join(save_path, 'world_checkerboard_calib.npy')))
-    mtx = checker_in.loc('mtx'); dist = checker_in.loc('dist'); rvecs = checker_in.loc('rvecs'); tvecs = checker_in.loc('tvecs')
+    calib_config = config['calibration']
+    checker_in = pd.DataFrame(np.load(calib_config['world_checker_npz']))
+    mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
     # iterate through eye videos and save out a copy which has had distortions removed
     world_list = find('*WORLDdeinter*.avi', config['save_path'])
     for world_vid in world_list:
@@ -90,9 +93,10 @@ def calibrate_new_world_vids(config):
         undistort_vid(world_vid, savepath, mtx, dist, rvecs, tvecs)
 
 # calibrate novel top videos using previously genreated .npy of parameters
-def calibrate_new_top_vids(config)
-    checker_in = pd.DataFrame(np.load(os.path.join(save_path, 'top1_checkerboard_calib.npy')))
-    mtx = checker_in.loc('mtx'); dist = checker_in.loc('dist'); rvecs = checker_in.loc('rvecs'); tvecs = checker_in.loc('tvecs')
+def calibrate_new_top_vids(config):
+    calib_config = config['calibration']
+    checker_in = pd.DataFrame(np.load(calib_config['top1_checker_npz']))
+    mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
     top_list = find('*TOP1*.avi', config['save_path'])
     for top_vid in top_list:
         save_path = '_'.join(world_vid.split('_')[:-1])+'_TOP1calib.avi'

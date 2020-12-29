@@ -17,11 +17,15 @@
     },
     "calibration":{
         "eye_LED_config":"C:/Users/Niell Lab/Documents/deeplabcut_projects/namenamename/config.yaml",
-        "world_LED_config":"C:/Users/Niell Lab/Documents/deeplabcut_projects/namenamename/config.yaml"
+        "world_LED_config":"C:/Users/Niell Lab/Documents/deeplabcut_projects/namenamename/config.yaml",
+        "world_checker_vid": "T:/path/to/checkerboard.avi",
+        "world_checker_npy": "T:/path/to/checkerboard.avi",
+        "top_checker_vid":"T:/path/to/checkerboard.avi",
+        "top_checker_npy": "T:/path/to/checkerboard.avi"
     },
     "flip_eye_during_deinter": true,
     "flip_world_during_deinter": true,
-    "crop_for_dlc": true,
+    "crop_for_dlc": false,
     "multianimal_TOP": false,
     "lik_thresh": 0.99,
     "has_ephys": true,

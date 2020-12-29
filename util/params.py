@@ -21,7 +21,7 @@ from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking, find_pupil_rotation
-from util.track_world import adjust_world
+from util.track_world import adjust_world, track_LED
 from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
 from util.track_ball import ball_tracking
@@ -103,7 +103,7 @@ def extract_params(config):
                 except IndexError:
                     top_h5 = None
                 top_csv = [i for i in trial_cam_csv if top_view in i][0]
-                top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i][0]
+                top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i and 'calib' in i][0]
                 if top_h5 is not None:
                     # make an xarray of dlc point values out of the found .h5 files
                     # also assign timestamps as coordinates of the xarray
@@ -178,9 +178,9 @@ def extract_params(config):
                 print('tracking ' + eye_side + 'EYE for ' + t_name)
                 # filter the list of files for the current trial to get the eye of this side
                 if config['run_with_form_time'] is True:
-                    eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i and 'deinter' in i][0]
+                    eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i and 'calib' in i][0]
                     eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i][0]
-                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i and 'unflipped' not in i][0]
+                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'calib' in i and 'unflipped' not in i][0]
                 elif config['run_with_form_time'] is False:
                     eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i][0]
                     eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i][0]
@@ -193,8 +193,8 @@ def extract_params(config):
                 eyeparams = eye_tracking(eyedlc, config, t_name, eye_side)
                 # get pupil rotation and plot video -- slow step
                 if config['run_pupil_rotation'] is True:
-                    rfit, rfit_conv, shift = find_pupil_rotation(eyeparams, config, t_name], dim='frame')
-                    eyeparams = xr.concat([eyeparams, rfit, rfit_conv, shift
+                    rfit, rfit_conv, shift = find_pupil_rotation(eyeparams, config, t_name)
+                    eyeparams = xr.concat([eyeparams, rfit, rfit_conv, shift], dim='frame')
                 # make videos (only if config says so)
                 if config['save_avi_vids'] is True:
                     print('plotting parameters on video')
@@ -228,7 +228,7 @@ def extract_params(config):
                 # filter the list of files for the current trial to get the world view of this side
                 if config['run_with_form_time'] is True:
                     world_csv = [i for i in trial_cam_csv if world_side in i and 'formatted' in i][0]
-                    world_avi = [i for i in trial_cam_avi if world_side in i and 'deinter' in i][0]
+                    world_avi = [i for i in trial_cam_avi if world_side in i and 'calib' in i][0]
                 elif config['run_with_form_time'] is False:
                     world_csv = [i for i in trial_cam_csv if world_side in i][0]
                     world_avi = [i for i in trial_cam_avi if world_side in i][0]

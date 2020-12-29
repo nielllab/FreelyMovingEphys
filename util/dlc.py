@@ -20,8 +20,8 @@ from util.format_data import h5_to_xr, format_frames
 from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
-from util.track_eye import plot_eye_vid, eye_tracking
-from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper
+from util.track_eye import plot_eye_vid, eye_tracking, find_pupil_rotation
+from util.track_world import adjust_world, track_LED
 from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
 
@@ -53,6 +53,9 @@ def run_DLC_Analysis(config):
                     bad_vids = find('*'+cam_key+'*unflipped*.avi', config['data_path'])
                     for x in bad_vids:
                         vids_this_cam.remove(x)
+                    ir_vids = find('*IR*.avi', config['data_path'])
+                    for x in ir_vids:
+                        vids_this_cam.remove(x)
                 print('found ' + str(len(vids_this_cam)) + ' deinterlaced videos from cam_key ' + cam_key)
                 # warn the user if there's nothing found
                 if len(vids_this_cam) == 0:
@@ -68,7 +71,7 @@ def run_DLC_Analysis(config):
             print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
 
 def run_DLC_on_LED(dlc_config,cam,vid_path):
-    vids2run = find('*IR_LED*'+cam+'.avi', vid_path)
+    vids2run = find('*IRspot*'+cam+'.avi', vid_path)
     vids2run = [vid for vid in vids2run if 'plot' not in vid]
     runDLCbatch(vids2run, dlc_config, {'crop_for_dlc':False})
 
