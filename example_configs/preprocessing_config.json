@@ -1,12 +1,12 @@
 {
     "data_path": "T:/path/to/animal/directory/",
     "steps_to_run":{
-        "deinter": true,
-        "get_calibration_params": true,
-        "calibrate_recording": true,
-        "dlc": true,
-        "params": true,
-        "addtl_params": true
+        "deinter": false,
+        "get_cam_calibration_params": false,
+        "undistort_recording": false,
+        "dlc": false,
+        "params": false,
+        "addtl_params": false
     },
     "cams": {
         "WORLD": "",
@@ -16,19 +16,19 @@
         "TOP3": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
     },
     "calibration":{
-        "eye_LED_config":"C:/Users/Niell Lab/Documents/deeplabcut_projects/namenamename/config.yaml",
-        "world_LED_config":"C:/Users/Niell Lab/Documents/deeplabcut_projects/namenamename/config.yaml",
-        "world_checker_vid": "T:/path/to/checkerboard.avi",
-        "world_checker_npy": "T:/path/to/checkerboard.avi",
-        "top_checker_vid":"T:/path/to/checkerboard.avi",
-        "top_checker_npy": "T:/path/to/checkerboard.avi"
+        "eye_LED_config": "C:/Users/Niell Lab/Documents/deeplabcut_projects/LED_eye_view-dylan-2020-09-24/config.yaml",
+        "world_LED_config": "C:/Users/Niell Lab/Documents/deeplabcut_projects/LED_world_view-dylan-2020-09-24/config.yaml",
+        "world_checker_vid": "G:/freely_moving_ephys/pipeline_example_Dec19/betafpv_checkerboard.avi",
+        "world_checker_npz": "G:/freely_moving_ephys/pipeline_example_Dec19/101420/world_checkerboard_calib.npz",
+        "top_checker_vid":"G:/freely_moving_ephys/pipeline_example_Dec19/092520_calibration_checkerboard_2p3cm_squares_TOP.avi",
+        "top_checker_npz": "G:/freely_moving_ephys/pipeline_example_Dec19/101420/top1_checkerboard_calib.npz"
     },
     "flip_eye_during_deinter": true,
     "flip_world_during_deinter": true,
     "crop_for_dlc": false,
     "multianimal_TOP": false,
     "lik_thresh": 0.99,
-    "has_ephys": true,
+    "has_ephys": false,
     "cricket": false,
     "tear": true,
     "pxl_thresh": 50,

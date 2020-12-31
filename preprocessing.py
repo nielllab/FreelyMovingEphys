@@ -26,11 +26,9 @@ from util.config import set_preprocessing_config_defaults
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
 
 def main(json_config_path):
-
     # open config file
     with open(json_config_path, 'r') as fp:
         config = json.load(fp)
-
     # update the config read in with default values if any required keys aren't there
     config = set_preprocessing_config_defaults(config)
 
@@ -45,10 +43,10 @@ def main(json_config_path):
     # deinterlace data
     if steps['deinter'] is True:
         deinterlace_data(config)
-    if steps['get_calibration_params'] is True:
+    if steps['get_cam_calibration_params'] is True:
         get_calibration_params(config)
-    if steps['calibrate_recording'] is True:
-        calibrate_new_world_vids(config)
+    if steps['undistort_recording'] is True:
+        # calibrate_new_world_vids(config)
         calibrate_new_top_vids(config)
     # get dlc tracking
     if steps['dlc'] is True:

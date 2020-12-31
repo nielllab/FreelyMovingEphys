@@ -60,13 +60,13 @@ def deinterlace_data(config):
             avi_out_path = os.path.join(main_path, (key + 'deinter.avi'))
             # optional flip to eye videos
             if config['flip_eye_during_deinter'] is True and 'EYE' in this_avi:
-                subprocess.call(['ffmpeg', '-y', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
             # optional flip to world videos
             elif config['flip_world_during_deinter'] is True and 'WORLD' in this_avi:
-                subprocess.call(['ffmpeg', '-y', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
             # or, don't flip eye/world videos
             else:
-                subprocess.call(['ffmpeg', '-y', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', avi_out_path])
+                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
             frame_count_deinter = frame_count * 2
             if csv_present is True:
                 # write out the timestamps that have been opened and interpolated over
@@ -76,7 +76,7 @@ def deinterlace_data(config):
         else:
             print('frame rate not 30 or 60 for ' + key)
 
-    print('done with ' + str(len(avi_list) + len(csv_list) + len(h5_list)) + ' items')
+    print('done with ' + str(len(avi_list) + len(csv_list)) + ' items')
     print('deinterlaced videos saved at ' + save_path)
 
 if __name__ == '__main__':
