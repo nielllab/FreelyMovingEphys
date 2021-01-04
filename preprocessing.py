@@ -46,7 +46,7 @@ def main(json_config_path):
     if steps['get_cam_calibration_params'] is True:
         get_calibration_params(config)
     if steps['undistort_recording'] is True:
-        # calibrate_new_world_vids(config)
+        calibrate_new_world_vids(config)
         calibrate_new_top_vids(config)
     # get dlc tracking
     if steps['dlc'] is True:

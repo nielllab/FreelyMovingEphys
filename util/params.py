@@ -173,7 +173,7 @@ def extract_params(config):
                 eye_sides.append('R')
             if 'LEYE' in config['cams']:
                 eye_sides.append('L')
-            for i in range(0,len(eye_sides)):
+            for i in range(len(eye_sides)):
                 eye_side = eye_sides[i]
                 print('tracking ' + eye_side + 'EYE for ' + t_name)
                 # filter the list of files for the current trial to get the eye of this side
@@ -194,7 +194,8 @@ def extract_params(config):
                 # get pupil rotation and plot video -- slow step
                 if config['run_pupil_rotation'] is True:
                     rfit, rfit_conv, shift = find_pupil_rotation(eyeparams, config, t_name)
-                    eyeparams = xr.concat([eyeparams, rfit, rfit_conv, shift], dim='frame')
+                    rfit.name = eye_side+'EYE_pupil_radius'; rfit_conv.name = eye_side+'EYE_pupil_radius_conv'
+                    shift.name = eye_side+'EYE_omega'
                 # make videos (only if config says so)
                 if config['save_avi_vids'] is True:
                     print('plotting parameters on video')
@@ -204,15 +205,27 @@ def extract_params(config):
                     xr_eye_frames = format_frames(eye_avi, config); xr_eye_frames.name = eye_side+'EYE_video'
                 # name and organize data
                 eyedlc.name = eye_side+'EYE_pts'; eyeparams.name = eye_side+'EYE_ellipse_params'
-                if config['save_nc_vids'] is True:
+                if config['save_nc_vids'] is True and config['run_pupil_rotation'] is True:
                     print('saving...')
                     trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, rfit_conv, shift])
                     trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
-                elif config['save_nc_vids'] is False:
+                elif config['save_nc_vids'] is False and config['run_pupil_rotation'] is True:
+                    print('saving...')
+                    trial_eye_data = xr.merge([eyedlc, eyeparams, rfit, rfit_conv, shift])
+                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')))
+                elif config['save_nc_vids'] is True and config['run_pupil_rotation'] is False:
+                    print('saving...')
+                    trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames])
+                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
+                elif config['save_nc_vids'] is False and config['run_pupil_rotation'] is False:
                     print('saving...')
                     trial_eye_data = xr.merge([eyedlc, eyeparams])
                     trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')))
-        except IndexError:
+        except IndexError as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
+            print(e)
             print('no EYE trials found for ' + t_name)
 
         try:

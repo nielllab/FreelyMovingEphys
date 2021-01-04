@@ -46,7 +46,7 @@ def run_DLC_Analysis(config):
             if any(cam_key in s for s in ['REYE','LEYE']):
                 # find all the videos in the data directory that are from the current camera and are deinterlaced
                 if config['run_with_form_time'] is True:
-                    vids_this_cam = find('*'+cam_key+'*calib.avi', config['data_path'])
+                    vids_this_cam = find('*'+cam_key+'*deinter.avi', config['data_path'])
                 elif config['run_with_form_time'] is False:
                     vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
                 # remove unflipped videos generated during jumping analysis

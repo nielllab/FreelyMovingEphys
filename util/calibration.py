@@ -17,7 +17,7 @@ from util.dlc import run_DLC_on_LED
 from util.paths import find
 
 # get calibration parameters for checkerboard video
-def get_checkerboard_calib(checker_vid_path, save_path, cam_save_name):
+def get_checkerboard_calib(checker_vid_path, save_path):
     # arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space
     imgpoints = [] # 2d points in image plane.
@@ -49,10 +49,9 @@ def get_checkerboard_calib(checker_vid_path, save_path, cam_save_name):
     print('calibrating camera')
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
     # format as xarray
-    print('formatting caibration parameters together')
-    save_name = os.path.join(save_path, cam_save_name+'_checkerboard_calib.npz')
-    np.savez(save_name, mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
-    print('checkerboard calibration file saved as ' + save_name)
+    print('saving parameters together')
+    np.savez(save_path, mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
+    print('checkerboard calibration file saved as ' + save_path)
 
 # save out an undistorted video
 def undistort_vid(vid, savepath, mtx, dist, rvecs, tvecs):
@@ -73,13 +72,14 @@ def undistort_vid(vid, savepath, mtx, dist, rvecs, tvecs):
 # looks for the checkerboard recording
 def get_calibration_params(config):
     calib_config = config['calibration']
-    savepath = '/'.join(config['save_path'].split('/')[:-2])
+    W_savepath = calib_config['world_checker_npz']
+    T_savepath = calib_config['top_checker_npz']
     # world first
     world_vid_path = calib_config['world_checker_vid']
-    get_checkerboard_calib(world_vid_path, savepath, 'world')
+    get_checkerboard_calib(world_vid_path, W_savepath)
     # then top
     top_vid_path = calib_config['top_checker_vid']
-    get_checkerboard_calib(top_vid_path, savepath, 'top1')
+    get_checkerboard_calib(top_vid_path, T_savepath)
 
 # calibrate novel world videos using previously genreated .npy of parameters
 def calibrate_new_world_vids(config):

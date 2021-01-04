@@ -396,8 +396,8 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     out_vid.release()
 
 # sigmoid function
-def curve_func(xval, a, b, c, d):
-    return a+(b-a)/(1+10**((c-xval)*d))
+def curve_func(xval, a, b, c):
+    return a+(b-a)/(1+10**((c-xval)*2))
 
 # multiprocessing-ready fit to sigmoid function
 def sigm_fit_mp(d):
@@ -411,14 +411,14 @@ def sigm_fit_mp(d):
     return (popt, ci)
 
 def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
-    eyevidpath = find((trial_name + '*' + side_letter + 'EYEdeinter.avi'), config['data_path'])[0]
-    eyetimepath = find(('*' + trial_name + '*' + side_letter + 'EYE_BonsaiTSformatted.csv'), config['data_path'])[0]
+    eyevidpath = find((trial_name + '*' + side_letter + 'deinter.avi'), config['data_path'])[0]
+    eyetimepath = find((trial_name + '*' + side_letter + '_BonsaiTSformatted.csv'), config['data_path'])[0]
     save_path = config['save_path']; world_interp_method = config['world_interp_method']; ranger = config['range_radius']
 
     print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
 
     if config['save_figs'] is True:
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eyeext + 'EYE_pupil_rotation_figs.pdf')))
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + side_letter + '_pupil_rotation_figs.pdf')))
 
     # set up range of degrees in radians
     rad_range = np.deg2rad(np.arange(360))
@@ -704,7 +704,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
 
     if config['save_avi_vids'] is True:
         eyevid = cv2.VideoCapture(eyevidpath)
-        vidsavepath = os.path.join(config['trial_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + eyeext + '.avi'))
+        vidsavepath = os.path.join(config['trial_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + side_letter + '.avi'))
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH))*2, int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
         
@@ -716,6 +716,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
         print('plotting pupil rotation on eye video')
         for step in tqdm(range(0,num_save_frames)):
             eye_ret, eye_frame = eyevid.read()
+            eye_frame0 = eye_frame.copy()
 
             if not eye_ret:
                 break
@@ -739,8 +740,8 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
 
             # plot the rotation of the eye as a vertical line made up of many circles
             for d in np.linspace(-0.5,0.5,100):
-                rot_x = np.round(current_centX + d*(np.rad2deg(np.cos(shift_smooth1.isel(frame=step).values))))
-                rot_y = np.round(current_centY + d*(np.rad2deg(np.sin(shift_smooth1.isel(frame=step).values))))
+                rot_x = np.round(current_centX + d*(np.rad2deg(np.cos(np.deg2rad(shift_smooth1.isel(frame=step).values)))))
+                rot_y = np.round(current_centY + d*(np.rad2deg(np.sin(np.deg2rad(shift_smooth1.isel(frame=step).values)))))
                 if pd.isnull(rot_x) is False and pd.isnull(rot_y) is False:
                     eye_frame1 = cv2.circle(eye_frame1, (int(rot_x),int(rot_y)),1,(255,255,255),thickness=-1)
 
@@ -748,7 +749,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
             if pd.isnull(current_centX) is False and pd.isnull(current_centY) is False:
                 eye_frame1 = cv2.circle(eye_frame1, (int(current_centX),int(current_centY)),3,(0,255,0),thickness=-1)
 
-            frame_out = np.concatenate([eye_frame, eyeframe1], axis=1)
+            frame_out = np.concatenate([eye_frame0, eye_frame1], axis=1)
 
             vidout.write(frame_out)
 
@@ -763,8 +764,8 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
     # plotting omega on some random frames to be saved into the pdf
     eyevid = cv2.VideoCapture(eyevidpath)
     rand_frame_nums = list(np.random.randint(0,int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)), size=20))
-    for step in range(0,len(rand_frame_nums)):
-        eyevid.get(step[rand_frame_nums])
+    for step in rand_frame_nums:
+        eyevid.set(cv2.CAP_PROP_POS_FRAMES, step)
         eye_ret, eye_frame = eyevid.read()
         if not eye_ret:
             break
@@ -792,16 +793,34 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
         plt.subplot(223)
         plt.imshow(eye_frame)
         for d in np.linspace(-0.5,0.5,100):
-            rot_x = np.round(current_centX + d*(np.rad2deg(np.cos(shift_smooth1.isel(frame=step).values))))
-            rot_y = np.round(current_centY + d*(np.rad2deg(np.sin(shift_smooth1.isel(frame=step).values))))
+            rot_x = np.round(current_centX + d*(np.rad2deg(np.cos(np.deg2rad(shift_smooth1.isel(frame=step).values)))))
+            rot_y = np.round(current_centY + d*(np.rad2deg(np.sin(np.deg2rad(shift_smooth1.isel(frame=step).values)))))
             if pd.isnull(rot_x) is False and pd.isnull(rot_y) is False:
-                plt.plot(rot_x, rot_y, color='white',marker='.',markersize=3,alpha=0.1)
+                plt.plot(rot_x, rot_y, color='white',marker='.',markersize=1,alpha=0.1)
 
         plt.subplot(223)
         plt.imshow(eye_frame)
         # plot the center of the eye on the frame as a larger dot than the others
         if pd.isnull(current_centX) is False and pd.isnull(current_centY) is False:
             plt.plot(int(current_centX),int(current_centY), color='blue', marker='o')
+
+        plt.subplot(224)
+        plt.imshow(eye_frame)
+        for deg_th in range(0,360):
+            rad_th = rad_range[deg_th]
+            edge_x = np.round(current_centX+(rmin+rfit_xr.isel(frame=step,deg=deg_th).values)*np.cos(rad_th))
+            edge_y = np.round(current_centY+(rmin+rfit_xr.isel(frame=step,deg=deg_th).values)*np.sin(rad_th))
+            if pd.isnull(edge_x) is False and pd.isnull(edge_y) is False:
+                plt.plot(edge_x, edge_y, color='orange', marker='.',markersize=1,alpha=0.1)
+        for d in np.linspace(-0.5,0.5,100):
+            rot_x = np.round(current_centX + d*(np.rad2deg(np.cos(np.deg2rad(shift_smooth1.isel(frame=step).values)))))
+            rot_y = np.round(current_centY + d*(np.rad2deg(np.sin(np.deg2rad(shift_smooth1.isel(frame=step).values)))))
+            if pd.isnull(rot_x) is False and pd.isnull(rot_y) is False:
+                plt.plot(rot_x, rot_y, color='white',marker='.',markersize=1,alpha=0.1)
+        # plot the center of the eye on the frame as a larger dot than the others
+        if pd.isnull(current_centX) is False and pd.isnull(current_centY) is False:
+            plt.plot(int(current_centX),int(current_centY), color='blue', marker='o')
+
         pdf.savefig()
         plt.close()
 
