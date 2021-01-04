@@ -33,24 +33,25 @@ from astropy.convolution import convolve
 from util.time import open_time
 from util.paths import find
 from util.aux_funcs import nanxcorr
+from util.dlc import run_DLC_on_LED
 
 def track_LED(config):
     # are they already deinterlaced--should be, but I should check!
     # DLC tracking
     calib = config['calibration']
-    dlc_config_eye = calib['eye_LED']
-    dlc_config_world = calib['world_LED']
-    led_dir = os.path.join(config['data_path'], 'IR_LED')
-    led_dir_avi = find('IR*.avi', led_dir)
-    led_dir_avi = find('IR*.avi', led_dir)
-    led_dir_avi = find('IR*.avi', led_dir)
+    dlc_config_eye = calib['eye_LED_config']
+    dlc_config_world = calib['world_LED_config']
+    led_dir = os.path.join(config['data_path'], 'hf1_IRspot')
+    led_dir_avi = find('*IR*.avi', led_dir)
+    led_dir_csv = find('*IR*BonsaiTSformatted.csv', led_dir)
+    led_dir_h5 = find('*IR*.h5', led_dir)
     t_name = os.path.split('_'.join(led_dir_avi[0].split('_')[:-1]))[1] # get the trail name
     run_DLC_on_LED(dlc_config_world,'WORLD',led_dir_avi)
     run_DLC_on_LED(dlc_config_eye,'REYE',led_dir_avi)
     # extract params for eye view
-    eye_h5 = [i for i in led_dir_h5 if 'REYE' in i and 'calib' in i][0]
+    eye_h5 = [i for i in led_dir_h5 if 'REYE' in i and 'deinter' in i][0]
     eye_csv = [i for i in led_dir_csv if 'REYE' in i and 'formatted' in i][0]
-    eye_avi = [i for i in led_dir_avi if 'REYE' in i and 'calib' not in i][0]
+    eye_avi = [i for i in led_dir_avi if 'REYE' in i and 'deinter' not in i][0]
     eyexr = h5_to_xr(eye_h5, eye_csv, 'REYE', config=config) # format in xarray
     # next, the world view
     world_h5 = [i for i in led_dir_h5 if 'WORLD' in i and 'calib' in i][0]

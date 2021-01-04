@@ -21,7 +21,6 @@ from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking, find_pupil_rotation
-from util.track_world import adjust_world, track_LED
 from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
 
@@ -75,8 +74,7 @@ def run_DLC_Analysis(config):
             runDLCbatch(vids2run, cam_config, config)
             print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
 
-def run_DLC_on_LED(dlc_config,cam,vid_path):
-    vids2run = find('*IRspot*'+cam+'.avi', vid_path)
+def run_DLC_on_LED(dlc_config,cam,vids2run):
     vids2run = [vid for vid in vids2run if 'plot' not in vid]
     runDLCbatch(vids2run, dlc_config, {'crop_for_dlc':False})
 
