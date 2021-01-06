@@ -51,45 +51,48 @@ def main(json_config_path):
                     time_txt = f.read()
         time_dict = json.loads(time_txt)
         # find the matching sets of .nc files produced during preprocessing
-        leye = xr.open_dataset(find((trial_name + '*Leye.nc'), head)[0])
-        reye = xr.open_dataset(find((trial_name + '*Reye.nc'), head)[0])
-        side = xr.open_dataset(find((trial_name + '*side.nc'), head)[0])
-        top = xr.open_dataset(find((trial_name + '*top.nc'), head)[0])
-        side_vid = find((trial_name + '*Side*.avi'), head)
-        top_vid = find((trial_name + '*Top*.avi'), head)
-        leye_vid = find((trial_name + '*LEYE*.avi'), head)
-        reye_vid = find((trial_name + '*REYE*.avi'), head)
-        for x in side_vid:
-            if 'plot' in x:
-                side_vid.remove(x)
-        for x in top_vid:
-            if 'plot' in x:
-                top_vid.remove(x)
-        for x in leye_vid:
-            if 'plot' in leye_vid or 'unflipped' in leye_vid:
-                leye_vid.remove(x)
-        for x in reye_vid:
-            if 'plot' in reye_vid or 'unflipped' in reye_vid:
-                reye_vid.remove(x)               
-        side_vid = side_vid[0]
-        top_vid = top_vid[0]
-        leye_vid = leye_vid[0]
-        reye_vid = reye_vid[0]
+        try:
+            leye = xr.open_dataset(find((trial_name + '*Leye.nc'), head)[0])
+            reye = xr.open_dataset(find((trial_name + '*Reye.nc'), head)[0])
+            side = xr.open_dataset(find((trial_name + '*side.nc'), head)[0])
+            top = xr.open_dataset(find((trial_name + '*top.nc'), head)[0])
+            side_vid = find((trial_name + '*Side*.avi'), head)
+            top_vid = find((trial_name + '*Top*.avi'), head)
+            leye_vid = find((trial_name + '*LEYE*.avi'), head)
+            reye_vid = find((trial_name + '*REYE*.avi'), head)
+            for x in side_vid:
+                if 'plot' in x:
+                    side_vid.remove(x)
+            for x in top_vid:
+                if 'plot' in x:
+                    top_vid.remove(x)
+            for x in leye_vid:
+                if 'plot' in leye_vid or 'unflipped' in leye_vid:
+                    leye_vid.remove(x)
+            for x in reye_vid:
+                if 'plot' in reye_vid or 'unflipped' in reye_vid:
+                    reye_vid.remove(x)               
+            side_vid = side_vid[0]
+            top_vid = top_vid[0]
+            leye_vid = leye_vid[0]
+            reye_vid = reye_vid[0]
 
-        # correlation figures
-        trial_cc_data = jump_cc(reye, leye, top, side, time_dict, trial_metadata, config)
-        trial_cc_data.name = config['recording_name']
-        # plot over video
-        if config['plot_avi_vids'] is True:
-            print('plotting jump gaze for side view of ' + config['recording_name'])
-            jump_gaze_trace(reye, leye, top, side, side_vid, config)
-            print('plotting videos with animated plots for ' + config['recording_name'])
-            animated_gaze_plot(reye, leye, top, side, side_vid, leye_vid, reye_vid, top_vid, config)
+            # correlation figures
+            trial_cc_data = jump_cc(reye, leye, top, side, time_dict, trial_metadata, config)
+            trial_cc_data.name = config['recording_name']
+            # plot over video
+            if config['plot_avi_vids'] is True:
+                print('plotting jump gaze for side view of ' + config['recording_name'])
+                jump_gaze_trace(reye, leye, top, side, side_vid, config)
+                print('plotting videos with animated plots for ' + config['recording_name'])
+                animated_gaze_plot(reye, leye, top, side, side_vid, leye_vid, reye_vid, top_vid, config)
 
-        if trial_path == text_file_list[0]:
-            pooled_data = trial_cc_data.copy()
-        else:
-            pooled_data = xr.merge([pooled_data, trial_cc_data])
+            if trial_path == text_file_list[0]:
+                pooled_data = trial_cc_data.copy()
+            else:
+                pooled_data = xr.merge([pooled_data, trial_cc_data])
+        except IndexError:
+            pass
         print('done with trial '+str(trial_count)+' of '+str(len(text_file_list)))
     
     print('saving pooled data at ' + config['data_path'])

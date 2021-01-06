@@ -134,6 +134,7 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
     plt.legend(['left','right','mean'])
     plt.tight_layout()
     pdf.savefig()
+    plt.close()
 
     plt.figure()
     plt.title('head_pitch xcorr')
@@ -161,27 +162,28 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
     # if config['save_avi_vids'] is True:
 
     # make an animated plot of these parameters
-    print('saving animated plots')
-    fig, (ax1,ax2,ax3,ax4) = plt.subplots(4,1)
-    ax1.plot(pitch, 'b-'); ax1.set_title('pitch')
-    ax2.plot(gaze_th, 'b-'); ax2.set_title('mean th')
-    ax3.plot(gaze_phi, 'b-'); ax3.set_title('mean phi')
-    ax4.plot(div, 'b-'); ax4.set_title('th div')
-    plt.tight_layout()
-    pdf.savefig()
+    if config['plot_avi_vids'] is True:
+        print('saving animated plots')
+        fig, (ax1,ax2,ax3,ax4) = plt.subplots(4,1)
+        ax1.plot(pitch, 'b-'); ax1.set_title('pitch')
+        ax2.plot(gaze_th, 'b-'); ax2.set_title('mean th')
+        ax3.plot(gaze_phi, 'b-'); ax3.set_title('mean phi')
+        ax4.plot(div, 'b-'); ax4.set_title('th div')
+        plt.tight_layout()
+        pdf.savefig()
 
-    ani_save_path = os.path.join(config['trial_head'], (config['recording_name'] + '_params_animation.avi'))
-    writer = FFMpegWriter(fps=60, bitrate=-1)
-    with writer.saving(fig, ani_save_path, 150):
-        for t in tqdm(range(0,len(pitch))):
-            ln1 = ax1.vlines(t,-40,40)
-            ln2 = ax2.vlines(t,-40,40)
-            ln3 = ax3.vlines(t,-40,40)
-            ln4 = ax4.vlines(t,-40,40)
-            writer.grab_frame()
-            ln1.remove(); ln2.remove(); ln3.remove(); ln4.remove()
+        ani_save_path = os.path.join(config['trial_head'], (config['recording_name'] + '_params_animation.avi'))
+        writer = FFMpegWriter(fps=60, bitrate=-1)
+        with writer.saving(fig, ani_save_path, 150):
+            for t in tqdm(range(0,len(pitch))):
+                ln1 = ax1.vlines(t,-40,40)
+                ln2 = ax2.vlines(t,-40,40)
+                ln3 = ax3.vlines(t,-40,40)
+                ln4 = ax4.vlines(t,-40,40)
+                writer.grab_frame()
+                ln1.remove(); ln2.remove(); ln3.remove(); ln4.remove()
 
-        # plt.close('all')
+            # plt.close('all')
     pdf.close()
     return trial_xr
 
