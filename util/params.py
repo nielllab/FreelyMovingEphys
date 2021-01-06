@@ -30,17 +30,23 @@ from util.track_imu import read_8ch_imu, convert_acc_gyro
 
 def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
-    trial_units = []; name_check = []; path_check = []
+    trial_units = []; name_check = ['071620_J158BLT_014']; path_check = []
     for avi in find('*.avi', config['data_path']):
         bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
-        if all(bad not in avi for bad in bad_list):
-            split_name = avi.split('_')[:-1]
-            trial = '_'.join(split_name)
-            path_to_trial = os.path.join(os.path.split(trial)[0])
-            trial_name = os.path.split(trial)[1]
-            if trial_name not in name_check:
-                trial_units.append([path_to_trial, trial_name])
-                path_check.append(path_to_trial); name_check.append(trial_name)
+        if config['run_with_form_time'] is True:
+            if all(bad not in avi for bad in bad_list):
+                split_name = avi.split('_')[:-1]
+                trial = '_'.join(split_name)
+                path_to_trial = os.path.join(os.path.split(trial)[0])
+                trial_name = os.path.split(trial)[1]
+        elif config['run_with_form_time'] is False:
+            if all(bad not in avi for bad in bad_list):
+                trial_path_noext = os.path.splitext(avi)[0]
+                path_to_trial, trial_name_long = os.path.split(trial_path_noext)
+                trial_name = '_'.join(trial_name_long.split('_')[:3])
+        if trial_name not in name_check:
+            trial_units.append([path_to_trial, trial_name])
+            path_check.append(path_to_trial); name_check.append(trial_name)
 
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_unit in trial_units:
@@ -102,8 +108,12 @@ def extract_params(config):
                     top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
                 except IndexError:
                     top_h5 = None
-                top_csv = [i for i in trial_cam_csv if top_view in i][0]
-                top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i and 'calib' in i][0]
+                if config['run_with_form_time'] is True:
+                    top_csv = [i for i in trial_cam_csv if top_view in i][0]
+                    top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i and 'calib' in i][0]
+                elif config['run_with_form_time'] is False:
+                    top_csv = [i for i in trial_cam_csv if top_view in i][0]
+                    top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i][0]
                 if top_h5 is not None:
                     # make an xarray of dlc point values out of the found .h5 files
                     # also assign timestamps as coordinates of the xarray
@@ -310,8 +320,8 @@ def extract_params(config):
         if trial_imu_bin != []:
             print('reading imu data for ' + t_name)
             trial_imu_csv = os.path.join(config['trial_path'],t_name+'_Ephys_BonsaiTS.csv') # use ephys timestamps
-            imu_data, imu_timepath = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
-            imu_acc, imu_gyro = convert_acc_gyro(imu_data, imu_timepath, config)
+            imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
+            imu_acc, imu_gyro = convert_acc_gyro(imu_data, trial_imu_csv, config)
             imu_data.name = 'IMU_data'; imu_acc.name='ACC_data'; imu_gyro.name='GYRO_data'
             trial_imu_data = xr.merge(imu_data, imu_acc, imu_gyro)
             trial_imu_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_imu.nc')))

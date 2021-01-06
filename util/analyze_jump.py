@@ -27,10 +27,10 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
     # handle jump timing metadata
     jump_num = config['recording_name'].split('_')[-1].lstrip('0') # get the jump number without preceing 0
     vals = [] # the values in the dictionary for this jump
-    cam_points = [] # theentries in time metadata dictionary
+    cam_points = [] # the entries in time metadata dictionary
     for cam_point in time:
         cam_values = time[cam_point]
-        vals.append(cam_values[jump_num])
+        vals.append(cam_values[str(int(jump_num)-1)])
         cam_points.append(cam_point)
     time_dict = {cam_points[i] : vals[i] for i in range(len(cam_points))} # make the dictionary for only this jump
     # then do it for the recording's general metadata and merge the time metadata in

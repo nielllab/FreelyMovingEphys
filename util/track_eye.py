@@ -130,7 +130,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['save_figs'] is True:
         pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
 
-    # names of th different points
+    # names of the different points
     pt_names = list(eye_data['point_loc'].values)
 
     x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['lik_thresh'])
@@ -158,12 +158,15 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # plot all good timepoints
     if config['save_figs'] is True:
-        plt.figure()
-        plt.plot(np.sum(likelihood,1))
-        plt.title(str(np.round(np.mean(usegood), 3)) + ' good; thresh= ' + str(config['lik_thresh']))
-        plt.ylabel('num good eye points'); plt.xlabel('frame')
-        pdf.savefig()
-        plt.close()
+        try:
+            plt.figure()
+            plt.plot(np.sum(likelihood,1))
+            plt.title(str(np.round(np.mean(usegood), 3)) + ' good; thresh= ' + str(config['lik_thresh']))
+            plt.ylabel('num good eye points'); plt.xlabel('frame')
+            pdf.savefig()
+            plt.close()
+        except:
+            print('figure error')
 
     # threshold out pts more than a given distance away from nanmean of that point
     std_thresh_x = np.empty(np.shape(x_vals))
@@ -237,19 +240,22 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     #     plt.close()
 
     if config['save_figs'] is True:
-        plt.figure()
-        plt.plot(np.rad2deg(phi))
-        plt.title('phi')
-        plt.ylabel('deg'); plt.xlabel('frame')
-        pdf.savefig()
-        plt.close()
+        try:
+            plt.figure()
+            plt.plot(np.rad2deg(phi))
+            plt.title('phi')
+            plt.ylabel('deg'); plt.xlabel('frame')
+            pdf.savefig()
+            plt.close()
 
-        plt.figure()
-        plt.plot(np.rad2deg(theta))
-        plt.title('theta')
-        plt.ylabel('deg'); plt.xlabel('frame')
-        pdf.savefig()
-        plt.close()
+            plt.figure()
+            plt.plot(np.rad2deg(theta))
+            plt.title('theta')
+            plt.ylabel('deg'); plt.xlabel('frame')
+            pdf.savefig()
+            plt.close()
+        except:
+            print('figure error')
 
     # organize data to return as an xarray of most essential parameters
     ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,5]), 'shortaxis':list(ellipse_params[:,6]),
@@ -261,23 +267,26 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # ellipticity histogram
     if config['save_figs'] is True:
-        plt.figure()
-        plt.hist(ellipticity)
-        plt.title('ellipticity; thresh= ' + str(config['ell_thresh']))
-        plt.ylabel('num good eye points'); plt.xlabel('frame')
-        pdf.savefig()
-        plt.close()
+        try:
+            plt.figure()
+            plt.hist(ellipticity)
+            plt.title('ellipticity; thresh= ' + str(config['ell_thresh']))
+            plt.ylabel('num good eye points'); plt.xlabel('frame')
+            pdf.savefig()
+            plt.close()
 
-        w = ellipse_params[:,7]
-        
-        # eye axes relative to center
-        plt.figure()
-        for i in range(0,len(list2)):
-            plt.plot((ellipse_params[list2[i],11] + [-5*np.cos(w[list2[i]]), 5*np.cos(w[list2[i]])]), (ellipse_params[list2[i],12] + [-5*np.sin(w[list2[i]]), 5*np.sin(w[list2[i]])]))
-        plt.plot(cam_cent[0],cam_cent[1],'r*')
-        plt.title('eye axes relative to center')
-        pdf.savefig()
-        plt.close()
+            w = ellipse_params[:,7]
+            
+            # eye axes relative to center
+            plt.figure()
+            for i in range(0,len(list2)):
+                plt.plot((ellipse_params[list2[i],11] + [-5*np.cos(w[list2[i]]), 5*np.cos(w[list2[i]])]), (ellipse_params[list2[i],12] + [-5*np.sin(w[list2[i]]), 5*np.sin(w[list2[i]])]))
+            plt.plot(cam_cent[0],cam_cent[1],'r*')
+            plt.title('eye axes relative to center')
+            pdf.savefig()
+            plt.close()
+        except:
+            print('figure error')
 
         # # one example image
         # plt.figure()
@@ -315,27 +324,30 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         yvals = scale * np.sqrt(1-(ellipse_params[usegood,6]/ellipse_params[usegood,5])**2)
         slope, intercept, r_value, p_value, std_err = stats.linregress(xvals, yvals.T)
 
-        plt.figure()
-        plt.plot(xvals, yvals, '.', markersize=1)
-        plt.plot(np.linspace(0,50),np.linspace(0,50),'r')
-        plt.title('scale=' + str(np.round(scale, 1)) + ' r=' + str(np.round(r_value, 1)) + ' m=' + str(np.round(slope, 1)))
-        plt.xlabel('pupil camera dist'); plt.ylabel('scale * ellipticity')
-        pdf.savefig()
-        plt.close()
+        try:
+            plt.figure()
+            plt.plot(xvals, yvals, '.', markersize=1)
+            plt.plot(np.linspace(0,50),np.linspace(0,50),'r')
+            plt.title('scale=' + str(np.round(scale, 1)) + ' r=' + str(np.round(r_value, 1)) + ' m=' + str(np.round(slope, 1)))
+            plt.xlabel('pupil camera dist'); plt.ylabel('scale * ellipticity')
+            pdf.savefig()
+            plt.close()
 
-        # calibration of camera center
-        delta = (cam_cent - ellipse_params[:,11:13].T)
-        list3 = np.squeeze(list2)
+            # calibration of camera center
+            delta = (cam_cent - ellipse_params[:,11:13].T)
+            list3 = np.squeeze(list2)
 
-        plt.figure()
-        plt.plot(np.linalg.norm(delta[:,usegood],2,axis=0), ((delta[0,usegood].T * np.cos(ellipse_params[usegood,7])) + (delta[1,usegood].T * np.sin(ellipse_params[usegood, 7]))) / np.linalg.norm(delta[:, usegood],2,axis=0).T, 'y.', markersize=1)
-        plt.plot(np.linalg.norm(delta[:,list3],2,axis=0), ((delta[0,list3].T * np.cos(ellipse_params[list3,7])) + (delta[1,list3].T * np.sin(ellipse_params[list3, 7]))) / np.linalg.norm(delta[:, list3],2,axis=0).T, 'r.', markersize=1)
-        plt.title('camera center calibration')
-        plt.ylabel('abs([PC-EC]).[cosw;sinw]')
-        plt.xlabel('abs(PC-EC)')
-        plt.legend('all points','list points')
-        pdf.savefig()
-        plt.close()
+            plt.figure()
+            plt.plot(np.linalg.norm(delta[:,usegood],2,axis=0), ((delta[0,usegood].T * np.cos(ellipse_params[usegood,7])) + (delta[1,usegood].T * np.sin(ellipse_params[usegood, 7]))) / np.linalg.norm(delta[:, usegood],2,axis=0).T, 'y.', markersize=1)
+            plt.plot(np.linalg.norm(delta[:,list3],2,axis=0), ((delta[0,list3].T * np.cos(ellipse_params[list3,7])) + (delta[1,list3].T * np.sin(ellipse_params[list3, 7]))) / np.linalg.norm(delta[:, list3],2,axis=0).T, 'r.', markersize=1)
+            plt.title('camera center calibration')
+            plt.ylabel('abs([PC-EC]).[cosw;sinw]')
+            plt.xlabel('abs(PC-EC)')
+            plt.legend('all points','list points')
+            pdf.savefig()
+            plt.close()
+        except:
+            print('figure error')
     
         pdf.close()
 
