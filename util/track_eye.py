@@ -631,7 +631,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
         # for each frame, get correlation, and shift
         for frame_num in range(0,n): # do all frames
             try:
-                xc, lags = nanxcorr(template, pupil_update[frame_num,:], 10)
+                xc, lags = nanxcorr(template, pupil_update[frame_num,:], 20)
                 c[frame_num] = np.amax(xc) # value of max
                 peaklag = np.argmax(xc) # position of max
                 peak[frame_num] = lags[peaklag]
@@ -640,6 +640,8 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
             except ZeroDivisionError:
                 total_shift[frame_num] = np.nan
                 pupil_update[frame_num,:] = np.nan
+
+        template = np.nanmean(pupil_update, axis=0) # update template
 
         if config['save_figs'] is True:
             # plot template with pupil_update for each iteration of fit
