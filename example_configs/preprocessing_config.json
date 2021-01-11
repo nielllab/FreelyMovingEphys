@@ -23,6 +23,7 @@
         "top_checker_vid":"G:/freely_moving_ephys/pipeline_example_Dec19/092520_calibration_checkerboard_2p3cm_squares_TOP.avi",
         "top_checker_npz": "G:/freely_moving_ephys/pipeline_example_Dec19/101420/top1_checkerboard_calib.npz"
     },
+    "LED_dir_name": "hf1_IRspot",
     "flip_eye_during_deinter": true,
     "flip_world_during_deinter": true,
     "crop_for_dlc": false,

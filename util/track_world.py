@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Dec. 28, 2020
+Jan. 10, 2020
 """
 
 # package imports
@@ -34,40 +34,176 @@ from util.time import open_time
 from util.paths import find
 from util.aux_funcs import nanxcorr
 from util.dlc import run_DLC_on_LED
+from util.format_data import h5_to_xr
 
 def track_LED(config):
-    # are they already deinterlaced--should be, but I should check!
     # DLC tracking
     calib = config['calibration']
     dlc_config_eye = calib['eye_LED_config']
     dlc_config_world = calib['world_LED_config']
-    led_dir = os.path.join(config['data_path'], 'hf1_IRspot')
+    led_dir = os.path.join(config['data_path'], config['LED_dir_name'])
     led_dir_avi = find('*IR*.avi', led_dir)
     led_dir_csv = find('*IR*BonsaiTSformatted.csv', led_dir)
-    led_dir_h5 = find('*IR*.h5', led_dir)
-    t_name = os.path.split('_'.join(led_dir_avi[0].split('_')[:-1]))[1] # get the trail name
-    run_DLC_on_LED(dlc_config_world,'WORLD',led_dir_avi)
-    run_DLC_on_LED(dlc_config_eye,'REYE',led_dir_avi)
-    # extract params for eye view
-    eye_h5 = [i for i in led_dir_h5 if 'REYE' in i and 'deinter' in i][0]
+    if led_dir_avi == []:
+        led_dir_avi = find('*IR*.avi', config['data_path'])
+        led_dir_csv = find('*IR*BonsaiTSformatted.csv', config['data_path'])
+        led_dir_h5 = find('*IR*.h5', config['data_path'])
+    # get the trial name
+    t_name = os.path.split('_'.join(led_dir_avi[0].split('_')[:-1]))[1]
+    # find the correct eye anbd world video and time files
     eye_csv = [i for i in led_dir_csv if 'REYE' in i and 'formatted' in i][0]
-    eye_avi = [i for i in led_dir_avi if 'REYE' in i and 'deinter' not in i][0]
-    eyexr = h5_to_xr(eye_h5, eye_csv, 'REYE', config=config) # format in xarray
-    # next, the world view
-    world_h5 = [i for i in led_dir_h5 if 'WORLD' in i and 'calib' in i][0]
+    eye_avi = [i for i in led_dir_avi if 'REYE' in i and 'deinter' in i][0]
     world_csv = [i for i in led_dir_csv if 'WORLD' in i and 'formatted' in i][0]
-    world_avi = [i for i in led_dir_avi if 'WORLD' in i and 'calib' not in i][0]
+    world_avi = [i for i in led_dir_avi if 'WORLD' in i and 'calib' in i][0]
+    # generate .h5 files
+    run_DLC_on_LED(dlc_config_world, world_avi)
+    run_DLC_on_LED(dlc_config_eye, eye_avi)
+    # then, get the h5 files for this trial that were just written to file
+    led_dir_h5 = find('*IR*.h5', led_dir)
+    if led_dir_h5 == []:
+        led_dir_h5 = find('*IR*.h5',config['data_path'])
+    world_h5 = [i for i in led_dir_h5 if 'WORLD' in i and 'calib' in i][0]
+    eye_h5 = [i for i in led_dir_h5 if 'REYE' in i and 'deinter' in i][0]
+    # format everything into an xarray
+    eyexr = h5_to_xr(eye_h5, eye_csv, 'REYE', config=config)
     worldxr = h5_to_xr(world_h5, world_csv, 'WORLD', config=config) # format in xarray
     # save out the paramters in nc files
-    out = xr.concat([eyexr, worldxr],dim='frame')
-    out.to_netcdf(os.path.join(config['trial_path'], str('led_positions.nc')))
+    eyexr.to_netcdf(os.path.join(config['data_path'], str('led_eye_positions.nc')))
+    worldxr.to_netcdf(os.path.join(config['data_path'], str('led_world_positions.nc')))
     # then make some plots in a pdf
-    # if config['save_figs'] is True:
-    #     pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + 'LED_tracking.pdf')))
-    #     # plot of x/y of eye reflection position and world position over time
-    #     plt.figure()
-    #     plt.plot()
-    #     pdf.close()
+    if config['save_figs'] is True:
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['data_path'], (t_name + 'LED_tracking.pdf')))
+        
+        eye_x = eyexr.sel(point_loc='light_x')
+        plt.figure()
+        plt.plot(eye_x); plt.title('light x position in eye')
+        plt.ylabel('eye x'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+        eye_y = eyexr.sel(point_loc='light_y')
+        plt.figure()
+        plt.plot(eye_y); plt.title('light y position in eye')
+        plt.ylabel('eye y'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+        world_x = worldxr.sel(point_loc='light_x')
+        plt.figure()
+        plt.plot(world_x); plt.title('light x position in worldcam')
+        plt.ylabel('world x'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+        world_y = worldxr.sel(point_loc='light_y')
+        plt.figure()
+        plt.plot(world_y); plt.title('light y position in worldcam')
+        plt.ylabel('world y'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+
+        # threshold out frames with low likelihood
+        # seems to work well for thresh=0.99
+        eye_x[eyexr.sel(point_loc='light_likelihood')<config['lik_thresh']] = np.nan
+        eye_y[eyexr.sel(point_loc='light_likelihood')<config['lik_thresh']] = np.nan
+        world_x[worldxr.sel(point_loc='light_likelihood')<config['lik_thresh']] = np.nan
+        world_y[worldxr.sel(point_loc='light_likelihood')<config['lik_thresh']] = np.nan
+
+        plt.figure()
+        plt.plot(eye_x); plt.title('light x position in eye (thresh applied)')
+        plt.ylabel('eye x'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+        plt.figure()
+        plt.plot(eye_y); plt.title('light y position in eye (thresh applied)')
+        plt.ylabel('eye y'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+        plt.figure()
+        plt.plot(world_x); plt.title('light x position in worldcam (thresh applied)')
+        plt.ylabel('world x'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+        plt.figure()
+        plt.plot(world_y); plt.title('light y position in worldcam (thresh applied)')
+        plt.ylabel('world y'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+
+        # plot eye vs world for x and y
+        diff_in_len = len(world_x) - len(eye_x)
+        plt.subplots(1,2)
+        plt.subplot(121)
+        plt.plot(eye_x,world_x[:-diff_in_len], '.')
+        plt.ylabel('world x'); plt.xlabel('eye x')
+        plt.title('x in eye vs world')
+        plt.subplot(122)
+        plt.plot(eye_y, world_y[:-diff_in_len], '.')
+        plt.ylabel('world y'); plt.xlabel('eye y')
+        plt.title('y in eye vs world')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close()
+
+        pdf.close()
+    
+    if config['save_avi_vids'] is True:
+        plot_IR_track(world_avi, worldxr, eye_avi, eyexr, t_name, config)
+    
+    print('done preprocessing IR LED calibration videos')
+
+def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
+    
+    print('plotting avi of IR LED tracking')
+
+    savepath = os.path.join(config['data_path'], (trial_name + '_IR_LED_tracking.avi'))
+    
+    world_vid_read = cv2.VideoCapture(world_vid)
+    w_width = int(world_vid_read.get(cv2.CAP_PROP_FRAME_WIDTH))
+    w_height = int(world_vid_read.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    eye_vid_read = cv2.VideoCapture(eye_vid)
+    e_width = int(eye_vid_read.get(cv2.CAP_PROP_FRAME_WIDTH))
+    e_height = int(eye_vid_read.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (e_width*2, e_height))
+
+    if config['num_save_frames'] > int(world_vid_read.get(cv2.CAP_PROP_FRAME_COUNT)):
+        num_save_frames = int(world_vid_read.get(cv2.CAP_PROP_FRAME_COUNT))
+    else:
+        num_save_frames = config['num_save_frames']
+
+    for step in tqdm(range(0,num_save_frames)):
+        w_ret, w_frame = world_vid_read.read()
+        e_ret, e_frame = eye_vid_read.read()
+
+        for ret in [w_ret, e_ret]:
+            if not ret:
+                break
+        
+        try:
+            e_pt = eye_dlc.sel(frame=step)
+            eye_pt_cent = (int(e_pt.sel(point_loc='light_x').values), int(e_pt.sel(point_loc='light_y').values))
+            if e_pt.sel(point_loc='light_likelihood').values < config['lik_thresh']: # bad points in red
+                e_frame = cv2.circle(e_frame, eye_pt_cent, 8, (0,0,255), 1)
+            elif e_pt.sel(point_loc='light_likelihood').values >= config['lik_thresh']: # good points in green
+                e_frame = cv2.circle(e_frame, eye_pt_cent, 8, (0,255,0), 1)
+        except ValueError:
+            pass
+                
+        try:
+            w_pt = world_dlc.sel(frame=step)
+            world_pt_cent = (int(w_pt.sel(point_loc='light_x').values), int(w_pt.sel(point_loc='light_y').values))
+            if w_pt.sel(point_loc='light_likelihood').values < config['lik_thresh']: # bad points in red
+                w_frame = cv2.circle(w_frame, world_pt_cent, 8, (0,0,255), 1)
+            elif w_pt.sel(point_loc='light_likelihood').values >= config['lik_thresh']: # good points in green
+                w_frame = cv2.circle(w_frame, world_pt_cent, 8, (0,255,0), 1)
+        except ValueError:
+            pass
+                
+        plotted = np.concatenate([e_frame, w_frame], axis=1)
+
+        out_vid.write(plotted)
+
+    out_vid.release()
 
 # basic world shifting without pupil rotation
 def adjust_world(data_path, file_name, eyeext, topext, worldext, eye_ds, savepath):

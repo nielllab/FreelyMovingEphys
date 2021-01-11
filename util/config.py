@@ -12,11 +12,16 @@ import os, json
 # defaults are read in from /FreelyMovingEphys/example_configs/preprocessing_config.json
 # changing the default values, or adding new config options should be done in that json in the /example_configs/ directory
 def set_preprocessing_config_defaults(novel_config):
-    # get the path of the default json config file in this repository, relative to util/config.py
-    default_json_path = '/'.join(os.path.abspath(__file__).split('\\')[:-2]) + '/example_configs/preprocessing_config.json'
-    # read in the json
-    with open(default_json_path, 'r') as fp:
-        default_config = json.load(fp)
+    try:
+        # get the path of the default json config file in this repository, relative to util/config.py
+        default_json_path = '/'.join(os.path.abspath(__file__).split('\\')[:-2]) + '/example_configs/preprocessing_config.json'
+        # read in the json
+        with open(default_json_path, 'r') as fp:
+            default_config = json.load(fp)
+    except FileNotFoundError:
+        default_json_path = '/'.join(os.path.abspath(__file__).split('/')[:-2]) + '/example_configs/preprocessing_config.json'
+        with open(default_json_path, 'r') as fp:
+            default_config = json.load(fp)
     for default_key in default_config:
         if default_key not in novel_config:
             novel_config[default_key] = default_config[default_key]

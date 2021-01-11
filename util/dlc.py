@@ -26,11 +26,17 @@ from util.ephys import format_spikes
 
 # given a list of videos, run them all on the same DLC config file
 def runDLCbatch(vid_list, config_path, config):
-    for vid in vid_list:
-        print('analyzing ' + vid)
+    if isinstance(vid_list, list):
+        for vid in vid_list:
+            print('analyzing ' + vid)
+            if config['crop_for_dlc'] is True:
+                deeplabcut.cropimagesandlabels(config_path, size=(400, 400), userfeedback=False)
+            deeplabcut.analyze_videos(config_path, [vid])
+    else:
+        print('analyzing ' + vid_list)
         if config['crop_for_dlc'] is True:
             deeplabcut.cropimagesandlabels(config_path, size=(400, 400), userfeedback=False)
-        deeplabcut.analyze_videos(config_path, [vid])
+        deeplabcut.analyze_videos(config_path, [vid_list])
 
 # find files and organize them by which DLC config file they are associated with
 def run_DLC_Analysis(config):
@@ -80,8 +86,7 @@ def run_DLC_Analysis(config):
             runDLCbatch(vids2run, cam_config, config)
             print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
 
-def run_DLC_on_LED(dlc_config,cam,vids2run):
-    vids2run = [vid for vid in vids2run if 'plot' not in vid]
+def run_DLC_on_LED(dlc_config,vids2run):
     runDLCbatch(vids2run, dlc_config, {'crop_for_dlc':False})
 
 if __name__ == '__main__':
