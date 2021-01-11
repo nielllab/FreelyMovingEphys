@@ -60,7 +60,7 @@ def convert_acc_gyro(imu_out, timepath, config):
     # read in timestamps
     time = pd.DataFrame(open_time1(pd.read_csv(timepath).iloc[:,0]))
     # get first/last timepoint, num_samples
-    t0 = time.iloc[0]; num_samp = np.size(data,0)
+    t0 = np.squeeze(time.iloc[0]); num_samp = np.size(imu_out,0)
     samp_freq = config['imu_sample_rate'] / config['imu_downsample']
     # make timestamps for all subsequent samples
     newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
