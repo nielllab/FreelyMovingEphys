@@ -1,9 +1,12 @@
 {
     "data_path": "T:/path/to/animal/directory/",
     "steps_to_run":{
-        "deinter": true,
-        "dlc": true,
-        "params": true
+        "deinter": false,
+        "get_cam_calibration_params": false,
+        "undistort_recording": false,
+        "dlc": false,
+        "params": false,
+        "addtl_params": false
     },
     "cams": {
         "WORLD": "",
@@ -12,12 +15,21 @@
         "TOP2": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
         "TOP3": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
     },
+    "calibration":{
+        "eye_LED_config": "C:/Users/Niell Lab/Documents/deeplabcut_projects/LED_eye_view-dylan-2020-09-24/config.yaml",
+        "world_LED_config": "C:/Users/Niell Lab/Documents/deeplabcut_projects/LED_world_view-dylan-2020-09-24/config.yaml",
+        "world_checker_vid": "G:/freely_moving_ephys/pipeline_example_Dec19/betafpv_checkerboard.avi",
+        "world_checker_npz": "G:/freely_moving_ephys/pipeline_example_Dec19/101420/world_checkerboard_calib.npz",
+        "top_checker_vid":"G:/freely_moving_ephys/pipeline_example_Dec19/092520_calibration_checkerboard_2p3cm_squares_TOP.avi",
+        "top_checker_npz": "G:/freely_moving_ephys/pipeline_example_Dec19/101420/top1_checkerboard_calib.npz"
+    },
+    "LED_dir_name": "hf1_IRspot",
     "flip_eye_during_deinter": true,
     "flip_world_during_deinter": true,
-    "crop_for_dlc": true,
+    "crop_for_dlc": false,
     "multianimal_TOP": false,
     "lik_thresh": 0.99,
-    "has_ephys": true,
+    "has_ephys": false,
     "cricket": false,
     "tear": true,
     "pxl_thresh": 50,
@@ -29,7 +41,7 @@
     "save_nc_vids": true,
     "save_figs": true,
     "use_BonsaiTS": true,
-    "range_radius": 10,
+    "range_radius": 15,
     "world_interp_method": "linear",
     "num_ellipse_pts_needed": 7,
     "dwnsmpl": 0.25,

@@ -20,27 +20,36 @@ from util.format_data import h5_to_xr, format_frames
 from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
-from util.track_eye import plot_eye_vid, eye_tracking
-from util.track_world import adjust_world, find_pupil_rotation, pupil_rotation_wrapper
+from util.track_eye import plot_eye_vid, eye_tracking, find_pupil_rotation
+from util.track_world import adjust_world, track_LED
 from util.analyze_jump import jump_gaze_trace
 from util.ephys import format_spikes
 from util.track_ball import ball_tracking
 from util.track_side import side_angle, side_tracking
-from util.track_imu import read_8ch_imu
+from util.track_imu import read_8ch_imu, convert_acc_gyro
 
 def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
-    trial_units = []; name_check = []; path_check = []
+    trial_units = []; name_check = ['071620_J158BLT_014']; path_check = []
     for avi in find('*.avi', config['data_path']):
         bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
-        if all(bad not in avi for bad in bad_list):
-            split_name = avi.split('_')[:-1]
-            trial = '_'.join(split_name)
-            path_to_trial = os.path.join(os.path.split(trial)[0])
-            trial_name = os.path.split(trial)[1]
+        if config['run_with_form_time'] is True:
+            if all(bad not in avi for bad in bad_list):
+                split_name = avi.split('_')[:-1]
+                trial = '_'.join(split_name)
+                path_to_trial = os.path.join(os.path.split(trial)[0])
+                trial_name = os.path.split(trial)[1]
+        elif config['run_with_form_time'] is False:
+            if all(bad not in avi for bad in bad_list):
+                trial_path_noext = os.path.splitext(avi)[0]
+                path_to_trial, trial_name_long = os.path.split(trial_path_noext)
+                trial_name = '_'.join(trial_name_long.split('_')[:3])
+        try:
             if trial_name not in name_check:
                 trial_units.append([path_to_trial, trial_name])
                 path_check.append(path_to_trial); name_check.append(trial_name)
+        except UnboundLocalError: # in case the trial doesn't meet criteria
+            pass
 
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_unit in trial_units:
@@ -102,8 +111,12 @@ def extract_params(config):
                     top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
                 except IndexError:
                     top_h5 = None
-                top_csv = [i for i in trial_cam_csv if top_view in i][0]
-                top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i][0]
+                if config['run_with_form_time'] is True:
+                    top_csv = [i for i in trial_cam_csv if top_view in i][0]
+                    top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i and 'calib' in i][0]
+                elif config['run_with_form_time'] is False:
+                    top_csv = [i for i in trial_cam_csv if top_view in i][0]
+                    top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i][0]
                 if top_h5 is not None:
                     # make an xarray of dlc point values out of the found .h5 files
                     # also assign timestamps as coordinates of the xarray
@@ -173,18 +186,18 @@ def extract_params(config):
                 eye_sides.append('R')
             if 'LEYE' in config['cams']:
                 eye_sides.append('L')
-            for i in range(0,len(eye_sides)):
+            for i in range(len(eye_sides)):
                 eye_side = eye_sides[i]
                 print('tracking ' + eye_side + 'EYE for ' + t_name)
                 # filter the list of files for the current trial to get the eye of this side
                 if config['run_with_form_time'] is True:
                     eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i and 'deinter' in i][0]
                     eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i][0]
-                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i][0]
+                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i and 'unflipped' not in i][0]
                 elif config['run_with_form_time'] is False:
                     eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i][0]
                     eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i][0]
-                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i][0]
+                    eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'unflipped' not in i][0]
                 # make an xarray of dlc point values out of the found .h5 files
                 # also assign timestamps as coordinates of the xarray
                 eyedlc = h5_to_xr(eye_h5, eye_csv, (eye_side+'EYE'), config=config)
@@ -193,7 +206,9 @@ def extract_params(config):
                 eyeparams = eye_tracking(eyedlc, config, t_name, eye_side)
                 # get pupil rotation and plot video -- slow step
                 if config['run_pupil_rotation'] is True:
-                    rfit, rfit_conv, shift = pupil_rotation_wrapper(eyeparams, config, t_name, eye_side)
+                    rfit, rfit_conv, shift = find_pupil_rotation(eyeparams, config, t_name)
+                    rfit.name = eye_side+'EYE_pupil_radius'; rfit_conv.name = eye_side+'EYE_pupil_radius_conv'
+                    shift.name = eye_side+'EYE_omega'
                 # make videos (only if config says so)
                 if config['save_avi_vids'] is True:
                     print('plotting parameters on video')
@@ -203,27 +218,27 @@ def extract_params(config):
                     xr_eye_frames = format_frames(eye_avi, config); xr_eye_frames.name = eye_side+'EYE_video'
                 # name and organize data
                 eyedlc.name = eye_side+'EYE_pts'; eyeparams.name = eye_side+'EYE_ellipse_params'
-                if config['run_pupil_rotation'] is True:
-                    rfit_conv.name = eye_side+'EYE_radius_fit_conv'; rfit.name = eye_side+'EYE_radius_fit'; shift.name = eye_side+'EYE_eye_pupil_rotation'
-                if config['save_nc_vids'] is True:
-                    if config['run_pupil_rotation'] is False:
-                        print('saving...')
-                        trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames])
-                        trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
-                    elif config['run_pupil_rotation'] is True:
-                        print('saving...')
-                        trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, rfit_conv, shift])
-                        trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
-                elif config['save_nc_vids'] is False:
-                    if config['run_pupil_rotation'] is False:
-                        print('saving...')
-                        trial_eye_data = xr.merge([eyedlc, eyeparams])
-                        trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')))
-                    elif config['run_pupil_rotation'] is True:
-                        print('saving...')
-                        trial_eye_data = xr.merge([eyedlc, eyeparams, rfit, rfit_conv, shift])
-                        trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')))
-        except IndexError:
+                if config['save_nc_vids'] is True and config['run_pupil_rotation'] is True:
+                    print('saving...')
+                    trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, rfit_conv, shift])
+                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
+                elif config['save_nc_vids'] is False and config['run_pupil_rotation'] is True:
+                    print('saving...')
+                    trial_eye_data = xr.merge([eyedlc, eyeparams, rfit, rfit_conv, shift])
+                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')))
+                elif config['save_nc_vids'] is True and config['run_pupil_rotation'] is False:
+                    print('saving...')
+                    trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames])
+                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
+                elif config['save_nc_vids'] is False and config['run_pupil_rotation'] is False:
+                    print('saving...')
+                    trial_eye_data = xr.merge([eyedlc, eyeparams])
+                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')))
+        except IndexError as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
+            print(e)
             print('no EYE trials found for ' + t_name)
 
         try:
@@ -239,7 +254,7 @@ def extract_params(config):
                 # filter the list of files for the current trial to get the world view of this side
                 if config['run_with_form_time'] is True:
                     world_csv = [i for i in trial_cam_csv if world_side in i and 'formatted' in i][0]
-                    world_avi = [i for i in trial_cam_avi if world_side in i and 'deinter' in i][0]
+                    world_avi = [i for i in trial_cam_avi if world_side in i and 'calib' in i][0]
                 elif config['run_with_form_time'] is False:
                     world_csv = [i for i in trial_cam_csv if world_side in i][0]
                     world_avi = [i for i in trial_cam_avi if world_side in i][0]
@@ -302,13 +317,16 @@ def extract_params(config):
         # analyze ball movements
         if trial_ball_csv != []:
             print('tracking ball movement for ' + t_name)
-            speed_data = ball_tracking(trial_ball_csv[0], config)
+            speed_data = ball_tracking(trial_ball_csv[0], config); speed_data.name = 'BALL_data'
             speed_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_speed.nc')))
 
         if trial_imu_bin != []:
             print('reading imu data for ' + t_name)
             trial_imu_csv = os.path.join(config['trial_path'],t_name+'_Ephys_BonsaiTS.csv') # use ephys timestamps
             imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
+            # imu_acc, imu_gyro = convert_acc_gyro(imu_data, trial_imu_csv, config)
+            imu_data.name = 'IMU_data'#; imu_acc.name='ACC_data'; imu_gyro.name='GYRO_data'
+            # trial_imu_data = xr.merge(imu_data, imu_acc, imu_gyro)
             imu_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_imu.nc')))
 
     print('done with ' + str(len(trial_units)) + ' queued trials')
