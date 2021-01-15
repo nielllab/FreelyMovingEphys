@@ -3,7 +3,7 @@ track_world.py
 
 tracking world camera and finding pupil rotation
 
-Jan. 10, 2020
+Jan. 10, 2021
 """
 
 # package imports
@@ -35,6 +35,11 @@ from util.paths import find
 from util.aux_funcs import nanxcorr
 from util.dlc import run_DLC_on_LED
 from util.format_data import h5_to_xr
+
+def smooth_tracking(y, box_pts=3):
+    box = np.ones(box_pts)/box_pts
+    y_smooth = np.convolve(y, box, mode='same')
+    return y_smooth
 
 def track_LED(config):
     # DLC tracking
@@ -101,10 +106,15 @@ def track_LED(config):
 
         # threshold out frames with low likelihood
         # seems to work well for thresh=0.99
-        eye_x[eyexr.sel(point_loc='light_likelihood')<config['lik_thresh']] = np.nan
-        eye_y[eyexr.sel(point_loc='light_likelihood')<config['lik_thresh']] = np.nan
-        world_x[worldxr.sel(point_loc='light_likelihood')<config['lik_thresh']] = np.nan
-        world_y[worldxr.sel(point_loc='light_likelihood')<config['lik_thresh']] = np.nan
+        eye_x[eyexr.sel(point_loc='light_likelihood')<config['lik_thresh_strict']] = np.nan
+        eye_y[eyexr.sel(point_loc='light_likelihood')<config['lik_thresh_strict']] = np.nan
+        world_x[worldxr.sel(point_loc='light_likelihood')<config['lik_thresh_strict']] = np.nan
+        world_y[worldxr.sel(point_loc='light_likelihood')<config['lik_thresh_strict']] = np.nan
+        # eliminate frames in which there is very little movementin the worldcam (movements should be large!)
+        orig_world_x = world_x.copy(); orig_world_y = world_y.copy()
+        world_x = world_x[:-1]; world_y = world_y[:-1]
+        world_x[np.logical_and(np.diff(orig_world_x)<1,np.diff(orig_world_x)>-1)] = np.nan
+        world_y[np.logical_and(np.diff(orig_world_y)<1,np.diff(orig_world_y)>-1)] = np.nan
 
         plt.figure()
         plt.plot(eye_x); plt.title('light x position in eye (thresh applied)')
@@ -127,6 +137,31 @@ def track_LED(config):
         pdf.savefig()
         plt.close()
 
+        # apply a smoothing convolution
+        eye_x = smooth_tracking(eye_x); eye_y = smooth_tracking(eye_y)
+        world_x = smooth_tracking(world_x); world_y = smooth_tracking(world_y)
+
+        plt.figure()
+        plt.plot(eye_x); plt.title('light x position in eye (conv applied)')
+        plt.ylabel('eye x'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+        plt.figure()
+        plt.plot(eye_y); plt.title('light y position in eye (conv applied)')
+        plt.ylabel('eye y'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+        plt.figure()
+        plt.plot(world_x); plt.title('light x position in worldcam (conv applied)')
+        plt.ylabel('world x'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+        plt.figure()
+        plt.plot(world_y); plt.title('light y position in worldcam (conv applied)')
+        plt.ylabel('world y'); plt.xlabel('frame')
+        pdf.savefig()
+        plt.close()
+
         # plot eye vs world for x and y
         diff_in_len = len(world_x) - len(eye_x)
         plt.subplots(1,2)
@@ -138,6 +173,32 @@ def track_LED(config):
         plt.plot(eye_y, world_y[:-diff_in_len], '.')
         plt.ylabel('world y'); plt.xlabel('eye y')
         plt.title('y in eye vs world')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close()
+
+        plt.subplots(1,2)
+        plt.subplot(121)
+        plt.plot(world_x,world_y,'.')
+        plt.ylabel('world y'); plt.xlabel('world x')
+        plt.title('world x vs y')
+        plt.subplot(122)
+        plt.plot(eye_x, eye_y,'.')
+        plt.ylabel('eye y'); plt.xlabel('eye x')
+        plt.title('eye x vs y')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close()
+
+        plt.subplots(1,2)
+        plt.subplot(121)
+        plt.plot(eye_x,world_y[:-diff_in_len],'.')
+        plt.ylabel('world y'); plt.xlabel('eye x')
+        plt.title('eye x vs world y')
+        plt.subplot(122)
+        plt.plot(eye_y, world_x[:-diff_in_len],'.')
+        plt.ylabel('world x'); plt.xlabel('eye y')
+        plt.title('eye y vs world x')
         plt.tight_layout()
         pdf.savefig()
         plt.close()
@@ -182,9 +243,9 @@ def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
         try:
             e_pt = eye_dlc.sel(frame=step)
             eye_pt_cent = (int(e_pt.sel(point_loc='light_x').values), int(e_pt.sel(point_loc='light_y').values))
-            if e_pt.sel(point_loc='light_likelihood').values < config['lik_thresh']: # bad points in red
+            if e_pt.sel(point_loc='light_likelihood').values < config['lik_thresh_strict']: # bad points in red
                 e_frame = cv2.circle(e_frame, eye_pt_cent, 8, (0,0,255), 1)
-            elif e_pt.sel(point_loc='light_likelihood').values >= config['lik_thresh']: # good points in green
+            elif e_pt.sel(point_loc='light_likelihood').values >= config['lik_thresh_strict']: # good points in green
                 e_frame = cv2.circle(e_frame, eye_pt_cent, 8, (0,255,0), 1)
         except ValueError:
             pass
@@ -192,9 +253,9 @@ def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
         try:
             w_pt = world_dlc.sel(frame=step)
             world_pt_cent = (int(w_pt.sel(point_loc='light_x').values), int(w_pt.sel(point_loc='light_y').values))
-            if w_pt.sel(point_loc='light_likelihood').values < config['lik_thresh']: # bad points in red
+            if w_pt.sel(point_loc='light_likelihood').values < config['lik_thresh_strict']: # bad points in red
                 w_frame = cv2.circle(w_frame, world_pt_cent, 8, (0,0,255), 1)
-            elif w_pt.sel(point_loc='light_likelihood').values >= config['lik_thresh']: # good points in green
+            elif w_pt.sel(point_loc='light_likelihood').values >= config['lik_thresh_strict']: # good points in green
                 w_frame = cv2.circle(w_frame, world_pt_cent, 8, (0,255,0), 1)
         except ValueError:
             pass
