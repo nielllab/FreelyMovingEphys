@@ -200,29 +200,33 @@ def pooled_jump_analysis(pooled, config):
         pooled_da = pooled
     # then, get data out for each parameter
     all_pitch = pooled_da.sel(jump_params='head_pitch').values
-    all_phi = pooled_da.sel(jump_params='mean_eye_phi').values
+    all_phi = - pooled_da.sel(jump_params='mean_eye_phi').values
     all_div = pooled_da.sel(jump_params='eye_th_div').values
     all_th_gaze = pooled_da.sel(jump_params='th_gaze', frame=range(60)).values
     all_th_div = pooled_da.sel(jump_params='th_div', frame=range(60)).values
-    all_th_phi = pooled_da.sel(jump_params='th_phi', frame=range(60)).values
+    all_th_phi = - pooled_da.sel(jump_params='th_phi', frame=range(60)).values
     lags = range(-30, 30)
     
+    dwnspl = 100
+    
     # head theta, phi
-    plt.figure()
-    plt.plot(all_pitch, all_phi, 'k.')
-    plt.xlabel('head theta'); plt.ylabel('phi')
-    plt.xlim([-60,60]); plt.ylim([-60,60])
+    plt.figure(figsize=(5,5))
+    plt.plot(all_pitch[::dwnspl], all_phi[::dwnspl], 'k.')
+    plt.xlabel('head pitch'); plt.ylabel('phi')
+    plt.xlim([-60,60]); plt.ylim([-30,30])
+    plt.plot([-60,60],[60,-60],':',color=[0.5,0.5,0.5])
     pdf.savefig()
     plt.close()
     # head theta, eye theta divergence
-    plt.figure()
-    plt.plot(all_pitch, all_div, 'k.')
-    plt.xlabel('head theta'); plt.ylabel('eye theta div')
-    plt.xlim([-60,60]); plt.ylim([-60,60])
+    plt.figure(figsize=(5,5))
+    plt.plot(all_pitch[::dwnspl], all_div[::dwnspl], 'k.')
+    plt.xlabel('head pitch'); plt.ylabel('eye theta div')
+    plt.xlim([-60,60]); plt.ylim([-30,30])
+    plt.plot([-60,60],[60,-60],':',color=[0.5,0.5,0.5])
     pdf.savefig()
     plt.close()
     # xcorr with head angle
-    plt.figure()
+    plt.figure(figsize=(5,5))
     plt.errorbar(lags, np.mean(all_th_gaze,0), yerr=(np.std(np.array(all_th_gaze,dtype=np.float64),0)/np.sqrt(np.size(all_th_gaze,0))))
     plt.errorbar(lags, np.mean(all_th_div,0), yerr=(np.std(np.array(all_th_div,dtype=np.float64),0)/np.sqrt(np.size(all_th_div,0))))
     plt.errorbar(lags, np.mean(all_th_phi,0), yerr=(np.std(np.array(all_th_phi,dtype=np.float64),0)/np.sqrt(np.size(all_th_phi,0))))

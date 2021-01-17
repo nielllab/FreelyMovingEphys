@@ -1,9 +1,9 @@
 """
-preprocessing.py
+auto_preprocessing.py
 
-deinterlace videos, analyze with DLC, and extract parameters
+automaticlly build a config file from inputs to the GUI
 
-Jan. 14, 2021
+Jan. 15, 2021
 """
 # package imports
 import argparse, json, sys, os, subprocess, shutil
@@ -25,18 +25,7 @@ from util.track_world import track_LED
 from util.config import set_preprocessing_config_defaults
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
 
-def main(json_config_path):
-    # open config file
-    with open(json_config_path, 'r') as fp:
-        config = json.load(fp)
-    # update the config read in with default values if any required keys aren't there
-    config = set_preprocessing_config_defaults(config)
-
-    data_path = os.path.expanduser(config['data_path'])
-    if config.get('save_path') is None:
-        config['save_path'] = data_path
-    else: 
-        save_path = os.path.expanduser(config['save_path'])
+def run_auto_preprocessing(config):
 
     steps = config['steps_to_run']
 
@@ -56,15 +45,3 @@ def main(json_config_path):
         extract_params(config)
     if steps['addtl_params']:
         track_LED(config)
-
-if __name__ == '__main__':
-    
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        file_path = filedialog.askopenfilename()
-    except:
-        print('cannot open dialog box')
-        file_path = input('enter path to json config file: ')
-    
-    main(json_config_path=file_path)
