@@ -23,7 +23,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import os
 
 # diagnostic figure of camera timing
-def plot_cam_time(camT, camname)
+def plot_cam_time(camT, camname):
     fig, axs = plt.subplots(1,2)
     axs[0].plot(np.diff(camT)); axs[0].set_xlabel('frame'); axs[0].set_ylabel('deltaT'); axs[0].set_title(camname+' cam timing')
     axs[1].hist(np.diff(camT),100);axs[1].set_xlabel('deltaT')
@@ -34,10 +34,10 @@ def plot_spike_rasters(goodcells):
     fig, ax = plt.subplots()
     ax.fontsize = 20
     for i,ind in enumerate(goodcells.index):
-    plt.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25)
-    plt.xlim(0, 10); plt.xlabel('secs',fontsize = 20); plt.ylabel('unit #',fontsize=20)
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
+        plt.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25)
+        plt.xlim(0, 10); plt.xlabel('secs',fontsize = 20); plt.ylabel('unit #',fontsize=20)
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
     return fig
 
 # plot theta vs phi across recording

@@ -235,7 +235,7 @@ def run_ephys_analysis(file_dict):
 
     if file_dict['imu']:
         vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, this_unit, accT=accT, gz=gz)
-    elif file_dict['speed']
+    elif file_dict['speed']:
         vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, this_unit, speedT=speedT, spd=spd)
 
     audfile = make_sound(file_dict, ephys_data, this_unit)
@@ -247,7 +247,7 @@ def run_ephys_analysis(file_dict):
     if free_move:
         plt.plot(eyeT[0:-1],np.diff(th_switch),label = 'dTheta')
         plt.plot(accT-0.1,(gz-3)*10, label = 'gyro')
-        plt.xlim(30:40); plt.ylim(-12,12); plt.legend(); plt.xlabel('secs')
+        plt.xlim(30,40); plt.ylim(-12,12); plt.legend(); plt.xlabel('secs')
         diagnostic_pdf.savefig()
         plt.close()
 
@@ -256,7 +256,7 @@ def run_ephys_analysis(file_dict):
     t = np.arange(0, np.max(worldT),dt)
 
     # interpolate and plot contrast
-    newc =interp1d(worldT,contrast)
+    newc = interp1d(worldT,contrast)
     contrast_interp = newc(t[0:-1])
     contrast_interp.shape
     plt.plot(t[0:600],contrast_interp[0:600])
@@ -307,7 +307,7 @@ def run_ephys_analysis(file_dict):
     spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
 
     staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
-    lag = 0.125;
+    lag = 0.125
     plt.figure(figsize = (12,np.ceil(n_units/2)))
     for c, ind in enumerate(goodcells.index):
         r = goodcells.at[ind,'rate']
@@ -372,12 +372,12 @@ def run_ephys_analysis(file_dict):
     plt.close()
 
     # calculate saccade-locked psth
-    spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
+    # spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
     dEye= np.diff(th_switch)
 
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
     trange = np.arange(-1,1.1,0.1)
-    sthresh = 5;
+    sthresh = 8
     upsacc = eyeT[np.append(dEye,0)>sthresh]/spike_corr
     upsacc = upsacc[upsacc>5]
     upsacc = upsacc[upsacc<np.max(t)-5]
@@ -517,23 +517,61 @@ def run_ephys_analysis(file_dict):
         plt.plot(crange[2:-1],resp[i,2:-1])
         plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
                                     
-        #plot STA
+        #plot STA or tuning curve
         plt.subplot(n_units,4,i*4 + 3)
-        sta = staAll[i,:,:]
-        staRange = np.max(np.abs(sta))*1.2
-        if staRange<0.25:
-            staRange=0.25
-        plt.imshow(staAll[i,:,:],vmin = -staRange, vmax= staRange, cmap = 'jet')
-                                    
-        #plot eye movements
-        plt.subplot(n_units,4,i*4 + 4)
-        plt.plot(trange,upsacc_avg[i,:])
-        plt.plot(trange,downsacc_avg[i,:],'r')
-        plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
-        plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
-        plt.ylabel('sp/sec')
+        if stim_type == 'grat':
+            plt.plot(np.arange(8)*45, ori_tuning[i,:,0],label = 'low sf'); plt.plot(np.arange(8)*45,ori_tuning[i,:,1],label = 'mid sf');plt.plot(np.arange(8)*45,ori_tuning[i,:,2],label = 'hi sf');
+            plt.plot([0,315],[drift_spont[i],drift_spont[i]],'r:', label = 'spont')
+        # plt.legend()
+            plt.ylim(0,np.nanmax(ori_tuning[i,:,:]*1.2)); plt.xlabel('orientation (deg)')
+        else:
+            sta = staAll[i,:,:]
+            staRange = np.max(np.abs(sta))*1.2
+            if staRange<0.25:
+                staRange=0.25
+            plt.imshow(staAll[i,:,:],vmin = -staRange, vmax= staRange, cmap = 'jet')
+                                  
+    #plot eye movements
+    plt.subplot(n_units,4,i*4 + 4)
+    plt.plot(trange,upsacc_avg[i,:])
+    plt.plot(trange,downsacc_avg[i,:],'r')
+    plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
+    plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
+    plt.ylabel('sp/sec')
     plt.tight_layout()
     overview_pdf.savefig()
+    plt.close()
+
+
+
+
+    hist_dt = 1
+    hist_t = np.arange(0, np.max(worldT),hist_dt)
+    plt.figure(figsize = (12,n_units*2))
+    plt.subplot(n_units+3,1,1)
+    if has_imu:
+        plt.plot(accT,gz)
+        plt.xlim(0, np.max(worldT)); plt.ylabel('gz'); plt.title('gyro')
+    elif has_mouse:
+        plt.plot(speedT,spd)
+        plt.xlim(0, np.max(worldT)); plt.ylabel('cm/sec'); plt.title('mouse speed')  
+
+    plt.subplot(n_units+3,1,2)
+    plt.plot(eyeT,eye_params.sel(ellipse_params = 'longaxis'))
+    plt.xlim(0, np.max(worldT)); plt.ylabel('rad (pix)'); plt.title('pupil diameter')
+
+    plt.subplot(n_units+3,1,3)
+    plt.plot(worldT,contrast)
+    plt.xlim(0, np.max(worldT)); plt.ylabel('contrast a.u.'); plt.title('contrast')
+
+    for i,ind in enumerate(goodcells.index):
+        rate,bins = np.histogram(ephys_data.at[ind,'spikeT'],hist_t)
+        plt.subplot(n_units+3,1,i+4)
+        plt.plot(bins[0:-1],rate)
+        plt.xlabel('secs')
+        plt.ylabel('sp/sec'); plt.xlim(bins[0],bins[-1]); plt.title('unit ' + str(i))
+    plt.tight_layout()
+    detail_pdf.savefig()
     plt.close()
 
     overview_pdf.close(); detail_pdf.close(); diagnostic_pdf.close()

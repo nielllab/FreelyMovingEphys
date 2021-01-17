@@ -25,7 +25,10 @@ from util.track_world import track_LED
 from util.config import set_preprocessing_config_defaults
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
 
-def run_auto_preprocessing(config):
+def run_auto_preprocessing(config_path):
+
+    with open(config_path, 'r') as fp:
+        config = json.load(fp)
 
     steps = config['steps_to_run']
 

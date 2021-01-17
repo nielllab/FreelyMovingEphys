@@ -15,8 +15,8 @@ import json, os
 from tkinter import scrolledtext
 import tkinter as tk
 # module imports
-# from preprocessing.gui.auto_config import write_config
-# from preprocessing.gui.auto_preprocessing import run_auto_preprocessing
+from preprocessing.gui.auto_config import write_config
+from preprocessing.gui.auto_preprocessing import run_auto_preprocessing
 
 def launch_gui():
     # get the path of the default json config file in this repository, relative to util/config.py
@@ -43,6 +43,7 @@ def launch_gui():
     dlc = ttk.Frame(tab_control)
     params = ttk.Frame(tab_control)
     addtl_params = ttk.Frame(tab_control)
+    config_tab = ttk.Frame(tab_control)
     run = ttk.Frame(tab_control)
 
     tab_control.add(welcome, text='Welcome')
@@ -52,6 +53,7 @@ def launch_gui():
     tab_control.add(dlc, text='Pose Estimation')
     tab_control.add(params, text='Parameters')
     tab_control.add(addtl_params, text='Extra Parameters')
+    tab_control.add(config_tab, text='Write Config')
     tab_control.add(run, text='Run!')
 
     tab_control.pack(expand=1, fill='both')
@@ -73,6 +75,7 @@ def launch_gui():
         tab_control.tab(dlc, state='disabled')
         tab_control.tab(params, state='disabled')
         tab_control.tab(addtl_params, state='disabled')
+        tab_control.tab(config_tab, state='disabled')
     json_path_button = Button(welcome, text="browse", command=clicked_json_button)
     json_path_button.grid(column=1, row=2)
 
@@ -560,9 +563,9 @@ def launch_gui():
     run_addtl_params1 = Checkbutton(addtl_params, variable=save_avi_vids, command=clicked_run_led_tracking)
     run_addtl_params1.grid(column=1, row=1)
 
-    ###
-    run1_label = Label(run, text="First, write the parameters you've entered into a .json file. This will be written into the animal directory that you entered on the second page of this program. When write to file, the config file that's written will be printed into the terminal. It's a good idea to read through this and make sure everything was entered and saved correctly.", wraplength=500)
-    run1_label.grid(column=0, row=0)
+    ### config tab
+    config_label = Label(config_tab, text="First, write the parameters you've entered into a .json file. This will be written into the animal directory that you entered on the second page of this program. When you write to file, the config file that's written will be printed into the terminal. It's a good idea to read through this and make sure everything was entered and saved correctly.", wraplength=500)
+    config_label.grid(column=0, row=0)
 
     def write_to_file():
         user_entries = {
@@ -621,13 +624,26 @@ def launch_gui():
             'run_addtl_params':run_addtl_params,
             'run_with_form_time':True
         }
+        # constructed_json_path = 
+        write_config(user_entries)
 
-        print(user_entries)
-
-    write_label = Label(run, text="Write options to file (SKIP IF YOU LOADED AN EXISTING JSON FILE!):", wraplength=500)
+    write_label = Label(config_tab, text="Write options to file:", wraplength=500)
     write_label.grid(column=0, row=1)
-    write_button = Button(run, text="write", command=write_to_file)
+    write_button = Button(config_tab, text="write", command=write_to_file)
     write_button.grid(column=1, row=1)
+
+    ### run tab
+    run_label = Label(run, text="Now the preprocessing can be executed using the config file you have provided or built. Progress will be reported in the terminal in which this window was opened. Do not close this window or the terminal while it runs.", wraplength=500)
+    run_label.grid(column=0, row=0)
+
+    def run_pipeline():
+        if json_path is not None:
+            run_auto_preprocessing(json_path)
+
+    run_label = Label(run, text="Run preprocessing:", wraplength=500)
+    run_label.grid(column=0, row=1)
+    run_button = Button(run, text="run!", command=run_pipeline)
+    run_button.grid(column=1, row=1)
 
     window.mainloop()
 
