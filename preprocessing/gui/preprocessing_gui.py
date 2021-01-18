@@ -626,7 +626,7 @@ def launch_gui():
         strict_lik_thresh_label = Label(addtl_params, text="Strict likelihood threshold:")
         strict_lik_thresh_label.grid(column=0, row=5)
         strict_lik_thresh = Entry(addtl_params, width=8)
-        strict_lik_thresh.insert(END, default_config['lik_thhresh_strict'])
+        strict_lik_thresh.insert(END, default_config['lik_thresh_strict'])
         strict_lik_thresh.grid(column=1, row=5)
 
     run_addtl_params_label = Label(addtl_params, text="Track IR LED position in world and eye cameras?")
