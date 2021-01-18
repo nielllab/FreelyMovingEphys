@@ -43,13 +43,18 @@ def find_files(rec_path, rec_name, free_move, cell):
     speed_file = os.path.join(rec_path, rec_name + '_speed.nc')
 
     if free_move is True:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'imu':imu_file,'save':rec_path,'name':rec_name}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name}
     elif free_move is False:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':speed_file,'save':rec_path,'name':rec_name}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name}
 
     return dict_out
 
 def run_ephys_analysis(file_dict):
+
+    if file_dict['speed'] is None:
+        free_move = True; has_imu = True; has_mouse = True
+    else:
+        free_move = False; has_imu = False; has_mouse = True
 
     # three pdf outputs will be saved
     overview_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_overview_analysis_figures.pdf')))
@@ -79,22 +84,28 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
-    if file_dict['imu']:
+    if file_dict['imu'] is not None:
         imu_data = xr.open_dataset(file_dict['imu'])
         accT = imu_data.timestamps
-        acc_chans = imu_data['__xarray_dataarray_variable__']
+        acc_chans = imu_data.IMU_data
         gx = np.array(acc_chans.sel(channel='gyro_x'))
         gy = np.array(acc_chans.sel(channel='gyro_y'))
         gz = np.array(acc_chans.sel(channel='gyro_z'))
 
-    if file_dict['speed']:
-        speed_data = xr.open_dataset(speed_file)
-        spdVals = speed_data['__xarray_dataarray_variable__']
-        spd = spdVals.sel(move_params = 'cm_per_sec')
-        spd_tstamps = spdVals.sel(move_params = 'timestamps')
+    if file_dict['speed'] is not None:
+        speed_data = xr.open_dataset(file_dict['speed'])
+        spdVals = speed_data.BALL_data
+        try:
+            spd = spdVals.sel(move_params = 'cm_per_sec')
+            spd_tstamps = spdVals.sel(move_params = 'timestamps')
+        except:
+            spd = spdVals.sel(frame = 'cm_per_sec')
+            spd_tstamps = spdVals.sel(frame = 'timestamps')
+
 
     # read ephys data
     ephys_data = pd.read_json(file_dict['ephys'])
+    ephys_data['spikeTraw'] = ephys_data['spikeT']
 
     # select good cells from phy2
     goodcells = ephys_data.loc[ephys_data['group']=='good']
@@ -131,15 +142,16 @@ def run_ephys_analysis(file_dict):
     plt.close()
 
     # adjust eye/world/top times relative to ephys
+    ephysT0 = ephys_data.iloc[0,12]
     eyeT = eye_data.timestamps  - ephysT0
     if eyeT[0]<-600:
         eyeT = eyeT + 8*60*60 # 8hr offset for some data
     worldT = world_data.timestamps - ephysT0
     if worldT[0]<-600:
         worldT = worldT + 8*60*60
-    if free_move & has_imu:
+    if free_move is True and has_imu is True:
         accTraw = imu_data.timestamps-ephysT0
-    if (free_move==False) & has_mouse:
+    if free_move is False and has_mouse is True:
         speedT = spd_tstamps-ephysT0
 
     # check that deinterlacing worked correctly
@@ -158,7 +170,7 @@ def run_ephys_analysis(file_dict):
     dEye = np.diff(np.rad2deg(eye_params.sel(ellipse_params='theta')))
 
     # check accelerometer / eye temporal alignment
-    if file_dict['imu']:
+    if file_dict['imu'] is not None:
         lag_range = np.arange(-0.2,0.2,0.002)
         cc = np.zeros(np.shape(lag_range))
         t1 = np.arange(5,1600,20)
@@ -183,7 +195,7 @@ def run_ephys_analysis(file_dict):
         plt.close()
 
     # fit regression to timing drift
-    if file_dict['imu']:
+    if file_dict['imu'] is not None:
         model = LinearRegression()
         dataT = np.array(eyeT[t1*60 + 30])
         model.fit(dataT[offset>0].reshape(-1,1),offset[offset>0])
@@ -194,11 +206,11 @@ def run_ephys_analysis(file_dict):
         plt.xlabel('secs'); plt.ylabel('offset - secs')
         print(offset0)
         print(drift_rate)
-    elif file_dict['speed']:
+    elif file_dict['speed'] is not None:
         offset0 = 0.1
         drift_rate = 0.1/1000
 
-    if file_dict['imu']:
+    if file_dict['imu'] is not None:
         accT = accTraw - (offset0 + accTraw*drift_rate)
 
     for i in range(len(ephys_data)):
@@ -220,7 +232,7 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
-    fig, ax = plt.figure()
+    fig = plt.figure()
     plt.imshow(std_im)
     plt.colorbar(); plt.title('std img')
     diagnostic_pdf.savefig()
@@ -233,10 +245,10 @@ def run_ephys_analysis(file_dict):
     # make movie and sound
     this_unit = file_dict['cell']
 
-    if file_dict['imu']:
-        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, this_unit, accT=accT, gz=gz)
-    elif file_dict['speed']:
-        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, this_unit, speedT=speedT, spd=spd)
+    if file_dict['imu'] is not None:
+        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, accT=accT, gz=gz)
+    elif file_dict['speed'] is not None:
+        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, speedT=speedT, spd=spd)
 
     audfile = make_sound(file_dict, ephys_data, this_unit)
     
@@ -245,6 +257,7 @@ def run_ephys_analysis(file_dict):
     subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', merge_mp4_name]) 
 
     if free_move:
+        plt.figure()
         plt.plot(eyeT[0:-1],np.diff(th_switch),label = 'dTheta')
         plt.plot(accT-0.1,(gz-3)*10, label = 'gyro')
         plt.xlim(30,40); plt.ylim(-12,12); plt.legend(); plt.xlabel('secs')

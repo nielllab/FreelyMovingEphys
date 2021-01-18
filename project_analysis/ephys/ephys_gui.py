@@ -52,7 +52,7 @@ def launch_ephys_gui():
     recording_name.grid(column=1, row=1)
 
     # unit number to highlight
-    this_unit_label = Label(entry, text="Number of frames to save into diagnostic .avi videos:")
+    this_unit_label = Label(entry, text="Unit to highlight:")
     this_unit_label.grid(column=0, row=2)
     this_unit = Entry(entry, width=10)
     this_unit.insert(END, 0)
@@ -70,8 +70,8 @@ def launch_ephys_gui():
     run_label.grid(column=0, row=0)
 
     def run_pipeline():
-        file_dict = find_files(data_path, recording_name, fm, this_unit)
-        ephys_figures(file_dict)
+        file_dict = find_files(data_path, recording_name.get(), fm.get(), this_unit.get())
+        run_ephys_analysis(file_dict)
 
     run_label = Label(run, text="Run ephys analysis:", wraplength=500)
     run_label.grid(column=0, row=1)

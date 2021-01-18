@@ -42,14 +42,14 @@ def plot_spike_rasters(goodcells):
 
 # plot theta vs phi across recording
 def plot_eye_pos(eye_params):
-    fig, ax = plt.figure()
+    fig = plt.figure()
     plt.plot(np.rad2deg(eye_params.sel(ellipse_params='theta')),np.rad2deg(eye_params.sel(ellipse_params='phi')),'.')
     plt.xlabel('theta'); plt.ylabel('phi'); plt.title('eye position accross recording')
     return fig
 
 # optical mouse speed
 def plot_optmouse_spd(spd_tstamps, spd):
-    fig, ax = plt.figure()
+    fig = plt.figure()
     plt.plot(spd_tstamps,spd)
     plt.xlabel('sec'); plt.ylabel('running speed cm/sec')
     return fig
@@ -63,7 +63,7 @@ def plot_param_switch_check(eye_params):
     th_switch = np.zeros(np.shape(th))
     th_switch[0:-1:2] = np.array(th[1::2])
     th_switch[1::2] = np.array(th[0:-1:2])
-    fig, ax = plt.figure()
+    fig, ax = plt.subplots(121)
     plt.subplot(1,2,1)
     plt.plot(th[(35*60):(40*60)]); plt.title('theta')
     plt.subplot(1,2,2)
@@ -78,7 +78,7 @@ def plot_eye_params(eye_params, eyeT):
         axs[i].set_ylabel(val.values)
     return fig
 
-def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, this_unit, accT=None, gz=None, speedT=None, spd=None):
+def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
     fig = plt.figure(figsize = (8,12))
     gs = fig.add_gridspec(9,4)
@@ -126,7 +126,7 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
 
     # plot eye velocity
     axdTheta.cla()
-    axdTheta.plot(eyeT[0:-1],dEye*60); ax.set_ylabel('dtheta')
+    axdTheta.plot(eyeT[0:-1],dEye*60); axdTheta.set_ylabel('dtheta')
     #sacc = np.transpose(np.where(np.abs(dEye)>10))
     #axdTheta.plot(sacc,np.sign(dEye[sacc])*20,'.')
     axdTheta.set_xlim(tr[0],tr[1]); 
