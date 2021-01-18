@@ -59,7 +59,7 @@ def launch_gui():
     tab_control.pack(expand=1, fill='both')
 
     ### welcome tab
-    welcome_title = Label(welcome, text='FreelyMovingEphys Preprocessing, GUI last modified Jan. 16, 2021').grid(column=0, row=0)
+    welcome_title = Label(welcome, text='FreelyMovingEphys Preprocessing, GUI last modified Jan. 17, 2021').grid(column=0, row=0)
     welcome_text = Label(welcome, text='Provide information in the tabs of this window to build a .json config file and execute it. If a config file already exists, you can load a .json with the browse button below, and skip to the Run! tab to execute the preprocessing pipeline using those config options. Do not use the browse button below unless the .json already exists. Presently, if you need to modify an existing .json, it is best to either edit it manually by opening the file, or simply overwrite it with the needed parameters.', wraplength=500).grid(column=0, row=1)
 
     json_path_label = Label(welcome, text='Choose an existing .json config file:')
@@ -93,8 +93,13 @@ def launch_gui():
     deinter_label = Label(deinter, text="World and eye cameras should have interlacing removed so that they are put into the later steps of the pipeline at 60fps and not 30fps. During this video preprocessing step, eye and world videos can also be flipped verticlly. Videos should be right-side-up for pose estimation with DeepLabCut, so make sure to check the box to rotate the video if it's needed.", wraplength=500)
     deinter_label.grid(column=0, row=0)
 
+    deinter_eye = None
+    deinter_world = None
+
     def add_deinter_flip_options():
         if run_deinter.get() is True:
+            global deinter_eye
+            global deinter_world
             # options to flip world and eye cameras
             deinter_eye_label = Label(deinter, text="Flip eye camera vertically?")
             deinter_eye_label.grid(column=0, row=2)
@@ -198,10 +203,13 @@ def launch_gui():
     checker1 = Checkbutton(calib, variable=checker, command=add_checkerboard_path_options)
     checker1.grid(column=1, row=1)
 
+    top_npz_read_dir = None; world_npz_read_dir = None
+
     def add_undistortion_filepath_options():
         if undistort.get() is True:
-            
-            top_npz_read_dir_label = Label(calib, text='Path to world camera checkerboard video')
+            global top_npz_read_dir
+            global world_npz_read_dir
+            top_npz_read_dir_label = Label(calib, text='Path to top camera calibration .npz')
             top_npz_read_dir_label.grid(column=0, row=11)
             def clicked_top_npz_read_dir_button():
                 global top_npz_read_dir
@@ -210,7 +218,7 @@ def launch_gui():
             top_npz_read_dir_button = Button(calib, text="browse", command=clicked_top_npz_read_dir_button)
             top_npz_read_dir_button.grid(column=1, row=11)
 
-            world_npz_read_dir_label = Label(calib, text='Path to world camera checkerboard video')
+            world_npz_read_dir_label = Label(calib, text='Path to world camera calibration .npz')
             world_npz_read_dir_label.grid(column=0, row=12)
             def clicked_world_npz_read_dir_button():
                 global world_npz_read_dir
@@ -219,21 +227,21 @@ def launch_gui():
             world_npz_read_dir_button = Button(calib, text="browse", command=clicked_world_npz_read_dir_button)
             world_npz_read_dir_button.grid(column=1, row=12)
 
-            default_undistort_label = Label(undistort, text='Print default options in terminal:')
+            default_undistort_label = Label(calib, text='Print default options in terminal:')
             default_undistort_label.grid(column=0, row=13)
             def clicked_default_undistort_button():
                 default_undistort_dict = default_config['calibration']
                 print('default top undistortion paramter save .npz: ' + default_undistort_dict['top_checker_npz'])
                 print('default world undistortion paramter save .npz: ' + default_undistort_dict['world_checker_npz'])
-            default_undistort_button = Button(undistort, text="print defaults", command=clicked_default_undistort_button)
+            default_undistort_button = Button(calib, text="print defaults", command=clicked_default_undistort_button)
             default_undistort_button.grid(column=1, row=13)
 
-            current_undistort_label = Label(undistort, text='Print current options in terminal:')
+            current_undistort_label = Label(calib, text='Print current options in terminal:')
             current_undistort_label.grid(column=0, row=14)
             def clicked_current_undistort_button():
-                print('current top undistortion paramter save .npz: ' + os.path.join(npz_save_dir,top_npz_name))
-                print('current world undistortion paramter save .npz: ' + os.path.join(npz_save_dir,world_npz_name))
-            current_undistort_button = Button(undistort, text="print current", command=clicked_current_undistort_button)
+                print('current top undistortion paramter save .npz: ' + top_npz_read_dir)
+                print('current world undistortion paramter save .npz: ' + world_npz_read_dir)
+            current_undistort_button = Button(calib, text="print current", command=clicked_current_undistort_button)
             current_undistort_button.grid(column=1, row=14)
 
     undistort_label = Label(calib, text="Undistort top and world videos using existing calibration parameters?")
@@ -250,7 +258,7 @@ def launch_gui():
     undistortCS1.grid(column=1, row=15)
 
     ### pose estimation tab
-    dlc_label = Label(dlc, text="DeepLabCut generates pose estiamtions for top, side, and/or eye cameras. You need to select each of the cameras you want to include in the pose estimation, and then browse for a DeepLabCut .yaml project config file. DeepLabCut can be set up to track IR LEDs in the extra paramters tab, seperate from the mouse tracking DLC which happens here.", wraplength=500)
+    dlc_label = Label(dlc, text="DeepLabCut generates pose estiamtions for top, side, and/or eye cameras. You need to select each of the cameras you want to include in the pose estimation, and then browse for a DeepLabCut .yaml project config file. DeepLabCut can be set up to track IR LEDs in the extra paramters tab, seperate from the mouse tracking DLC which happens here. If no cameras are entered, the pose estimation step will be skipped.", wraplength=500)
     dlc_label.grid(column=0, row=0)
 
     camera_options = ['None','TOP','Top','TOP1','TOP2','TOP3','REYE','LEYE','WORLD','World','SIDE','Side']
@@ -363,6 +371,12 @@ def launch_gui():
     ### parameters tab
     params_label = Label(params, text='Options for getting paramters out of pose estimation datasets are organized by subject. Ignore anything that does not apply to your dataset, and the pipeline will ignore it too.', wraplength=500)
     params_label.grid(column=0, row=1)
+
+    run_params_labels = Label(params, text="Get parameters?")
+    run_params_labels.grid(column=1, row=1)
+    run_params = BooleanVar()
+    run_params1 = Checkbutton(params, variable=run_params)
+    run_params1.grid(column=2, row=1)
 
     lik_thresh_label = Label(params, text="Likelihood threhold:")
     lik_thresh_label.grid(column=0, row=2)
@@ -511,6 +525,7 @@ def launch_gui():
     save_nc_vids1 = Checkbutton(params, variable=save_nc_vids)
     save_nc_vids1.grid(column=3, row=9)
 
+    num_save_frames = None
     def clicked_avi_vid_button():
         if save_avi_vids.get() is True:
             num_save_frames_label = Label(params, text="Number of frames to save into diagnostic .avi videos:")
@@ -525,10 +540,61 @@ def launch_gui():
     save_avi_vids1 = Checkbutton(params, variable=save_avi_vids, command=clicked_avi_vid_button)
     save_avi_vids1.grid(column=3, row=10)
 
+    # camera types to analyze
+    save_avi_vids_label = Label(params, text="Camera views to include while getting parameters?")
+    save_avi_vids_label.grid(column=2, row=12)
+
+    params_c1_label = Label(params, text="First Camera:")
+    params_c1_label.grid(column=2,row=13)
+    params.c1 = StringVar()
+    params.c1.set(camera_options[0])
+    params_c1 = OptionMenu(params, params.c1, *camera_options)
+    params_c1.grid(column=3, row=13)
+
+    params_c2_label = Label(params, text="Second Camera:")
+    params_c2_label.grid(column=2,row=14)
+    params.c2 = StringVar()
+    params.c2.set(camera_options[0])
+    params_c2 = OptionMenu(params, params.c2, *camera_options)
+    params_c2.grid(column=3, row=14)
+
+    params_c3_label = Label(params, text="Third Camera:")
+    params_c3_label.grid(column=2,row=15)
+    params.c3 = StringVar()
+    params.c3.set(camera_options[0])
+    params_c3 = OptionMenu(params, params.c3, *camera_options)
+    params_c3.grid(column=3, row=15)
+
+    params_c4_label = Label(params, text="Fourth Camera:")
+    params_c4_label.grid(column=2,row=16)
+    params.c4 = StringVar()
+    params.c4.set(camera_options[0])
+    params_c4 = OptionMenu(params, params.c4, *camera_options)
+    params_c4.grid(column=3, row=16)
+
+    params_c5_label = Label(params, text="Fifth Camera:")
+    params_c5_label.grid(column=2,row=17)
+    params.c5 = StringVar()
+    params.c5.set(camera_options[0])
+    params_c5 = OptionMenu(params, params.c5, *camera_options)
+    params_c5.grid(column=3, row=17)
+
+    params_c6_label = Label(params, text="Sixth Camera:")
+    params_c6_label.grid(column=2,row=18)
+    params.c6 = StringVar()
+    params.c6.set(camera_options[0])
+    params_c6 = OptionMenu(params, params.c6, *camera_options)
+    params_c6.grid(column=3, row=18)
+
     ### extra parameters
 
     led_label = Label(addtl_params, text='Track the movement of IR LEDs in a dark room both on the surface of the pupil and in space from the perspective of the worldcam.', wraplength=500)
     led_label.grid(column=0, row=0)
+
+    ledW = None
+    ledE = None
+    LED_dir_name = None
+    strict_lik_thresh = None
 
     def clicked_run_led_tracking():
         # LED configs
@@ -551,25 +617,33 @@ def launch_gui():
         ledE_button.grid(column=1, row=3)
 
         # name of IR LED directory
-        LED_dir_name_label = Label(addtl_params, text="Name of the directory that contains the IR LED calibration videos:")
+        LED_dir_name_label = Label(addtl_params, text="Name of the directory that contains the IR LED calibration videos (e.g. hf3_IRspot):")
         LED_dir_name_label.grid(column=0, row=4)
-        LED_dir_name = Entry(addtl_params, width=10)
+        LED_dir_name = Entry(addtl_params, width=20)
         LED_dir_name.insert(END, default_config['LED_dir_name'])
         LED_dir_name.grid(column=1, row=4)
+
+        strict_lik_thresh_label = Label(addtl_params, text="Strict likelihood threshold:")
+        strict_lik_thresh_label.grid(column=0, row=5)
+        strict_lik_thresh = Entry(addtl_params, width=8)
+        strict_lik_thresh.insert(END, default_config['lik_thhresh_strict'])
+        strict_lik_thresh.grid(column=1, row=5)
 
     run_addtl_params_label = Label(addtl_params, text="Track IR LED position in world and eye cameras?")
     run_addtl_params_label.grid(column=0, row=1)
     run_addtl_params = BooleanVar()
-    run_addtl_params1 = Checkbutton(addtl_params, variable=save_avi_vids, command=clicked_run_led_tracking)
+    run_addtl_params1 = Checkbutton(addtl_params, variable=run_addtl_params, command=clicked_run_led_tracking)
     run_addtl_params1.grid(column=1, row=1)
 
     ### config tab
-    config_label = Label(config_tab, text="First, write the parameters you've entered into a .json file. This will be written into the animal directory that you entered on the second page of this program. When you write to file, the config file that's written will be printed into the terminal. It's a good idea to read through this and make sure everything was entered and saved correctly.", wraplength=500)
+    config_label = Label(config_tab, text="First, write the parameters you have entered into a .json file. This will be written into the animal directory that you entered on the second page of this program. When you write to file, the config file that's written will be printed into the terminal. It's a good idea to read through this and make sure everything was entered and saved correctly.", wraplength=500)
     config_label.grid(column=0, row=0)
 
+    json_path = None
     def write_to_file():
+        c1_yaml_path, c2_yaml_path, c3_yaml_path, c4_yaml_path, c5_yaml_path, c6_yaml_path = [None if (c not in globals) or (c not in locals) else c for c in [c1_yaml_path, c2_yaml_path, c3_yaml_path, c4_yaml_path, c5_yaml_path, c6_yaml_path]]
+
         user_entries = {
-            'preloaded_json_path': json_path,
             'data_path': data_path,
             'deinterlace': run_deinter,
             'flip_eyecam': deinter_eye,
@@ -585,13 +659,14 @@ def launch_gui():
             'world_npz_read_dir': world_npz_read_dir,
             'undistort_vids_use_paths_from_current_session': undistort_CS,
             'cam_inputs':{
-                dlc.c1: c1_yaml_path,
-                dlc.c2: c2_yaml_path,
-                dlc.c3: c3_yaml_path,
-                dlc.c4: c4_yaml_path,
-                dlc.c5: c5_yaml_path,
-                dlc.c6: c6_yaml_path
+                dlc.c1.get(): c1_yaml_path,
+                dlc.c2.get(): c2_yaml_path,
+                dlc.c3.get(): c3_yaml_path,
+                dlc.c4.get(): c4_yaml_path,
+                dlc.c5.get(): c5_yaml_path,
+                dlc.c6.get(): c6_yaml_path
             },
+            'param_cams':[params.c1.get(),params.c2.get(),params.c3.get(),params.c4.get(),params.c5.get(),params.c6.get()],
             'has_ephys': False,
             'lik_thresh':lik_thresh,
             'tear':tear,
@@ -622,10 +697,16 @@ def launch_gui():
             'ledE':ledE,
             'LED_dir_name':LED_dir_name,
             'run_addtl_params':run_addtl_params,
-            'run_with_form_time':True
+            'run_with_form_time':True,
+            'run_params': run_params,
+            'crop_vids': crop_vids,
+            'multiTOP': multiTOP,
+            'strict_lik_thresh': strict_lik_thresh
         }
-        # constructed_json_path = 
-        write_config(user_entries)
+        user_entries_opened = {key:val.get() for (key,val) in user_entries.items() if isinstance(val, BooleanVar) is True or isinstance(val, Entry) is True}
+        user_entries_opened1 = {key:val for (key,val) in user_entries.items() if key not in user_entries_opened}
+        user_entries_opened.update(user_entries_opened1)
+        json_path = write_config(user_entries_opened)
 
     write_label = Label(config_tab, text="Write options to file:", wraplength=500)
     write_label.grid(column=0, row=1)
@@ -638,7 +719,10 @@ def launch_gui():
 
     def run_pipeline():
         if json_path is not None:
+            print('starting preprocessing')
             run_auto_preprocessing(json_path)
+        else:
+            print('could not find a json path -- has a config file been provided or written already?')
 
     run_label = Label(run, text="Run preprocessing:", wraplength=500)
     run_label.grid(column=0, row=1)
