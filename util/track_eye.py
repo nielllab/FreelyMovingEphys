@@ -3,7 +3,7 @@ track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 
-Dec. 02, 2020
+Jan. 14, 2021
 """
 # package imports
 from skimage import measure
@@ -529,7 +529,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
                 # subtract baseline because our points aren't perfectly centered on ellipse
                 filtsize = 31
                 # rfit_conv = rfit - np.convolve(rfit_interp, np.ones(filtsize)/filtsize, mode='same')
-                rfit_conv = rfit - convolve(rfit_filt, np.ones(filtsize)/filtsize, boundary='wrap')
+                rfit_conv = rfit_filt - convolve(rfit_filt, np.ones(filtsize)/filtsize, boundary='wrap')
 
             except ValueError as e: # in case every value in rfit is NaN
                 rfit_conv = np.nan*np.zeros(360)
@@ -647,8 +647,8 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
             # plot template with pupil_update for each iteration of fit
             plt.figure()
             plt.title('pupil_update of rep='+str(rep)+' in iterative fit')
-            plt.plot(template, 'k--', alpha=0.8)
             plt.plot(pupil_update[ind2plot_rfit,:].T, alpha=0.2)
+            plt.plot(template, 'k--', alpha=0.8)
             pdf.savefig()
             plt.close()
 
@@ -678,6 +678,12 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
         plt.figure()
         plt.plot(shift_smooth)
         plt.title('shift smooth')
+        pdf.savefig()
+        plt.close()
+
+        plt.figure()
+        plt.plot(shift_smooth[:3600])
+        plt.title('shift smooth for first 1min of recording')
         pdf.savefig()
         plt.close()
 

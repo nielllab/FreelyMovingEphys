@@ -3,7 +3,7 @@ preprocessing.py
 
 deinterlace videos, analyze with DLC, and extract parameters
 
-Nov. 17, 2020
+Jan. 14, 2021
 """
 # package imports
 import argparse, json, sys, os, subprocess, shutil
@@ -59,8 +59,12 @@ def main(json_config_path):
 
 if __name__ == '__main__':
     
-    root = tk.Tk()
-    root.withdraw()
-    file_path = filedialog.askopenfilename()
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        file_path = filedialog.askopenfilename()
+    except:
+        print('cannot open dialog box')
+        file_path = input('enter path to json config file: ')
     
     main(json_config_path=file_path)
