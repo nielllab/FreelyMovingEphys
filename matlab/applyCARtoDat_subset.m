@@ -1,4 +1,4 @@
-function [allData medianTrace] = applyCARtoDat_subset(filename, nChansTotal, outputDir, doMedian, subChans, isUint16)
+function [allData medianTrace] = applyCARtoDat_subset(nChansTotal, outputDir, doMedian, subChans, isUint16, chanMap)
 % Subtracts median of each channel, then subtracts median of each time
 % point. Also, can select a subset of channels first (so don't include
 % noise in median filter)
@@ -38,6 +38,9 @@ chunkSize = 1000000;
 
 fid = []; fidOut = [];
 
+[f, p] = uigetfile('*.bin','ephys file to read');
+filename = fullfile(p,f);
+
 d = dir(filename);
 nSampsTotal = d.bytes/nChansTotal/2;
 nChunksTotal = ceil(nSampsTotal/chunkSize);
@@ -76,7 +79,7 @@ try
            % keyboard
             %         theseInds = theseInds(end):theseInds(end)+chunkSize-1;
             
-            dat = dat(chanMap,:);
+            dat = dat(chanMap,:); % do the channel remapping
             
             dat = dat(subChans,:);
             
@@ -88,6 +91,7 @@ try
             end
             medianTrace((chunkInd-1)*chunkSize+1:(chunkInd-1)*chunkSize+numel(tm)) = tm;
             
+            % save data
             fwrite(fidOut, dat, 'int16');
             allData(1:length(subChans),(chunkInd-1)*chunkSize+1:(chunkInd-1)*chunkSize+numel(tm)) = dat;
         else
@@ -109,12 +113,12 @@ try
         plot(allData(i,1:3000));
         axis off
     end
-    savefig(['CAR_' filename(1:end-4) '_fig1'])
+    savefig([filename(1:end-4) 'CAR_fig1'])
     
     figure
     bar(std(double(allData),[],2));
     xlabel('chan'); ylabel('stdev')
-    savefig(['CAR_' filename(1:end-4) '_fig2'])
+    savefig([filename(1:end-4) 'CAR_fig2'])
     
 catch me
     
