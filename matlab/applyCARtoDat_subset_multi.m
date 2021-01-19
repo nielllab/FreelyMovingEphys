@@ -12,8 +12,7 @@ function [allData medianTrace] = applyCARtoDat_subset_multi(nChansTotal, doMedia
 % should make chunk size as big as possible so that the medians of the
 % channels differ little from chunk to chunk.
 %
-% doMedian = option to subtract medians (1) or not (0) - latter is if you
-% only want to subset
+% doMedian = option to subtract medians (1) or not (0) - latter is if you only want to subset
 % subChans = subset of channels to includie in output (note - subsetting occurs after channel remapping, so select probe sites to include)
 % isUint16 = raw data is uint16,so convert to int16
 % chanMap = list of data channels to be mapped to each probe site (e.g. chanmap(1) = 42 means that the data recorded in channel 42 is assigned to probe site 1
@@ -38,6 +37,7 @@ end
 if ~exist('isUint16','var')
     isUint16=0;
 end
+
 chunkSize = 1000000;
 done=0;
 nf = 0; %%% number of files
@@ -75,7 +75,7 @@ try
         chunkInd = 1;
         medianTrace = zeros(1, nSampsTotal);
        
-        %%%load data for this file, filter, and save out
+        % load data for this file, filter, and save out
         while 1
             
             fprintf(1, 'chunk %d/%d\n', chunkInd, nChunksTotal);
