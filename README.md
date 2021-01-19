@@ -26,9 +26,7 @@ sudo apt install ffmpeg
 
 ## Preprocessing usage
 ### Ephys preprocessing
-Open `preprocessEphysData.m` in Matlab.
-
-Fill out desired settings, run the script, select the .bin files you want to merge, select the folder to save the merged data.
+Open `preprocessEphysData.m` in Matlab. This script is in `/FreelyMovingEphys/matlab/`. Fill out desired settings, run the script using the function `applyCARtoDat_subset` if you want to read a single binary. Select the binary file when the dialog window opens. If you want to select multiple binary files and merge them, run `preprocessEphysData.m` using the function `applyCARtoDat_subset_multi`. Select the .bin files you want to merge in the dialog window, and select the folder to save the merged data.
 
 Run Kilosort on the merged data.
 
