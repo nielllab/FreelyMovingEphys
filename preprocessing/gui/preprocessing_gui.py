@@ -59,7 +59,7 @@ def launch_gui():
     tab_control.pack(expand=1, fill='both')
 
     ### welcome tab
-    welcome_title = Label(welcome, text='FreelyMovingEphys Preprocessing, GUI last modified Jan. 17, 2021').grid(column=0, row=0)
+    welcome_title = Label(welcome, text='FreelyMovingEphys Preprocessing Pipeline').grid(column=0, row=0)
     welcome_text = Label(welcome, text='Provide information in the tabs of this window to build a .json config file and execute it. If a config file already exists, you can load a .json with the browse button below, and skip to the Run! tab to execute the preprocessing pipeline using those config options. Do not use the browse button below unless the .json already exists. Presently, if you need to modify an existing .json, it is best to either edit it manually by opening the file, or simply overwrite it with the needed parameters.', wraplength=500).grid(column=0, row=1)
 
     json_path_label = Label(welcome, text='Choose an existing .json config file:')
@@ -147,7 +147,7 @@ def launch_gui():
             world_checker_button = Button(calib, text="browse", command=clicked_world_checker_button)
             world_checker_button.grid(column=1, row=3)
 
-            npz_save_dir_label = Label(calib, text='Path to world camera checkerboard video')
+            npz_save_dir_label = Label(calib, text='Parameter .npz save path:')
             npz_save_dir_label.grid(column=0, row=4)
             def clicked_npz_save_dir_button():
                 global npz_save_dir
