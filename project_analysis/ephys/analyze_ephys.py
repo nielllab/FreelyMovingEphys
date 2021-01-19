@@ -34,7 +34,9 @@ from sklearn.cluster import KMeans
 # module imports
 from project_analysis.ephys.ephys_figures import *
 
-def find_files(rec_path, rec_name, free_move, cell):
+def find_files(rec_path, rec_name, free_move, cell, stim_type):
+    print('find ephys files')
+
     # get the files names in the provided path
     eye_file = os.path.join(rec_path, rec_name + '_Reye.nc')
     world_file = os.path.join(rec_path, rec_name + '_world.nc')
@@ -42,10 +44,19 @@ def find_files(rec_path, rec_name, free_move, cell):
     imu_file = os.path.join(rec_path, rec_name + '_imu.nc')
     speed_file = os.path.join(rec_path, rec_name + '_speed.nc')
 
+    if stim_type == 'gratings':
+        stim_type = 'grat'
+    elif stim_type == 'white_noise':
+        pass
+    elif stim_type == 'sparse_noise':
+        pass
+    else:
+        stim_type = None
+
     if free_move is True:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type}
     elif free_move is False:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type}
 
     return dict_out
 
@@ -56,11 +67,13 @@ def run_ephys_analysis(file_dict):
     else:
         free_move = False; has_imu = False; has_mouse = True
 
+    print('opening pdfs')
     # three pdf outputs will be saved
     overview_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_overview_analysis_figures.pdf')))
     detail_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_detailed_analysis_figures.pdf')))
     diagnostic_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_diagnostic_analysis_figures.pdf')))
 
+    print('opening data')
     # load worldcam
     world_data = xr.open_dataset(file_dict['world'])
     world_vid_raw = np.uint8(world_data['WORLD_video'])
@@ -84,6 +97,7 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
+    # load IMU data
     if file_dict['imu'] is not None:
         imu_data = xr.open_dataset(file_dict['imu'])
         accT = imu_data.timestamps
@@ -92,6 +106,7 @@ def run_ephys_analysis(file_dict):
         gy = np.array(acc_chans.sel(channel='gyro_y'))
         gz = np.array(acc_chans.sel(channel='gyro_z'))
 
+    # load optical mouse data
     if file_dict['speed'] is not None:
         speed_data = xr.open_dataset(file_dict['speed'])
         spdVals = speed_data.BALL_data
@@ -157,7 +172,7 @@ def run_ephys_analysis(file_dict):
     # check that deinterlacing worked correctly
     # plot theta and theta switch
     # want theta switch to be jagged, theta to be smooth
-    theta_switch_fig = plot_param_switch_check(eye_params)
+    theta_switch_fig, th_switch = plot_param_switch_check(eye_params)
     diagnostic_pdf.savefig()
     plt.close()
 
@@ -169,6 +184,7 @@ def run_ephys_analysis(file_dict):
     # calculate eye veloctiy
     dEye = np.diff(np.rad2deg(eye_params.sel(ellipse_params='theta')))
 
+    print('checking accelerometer / eye temporal alignment')
     # check accelerometer / eye temporal alignment
     if file_dict['imu'] is not None:
         lag_range = np.arange(-0.2,0.2,0.002)
@@ -194,6 +210,7 @@ def run_ephys_analysis(file_dict):
         diagnostic_pdf.savefig()
         plt.close()
 
+    print('fitting regression to timing drift')
     # fit regression to timing drift
     if file_dict['imu'] is not None:
         model = LinearRegression()
@@ -216,6 +233,7 @@ def run_ephys_analysis(file_dict):
     for i in range(len(ephys_data)):
         ephys_data['spikeT'].iloc[i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
 
+    print('finding contrast of normalized worldcam')
     # normalize world movie and calculate contrast
     cam_gamma = 2
     world_norm = (world_vid/255)**cam_gamma
@@ -243,17 +261,21 @@ def run_ephys_analysis(file_dict):
     worldInterp = interp1d(worldT,world_vid,axis=0)
 
     # make movie and sound
+    print('making video figure')
     this_unit = file_dict['cell']
 
     if file_dict['imu'] is not None:
-        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, accT=accT, gz=gz)
+        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
     elif file_dict['speed'] is not None:
-        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, speedT=speedT, spd=spd)
+        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
 
-    audfile = make_sound(file_dict, ephys_data, this_unit)
+    print('making audio figure')
+    audfile = make_sound(file_dict, ephys_data, units, this_unit)
     
     # merge video and audio
-    merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+this_unit+'_merge.mp4'))
+    merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
+
+    print('merging movie with sound')
     subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', merge_mp4_name]) 
 
     if free_move:
@@ -277,6 +299,7 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
+    print('calculating firing rate')
     # calculate firing rate at new timebase
     ephys_data['rate'] = nan
     ephys_data['rate'] = ephys_data['rate'].astype(object)
@@ -285,6 +308,7 @@ def run_ephys_analysis(file_dict):
     ephys_data['rate']= ephys_data['rate']/dt
     goodcells = ephys_data.loc[ephys_data['group']=='good']
 
+    print('calculating contrast reponse functions')
     # calculate contrast - response functions
     # mean firing rate in timebins correponding to contrast ranges
     resp = np.empty((n_units,12))
@@ -300,6 +324,7 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
+    print('plotting individual contrast response functions')
     # plot individual contrast response functions in subplots
     fig = plt.figure(figsize = (6,np.ceil(n_units/2)))
     for i, ind in enumerate(goodcells.index):
@@ -316,6 +341,7 @@ def run_ephys_analysis(file_dict):
     img_norm[img_norm<-2] = -2
     movInterp = interp1d(worldT,img_norm,axis=0)
 
+    print('getting spike-triggered average for lag=0.125')
     # calculate spike-triggered average
     spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
 
@@ -331,20 +357,21 @@ def run_ephys_analysis(file_dict):
         for s in sp:
             if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
                 nsp = nsp+1
-                im = movInterp((s-lag)*spike_corr);
+                im = movInterp((s-lag)*spike_corr)
                 if c==1:
                     ensemble[nsp-1,:,:] = im
-                sta = sta+im;
+                sta = sta+im
         plt.subplot(np.ceil(n_units/4),4,c+1)
         sta = sta/nsp
         #sta[abs(sta)<0.1]=0
         plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
-        staAll[c,:,:] = sta;
-    plt.title('soike triggered average (lag=0.125)')
+        staAll[c,:,:] = sta
+    plt.title('spike triggered average (lag=0.125)')
     plt.tight_layout()
     detail_pdf.savefig()
     plt.close()
 
+    print('getting spike-triggered average with range in lags')
     # calculate spike-triggered average
     spike_corr = 1 + 0.125/1200
     sta = 0
@@ -368,6 +395,7 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
+    print('getting spike-triggered variance')
     # calculate spike-triggered variance
     sta = 0
     lag = 0.125
@@ -384,6 +412,7 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
+    print('getting rasters around saccades')
     # calculate saccade-locked psth
     # spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
     dEye= np.diff(th_switch)
@@ -455,6 +484,7 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
+    print('plotting rate vs pupil radius')
     # plot rate vs pupil
     n_units = len(goodcells)
     R_range = np.arange(-4,4,0.5)
@@ -478,7 +508,7 @@ def run_ephys_analysis(file_dict):
         plt.xlim([-2, 2])
         plt.xlabel('normalized pupil R'); plt. ylabel('sp/sec'); plt.title(i)
     plt.tight_layout()
-    details_pdf.savefig()
+    detail_pdf.savefig()
     plt.close()
 
     # normalize eye position
@@ -489,6 +519,7 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
+    print('plotting rate vs theta')
     # plot rate vs theta
     n_units = len(goodcells)
     th_range = np.arange(-2,3,0.5)
@@ -515,6 +546,7 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
+    print('generating summary plot')
     # generate summary plot
     samprate = 30000  # ephys sample rate
     plt.figure(figsize = (12,np.ceil(n_units)*2))
@@ -532,7 +564,7 @@ def run_ephys_analysis(file_dict):
                                     
         #plot STA or tuning curve
         plt.subplot(n_units,4,i*4 + 3)
-        if stim_type == 'grat':
+        if file_dict['stim_type'] == 'grat':
             plt.plot(np.arange(8)*45, ori_tuning[i,:,0],label = 'low sf'); plt.plot(np.arange(8)*45,ori_tuning[i,:,1],label = 'mid sf');plt.plot(np.arange(8)*45,ori_tuning[i,:,2],label = 'hi sf');
             plt.plot([0,315],[drift_spont[i],drift_spont[i]],'r:', label = 'spont')
         # plt.legend()
@@ -543,8 +575,9 @@ def run_ephys_analysis(file_dict):
             if staRange<0.25:
                 staRange=0.25
             plt.imshow(staAll[i,:,:],vmin = -staRange, vmax= staRange, cmap = 'jet')
-                                  
-    #plot eye movements
+
+    print('plotting eye movements')                        
+    # plot eye movements
     plt.subplot(n_units,4,i*4 + 4)
     plt.plot(trange,upsacc_avg[i,:])
     plt.plot(trange,downsacc_avg[i,:],'r')
@@ -554,9 +587,6 @@ def run_ephys_analysis(file_dict):
     plt.tight_layout()
     overview_pdf.savefig()
     plt.close()
-
-
-
 
     hist_dt = 1
     hist_t = np.arange(0, np.max(worldT),hist_dt)

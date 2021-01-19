@@ -65,12 +65,21 @@ def launch_ephys_gui():
     fm1 = Checkbutton(entry, variable=fm)
     fm1.grid(column=1, row=3)
 
+    # checkbox for freemoving or headfixed
+    hf_stim_options = ['None','gratings','sparse_noise','white_noise']
+    stim_type_label = Label(entry, text="Specific headfixed stimulus?")
+    stim_type_label.grid(column=0, row=4)
+    stim_type = StringVar()
+    stim_type.set(hf_stim_options[0])
+    stim_type1 = OptionMenu(entry, stim_type, *hf_stim_options)
+    stim_type1.grid(column=1, row=4)
+
     ### run tab
     run_label = Label(run, text="Do not close this window or the terminal while the analysis runs.", wraplength=500)
     run_label.grid(column=0, row=0)
 
     def run_pipeline():
-        file_dict = find_files(data_path, recording_name.get(), fm.get(), this_unit.get())
+        file_dict = find_files(data_path, recording_name.get(), fm.get(), int(this_unit.get()), stim_type.get())
         run_ephys_analysis(file_dict)
 
     run_label = Label(run, text="Run ephys analysis:", wraplength=500)

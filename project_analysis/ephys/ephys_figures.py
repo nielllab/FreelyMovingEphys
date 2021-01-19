@@ -68,7 +68,7 @@ def plot_param_switch_check(eye_params):
     plt.plot(th[(35*60):(40*60)]); plt.title('theta')
     plt.subplot(1,2,2)
     plt.plot(th_switch[(35*60):(40*60)]); plt.title('theta switch')
-    return fig
+    return fig, th_switch
 
 # plot the four main paramters of the eye tracking
 def plot_eye_params(eye_params, eyeT):
@@ -78,7 +78,7 @@ def plot_eye_params(eye_params, eyeT):
         axs[i].set_ylabel(val.values)
     return fig
 
-def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, accT=None, gz=None, speedT=None, spd=None):
+def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
     fig = plt.figure(figsize = (8,12))
     gs = fig.add_gridspec(9,4)
@@ -133,12 +133,12 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
     axdTheta.set_ylim(-900,900); axdTheta.set_ylabel('eye vel - deg/sec')
 
     # plot gyro
-    if file_dict['imu']:
+    if file_dict['imu'] is not None:
         axGyro.plot(accT,gz)
         axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(0,5)
         axGyro.set_ylabel('gyro V')
 
-    if file_dict['speed']:
+    if file_dict['speed'] is not None:
         axGyro.plot(speedT,spd)
         axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(0,20)
         axGyro.set_ylabel('speed cm/sec')   
@@ -149,11 +149,13 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5)
     axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5)
 
+    n_units = len(goodcells)
+
     axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , n_units); axR.set_xlabel('secs'); axR.set_ylabel('unit #')
     axR.spines['right'].set_visible(False)
     axR.spines['top'].set_visible(False)
 
-    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+this_unit+'.mp4'))
+    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'.mp4'))
     # now animate
     writer = FFMpegWriter(fps=30)
     with writer.saving(fig, vidfile, 100):
@@ -174,7 +176,7 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
 
     return vidfile
 
-def make_sound(file_dict, ephys_data, this_unit):
+def make_sound(file_dict, ephys_data, units, this_unit):
     tr = [0, 30]
     # generate wave file
     sp = np.array(ephys_data.at[units[this_unit],'spikeT'])-tr[0]
@@ -190,7 +192,7 @@ def make_sound(file_dict, ephys_data, this_unit):
         x[np.int64(spt*datarate)+31 : np.int64(spt*datarate +60)] =- 1
     
     # Write the samples to a file
-    audfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+this_unit+'.wav'))
+    audfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'.wav'))
     wavio.write(audfile, x, datarate, sampwidth=1)
 
     return audfile
