@@ -151,10 +151,11 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
-    # plot optical mouse speeds
-    optical_mouse_sp_fig = plot_optmouse_spd(spd_tstamps, spd)
-    detail_pdf.savefig()
-    plt.close()
+    if file_dict['speed'] is not None:
+        # plot optical mouse speeds
+        optical_mouse_sp_fig = plot_optmouse_spd(spd_tstamps, spd)
+        detail_pdf.savefig()
+        plt.close()
 
     # adjust eye/world/top times relative to ephys
     ephysT0 = ephys_data.iloc[0,12]
