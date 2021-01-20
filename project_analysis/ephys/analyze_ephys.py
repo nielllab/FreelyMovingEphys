@@ -285,9 +285,12 @@ def run_ephys_analysis(file_dict):
         plt.xlim(30,40); plt.ylim(-12,12); plt.legend(); plt.xlabel('secs')
         diagnostic_pdf.savefig()
         plt.close()
+
+    th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
+    phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
     
-    print('getting worldcam correction')
     if free_move:
+        print('getting worldcam correction')
         number_of_iterations = 5000
         termination_eps = 1e-4
         criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
@@ -366,7 +369,7 @@ def run_ephys_analysis(file_dict):
     tr = [15,20]
     fig = plt.figure(figsize = (8,16))
     gs = fig.add_gridspec(10,1)
-    #axEye = fig.add_subplot(gs[0,0])
+    axEye = fig.add_subplot(gs[0,0])
     axWorld = fig.add_subplot(gs[0:3,:])
     axWorldFix = fig.add_subplot(gs[3:6,:])
 
@@ -441,8 +444,8 @@ def run_ephys_analysis(file_dict):
                 
         world_fix[f,:,:]= imshift(world_vid[f,:,:],(-(thInt*ymap[0] + phiInt*ymap[1]),-(thInt*xmap[0] + phiInt*xmap[1])))
 
-    number_of_iterations = 5000;
-    termination_eps = 1e-4;
+    number_of_iterations = 5000
+    termination_eps = 1e-4
     criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
     warp_mode = cv2.MOTION_TRANSLATION
     cc_fix = np.zeros(max_frames); xshift_fix = np.zeros(max_frames); yshift_fix = np.zeros(max_frames);
@@ -607,7 +610,38 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
+
     print('getting grating flow')
+    nf = np.size(img_norm,0)-1
+    u_mn = np.zeros((nf,1)); v_mn = np.zeros((nf,1))
+    sx_mn = np.zeros((nf,1)) ; sy_mn = np.zeros((nf,1))
+    flow_norm = np.zeros((nf,np.size(img_norm,1),np.size(img_norm,2),2 ))
+    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_grating_flow'))
+
+    fig, ax = plt.subplots(1,1,figsize = (16,8))
+    # now animate
+    #writer = FFMpegWriter(fps=30)
+    #with writer.saving(fig, vidfile, 100):
+    for f in tqdm(range(nf)):
+        frm = np.uint8(32*(img_norm[f,:,:]+4))
+        frm2 = np.uint8(32*(img_norm[f+1,:,:]+4))
+        flow_norm[f,:,:,:] = cv2.calcOpticalFlowFarneback(frm,frm2, None, 0.5, 3, 30, 3, 7, 1.5, 0)
+        #ax.cla()
+        #ax.imshow(frm,vmin = 0, vmax = 255)
+        u = flow_norm[f,:,:,0]; v = -flow_norm[f,:,:,1]  # negative to fix sign for y axis in images
+        sx = cv2.Sobel(frm,cv2.CV_64F,1,0,ksize=7)
+        sy = -cv2.Sobel(frm,cv2.CV_64F,0,1,ksize=7)# negative to fix sign for y axis in images
+        sx[std_im<0.05]=0; sy[std_im<0.05]=0; # get rid of values outside of monitor
+        sy[sx<0] = -sy[sx<0]  #make vectors point in positive x direction (so opposite sides of grating don't cancel)
+        sx[sx<0] = -sx[sx<0]
+        #ax.quiver(x[::nx,::nx],y[::nx,::nx],sx[::nx,::nx],sy[::nx,::nx], scale = 100000 )
+        u_mn[f]= np.mean(u); v_mn[f]= np.mean(v); sx_mn[f] = np.mean(sx); sy_mn[f] = np.mean(sy)
+        #plt.title(str(np.round(np.arctan2(sy_mn[f],sx_mn[f])*180/np.pi))
+        #writer.grab_frame()
+
+    stimOn = contrast>0.5
+    stimOn = signal.medfilt(stimOn,11)
+
     stim_start = np.array(worldT[np.where(np.diff(stimOn)>0)])
     stim_end = np.array(worldT[np.where(np.diff(stimOn)<0)])
     stim_end = stim_end[stim_end>stim_start[0]]
@@ -667,7 +701,7 @@ def run_ephys_analysis(file_dict):
         plt.scatter(grating_ori,grating_rate[c,:],c= sf_cat)
         plt.plot(3*np.ones(len(spont_rate[c,:])),spont_rate[c,:],'r.')
         plt.subplot(n_units,2,2*c+2)
-        plt.plot(ori_tuning[c,:,0],label = 'low sf'); plt.plot(ori_tuning[c,:,1],label = 'mid sf');plt.plot(ori_tuning[c,:,2],label = 'hi sf');
+        plt.plot(ori_tuning[c,:,0],label = 'low sf'); plt.plot(ori_tuning[c,:,1],label = 'mid sf');plt.plot(ori_tuning[c,:,2],label = 'hi sf')
         plt.plot([0,7],[drift_spont[c],drift_spont[c]],'r:', label = 'spont')
         plt.legend()
         plt.ylim(0,np.nanmax(ori_tuning[c,:,:]*1.2))
@@ -756,7 +790,7 @@ def run_ephys_analysis(file_dict):
             sd = np.abs(sp-np.array(s))<10 
             sacc_sp = sp[sd] 
             plt.vlines(sacc_sp-np.array(s),n-0.25,n+0.25) 
-        plt.xlim(-1,1); #plt.ylim(0,50)
+        plt.xlim(-1,1) #; plt.ylim(0,50)
     detail_pdf.savefig()
     plt.close()
 
@@ -866,7 +900,7 @@ def run_ephys_analysis(file_dict):
         #plot STA or tuning curve
         plt.subplot(n_units,4,i*4 + 3)
         if file_dict['stim_type'] == 'grat':
-            plt.plot(np.arange(8)*45, ori_tuning[i,:,0],label = 'low sf'); plt.plot(np.arange(8)*45,ori_tuning[i,:,1],label = 'mid sf');plt.plot(np.arange(8)*45,ori_tuning[i,:,2],label = 'hi sf');
+            plt.plot(np.arange(8)*45, ori_tuning[i,:,0],label = 'low sf'); plt.plot(np.arange(8)*45,ori_tuning[i,:,1],label = 'mid sf');plt.plot(np.arange(8)*45,ori_tuning[i,:,2],label = 'hi sf')
             plt.plot([0,315],[drift_spont[i],drift_spont[i]],'r:', label = 'spont')
         # plt.legend()
             plt.ylim(0,np.nanmax(ori_tuning[i,:,:]*1.2)); plt.xlabel('orientation (deg)')
