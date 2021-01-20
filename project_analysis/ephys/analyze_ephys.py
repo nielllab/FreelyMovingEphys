@@ -919,9 +919,9 @@ def run_ephys_analysis(file_dict):
         plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
         plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
         plt.ylabel('sp/sec')
-        plt.tight_layout()
-        overview_pdf.savefig()
-        plt.close()
+    plt.tight_layout()
+    overview_pdf.savefig()
+    plt.close()
 
     hist_dt = 1
     hist_t = np.arange(0, np.max(worldT),hist_dt)
