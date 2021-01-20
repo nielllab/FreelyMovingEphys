@@ -76,6 +76,7 @@ def plot_eye_params(eye_params, eyeT):
     for i,val in enumerate(eye_params.ellipse_params[0:4]):
         axs[i].plot(eyeT,eye_params.sel(ellipse_params = val))
         axs[i].set_ylabel(val.values)
+    plt.tight_layout()
     return fig
 
 def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=None, gz=None, speedT=None, spd=None):

@@ -4,7 +4,7 @@ analyze_ephys.py
 make ephys figures
 called by analysis jupyter notebook
 
-Dec. 12, 2020
+Jan. 20, 2021
 """
 # package imports
 from netCDF4 import Dataset
@@ -151,10 +151,11 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
-    # plot optical mouse speeds
-    optical_mouse_sp_fig = plot_optmouse_spd(spd_tstamps, spd)
-    detail_pdf.savefig()
-    plt.close()
+    if file_dict['speed'] is not None:
+        # plot optical mouse speeds
+        optical_mouse_sp_fig = plot_optmouse_spd(spd_tstamps, spd)
+        detail_pdf.savefig()
+        plt.close()
 
     # adjust eye/world/top times relative to ephys
     ephysT0 = ephys_data.iloc[0,12]
@@ -910,15 +911,14 @@ def run_ephys_analysis(file_dict):
             if staRange<0.25:
                 staRange=0.25
             plt.imshow(staAll[i,:,:],vmin = -staRange, vmax= staRange, cmap = 'jet')
-
-    print('plotting eye movements')                        
-    # plot eye movements
-    plt.subplot(n_units,4,i*4 + 4)
-    plt.plot(trange,upsacc_avg[i,:])
-    plt.plot(trange,downsacc_avg[i,:],'r')
-    plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
-    plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
-    plt.ylabel('sp/sec')
+                      
+        # plot eye movements
+        plt.subplot(n_units,4,i*4 + 4)
+        plt.plot(trange,upsacc_avg[i,:])
+        plt.plot(trange,downsacc_avg[i,:],'r')
+        plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
+        plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
+        plt.ylabel('sp/sec')
     plt.tight_layout()
     overview_pdf.savefig()
     plt.close()
@@ -965,10 +965,10 @@ def run_ephys_analysis(file_dict):
         stim = split_base_name[4:]
     
     unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
-
+    ephys_params_names = ['contrast_range','orientation_tuning','contrast_response','STA','waveform','trange','upsacc_avg','downsacc_avg']
     for unit_num in range(n_units):
         unit = unit_num+1
-        unit_xr = xr.DataArray([crange, ori_tuning[unit_num], resp[unit_num],staAll[unit_num],wv], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
+        unit_xr = xr.DataArray([crange,ori_tuning[unit_num],resp[unit_num],staAll[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
         unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[0]; unit_xr.attrs['unit'] = unit
         if unit_num == 0:
             all_units_xr = unit_xr
