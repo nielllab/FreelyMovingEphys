@@ -953,3 +953,28 @@ def run_ephys_analysis(file_dict):
     plt.close()
 
     overview_pdf.close(); detail_pdf.close(); diagnostic_pdf.close()
+
+    print('organizing data and saving as xarray')
+
+    split_base_name = file_dict['name'].split('_')
+
+    date = split_base_name[0]; mouse = split_base_name[1]; exp = split_base_name[2]; rig = split_base_name[3]
+    try:
+        stim = '_'.join(split_base_name[4:])
+    except:
+        stim = split_base_name[4:]
+    
+    unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
+
+    for unit_num in range(n_units):
+        unit = unit_num+1
+        unit_xr = xr.DataArray([crange, ori_tuning[unit_num], resp[unit_num],staAll[unit_num],wv], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
+        unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[0]; unit_xr.attrs['unit'] = unit
+        if unit_num == 0:
+            all_units_xr = unit_xr
+        else:
+            all_units_xr = xr.merge([all_units_xr, unit_xr])
+
+    all_units_xr.to_netcdf(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.nc')))
+
+    print('analysis complete; pdfs closed and xarray saved to file')
