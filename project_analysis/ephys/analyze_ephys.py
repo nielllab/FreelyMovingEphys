@@ -303,6 +303,23 @@ def run_ephys_analysis(file_dict):
             (cc[i], warp_matrix) = cv2.findTransformECC (world_vid[i,:,:],world_vid[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
             xshift[i] = warp_matrix[0,2]; yshift[i] = warp_matrix[1,2]
 
+        th_interp = interp1d(eyeT,th,bounds_error = False)
+        phi_interp = interp1d(eyeT, phi, bounds_error = False)
+        dth = np.diff(th_interp(worldT))
+        dphi = np.diff(phi_interp(worldT))
+        plt.figure(figsize = (12,8))
+        plt.subplot(2,2,1)
+        plt.plot(dth[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dtheta'); plt.ylabel('xshift')
+        plt.subplot(2,2,2)
+        plt.plot(dth[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dtheta'); plt.ylabel('yshift')
+        plt.subplot(2,2,3)
+        plt.plot(dphi[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dphi'); plt.ylabel('xshift')
+        plt.subplot(2,2,4)
+        plt.plot(dphi[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dphi'); plt.ylabel('yshift')
+        plt.tight_layout()
+        diagnostic_pdf.savefig()
+        plt.close()
+
         plt.figure()
         plt.subplot(3,1,1)
         plt.plot(worldT[0:max_frames],cc); plt.ylabel('cc')
@@ -323,23 +340,6 @@ def run_ephys_analysis(file_dict):
         plt.xlim(0,2); plt.ylim(-0.5,0.5)
         plt.xlabel('secs'); plt.ylabel('deg')
         plt.legend()
-        plt.tight_layout()
-        diagnostic_pdf.savefig()
-        plt.close()
-
-        th_interp = interp1d(eyeT,th,bounds_error = False)
-        phi_interp = interp1d(eyeT, phi, bounds_error = False)
-        dth = np.diff(th_interp(worldT))
-        dphi = np.diff(phi_interp(worldT))
-        plt.figure(figsize = (12,8))
-        plt.subplot(2,2,1)
-        plt.plot(dth[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dtheta'); plt.ylabel('xshift')
-        plt.subplot(2,2,2)
-        plt.plot(dth[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dtheta'); plt.ylabel('yshift')
-        plt.subplot(2,2,3)
-        plt.plot(dphi[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dphi'); plt.ylabel('xshift')
-        plt.subplot(2,2,4)
-        plt.plot(dphi[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dphi'); plt.ylabel('yshift')
         plt.tight_layout()
         diagnostic_pdf.savefig()
         plt.close()
@@ -611,101 +611,100 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
+    if file_dict['stim_type'] == 'grat':
+        print('getting grating flow')
+        nf = np.size(img_norm,0)-1
+        u_mn = np.zeros((nf,1)); v_mn = np.zeros((nf,1))
+        sx_mn = np.zeros((nf,1)) ; sy_mn = np.zeros((nf,1))
+        flow_norm = np.zeros((nf,np.size(img_norm,1),np.size(img_norm,2),2 ))
+        vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_grating_flow'))
 
-    print('getting grating flow')
-    nf = np.size(img_norm,0)-1
-    u_mn = np.zeros((nf,1)); v_mn = np.zeros((nf,1))
-    sx_mn = np.zeros((nf,1)) ; sy_mn = np.zeros((nf,1))
-    flow_norm = np.zeros((nf,np.size(img_norm,1),np.size(img_norm,2),2 ))
-    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_grating_flow'))
+        fig, ax = plt.subplots(1,1,figsize = (16,8))
+        # now animate
+        #writer = FFMpegWriter(fps=30)
+        #with writer.saving(fig, vidfile, 100):
+        for f in tqdm(range(nf)):
+            frm = np.uint8(32*(img_norm[f,:,:]+4))
+            frm2 = np.uint8(32*(img_norm[f+1,:,:]+4))
+            flow_norm[f,:,:,:] = cv2.calcOpticalFlowFarneback(frm,frm2, None, 0.5, 3, 30, 3, 7, 1.5, 0)
+            #ax.cla()
+            #ax.imshow(frm,vmin = 0, vmax = 255)
+            u = flow_norm[f,:,:,0]; v = -flow_norm[f,:,:,1]  # negative to fix sign for y axis in images
+            sx = cv2.Sobel(frm,cv2.CV_64F,1,0,ksize=7)
+            sy = -cv2.Sobel(frm,cv2.CV_64F,0,1,ksize=7)# negative to fix sign for y axis in images
+            sx[std_im<0.05]=0; sy[std_im<0.05]=0; # get rid of values outside of monitor
+            sy[sx<0] = -sy[sx<0]  #make vectors point in positive x direction (so opposite sides of grating don't cancel)
+            sx[sx<0] = -sx[sx<0]
+            #ax.quiver(x[::nx,::nx],y[::nx,::nx],sx[::nx,::nx],sy[::nx,::nx], scale = 100000 )
+            u_mn[f]= np.mean(u); v_mn[f]= np.mean(v); sx_mn[f] = np.mean(sx); sy_mn[f] = np.mean(sy)
+            #plt.title(str(np.round(np.arctan2(sy_mn[f],sx_mn[f])*180/np.pi))
+            #writer.grab_frame()
 
-    fig, ax = plt.subplots(1,1,figsize = (16,8))
-    # now animate
-    #writer = FFMpegWriter(fps=30)
-    #with writer.saving(fig, vidfile, 100):
-    for f in tqdm(range(nf)):
-        frm = np.uint8(32*(img_norm[f,:,:]+4))
-        frm2 = np.uint8(32*(img_norm[f+1,:,:]+4))
-        flow_norm[f,:,:,:] = cv2.calcOpticalFlowFarneback(frm,frm2, None, 0.5, 3, 30, 3, 7, 1.5, 0)
-        #ax.cla()
-        #ax.imshow(frm,vmin = 0, vmax = 255)
-        u = flow_norm[f,:,:,0]; v = -flow_norm[f,:,:,1]  # negative to fix sign for y axis in images
-        sx = cv2.Sobel(frm,cv2.CV_64F,1,0,ksize=7)
-        sy = -cv2.Sobel(frm,cv2.CV_64F,0,1,ksize=7)# negative to fix sign for y axis in images
-        sx[std_im<0.05]=0; sy[std_im<0.05]=0; # get rid of values outside of monitor
-        sy[sx<0] = -sy[sx<0]  #make vectors point in positive x direction (so opposite sides of grating don't cancel)
-        sx[sx<0] = -sx[sx<0]
-        #ax.quiver(x[::nx,::nx],y[::nx,::nx],sx[::nx,::nx],sy[::nx,::nx], scale = 100000 )
-        u_mn[f]= np.mean(u); v_mn[f]= np.mean(v); sx_mn[f] = np.mean(sx); sy_mn[f] = np.mean(sy)
-        #plt.title(str(np.round(np.arctan2(sy_mn[f],sx_mn[f])*180/np.pi))
-        #writer.grab_frame()
+        stimOn = contrast>0.5
+        stimOn = signal.medfilt(stimOn,11)
 
-    stimOn = contrast>0.5
-    stimOn = signal.medfilt(stimOn,11)
-
-    stim_start = np.array(worldT[np.where(np.diff(stimOn)>0)])
-    stim_end = np.array(worldT[np.where(np.diff(stimOn)<0)])
-    stim_end = stim_end[stim_end>stim_start[0]]
-    stim_start = stim_start[stim_start<stim_end[-1]]
-    grating_th = np.zeros(len(stim_start))
-    grating_mag = np.zeros(len(stim_start))
-    grating_dir = np.zeros(len(stim_start))
-    for i in range(len(stim_start)):
-        stim_u = np.median(u_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
-        stim_v = np.median(v_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
-        stim_sx = np.median(sx_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
-        stim_sy = np.median(sy_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
-        grating_th[i] = np.arctan2(stim_sy,stim_sx)
-        grating_mag[i] = np.sqrt(stim_sx**2 + stim_sy**2)
-        grating_dir[i] = np.sign(stim_u*stim_sx + stim_v*stim_sy) # dot product of gratient and flow gives direction
-    #grating_th = np.round(grating_th *10)/10
-
-    grating_ori = grating_th.copy()
-    grating_ori[grating_dir<0] = grating_ori[grating_dir<0] + np.pi
-    grating_ori = grating_ori - np.min(grating_ori)
-    np.unique(grating_ori)
-    plt.figure(figsize = (8,8))
-
-    ori_cat = np.floor((grating_ori+np.pi/8)/(np.pi/4))
-
-
-    km = KMeans(n_clusters=3).fit(np.reshape(grating_mag,(-1,1)))
-    sf_cat = km.labels_
-    order = np.argsort(np.reshape(km.cluster_centers_, 3))
-    sf_catnew = sf_cat.copy()
-    for i in range(3):
-        sf_catnew[sf_cat == order[i]]=i
-    sf_cat = sf_catnew.copy()
-    plt.scatter(grating_mag,grating_ori,c=ori_cat)
-    detail_pdf.savefig()
-    plt.plot()
-
-    print('plotting grading orientation and tuning curves')
-    edge_win = 0.025
-    grating_rate = np.zeros((len(goodcells),len(stim_start)))
-    spont_rate = np.zeros((len(goodcells),len(stim_start)))
-    ori_tuning = np.zeros((len(goodcells),8,3))
-    drift_spont = np.zeros(len(goodcells))
-    plt.figure(figsize = (12,n_units*2))
-
-    for c, ind in enumerate(goodcells.index):
-        sp = goodcells.at[ind,'spikeT'].copy()
+        stim_start = np.array(worldT[np.where(np.diff(stimOn)>0)])
+        stim_end = np.array(worldT[np.where(np.diff(stimOn)<0)])
+        stim_end = stim_end[stim_end>stim_start[0]]
+        stim_start = stim_start[stim_start<stim_end[-1]]
+        grating_th = np.zeros(len(stim_start))
+        grating_mag = np.zeros(len(stim_start))
+        grating_dir = np.zeros(len(stim_start))
         for i in range(len(stim_start)):
-            grating_rate[c,i] = np.sum((sp> stim_start[i]+edge_win) & (sp<stim_end[i])) / (stim_end[i] - stim_start[i]- edge_win)
-        for i in range(len(stim_start)-1):
-            spont_rate[c,i] = np.sum((sp> stim_end[i]+edge_win) & (sp<stim_start[i+1])) / (stim_start[i+1] - stim_end[i]- edge_win)  
-        for ori in range(8):
-            for sf in range(3):
-                ori_tuning[c,ori,sf] = np.mean(grating_rate[c,(ori_cat==ori) & (sf_cat ==sf)])
-        drift_spont[c] = np.mean(spont_rate[c,:])
-        plt.subplot(n_units,2,2*c+1)
-        plt.scatter(grating_ori,grating_rate[c,:],c= sf_cat)
-        plt.plot(3*np.ones(len(spont_rate[c,:])),spont_rate[c,:],'r.')
-        plt.subplot(n_units,2,2*c+2)
-        plt.plot(ori_tuning[c,:,0],label = 'low sf'); plt.plot(ori_tuning[c,:,1],label = 'mid sf');plt.plot(ori_tuning[c,:,2],label = 'hi sf')
-        plt.plot([0,7],[drift_spont[c],drift_spont[c]],'r:', label = 'spont')
-        plt.legend()
-        plt.ylim(0,np.nanmax(ori_tuning[c,:,:]*1.2))
+            stim_u = np.median(u_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
+            stim_v = np.median(v_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
+            stim_sx = np.median(sx_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
+            stim_sy = np.median(sy_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
+            grating_th[i] = np.arctan2(stim_sy,stim_sx)
+            grating_mag[i] = np.sqrt(stim_sx**2 + stim_sy**2)
+            grating_dir[i] = np.sign(stim_u*stim_sx + stim_v*stim_sy) # dot product of gratient and flow gives direction
+        #grating_th = np.round(grating_th *10)/10
+
+        grating_ori = grating_th.copy()
+        grating_ori[grating_dir<0] = grating_ori[grating_dir<0] + np.pi
+        grating_ori = grating_ori - np.min(grating_ori)
+        np.unique(grating_ori)
+        plt.figure(figsize = (8,8))
+
+        ori_cat = np.floor((grating_ori+np.pi/8)/(np.pi/4))
+
+        km = KMeans(n_clusters=3).fit(np.reshape(grating_mag,(-1,1)))
+        sf_cat = km.labels_
+        order = np.argsort(np.reshape(km.cluster_centers_, 3))
+        sf_catnew = sf_cat.copy()
+        for i in range(3):
+            sf_catnew[sf_cat == order[i]]=i
+        sf_cat = sf_catnew.copy()
+        plt.scatter(grating_mag,grating_ori,c=ori_cat)
+        detail_pdf.savefig()
+        plt.plot()
+
+        print('plotting grading orientation and tuning curves')
+        edge_win = 0.025
+        grating_rate = np.zeros((len(goodcells),len(stim_start)))
+        spont_rate = np.zeros((len(goodcells),len(stim_start)))
+        ori_tuning = np.zeros((len(goodcells),8,3))
+        drift_spont = np.zeros(len(goodcells))
+        plt.figure(figsize = (12,n_units*2))
+
+        for c, ind in enumerate(goodcells.index):
+            sp = goodcells.at[ind,'spikeT'].copy()
+            for i in range(len(stim_start)):
+                grating_rate[c,i] = np.sum((sp> stim_start[i]+edge_win) & (sp<stim_end[i])) / (stim_end[i] - stim_start[i]- edge_win)
+            for i in range(len(stim_start)-1):
+                spont_rate[c,i] = np.sum((sp> stim_end[i]+edge_win) & (sp<stim_start[i+1])) / (stim_start[i+1] - stim_end[i]- edge_win)  
+            for ori in range(8):
+                for sf in range(3):
+                    ori_tuning[c,ori,sf] = np.mean(grating_rate[c,(ori_cat==ori) & (sf_cat ==sf)])
+            drift_spont[c] = np.mean(spont_rate[c,:])
+            plt.subplot(n_units,2,2*c+1)
+            plt.scatter(grating_ori,grating_rate[c,:],c= sf_cat)
+            plt.plot(3*np.ones(len(spont_rate[c,:])),spont_rate[c,:],'r.')
+            plt.subplot(n_units,2,2*c+2)
+            plt.plot(ori_tuning[c,:,0],label = 'low sf'); plt.plot(ori_tuning[c,:,1],label = 'mid sf');plt.plot(ori_tuning[c,:,2],label = 'hi sf')
+            plt.plot([0,7],[drift_spont[c],drift_spont[c]],'r:', label = 'spont')
+            plt.legend()
+            plt.ylim(0,np.nanmax(ori_tuning[c,:,:]*1.2))
 
     print('getting spike-triggered average with range in lags')
     # calculate spike-triggered average
@@ -965,15 +964,26 @@ def run_ephys_analysis(file_dict):
         stim = split_base_name[4:]
     
     unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
-    ephys_params_names = ['contrast_range','orientation_tuning','contrast_response','STA','waveform','trange','upsacc_avg','downsacc_avg']
-    for unit_num in range(n_units):
-        unit = unit_num+1
-        unit_xr = xr.DataArray([crange,ori_tuning[unit_num],resp[unit_num],staAll[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
-        unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[0]; unit_xr.attrs['unit'] = unit
-        if unit_num == 0:
-            all_units_xr = unit_xr
-        else:
-            all_units_xr = xr.merge([all_units_xr, unit_xr])
+    if file_dict['stim_type'] == 'grat':
+        ephys_params_names = ['contrast_range','orientation_tuning','drift_spont','contrast_response','waveform','trange','upsacc_avg','downsacc_avg']
+        for unit_num in range(n_units):
+            unit = unit_num+1
+            unit_xr = xr.DataArray([crange,ori_tuning[unit_num],drift_spont[unit_num],resp[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
+            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[0]; unit_xr.attrs['unit'] = unit
+            if unit_num == 0:
+                all_units_xr = unit_xr
+            else:
+                all_units_xr = xr.merge([all_units_xr, unit_xr])
+    elif file_dict['stim_type'] != 'grat':
+        ephys_params_names = ['contrast_range','STA','contrast_response','waveform','trange','upsacc_avg','downsacc_avg']
+        for unit_num in range(n_units):
+            unit = unit_num+1
+            unit_xr = xr.DataArray([crange,staAll[unit_num],resp[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
+            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[0]; unit_xr.attrs['unit'] = unit
+            if unit_num == 0:
+                all_units_xr = unit_xr
+            else:
+                all_units_xr = xr.merge([all_units_xr, unit_xr])
 
     all_units_xr.to_netcdf(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.nc')))
 
