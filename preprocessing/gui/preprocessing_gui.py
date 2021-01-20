@@ -36,6 +36,60 @@ def launch_gui():
 
     tab_control = ttk.Notebook(window)
 
+    global data_path
+    global run_deinter
+    global deinter_eye
+    global deinter_world
+    global checker
+    global world_checker
+    global top_checker
+    global npz_save_dir
+    global top_npz_name
+    global world_npz_name
+    global undistort
+    global top_npz_read_dir
+    global world_npz_read_dir
+    global undistort_CS
+    global dlc
+    global c1_yaml_path
+    global c2_yaml_path
+    global c3_yaml_path
+    global c4_yaml_path
+    global c5_yaml_path
+    global c6_yaml_path
+    global params
+    global lik_thresh
+    global tear
+    global pxl_thresh
+    global ell_thresh
+    global eye_dist_thresh_cm
+    global eyecam_pxl_per_cm
+    global range_radius
+    global num_ellipse_pts_needed
+    global cricket
+    global hf_ball_x
+    global hf_ball_y
+    global optical_mouse_pix2cm
+    global optical_mouse_sample_rate_ms
+    global ephys_sample_rate
+    global imu_sample_rate
+    global imu_downsample
+    global run_pupil_rotation
+    global run_top_angles
+    global dwnsmpl
+    global save_figs
+    global save_nc_vids
+    global num_save_frames
+    global save_avi_vids
+    global ledW
+    global ledE
+    global LED_dir_name
+    global run_addtl_params
+    global run_params
+    global crop_vids
+    global multiTOP
+    global strict_lik_thresh
+
     welcome = ttk.Frame(tab_control)
     data_sel = ttk.Frame(tab_control)
     deinter = ttk.Frame(tab_control)
@@ -64,7 +118,6 @@ def launch_gui():
 
     json_path_label = Label(welcome, text='Choose an existing .json config file:')
     json_path_label.grid(column=0, row=2)
-    json_path = None
     def clicked_json_button():
         global json_path
         json_path = filedialog.askopenfilename(title='Choose an existing .json config file')
@@ -86,15 +139,12 @@ def launch_gui():
         global data_path
         data_path = filedialog.askdirectory(title='Select an animal directory:')
         print('animal directory set to ' + data_path)
-    data_path_button = Button(data_sel, text="browse", command=clicked_data_button)
+    data_path_button = Button(data_sel, text="browse", command=lambda: clicked_data_button())
     data_path_button.grid(column=1, row=0)
 
     ### deinterlace tab
     deinter_label = Label(deinter, text="World and eye cameras should have interlacing removed so that they are put into the later steps of the pipeline at 60fps and not 30fps. During this video preprocessing step, eye and world videos can also be flipped verticlly. Videos should be right-side-up for pose estimation with DeepLabCut, so make sure to check the box to rotate the video if it's needed.", wraplength=500)
     deinter_label.grid(column=0, row=0)
-
-    deinter_eye = None
-    deinter_world = None
 
     def add_deinter_flip_options():
         if run_deinter.get() is True:
@@ -123,8 +173,6 @@ def launch_gui():
     ### calibration tab
     calib_label = Label(calib, text="Cameras, especially the world camera, collect images with distortions which can be removed using paramters calculated from videos of checkboards. You don't have to get the calibration paramters every time--these can be reused between recordings.", wraplength=500)
     calib_label.grid(column=0, row=0)
-
-    top_checker = None; world_checker = None; npz_save_dir = None; top_npz_name = None; world_npz_name = None
 
     def add_checkerboard_path_options():
         if checker.get() is True:
@@ -202,8 +250,6 @@ def launch_gui():
     checker = BooleanVar()
     checker1 = Checkbutton(calib, variable=checker, command=add_checkerboard_path_options)
     checker1.grid(column=1, row=1)
-
-    top_npz_read_dir = None; world_npz_read_dir = None
 
     def add_undistortion_filepath_options():
         if undistort.get() is True:
@@ -525,9 +571,9 @@ def launch_gui():
     save_nc_vids1 = Checkbutton(params, variable=save_nc_vids)
     save_nc_vids1.grid(column=3, row=9)
 
-    num_save_frames = None
     def clicked_avi_vid_button():
         if save_avi_vids.get() is True:
+            global num_save_frames
             num_save_frames_label = Label(params, text="Number of frames to save into diagnostic .avi videos:")
             num_save_frames_label.grid(column=2, row=11)
             num_save_frames = Entry(params, width=10)
@@ -639,9 +685,273 @@ def launch_gui():
     config_label = Label(config_tab, text="First, write the parameters you have entered into a .json file. This will be written into the animal directory that you entered on the second page of this program. When you write to file, the config file that's written will be printed into the terminal. It's a good idea to read through this and make sure everything was entered and saved correctly.", wraplength=500)
     config_label.grid(column=0, row=0)
 
-    json_path = None
     def write_to_file():
-        c1_yaml_path, c2_yaml_path, c3_yaml_path, c4_yaml_path, c5_yaml_path, c6_yaml_path = [None if (c not in globals) or (c not in locals) else c for c in [c1_yaml_path, c2_yaml_path, c3_yaml_path, c4_yaml_path, c5_yaml_path, c6_yaml_path]]
+        global data_path
+        global run_deinter
+        global deinter_eye
+        global deinter_world
+        global checker
+        global world_checker
+        global top_checker
+        global npz_save_dir
+        global top_npz_name
+        global world_npz_name
+        global undistort
+        global top_npz_read_dir
+        global world_npz_read_dir
+        global undistort_CS
+        global dlc
+        global c1_yaml_path
+        global c2_yaml_path
+        global c3_yaml_path
+        global c4_yaml_path
+        global c5_yaml_path
+        global c6_yaml_path
+        global params
+        global lik_thresh
+        global tear
+        global pxl_thresh
+        global ell_thresh
+        global eye_dist_thresh_cm
+        global eyecam_pxl_per_cm
+        global range_radius
+        global num_ellipse_pts_needed
+        global cricket
+        global hf_ball_x
+        global hf_ball_y
+        global optical_mouse_pix2cm
+        global optical_mouse_sample_rate_ms
+        global ephys_sample_rate
+        global imu_sample_rate
+        global imu_downsample
+        global run_pupil_rotation
+        global run_top_angles
+        global dwnsmpl
+        global save_figs
+        global save_nc_vids
+        global num_save_frames
+        global save_avi_vids
+        global ledW
+        global ledE
+        global LED_dir_name
+        global run_addtl_params
+        global run_params
+        global crop_vids
+        global multiTOP
+        global strict_lik_thresh
+
+        try:
+            data_path
+        except:
+            data_path = None
+        try:
+            run_deinter
+        except:
+            run_deinter = None
+        try:
+            deinter_eye
+        except:
+            deinter_eye = None
+        try:
+            deinter_world
+        except:
+            deinter_world = None
+        try:
+            checker
+        except:
+            checker = None
+        try:
+            world_checker
+        except:
+            world_checker = None
+        try:
+            top_checker
+        except:
+            top_checker = None
+        try:
+            npz_save_dir
+        except:
+            npz_save_dir = None
+        try:
+            top_npz_name
+        except:
+            top_npz_name = None
+        try:
+            world_npz_name
+        except:
+            world_npz_name = None
+        try:
+            undistort
+        except:
+            undistort = None
+        try:
+            top_npz_read_dir
+        except:
+            top_npz_read_dir = None
+        try:
+            world_npz_read_dir
+        except:
+            world_npz_read_dir = None
+        try:
+            undistort_CS
+        except:
+            undistort_CS = None
+        try:
+            dlc
+        except:
+            dlc = None
+        try:
+            c1_yaml_path
+        except:
+            c1_yaml_path = None
+        try:
+            c2_yaml_path
+        except:
+            c2_yaml_path = None
+        try:
+            c3_yaml_path
+        except:
+            c3_yaml_path = None
+        try:
+            c4_yaml_path
+        except:
+            c4_yaml_path = None
+        try:
+            c5_yaml_path
+        except:
+            c5_yaml_path = None
+        try:
+            c6_yaml_path
+        except:
+            c6_yaml_path = None
+        try:
+            params
+        except:
+            params = None
+        try:
+            lik_thresh
+        except:
+            lik_thresh = None
+        try:
+            tear
+        except:
+            tear = None
+        try:
+            pxl_thresh
+        except:
+            pxl_thresh = None
+        try:
+            ell_thresh
+        except:
+            ell_thresh = None
+        try:
+            eye_dist_thresh_cm
+        except:
+            eye_dist_thresh_cm = None
+        try:
+            eyecam_pxl_per_cm
+        except:
+            eyecam_pxl_per_cm = None
+        try:
+            range_radius
+        except:
+            range_radius = None
+        try:
+            num_ellipse_pts_needed
+        except:
+            num_ellipse_pts_needed = None
+        try:
+            cricket
+        except:
+            cricket = None
+        try:
+            hf_ball_x
+        except:
+            hf_ball_x = None
+        try:
+            hf_ball_y
+        except:
+            hf_ball_y = None
+        try:
+            optical_mouse_pix2cm
+        except:
+            optical_mouse_pix2cm = None
+        try:
+            optical_mouse_sample_rate_ms
+        except:
+            optical_mouse_sample_rate_ms = None
+        try:
+            ephys_sample_rate
+        except:
+            ephys_sample_rate = None
+        try:
+            imu_sample_rate
+        except:
+            imu_sample_rate = None
+        try:
+            imu_downsample
+        except:
+            imu_downsample = None
+        try:
+            run_pupil_rotation
+        except:
+            run_pupil_rotation = None
+        try:
+            run_top_angles
+        except:
+            run_top_angles = None
+        try:
+            dwnsmpl
+        except:
+            dwnsmpl = None
+        try:
+            save_figs
+        except:
+            save_figs = None
+        try:
+            save_nc_vids
+        except:
+            save_nc_vids = None
+        try:
+            num_save_frames
+        except:
+            num_save_frames = None
+        try:
+            save_avi_vids
+        except:
+            save_avi_vids = None
+        try:
+            ledW
+        except:
+            ledW = None
+        try:
+            ledE
+        except:
+            ledE = None
+        try:
+            LED_dir_name
+        except:
+            LED_dir_name = None
+        try:
+            run_addtl_params
+        except:
+            run_addtl_params = None
+        try:
+            run_params
+        except:
+            run_params = None
+        try:
+            crop_vids
+        except:
+            crop_vids = None
+        try:
+            multiTOP
+        except:
+            multiTOP = None
+        try:
+            strict_lik_thresh
+        except:
+            strict_lik_thresh = None
 
         user_entries = {
             'data_path': data_path,
@@ -703,6 +1013,7 @@ def launch_gui():
             'multiTOP': multiTOP,
             'strict_lik_thresh': strict_lik_thresh
         }
+        # replace any tkinter objects with the str or bool entry contained therein
         user_entries_opened = {key:val.get() for (key,val) in user_entries.items() if isinstance(val, BooleanVar) is True or isinstance(val, Entry) is True}
         user_entries_opened1 = {key:val for (key,val) in user_entries.items() if key not in user_entries_opened}
         user_entries_opened.update(user_entries_opened1)
@@ -710,7 +1021,7 @@ def launch_gui():
 
     write_label = Label(config_tab, text="Write options to file:", wraplength=500)
     write_label.grid(column=0, row=1)
-    write_button = Button(config_tab, text="write", command=write_to_file)
+    write_button = Button(config_tab, text="write", command=lambda: write_to_file())
     write_button.grid(column=1, row=1)
 
     ### run tab

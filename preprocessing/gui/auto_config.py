@@ -10,6 +10,7 @@ import json, os
 
 def write_config(user_inputs):
 
+    # if no DLC information was provided, skip DLC
     if len([key for (key,val) in user_inputs['cam_inputs'].items() if key != 'None']) > 0:
         run_dlc = True
     else:
@@ -83,6 +84,9 @@ def write_config(user_inputs):
     }
 
     print('writing config file to '+ str(user_inputs['data_path']))
+
+    print(internal_config)
+
     with open(os.path.join(user_inputs['data_path'], 'preprocessing_config.json'),'w') as fp:
         json.dump(internal_config, fp)
 

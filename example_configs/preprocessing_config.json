@@ -18,10 +18,10 @@
     "calibration":{
         "eye_LED_config": "C:/Users/Niell Lab/Documents/deeplabcut_projects/LED_eye_view2-dylan-2021-01-10/config.yaml",
         "world_LED_config": "C:/Users/Niell Lab/Documents/deeplabcut_projects/LED_world_view2-dylan-2021-01-09/config.yaml",
-        "world_checker_vid": "G:/freely_moving_ephys/pipeline_example_Dec19/betafpv_checkerboard.avi",
-        "world_checker_npz": "G:/freely_moving_ephys/pipeline_example_Dec19/101420/world_checkerboard_calib.npz",
-        "top_checker_vid":"G:/freely_moving_ephys/pipeline_example_Dec19/092520_calibration_checkerboard_2p3cm_squares_TOP.avi",
-        "top_checker_npz": "G:/freely_moving_ephys/pipeline_example_Dec19/101420/top1_checkerboard_calib.npz"
+        "world_checker_vid": "T:/freely_moving_ephys/camera_calibration_params/betafpv_checkerboard.avi",
+        "world_checker_npz": "T:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz",
+        "top_checker_vid":"T:/freely_moving_ephys/camera_calibration_params/122920_camera_calibration_control_Rig2_checkerboard_TOP1.avi",
+        "top_checker_npz": "T:/freely_moving_ephys/camera_calibration_params/top1_checkerboard_calib.npz"
     },
     "LED_dir_name": "hf1_IRspot",
     "flip_eye_during_deinter": true,
@@ -47,7 +47,7 @@
     "num_ellipse_pts_needed": 7,
     "dwnsmpl": 0.5,
     "ephys_sample_rate": 30000,
-    "run_pupil_rotation": true,
+    "run_pupil_rotation": false,
     "run_top_angles": false,
     "run_with_form_time": true,
     "optical_mouse_screen_center":{"x":960,"y":540},
