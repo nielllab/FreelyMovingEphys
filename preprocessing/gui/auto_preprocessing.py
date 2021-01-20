@@ -32,6 +32,14 @@ def run_auto_preprocessing(config_path):
 
     steps = config['steps_to_run']
 
+    # a few functions look for both a data path and save path
+    # this is a quick way to avoid updating those functions for the curent json fields
+    data_path = os.path.expanduser(config['data_path'])
+    if config.get('save_path') is None:
+        config['save_path'] = data_path
+    else: 
+        save_path = os.path.expanduser(config['save_path'])
+
     # deinterlace data
     if steps['deinter'] is True:
         deinterlace_data(config)

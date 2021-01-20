@@ -36,6 +36,7 @@ def launch_gui():
 
     tab_control = ttk.Notebook(window)
 
+    global json_path
     global data_path
     global run_deinter
     global deinter_eye
@@ -1017,6 +1018,7 @@ def launch_gui():
         user_entries_opened = {key:val.get() for (key,val) in user_entries.items() if isinstance(val, BooleanVar) is True or isinstance(val, Entry) is True}
         user_entries_opened1 = {key:val for (key,val) in user_entries.items() if key not in user_entries_opened}
         user_entries_opened.update(user_entries_opened1)
+        global json_path
         json_path = write_config(user_entries_opened)
 
     write_label = Label(config_tab, text="Write options to file:", wraplength=500)
@@ -1029,6 +1031,7 @@ def launch_gui():
     run_label.grid(column=0, row=0)
 
     def run_pipeline():
+        global json_path
         if json_path is not None:
             print('starting preprocessing')
             run_auto_preprocessing(json_path)
