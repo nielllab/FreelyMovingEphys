@@ -15,7 +15,7 @@ import tkinter as tk
 from tkinter import filedialog
 # module imports
 from util.paths import find
-from util.analyze_jump import jump_cc, jump_gaze_trace, pooled_jump_analysis, animated_gaze_plot
+from project_analysis.jumping.analyze_jump import jump_cc, jump_gaze_trace, pooled_jump_analysis, animated_gaze_plot
 
 def main(json_config_path):
     # open config file

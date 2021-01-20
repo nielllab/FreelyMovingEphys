@@ -21,8 +21,6 @@ from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking, find_pupil_rotation
-from util.analyze_jump import jump_gaze_trace
-from util.ephys import format_spikes
 
 # given a list of videos, run them all on the same DLC config file
 def runDLCbatch(vid_list, config_path, config):

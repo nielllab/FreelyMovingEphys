@@ -1,5 +1,5 @@
 """
-preprocessing.py
+manual_preprocessing.py
 
 deinterlace videos, analyze with DLC, and extract parameters
 
