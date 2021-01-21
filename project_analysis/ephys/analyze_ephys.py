@@ -19,7 +19,8 @@ import subprocess
 from matplotlib.animation import FFMpegWriter
 import matplotlib as mpl 
 import wavio
-mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
+mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe' # use for windows lab computers
+# mpl.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg' # user has to change to this line on ubuntu
 from scipy.interpolate import interp1d
 from numpy import nan
 from matplotlib.backends.backend_pdf import PdfPages
@@ -962,6 +963,7 @@ def run_ephys_analysis(file_dict):
         stim = '_'.join(split_base_name[4:])
     except:
         stim = split_base_name[4:]
+    var_names = ['_'.join([mouse, date, exp, rig, stim, 'unit'+str(i)]) for i in range(1,n_units+1)]
     
     unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
     if file_dict['stim_type'] == 'grat':
@@ -969,7 +971,8 @@ def run_ephys_analysis(file_dict):
         for unit_num in range(n_units):
             unit = unit_num+1
             unit_xr = xr.DataArray([crange,ori_tuning[unit_num],drift_spont[unit_num],resp[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
-            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[0]; unit_xr.attrs['unit'] = unit
+            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[unit_num]; unit_xr.attrs['unit'] = unit
+            unit_xr.name = var_names[unit_num]
             if unit_num == 0:
                 all_units_xr = unit_xr
             else:
@@ -979,7 +982,8 @@ def run_ephys_analysis(file_dict):
         for unit_num in range(n_units):
             unit = unit_num+1
             unit_xr = xr.DataArray([crange,staAll[unit_num],resp[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
-            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[0]; unit_xr.attrs['unit'] = unit
+            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[unit_num]; unit_xr.attrs['unit'] = unit
+            unit_xr.name = var_names[unit_num]
             if unit_num == 0:
                 all_units_xr = unit_xr
             else:

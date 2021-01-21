@@ -25,7 +25,14 @@ from util.track_world import track_LED
 from util.config import set_preprocessing_config_defaults
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
 
-def main(json_config_path):
+# get user arguemnts
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config_path', type=str)
+    args = parser.parse_args()
+    return args
+
+def preprocessing_man(json_config_path):
     # open config file
     with open(json_config_path, 'r') as fp:
         config = json.load(fp)
@@ -58,13 +65,6 @@ def main(json_config_path):
         track_LED(config)
 
 if __name__ == '__main__':
-    
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        file_path = filedialog.askopenfilename()
-    except:
-        print('cannot open dialog box')
-        file_path = input('enter path to json config file: ')
-    
-    main(json_config_path=file_path)
+    args = get_args()
+    config_path = args.config_path
+    main(config_path)
