@@ -37,7 +37,7 @@ In the `DLC-GPU2` environment and at the top of the repository, run `python -m s
 ### Main preprocessing
 In the `DLC-GPU2` environment, run `python -m preprocessing` to open the preprocessing pipeline GUI. Fill out the fields to build a config file, write that .json, and then you'll be able to run the pipeline on your dataset. For GUI instructions, see [this](https://github.com/nielllab/FreelyMovingEphys/blob/master/docs/GUI_user_guide.md) user guide.
 
-If you don't want to use the GUI, you can fill out a config file manually and run `python preprocessing.manual_preprocessing.py` in the `DLC-GPU2` environment. Definitions for each of the fields are avalible [here](https://github.com/nielllab/FreelyMovingEphys/blob/master/docs/config_options.md).
+If you don't want to use the GUI, you can fill out a config file manually and run `python manual_preprocessing.py --config_path T:/path/to/config` in the `DLC-GPU2` environment. Replace the entry for the `--config_path` with the path to the config file Definitions for each of the fields are avalible [here](https://github.com/nielllab/FreelyMovingEphys/blob/master/docs/config_options.md).
 
 ## Analysis usage
 
@@ -45,4 +45,6 @@ Analysis scripts, which interpret the preprocessed data, are located in `/Freely
 
 ### Ephys
 To generate figures and videos from freely moving ephys experiments, run `python -m project_analysis.ephys` from the top of this repository. This will launch a GUI with a few options, and a run button that executes the ephys analysis.
+
+To run ephys analysis without a gui, run `python manual_ephys_analysis.py --data_path T:/path/to/recording --rec_name 113020_G6H27P8LT_control_Rig2_fm1 --unit 0 --fm True --stim_type None`, replacing arguments with the information for the recording. Note that this is the **recording** directory (e.g. `hf1_wn`), not the **animal** directory. Mark `--fm` as `False` and choose one of `gratings`, `sparse_noise`, or `white_noise` for `--stim_type` if it is a head-fixed recording.
 
