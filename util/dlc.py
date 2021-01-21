@@ -44,7 +44,7 @@ def run_DLC_Analysis(config):
         cam_key = cam
         # and an entry for the config file for that camear type (this will be used by DLC)
         cam_config = config['cams'][cam_key]
-        if cam_config != '':
+        if cam_config != '' and cam_config != 'None' and cam_config != None:
             # if it's one of the cameras that needs to needs to be deinterlaced first, make sure and read in the deinterlaced 
             if any(cam_key in s for s in ['REYE','LEYE']):
                 # find all the videos in the data directory that are from the current camera and are deinterlaced
@@ -65,12 +65,12 @@ def run_DLC_Analysis(config):
                 # warn the user if there's nothing found
                 if len(vids_this_cam) == 0:
                     print('no ' + cam_key + ' videos found -- maybe the videos are not deinterlaced yet?')
-            elif 'WORLD' in cam_key:
-                if config['run_with_form_time'] is True:
-                    vids_this_cam = find('*'+cam_key+'*calib.avi', config['data_path'])
-                elif config['run_with_form_time'] is False:
-                    vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
-                print('found ' + str(len(vids_this_cam)) + ' deinterlaced and calibrated videos from cam_key ' + cam_key)
+            # elif 'WORLD' in cam_key:
+            #     if config['run_with_form_time'] is True:
+            #         vids_this_cam = find('*'+cam_key+'*calib.avi', config['data_path'])
+            #     elif config['run_with_form_time'] is False:
+            #         vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
+            #     print('found ' + str(len(vids_this_cam)) + ' deinterlaced and calibrated videos from cam_key ' + cam_key)
             else:
                 # find all the videos for camera types that don't neeed to be deinterlaced
                 if config['run_with_form_time'] is True:

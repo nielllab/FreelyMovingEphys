@@ -119,12 +119,12 @@ try
         figure
         map64 = [1:2:64 2:2:64];
         for i = 1:length(subChans)
-            subplot(length(subChans),i)
             if length(subChans)==64
                 subplot(32,2,map64(i));
+            else
+                subplot(length(subChans),1,i);
             end
-                
-                plot(allData(i,1:3000));
+            plot(allData(i,1:3000));
             axis off
             if i==1
                 title(fileList{fnum})

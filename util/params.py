@@ -321,7 +321,7 @@ def extract_params(config):
 
         if trial_imu_bin != []:
             print('reading imu data for ' + t_name)
-            trial_imu_csv = os.path.join(config['trial_path'],t_name+'_Ephys_BonsaiTS.csv') # use ephys timestamps
+            trial_imu_csv = os.path.join(config['trial_path'],t_name+'_Ephys_BonsaiBoardTS.csv') # use ephys timestamps
             imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
             # imu_acc, imu_gyro = convert_acc_gyro(imu_data, trial_imu_csv, config)
             imu_data.name = 'IMU_data'#; imu_acc.name='ACC_data'; imu_gyro.name='GYRO_data'

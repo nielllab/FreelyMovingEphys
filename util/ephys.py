@@ -83,7 +83,7 @@ def format_spikes_multi(merge_file, config):
         
         # get timestamp from csv for this recording
         fname = fileList[0,s][0].copy()
-        fname = fname[0:-4] + '_BonsaiTS.csv'
+        fname = fname[0:-4] + '_BonsaiBoardTS.csv'
         ephys_time_path = os.path.join(pathList[0,s][0],fname)
         ephys_data['t0'] = open_time(ephys_time_path)[0]
         
