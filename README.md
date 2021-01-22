@@ -44,7 +44,7 @@ If you don't want to use the GUI, you can fill out a config file manually and ru
 Analysis scripts, which interpret the preprocessed data, are located in `/FreelyMovingEphys/project_analysis/`. Each project is intended to have a seperate directory within `/project_analysis/`.
 
 ### Minimal analysis for mapping of receptive fields
-For immidiete mapping of receptive fields, you can run `python -m map_receptive_fields`. You'll be prompted to enter a directory in a dialog box. You should choose the recording directory for **white noise stimulus**. A .png figure of receptive fields will be saved into the directory of each mouse's white noise stimulus recording. This module needs to be run after spike sorting and the splitting of individual recordings, but it includes preprocessing for all necessary data inputs (i.e. do **not** run `python -m preprocessing` before running this).
+For immidiete mapping of receptive fields, you can run `python -m project_analysis.map_receptive_fields`. You'll be prompted to enter a directory in a dialog box. You should choose the recording directory for **white noise stimulus**. A .png figure of receptive fields will be saved into the directory of each mouse's white noise stimulus recording. This module needs to be run after spike sorting and the splitting of individual recordings, but it includes preprocessing for all necessary data inputs (i.e. do **not** run `python -m preprocessing` before running this).
 ### Full ephys analysis
 To generate figures and videos from freely moving ephys experiments, run `python -m project_analysis.ephys` from the top of this repository. This will launch a GUI with a few options, and a run button that executes the ephys analysis.
 
