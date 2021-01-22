@@ -6,7 +6,7 @@ run on white noise stimulus after spike sorting is complete
 
 Jan. 21, 2021
 """
-from map_receptive_fields.initial_wn_analysis import quick_whitenoise_analysis
+from project_analysis.map_receptive_fields.initial_wn_analysis import quick_whitenoise_analysis
 import argparse, json, sys, os, subprocess, shutil
 import tkinter as tk
 from tkinter import filedialog
