@@ -121,12 +121,21 @@ def quick_whitenoise_analysis(wn_path):
         ephys_data = pd.read_json(ephys_file_path)
         ephysT0 = ephys_data.iloc[0,12]
         worldT = world_data.timestamps - ephysT0
+
+        ephys_data['spikeTraw'] = ephys_data['spikeT']
+
+        offset0 = 0.1
+        drift_rate = 0.1/1000
+
+        for i in range(len(ephys_data)):
+            ephys_data['spikeT'].iloc[i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
+
         dt = 0.025
         t = np.arange(0, np.max(worldT),dt)
         ephys_data['rate'] = np.nan
         ephys_data['rate'] = ephys_data['rate'].astype(object)
         for i,ind in enumerate(ephys_data.index):
-            ephys_data.at[ind,'rate'],bins = np.histogram(ephys_data.at[ind,'spikeT'],t)
+            ephys_data.at[ind,'rate'], bins = np.histogram(ephys_data.at[ind,'spikeT'],t)
         ephys_data['rate']= ephys_data['rate']/dt
         goodcells = ephys_data.loc[ephys_data['group']=='good']
         n_units = len(goodcells)
@@ -152,7 +161,7 @@ def quick_whitenoise_analysis(wn_path):
         std_im[std_im<10/255] = 10/255
         img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
 
-        spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
+        spike_corr = 1 # + 0.125/1200  # correction factor for ephys timing drift, but it's now corrected in spikeT and doesn't need to be manually reset
 
         movInterp = interp1d(worldT,img_norm,axis=0, fill_value='extrapolate') # added extrapolate for cases where x_new is below interpolation range
 
@@ -179,7 +188,7 @@ def quick_whitenoise_analysis(wn_path):
             else:
                 sta = np.nan
             #sta[abs(sta)<0.1]=0
-            plt.imshow((sta-np.mean(sta) ),cmap = 'jet') # vmin=-0.3,vmax=0.3
+            plt.imshow((sta-np.mean(sta)),vmin=-0.3,vmax=0.3,cmap = 'jet')
             staAll[c,:,:] = sta
         plt.tight_layout()
 
