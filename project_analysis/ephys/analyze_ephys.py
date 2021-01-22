@@ -973,28 +973,36 @@ def run_ephys_analysis(file_dict):
     
     unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
     if file_dict['stim_type'] == 'grat':
-        ephys_params_names = ['contrast_range','orientation_tuning','drift_spont','contrast_response','waveform','trange','upsacc_avg','downsacc_avg']
+        all_units = {}
         for unit_num, ind in enumerate(goodcells.index):
             unit = unit_num+1
-            unit_xr = xr.DataArray([crange,ori_tuning[unit_num],drift_spont[unit_num],resp[unit_num],goodcells.at[ind,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
-            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[unit_num]; unit_xr.attrs['unit'] = unit
-            unit_xr.name = var_names[unit_num]
-            if unit_num == 0:
-                all_units_xr = unit_xr
-            else:
-                all_units_xr = xr.merge([all_units_xr, unit_xr])
+            unit_dict = {
+                'contrast_range': crange,
+                'orientation_tuning':ori_tuning[unit_num],
+                'drift_spont': drift_spont[unit_num],
+                'contrast_response': resp[unit_num],
+                'waveform': goodcells.at[ind,'waveform'],
+                'trange': trange,
+                'upsacc_avg': upsacc_avg[unit_num],
+                'downsacc_avg':downsacc_avg[unit_num]
+            }
+            all_units[var_names[unit_num]] = unit_dict
     elif file_dict['stim_type'] != 'grat':
-        ephys_params_names = ['contrast_range','STA','contrast_response','waveform','trange','upsacc_avg','downsacc_avg']
+        all_units = {}
         for unit_num, ind in enumerate(goodcells.index):
             unit = unit_num+1
-            unit_xr = xr.DataArray([crange,staAll[unit_num],resp[unit_num],goodcells.at[ind,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
-            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[unit_num]; unit_xr.attrs['unit'] = unit
-            unit_xr.name = var_names[unit_num]
-            if unit_num == 0:
-                all_units_xr = unit_xr
-            else:
-                all_units_xr = xr.merge([all_units_xr, unit_xr])
+            unit_dict = {
+                'contrast_range': crange,
+                'sta':staAll[unit_num],
+                'contrast_response': resp[unit_num],
+                'waveform': goodcells.at[ind,'waveform'],
+                'trange': trange,
+                'upsacc_avg': upsacc_avg[unit_num],
+                'downsacc_avg':downsacc_avg[unit_num]
+            }
+            all_units[var_names[unit_num]] = unit_dict
 
-    all_units_xr.to_netcdf(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.nc')))
+    np.save(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.npy')), all_units)
+    # have to open like d1.item().get('name_of_unit')
 
-    print('analysis complete; pdfs closed and xarray saved to file')
+    print('analysis complete; pdfs closed and .npy saved to file')
