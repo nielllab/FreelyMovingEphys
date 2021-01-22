@@ -43,7 +43,9 @@ If you don't want to use the GUI, you can fill out a config file manually and ru
 
 Analysis scripts, which interpret the preprocessed data, are located in `/FreelyMovingEphys/project_analysis/`. Each project is intended to have a seperate directory within `/project_analysis/`.
 
-### Ephys
+### Minimal analysis for mapping of receptive fields
+For immidiete mapping of receptive fields, you can run `python -m map_receptive_fields`. You will be prompted in the terminal for the number of mice to analyze. Once that's entered, You'll be prompted to enter file paths for each of the mice in a dialog box. You should choose the recording directory for **white noise stimulus**. A .png figure of receptive fields will be saved into the directory of each mouse's white noise stimulus recording.
+### Full ephys analysis
 To generate figures and videos from freely moving ephys experiments, run `python -m project_analysis.ephys` from the top of this repository. This will launch a GUI with a few options, and a run button that executes the ephys analysis.
 
 To run ephys analysis without a gui, run `python manual_ephys_analysis.py --data_path T:/path/to/recording --rec_name 113020_G6H27P8LT_control_Rig2_fm1 --unit 0 --fm True --stim_type None`, replacing arguments with the information for the recording. Note that this is the **recording** directory (e.g. `hf1_wn`), not the **animal** directory. Mark `--fm` as `False` and choose one of `gratings`, `sparse_noise`, or `white_noise` for `--stim_type` if it is a head-fixed recording.

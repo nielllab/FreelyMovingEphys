@@ -29,7 +29,7 @@ from util.track_imu import read_8ch_imu, convert_acc_gyro
 
 def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
-    trial_units = []; name_check = ['071620_J158BLT_014']; path_check = []
+    trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
         bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
         if config['run_with_form_time'] is True:
