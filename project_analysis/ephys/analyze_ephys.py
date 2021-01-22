@@ -452,9 +452,12 @@ def run_ephys_analysis(file_dict):
     warp_mode = cv2.MOTION_TRANSLATION
     cc_fix = np.zeros(max_frames); xshift_fix = np.zeros(max_frames); yshift_fix = np.zeros(max_frames);
     for i in tqdm(range(max_frames-1)):
-        warp_matrix = np.eye(2, 3, dtype=np.float32)
-        (cc_fix[i], warp_matrix) = cv2.findTransformECC (world_fix[i,:,:],world_fix[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
-        xshift_fix[i] = warp_matrix[0,2]; yshift_fix[i] = warp_matrix[1,2]
+        try:
+            warp_matrix = np.eye(2, 3, dtype=np.float32)
+            (cc_fix[i], warp_matrix) = cv2.findTransformECC (world_fix[i,:,:],world_fix[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
+            xshift_fix[i] = warp_matrix[0,2]; yshift_fix[i] = warp_matrix[1,2]
+        except:
+            xshift_fix[i] = np.nan; yshift_fix[i] = np.nan # very rarely, a frame will raise cv2 error when iterations do not converge for transform
 
     if free_move:
         plt.figure()
@@ -671,6 +674,11 @@ def run_ephys_analysis(file_dict):
         plt.figure(figsize = (8,8))
 
         ori_cat = np.floor((grating_ori+np.pi/8)/(np.pi/4))
+
+        # might be a bad idea...
+        # replace all NaN values in grating_mag with 0, same for pos/neg inf
+        # any NaN value raises ValueError in KMeans below
+        grating_mag = np.nan_to_num(grating_mag, copy=True, nan=0.0, posinf=0.0, neginf=0.0)
 
         km = KMeans(n_clusters=3).fit(np.reshape(grating_mag,(-1,1)))
         sf_cat = km.labels_
