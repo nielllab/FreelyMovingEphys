@@ -590,23 +590,26 @@ def run_ephys_analysis(file_dict):
     lag = 0.125
     plt.figure(figsize = (12,np.ceil(n_units/2)))
     for c, ind in enumerate(goodcells.index):
-        r = goodcells.at[ind,'rate']
-        sta = 0; nsp = 0
-        sp = goodcells.at[ind,'spikeT'].copy()
-        if c==1:
-            ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
-        for s in sp:
-            if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
-                nsp = nsp+1
-                im = movInterp((s-lag)*spike_corr)
-                if c==1:
-                    ensemble[nsp-1,:,:] = im
-                sta = sta+im
-        plt.subplot(np.ceil(n_units/4),4,c+1)
-        sta = sta/nsp
-        #sta[abs(sta)<0.1]=0
-        plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
-        staAll[c,:,:] = sta
+        try:
+            r = goodcells.at[ind,'rate']
+            sta = 0; nsp = 0
+            sp = goodcells.at[ind,'spikeT'].copy()
+            if c==1:
+                ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
+            for s in sp:
+                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                    nsp = nsp+1
+                    im = movInterp((s-lag)*spike_corr)
+                    if c==1:
+                        ensemble[nsp-1,:,:] = im
+                    sta = sta+im
+            plt.subplot(np.ceil(n_units/4),4,c+1)
+            sta = sta/nsp
+            #sta[abs(sta)<0.1]=0
+            plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+            staAll[c,:,:] = sta
+        except ZeroDivisionError:
+            pass
     # plt.title('spike triggered average (lag=0.125)')
     plt.tight_layout()
     detail_pdf.savefig()
@@ -715,18 +718,21 @@ def run_ephys_analysis(file_dict):
     lagRange = np.arange(0,0.25,0.05)
     plt.figure(figsize = (12,2*n_units))
     for c, ind in enumerate(goodcells.index):
-        sp = goodcells.at[ind,'spikeT'].copy()
-        for  lagInd, lag in enumerate(lagRange):
-            sta = 0; nsp = 0
-            for s in sp:
-                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
-                    nsp = nsp+1
-                    sta = sta+movInterp((s-lag)*spike_corr)
-            plt.subplot(n_units,6,(c*6)+lagInd + 1)
-            sta = sta/nsp
-        #sta[abs(sta)<0.1]=0
-            plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
-            plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
+        try:
+            sp = goodcells.at[ind,'spikeT'].copy()
+            for  lagInd, lag in enumerate(lagRange):
+                sta = 0; nsp = 0
+                for s in sp:
+                    if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                        nsp = nsp+1
+                        sta = sta+movInterp((s-lag)*spike_corr)
+                plt.subplot(n_units,6,(c*6)+lagInd + 1)
+                sta = sta/nsp
+            #sta[abs(sta)<0.1]=0
+                plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
+                plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
+        except ZeroDivisionError:
+            pass
     plt.tight_layout()
     detail_pdf.savefig()
     plt.close()
@@ -968,9 +974,9 @@ def run_ephys_analysis(file_dict):
     unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
     if file_dict['stim_type'] == 'grat':
         ephys_params_names = ['contrast_range','orientation_tuning','drift_spont','contrast_response','waveform','trange','upsacc_avg','downsacc_avg']
-        for unit_num in range(n_units):
+        for unit_num, ind in enumerate(goodcells.index):
             unit = unit_num+1
-            unit_xr = xr.DataArray([crange,ori_tuning[unit_num],drift_spont[unit_num],resp[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
+            unit_xr = xr.DataArray([crange,ori_tuning[unit_num],drift_spont[unit_num],resp[unit_num],goodcells.at[ind,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
             unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[unit_num]; unit_xr.attrs['unit'] = unit
             unit_xr.name = var_names[unit_num]
             if unit_num == 0:
@@ -979,9 +985,9 @@ def run_ephys_analysis(file_dict):
                 all_units_xr = xr.merge([all_units_xr, unit_xr])
     elif file_dict['stim_type'] != 'grat':
         ephys_params_names = ['contrast_range','STA','contrast_response','waveform','trange','upsacc_avg','downsacc_avg']
-        for unit_num in range(n_units):
+        for unit_num, ind in enumerate(goodcells.index):
             unit = unit_num+1
-            unit_xr = xr.DataArray([crange,staAll[unit_num],resp[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
+            unit_xr = xr.DataArray([crange,staAll[unit_num],resp[unit_num],goodcells.at[ind,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
             unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[unit_num]; unit_xr.attrs['unit'] = unit
             unit_xr.name = var_names[unit_num]
             if unit_num == 0:
