@@ -14,11 +14,11 @@ from project_analysis.ephys.analyze_ephys import find_files, run_ephys_analysis
 # get user arguemnts
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', type=str)
-    parser.add_argument('--rec_name', type=str)
-    parser.add_argument('--unit', type=int)
-    parser.add_argument('--fm', type=bool)
-    parser.add_argument('--stim_type', type=str,choices=['None','gratings','sparse_noise','white_noise'])
+    parser.add_argument('--data_path', type=str, help='recording directory')
+    parser.add_argument('--rec_name', type=str, help='recording name')
+    parser.add_argument('--unit', type=int, help='ephys unit number (zero-ind) to highlight in figures')
+    parser.add_argument('--fm', type=bool, help='bool, is this freely moving')
+    parser.add_argument('--stim_type', type=str, choices=['None','gratings','sparse_noise','white_noise'], help='stimulus presented on screen. set as None if freely moving.')
     args = parser.parse_args()
     return args
 

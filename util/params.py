@@ -29,7 +29,7 @@ from util.track_imu import read_8ch_imu, convert_acc_gyro
 
 def extract_params(config):
     # get trial name out of each avi file and make a list of the unique entries
-    trial_units = []; name_check = ['071620_J158BLT_014']; path_check = []
+    trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', config['data_path']):
         bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
         if config['run_with_form_time'] is True:
@@ -321,7 +321,7 @@ def extract_params(config):
 
         if trial_imu_bin != []:
             print('reading imu data for ' + t_name)
-            trial_imu_csv = os.path.join(config['trial_path'],t_name+'_Ephys_BonsaiTS.csv') # use ephys timestamps
+            trial_imu_csv = os.path.join(config['trial_path'],t_name+'_Ephys_BonsaiBoardTS.csv') # use ephys timestamps
             imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
             # imu_acc, imu_gyro = convert_acc_gyro(imu_data, trial_imu_csv, config)
             imu_data.name = 'IMU_data'#; imu_acc.name='ACC_data'; imu_gyro.name='GYRO_data'

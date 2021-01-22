@@ -452,9 +452,12 @@ def run_ephys_analysis(file_dict):
     warp_mode = cv2.MOTION_TRANSLATION
     cc_fix = np.zeros(max_frames); xshift_fix = np.zeros(max_frames); yshift_fix = np.zeros(max_frames);
     for i in tqdm(range(max_frames-1)):
-        warp_matrix = np.eye(2, 3, dtype=np.float32)
-        (cc_fix[i], warp_matrix) = cv2.findTransformECC (world_fix[i,:,:],world_fix[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
-        xshift_fix[i] = warp_matrix[0,2]; yshift_fix[i] = warp_matrix[1,2]
+        try:
+            warp_matrix = np.eye(2, 3, dtype=np.float32)
+            (cc_fix[i], warp_matrix) = cv2.findTransformECC (world_fix[i,:,:],world_fix[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
+            xshift_fix[i] = warp_matrix[0,2]; yshift_fix[i] = warp_matrix[1,2]
+        except:
+            xshift_fix[i] = np.nan; yshift_fix[i] = np.nan # very rarely, a frame will raise cv2 error when iterations do not converge for transform
 
     if free_move:
         plt.figure()
@@ -603,7 +606,10 @@ def run_ephys_analysis(file_dict):
                     ensemble[nsp-1,:,:] = im
                 sta = sta+im
         plt.subplot(np.ceil(n_units/4),4,c+1)
-        sta = sta/nsp
+        if nsp > 0:
+            sta = sta/nsp
+        else:
+            sta = np.nan
         #sta[abs(sta)<0.1]=0
         plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
         staAll[c,:,:] = sta
@@ -669,6 +675,11 @@ def run_ephys_analysis(file_dict):
 
         ori_cat = np.floor((grating_ori+np.pi/8)/(np.pi/4))
 
+        # might be a bad idea...
+        # replace all NaN values in grating_mag with 0, same for pos/neg inf
+        # any NaN value raises ValueError in KMeans below
+        grating_mag = np.nan_to_num(grating_mag, copy=True, nan=0.0, posinf=0.0, neginf=0.0)
+
         km = KMeans(n_clusters=3).fit(np.reshape(grating_mag,(-1,1)))
         sf_cat = km.labels_
         order = np.argsort(np.reshape(km.cluster_centers_, 3))
@@ -723,7 +734,10 @@ def run_ephys_analysis(file_dict):
                     nsp = nsp+1
                     sta = sta+movInterp((s-lag)*spike_corr)
             plt.subplot(n_units,6,(c*6)+lagInd + 1)
-            sta = sta/nsp
+            if nsp > 0:
+                sta = sta/nsp
+            else:
+                sta = np.nan
         #sta[abs(sta)<0.1]=0
             plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
             plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
@@ -967,28 +981,36 @@ def run_ephys_analysis(file_dict):
     
     unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
     if file_dict['stim_type'] == 'grat':
-        ephys_params_names = ['contrast_range','orientation_tuning','drift_spont','contrast_response','waveform','trange','upsacc_avg','downsacc_avg']
-        for unit_num in range(n_units):
+        all_units = {}
+        for unit_num, ind in enumerate(goodcells.index):
             unit = unit_num+1
-            unit_xr = xr.DataArray([crange,ori_tuning[unit_num],drift_spont[unit_num],resp[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
-            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[unit_num]; unit_xr.attrs['unit'] = unit
-            unit_xr.name = var_names[unit_num]
-            if unit_num == 0:
-                all_units_xr = unit_xr
-            else:
-                all_units_xr = xr.merge([all_units_xr, unit_xr])
+            unit_dict = {
+                'contrast_range': crange,
+                'orientation_tuning':ori_tuning[unit_num],
+                'drift_spont': drift_spont[unit_num],
+                'contrast_response': resp[unit_num],
+                'waveform': goodcells.at[ind,'waveform'],
+                'trange': trange,
+                'upsacc_avg': upsacc_avg[unit_num],
+                'downsacc_avg':downsacc_avg[unit_num]
+            }
+            all_units[var_names[unit_num]] = unit_dict
     elif file_dict['stim_type'] != 'grat':
-        ephys_params_names = ['contrast_range','STA','contrast_response','waveform','trange','upsacc_avg','downsacc_avg']
-        for unit_num in range(n_units):
+        all_units = {}
+        for unit_num, ind in enumerate(goodcells.index):
             unit = unit_num+1
-            unit_xr = xr.DataArray([crange,staAll[unit_num],resp[unit_num],goodcells.at[unit_num,'waveform'],trange,upsacc_avg[unit_num],downsacc_avg[unit_num]], dims=['ephys_params'], coords=[('ephys_params', ephys_params_names)])
-            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['stim'] = stim; unit_xr.attrs['unit_id'] = unit_names[unit_num]; unit_xr.attrs['unit'] = unit
-            unit_xr.name = var_names[unit_num]
-            if unit_num == 0:
-                all_units_xr = unit_xr
-            else:
-                all_units_xr = xr.merge([all_units_xr, unit_xr])
+            unit_dict = {
+                'contrast_range': crange,
+                'sta':staAll[unit_num],
+                'contrast_response': resp[unit_num],
+                'waveform': goodcells.at[ind,'waveform'],
+                'trange': trange,
+                'upsacc_avg': upsacc_avg[unit_num],
+                'downsacc_avg':downsacc_avg[unit_num]
+            }
+            all_units[var_names[unit_num]] = unit_dict
 
-    all_units_xr.to_netcdf(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.nc')))
+    np.save(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.npy')), all_units)
+    # have to open like d1.item().get('name_of_unit')
 
-    print('analysis complete; pdfs closed and xarray saved to file')
+    print('analysis complete; pdfs closed and .npy saved to file')

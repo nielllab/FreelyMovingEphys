@@ -32,4 +32,4 @@ def split_recordings():
 
     mat_path = os.path.join(os.getcwd(), file_path)
 
-    format_spikes_multi(mat_path, config)
+    format_spikes_multi(mat_path, default_config)

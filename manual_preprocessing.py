@@ -32,7 +32,7 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def preprocessing_man(json_config_path):
+def main(json_config_path):
     # open config file
     with open(json_config_path, 'r') as fp:
         config = json.load(fp)
