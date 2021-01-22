@@ -23,13 +23,18 @@ from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body
 from util.track_eye import plot_eye_vid, eye_tracking, find_pupil_rotation
 from util.track_world import adjust_world, track_LED
 
-def deinterlace_data(config):
+def deinterlace_data(config, vid_list=None, time_list=None):
     data_path = config['data_path']
     save_path = config['save_path']
-
     # find all the files
-    avi_list = find('*.avi', data_path)
-    csv_list = find('*.csv', data_path)
+    if vid_list is None:
+        data_path = config['data_path']
+        save_path = config['save_path']
+        avi_list = find('*.avi', data_path)
+        csv_list = find('*.csv', data_path)
+    elif vid_list is not None:
+        avi_list = vid_list.copy()
+        csv_list = time_list.copy()
 
     for this_avi in avi_list:
         # make a save path that keeps the subdirectories

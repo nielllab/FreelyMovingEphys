@@ -50,9 +50,12 @@ def quick_whitenoise_analysis(wn_path):
         'dwnsmpl': 0.5,
         'ephys_sample_rate': 30000,
         'run_with_form_time': True
-    }
+    } # 'G:/freely_moving_ephys/ephys_recordings_copy_011721/calibration_params/world_checkerboard_calib.npz'
 
-    deinterlace_data(temp_config)
+    world_vids = glob(os.path.join(wn_path, '*WORLD.avi'))
+    world_times = glob(os.path.join(wn_path, '*WORLD_BonsaiTS.csv'))
+
+    deinterlace_data(temp_config, world_vids, world_times)
     calibrate_new_world_vids(temp_config)
 
     trial_units = []; name_check = []; path_check = []
@@ -89,7 +92,7 @@ def quick_whitenoise_analysis(wn_path):
         world_csv = [i for i in trial_cam_csv if 'WORLD' in i and 'formatted' in i][0]
         world_avi = [i for i in trial_cam_avi if 'WORLD' in i and 'calib' in i][0]
         # make an xarray of timestamps without dlc points, since there aren't any for world camera
-        worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), temp_config=temp_config)
+        worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=temp_config)
         worlddlc.name = 'WORLD_times'
         # make xarray of video frames
         if temp_config['save_nc_vids'] is True:
@@ -111,25 +114,29 @@ def quick_whitenoise_analysis(wn_path):
         print('generating summary plot')
         # generate summary plot
         samprate = 30000  # ephys sample rate
-        ephys_file_path = glob(os.path.join(wn_path, '*_ephys_merge.json'))
-        world_file_path = glob(os.path.join(wn_path, '*_world.nc'))
-
-        ephys_data = pd.read_json(ephys_file_path)
-        goodcells = ephys_data.loc[ephys_data['group']=='good']
-        n_units = len(goodcells)
+        ephys_file_path = glob(os.path.join(wn_path, '*_ephys_merge.json'))[0]
+        world_file_path = glob(os.path.join(wn_path, '*_world.nc'))[0]
         world_data = xr.open_dataset(world_file_path)
         world_vid_raw = np.uint8(world_data['WORLD_video'])
+        ephys_data = pd.read_json(ephys_file_path)
         ephysT0 = ephys_data.iloc[0,12]
         worldT = world_data.timestamps - ephysT0
+        dt = 0.025
+        t = np.arange(0, np.max(worldT),dt)
+        ephys_data['rate'] = np.nan
+        ephys_data['rate'] = ephys_data['rate'].astype(object)
+        for i,ind in enumerate(ephys_data.index):
+            ephys_data.at[ind,'rate'],bins = np.histogram(ephys_data.at[ind,'spikeT'],t)
+        ephys_data['rate']= ephys_data['rate']/dt
+        goodcells = ephys_data.loc[ephys_data['group']=='good']
+        n_units = len(goodcells)
+        
         if worldT[0]<-600:
             worldT = worldT + 8*60*60
         contrast = np.empty(worldT.size)
         newc = interp1d(worldT,contrast)
-        dt = 0.025
-        t = np.arange(0, np.max(worldT),dt)
+        
         contrast_interp = newc(t[0:-1])
-
-        movInterp = interp1d(worldT,img_norm,axis=0)
 
         # resize worldcam to make more manageable
         sz = world_vid_raw.shape
@@ -147,43 +154,33 @@ def quick_whitenoise_analysis(wn_path):
 
         spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
 
+        movInterp = interp1d(worldT,img_norm,axis=0, fill_value='extrapolate') # added extrapolate for cases where x_new is below interpolation range
+
         staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
         lag = 0.125
         plt.figure(figsize = (12,np.ceil(n_units/2)))
         for c, ind in enumerate(goodcells.index):
-            try:
-                r = goodcells.at[ind,'rate']
-                sta = 0; nsp = 0
-                sp = goodcells.at[ind,'spikeT'].copy()
-                if c==1:
-                    ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
-                for s in sp:
-                    if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
-                        nsp = nsp+1
-                        im = movInterp((s-lag)*spike_corr)
-                        if c==1:
-                            ensemble[nsp-1,:,:] = im
-                        sta = sta+im
-                plt.subplot(np.ceil(n_units/4),4,c+1)
+            r = goodcells.at[ind,'rate']
+            sta = 0; nsp = 0
+            sp = goodcells.at[ind,'spikeT'].copy()
+            if c==1:
+                ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
+            for s in sp:
+                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                    nsp = nsp+1
+                    im = movInterp((s-lag)*spike_corr)
+                    if c==1:
+                        ensemble[nsp-1,:,:] = im
+                    sta = sta+im
+            plt.subplot(np.ceil(n_units/4),4,c+1)
+            plt.title(str(c) + ' ' + goodcells.at[ind,'KSLabel']  +  ' cont='+ str(goodcells.at[ind,'ContamPct']))
+            if nsp > 0:
                 sta = sta/nsp
-                #sta[abs(sta)<0.1]=0
-                staAll[c,:,:] = sta
-            except ZeroDivisionError:
-                pass
-
-        plt.figure(figsize = (12,np.ceil(n_units)*2))
-        for i, ind in enumerate(goodcells.index):
-            # plot waveform
-            plt.subplot(n_units,4,i*4 + 1)
-            wv = goodcells.at[ind,'waveform']
-            plt.plot(np.arange(len(wv))*1000/samprate,goodcells.at[ind,'waveform'])
-            plt.xlabel('msec'); plt.title(str(i) + ' ' + goodcells.at[ind,'KSLabel']  +  ' cont='+ str(goodcells.at[ind,'ContamPct']))
-                                        
-            sta = staAll[i,:,:]
-            staRange = np.max(np.abs(sta))*1.2
-            if staRange<0.25:
-                staRange=0.25
-            plt.imshow(staAll[i,:,:],vmin = -staRange, vmax= staRange, cmap = 'jet')
-                        
+            else:
+                sta = np.nan
+            #sta[abs(sta)<0.1]=0
+            plt.imshow((sta-np.mean(sta) ),cmap = 'jet') # vmin=-0.3,vmax=0.3
+            staAll[c,:,:] = sta
         plt.tight_layout()
+
         plt.savefig(os.path.join(wn_path, t_name+'_intial_wn_analysis_summary_plot.png'))
