@@ -593,26 +593,26 @@ def run_ephys_analysis(file_dict):
     lag = 0.125
     plt.figure(figsize = (12,np.ceil(n_units/2)))
     for c, ind in enumerate(goodcells.index):
-        try:
-            r = goodcells.at[ind,'rate']
-            sta = 0; nsp = 0
-            sp = goodcells.at[ind,'spikeT'].copy()
-            if c==1:
-                ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
-            for s in sp:
-                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
-                    nsp = nsp+1
-                    im = movInterp((s-lag)*spike_corr)
-                    if c==1:
-                        ensemble[nsp-1,:,:] = im
-                    sta = sta+im
-            plt.subplot(np.ceil(n_units/4),4,c+1)
+        r = goodcells.at[ind,'rate']
+        sta = 0; nsp = 0
+        sp = goodcells.at[ind,'spikeT'].copy()
+        if c==1:
+            ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
+        for s in sp:
+            if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                nsp = nsp+1
+                im = movInterp((s-lag)*spike_corr)
+                if c==1:
+                    ensemble[nsp-1,:,:] = im
+                sta = sta+im
+        plt.subplot(np.ceil(n_units/4),4,c+1)
+        if nsp > 0:
             sta = sta/nsp
-            #sta[abs(sta)<0.1]=0
-            plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
-            staAll[c,:,:] = sta
-        except ZeroDivisionError:
-            pass
+        else:
+            sta = np.nan
+        #sta[abs(sta)<0.1]=0
+        plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+        staAll[c,:,:] = sta
     # plt.title('spike triggered average (lag=0.125)')
     plt.tight_layout()
     detail_pdf.savefig()
@@ -726,21 +726,21 @@ def run_ephys_analysis(file_dict):
     lagRange = np.arange(0,0.25,0.05)
     plt.figure(figsize = (12,2*n_units))
     for c, ind in enumerate(goodcells.index):
-        try:
-            sp = goodcells.at[ind,'spikeT'].copy()
-            for  lagInd, lag in enumerate(lagRange):
-                sta = 0; nsp = 0
-                for s in sp:
-                    if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
-                        nsp = nsp+1
-                        sta = sta+movInterp((s-lag)*spike_corr)
-                plt.subplot(n_units,6,(c*6)+lagInd + 1)
+        sp = goodcells.at[ind,'spikeT'].copy()
+        for  lagInd, lag in enumerate(lagRange):
+            sta = 0; nsp = 0
+            for s in sp:
+                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                    nsp = nsp+1
+                    sta = sta+movInterp((s-lag)*spike_corr)
+            plt.subplot(n_units,6,(c*6)+lagInd + 1)
+            if nsp > 0:
                 sta = sta/nsp
-            #sta[abs(sta)<0.1]=0
-                plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
-                plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
-        except ZeroDivisionError:
-            pass
+            else:
+                sta = np.nan
+        #sta[abs(sta)<0.1]=0
+            plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
+            plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
     plt.tight_layout()
     detail_pdf.savefig()
     plt.close()
