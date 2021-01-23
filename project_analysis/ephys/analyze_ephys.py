@@ -223,8 +223,9 @@ def run_ephys_analysis(file_dict):
         plt.plot(dataT,offset,'.')
         plt.plot(dataT, offset0 + dataT*drift_rate)
         plt.xlabel('secs'); plt.ylabel('offset - secs')
-        print(offset0)
-        print(drift_rate)
+        diagnostic_pdf.savefig()
+        plt.close()
+
     elif file_dict['speed'] is not None:
         offset0 = 0.1
         drift_rate = 0.1/1000
@@ -290,218 +291,8 @@ def run_ephys_analysis(file_dict):
 
     th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
     phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
-    
-    if free_move:
-        print('getting worldcam correction')
-        number_of_iterations = 5000
-        termination_eps = 1e-4
-        criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
-        warp_mode = cv2.MOTION_TRANSLATION
-        max_frames = 60*300
-        cc = np.zeros(max_frames); xshift = np.zeros(max_frames); yshift = np.zeros(max_frames);
-        for i in tqdm(range(max_frames)):
-            warp_matrix = np.eye(2, 3, dtype=np.float32)
-            (cc[i], warp_matrix) = cv2.findTransformECC (world_vid[i,:,:],world_vid[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
-            xshift[i] = warp_matrix[0,2]; yshift[i] = warp_matrix[1,2]
 
-        th_interp = interp1d(eyeT,th,bounds_error = False)
-        phi_interp = interp1d(eyeT, phi, bounds_error = False)
-        dth = np.diff(th_interp(worldT))
-        dphi = np.diff(phi_interp(worldT))
-        plt.figure(figsize = (12,8))
-        plt.subplot(2,2,1)
-        plt.plot(dth[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dtheta'); plt.ylabel('xshift')
-        plt.subplot(2,2,2)
-        plt.plot(dth[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dtheta'); plt.ylabel('yshift')
-        plt.subplot(2,2,3)
-        plt.plot(dphi[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dphi'); plt.ylabel('xshift')
-        plt.subplot(2,2,4)
-        plt.plot(dphi[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dphi'); plt.ylabel('yshift')
-        plt.tight_layout()
-        diagnostic_pdf.savefig()
-        plt.close()
-
-        plt.figure()
-        plt.subplot(3,1,1)
-        plt.plot(worldT[0:max_frames],cc); plt.ylabel('cc')
-        if file_dict['imu'] is not None:
-            plt.subplot(3,1,2)
-            plt.plot(worldT[0:max_frames],xshift, label = 'image x shift');
-            plt.plot(accT,-(gz-2.9)*7.5, label = 'gyro')
-            #plt.plot(worldT[0:max_frames],yshift, label = 'y');
-            #plt.plot(eyeT[0:-1],-dEye,label = 'eye dtheta')
-            plt.xlim(0,2); plt.ylim(-2,2)
-            plt.xlabel('secs'); plt.ylabel('deg')
-            plt.legend()
-        plt.subplot(3,1,3)
-        plt.plot(worldT[0:max_frames],xshift, label = 'image x shift');
-        #plt.plot(accT,-(gz-2.9)*7.5, label = 'gyro')
-        #plt.plot(worldT[0:max_frames],yshift, label = 'y');
-        plt.plot(worldT[0:-1],-dphi,'r',label = 'eye dtheta', alpha = 1)
-        plt.xlim(0,2); plt.ylim(-0.5,0.5)
-        plt.xlabel('secs'); plt.ylabel('deg')
-        plt.legend()
-        plt.tight_layout()
-        diagnostic_pdf.savefig()
-        plt.close()
-
-        xmodel = LinearRegression()
-        ymodel = LinearRegression()
-        eyeData = np.zeros((max_frames,2))
-        eyeData[:,0] = dth[0:max_frames];
-        eyeData[:,1] = dphi[0:max_frames];
-        xshiftdata = xshift[0:max_frames];
-        yshiftdata = yshift[0:max_frames];
-        usedata = ~np.isnan(eyeData[:,0]) & ~np.isnan(eyeData[:,1])  & (np.abs(eyeData[:,0])<2) & (np.abs(eyeData[:,1])<2)
-        xmodel.fit(eyeData[usedata,:],xshiftdata[usedata])
-
-        #offset0 = xmodel.intercept
-        xmap = xmodel.coef_;
-        print(xmap)
-
-        ymodel.fit(eyeData[usedata,:],yshiftdata[usedata])
-        ymap = ymodel.coef_;
-
-    else:
-        xmap = [-0.080764229, -0.075781153]
-        ymap =[-0.076365844,  0.083263225]
-
-    # eye correction movie
-    print('getting eye correction movie')
-    tr = [15,20]
-    fig = plt.figure(figsize = (8,16))
-    gs = fig.add_gridspec(10,1)
-    axEye = fig.add_subplot(gs[0,0])
-    axWorld = fig.add_subplot(gs[0:3,:])
-    axWorldFix = fig.add_subplot(gs[3:6,:])
-
-    axTheta = fig.add_subplot(gs[6,:])
-    axPhi = fig.add_subplot(gs[7,:])
-    axOmega = fig.add_subplot(gs[8,:])
-    axGyro = fig.add_subplot(gs[9,:])
-
-    th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
-    phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
-
-    axTheta.plot(eyeT,th)
-    axTheta.set_xlim(tr[0],tr[1]); 
-    axTheta.set_ylabel('theta - deg'); axTheta.set_ylim(-30,30)
-
-    axPhi.plot(eyeT,phi)
-    axPhi.set_xlim(tr[0],tr[1]); 
-    axPhi.set_ylabel('phi - deg'); axPhi.set_ylim(-30,30)
-
-    #axOmega.plot(eyeT,omega)
-    axOmega.set_xlim(tr[0],tr[1]); 
-    axOmega.set_ylabel('omega - deg'); axOmega.set_ylim(-20,20)
-
-    if free_move & has_imu:
-        axGyro.plot(accT,gz)
-        axGyro.set_xlim(tr[0],tr[1]); 
-        axGyro.set_ylabel('gyro - deg'); axGyro.set_ylim(1,4)
-
-    thInterp =interp1d(eyeT,th)
-    phiInterp =interp1d(eyeT,phi)
-    pix_per_deg = 1.6
-
-    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_corrected.mp4'))
-    # now animate
-    writer = FFMpegWriter(fps=30)
-    with writer.saving(fig, vidfile, 100):
-    #    for t in np.arange(tr[0],tr[1],1/30):
-        for t in tqdm(worldT[(worldT>tr[0]) & (worldT<tr[1])]):        
-            # show eye and world frames
-            axEye.cla(); axEye.axis('off'); 
-            axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
-            #axEye.set_xlim(0,160); axEye.set_ylim(0,120)
-            
-            world = worldInterp(t)
-            axWorld.cla(); axWorld.axis('off'); 
-            axWorld.imshow(world,'gray',vmin=0,vmax=255,aspect = "equal")
-            
-            worldFix= np.roll(world,(-np.int8(thInterp(t)*ymap[0] + phiInterp(t)*ymap[1]),-np.int8(thInterp(t)*xmap[0] + phiInterp(t)*xmap[1])),axis = (0,1))
-            axWorldFix.imshow(worldFix,'gray',vmin=0, vmax = 255, aspect = 'equal')
-            
-            #plot line for time, then remove
-            ln1 = axTheta.vlines(t,-0.5,30,'b')
-            ln2 = axPhi.vlines(t,-0.5,30,'b')
-            writer.grab_frame()
-            ln1.remove()
-            ln2.remove()
-        
-
-    max_frames = 60*60
-    thInterp =interp1d(eyeT,th, bounds_error = False, fill_value = 0)
-    phiInterp =interp1d(eyeT,phi, bounds_error = False, fill_value = 0)
-
-    world_fix = np.zeros((max_frames, np.size(world_vid,1), np.size(world_vid,2)),'uint8')
-    for f in tqdm(range(max_frames)):
-        t = worldT[f]
-        thInt = thInterp(t)
-        if np.isnan(thInt):
-            thInt =0
-        phiInt = phiInterp(t) 
-        if np.isnan(phiInt):
-            phiInt =0
-                
-        world_fix[f,:,:]= imshift(world_vid[f,:,:],(-(thInt*ymap[0] + phiInt*ymap[1]),-(thInt*xmap[0] + phiInt*xmap[1])))
-
-    number_of_iterations = 5000
-    termination_eps = 1e-4
-    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
-    warp_mode = cv2.MOTION_TRANSLATION
-    cc_fix = np.zeros(max_frames); xshift_fix = np.zeros(max_frames); yshift_fix = np.zeros(max_frames);
-    for i in tqdm(range(max_frames-1)):
-        try:
-            warp_matrix = np.eye(2, 3, dtype=np.float32)
-            (cc_fix[i], warp_matrix) = cv2.findTransformECC (world_fix[i,:,:],world_fix[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
-            xshift_fix[i] = warp_matrix[0,2]; yshift_fix[i] = warp_matrix[1,2]
-        except:
-            xshift_fix[i] = np.nan; yshift_fix[i] = np.nan # very rarely, a frame will raise cv2 error when iterations do not converge for transform
-
-    if free_move:
-        plt.figure()
-        plt.subplot(2,1,1)
-        plt.plot(xshift,label = 'x pre alignment')
-        plt.plot(xshift_fix,label = 'x post alignement')
-        plt.ylim(-5,5); plt.xlim(1000,1500)
-
-        plt.subplot(2,1,2)
-        plt.plot(yshift,label = 'y pre alignment')
-        plt.plot(yshift_fix, label = 'y post alignement')
-        plt.ylim(-5,5); plt.xlim(1000,1500)
-
-        diagnostic_pdf.savefig()
-        plt.close()
-
-    max_frame = 60*60
-    flow = np.zeros((max_frame, np.size(world_vid,1), np.size(world_vid,2),2))
-    flow_fix = np.zeros((max_frame, np.size(world_vid,1), np.size(world_vid,2),2))
-    x,y = np.meshgrid(np.arange(0, np.size(world_vid,2)), np.arange(0,np.size(world_vid,1)))
-    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_flowfix.mp4'))
-
-    print('plotting video of optical flow')
-    fig, axs = plt.subplots(1,2,figsize = (16,8))
-    # now animate
-    writer = FFMpegWriter(fps=30)
-    nx = 5
-    with writer.saving(fig, vidfile, 100):
-        for f in tqdm(range(max_frame-1)):
-
-            flow[f,:,:,:] = cv2.calcOpticalFlowFarneback(world_vid[f,:,:],world_vid[f+1,:,:], None, 0.5, 3, 15, 3, 5, 1.2, 0)
-            axs[0].cla()
-            axs[0].imshow(world_vid[f,:,:],vmin = 0, vmax = 255)
-            u = flow[f,:,:,0]; v = flow[f,:,:,1]
-            axs[0].quiver(x[::nx,::nx],y[::nx,::nx],u[::nx,::nx],-v[::nx,::nx], scale = 100 )
-            
-            flow_fix[f,:,:,:] = cv2.calcOpticalFlowFarneback(world_fix[f,:,:],world_fix[f+1,:,:], None, 0.5, 3, 15, 3, 5, 1.2, 0)
-            axs[1].cla()
-            axs[1].imshow(world_fix[f,:,:],vmin = 0, vmax = 255)
-            u = flow_fix[f,:,:,0]; v = flow[f,:,:,1]
-            axs[1].quiver(x[::nx,::nx],y[::nx,::nx],u[::nx,::nx],-v[::nx,::nx], scale = 100 )
-            
-            writer.grab_frame()
-
+    print('plot eye and gaze (i.e. saccade and fixate)')
     dEye = np.diff(th)
     if free_move and file_dict['imu'] is not None:
         gInterp = interp1d(accT,(gz-np.nanmean(gz))*7.5 , bounds_error = False)
@@ -633,6 +424,7 @@ def run_ephys_analysis(file_dict):
         for f in tqdm(range(nf)):
             frm = np.uint8(32*(img_norm[f,:,:]+4))
             frm2 = np.uint8(32*(img_norm[f+1,:,:]+4))
+            frm = cv2.resize(frm, (0,0), fx=0.5); frm2 = cv2.resize(frm2, (0,0), fx=0.5) # added resizing frames to a downscaled resolution
             flow_norm[f,:,:,:] = cv2.calcOpticalFlowFarneback(frm,frm2, None, 0.5, 3, 30, 3, 7, 1.5, 0)
             #ax.cla()
             #ax.imshow(frm,vmin = 0, vmax = 255)
@@ -716,11 +508,16 @@ def run_ephys_analysis(file_dict):
             plt.plot(ori_tuning[c,:,0],label = 'low sf'); plt.plot(ori_tuning[c,:,1],label = 'mid sf');plt.plot(ori_tuning[c,:,2],label = 'hi sf')
             plt.plot([0,7],[drift_spont[c],drift_spont[c]],'r:', label = 'spont')
             plt.legend()
-            plt.ylim(0,np.nanmax(ori_tuning[c,:,:]*1.2))
+            if np.nanmax(ori_tuning[c,:,:]*1.2) == np.nan:
+                plt.ylim(0,1)
+            else:
+                plt.ylim(0,np.nanmax(ori_tuning[c,:,:]*1.2))
+            detail_pdf.savefig()
+            plt.close()
 
     print('getting spike-triggered average with range in lags')
     # calculate spike-triggered average
-    spike_corr = 1 + 0.125/1200
+    spike_corr = 1 # + 0.125/1200 # they're already corrected in spikeT
     sta = 0
     lag = 0.075
     lagRange = np.arange(0,0.25,0.05)
