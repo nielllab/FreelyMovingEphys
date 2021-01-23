@@ -122,13 +122,34 @@ def quick_whitenoise_analysis(wn_path):
         ephysT0 = ephys_data.iloc[0,12]
         worldT = world_data.timestamps - ephysT0
 
-        ephys_data['spikeTraw'] = ephys_data['spikeT']
+        ephys_data['spikeTraw'] = ephys_data['spikeT'].copy()
 
         offset0 = 0.1
         drift_rate = 0.1/1000
 
         for i in range(len(ephys_data)):
             ephys_data['spikeT'].iloc[i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
+        
+        if worldT[0]<-600:
+            worldT = worldT + 8*60*60
+        
+        # resize worldcam to make more manageable
+        sz = world_vid_raw.shape
+        downsamp = 0.5
+        world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
+        for f in range(sz[0]):
+            world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
+
+        cam_gamma = 2
+        world_norm = (world_vid/255)**cam_gamma
+        std_im = np.std(world_norm,axis=0)
+        std_im[std_im<10/255] = 10/255
+        img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
+
+        contrast = np.empty(worldT.size)
+        for i in range(worldT.size):
+            contrast[i] = np.std(img_norm[i,:,:])
+        newc = interp1d(worldT,contrast,fill_value="extrapolate")
 
         dt = 0.025
         t = np.arange(0, np.max(worldT),dt)
@@ -140,33 +161,55 @@ def quick_whitenoise_analysis(wn_path):
         goodcells = ephys_data.loc[ephys_data['group']=='good']
         n_units = len(goodcells)
         
-        if worldT[0]<-600:
-            worldT = worldT + 8*60*60
-        contrast = np.empty(worldT.size)
-        newc = interp1d(worldT,contrast)
-        
         contrast_interp = newc(t[0:-1])
 
-        # resize worldcam to make more manageable
-        sz = world_vid_raw.shape
-        downsamp = 0.5
-        world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
-        for f in range(sz[0]):
-            world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
-        worldT = world_data.timestamps.copy()
+        plt.figure()
+        plt.plot(worldT[0:12000],contrast[0:12000])
+        plt.xlabel('time')
+        plt.ylabel('contrast')
+        plt.show()
 
-        cam_gamma = 2
-        world_norm = (world_vid/255)**cam_gamma
-        std_im = np.std(world_norm,axis=0)
-        std_im[std_im<10/255] = 10/255
-        img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
+        plt.figure()
+        plt.plot(t[0:600],contrast_interp[0:600])
+        plt.xlabel('secs'); plt.ylabel('contrast')
+        plt.show()
 
-        spike_corr = 1 # + 0.125/1200  # correction factor for ephys timing drift, but it's now corrected in spikeT and doesn't need to be manually reset
+        spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift, but it's now corrected in spikeT and doesn't need to be manually reset
 
-        movInterp = interp1d(worldT,img_norm,axis=0, fill_value='extrapolate') # added extrapolate for cases where x_new is below interpolation range
+        img_norm[img_norm<-2] = -2
+        movInterp = interp1d(worldT,img_norm,axis=0, fill_value="extrapolate") # added extrapolate for cases where x_new is below interpolation range
 
-        staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
-        lag = 0.125
+        fig, axs = plt.subplots(1,2,figsize=(8,3))
+        axs[0].plot(np.diff(worldT)); axs[0].set_xlabel('frame'); axs[0].set_ylabel('deltaT'); axs[0].set_title('world cam')
+        plt.show()
+
+        fig, ax = plt.subplots(figsize=(20,8))
+        ax.fontsize = 20
+        for i,ind in enumerate(goodcells.index):
+            plt.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25)
+            plt.xlim(0, 10); plt.xlabel('secs',fontsize = 20); plt.ylabel('unit #',fontsize=20)
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+        plt.show()
+
+        # calculate contrast - response functions
+        # mean firing rate in timebins correponding to contrast ranges
+        resp = np.empty((n_units,12))
+        crange = np.arange(0,1.2,0.1)
+        for i,ind in enumerate(goodcells.index):
+            for c,cont in enumerate(crange):
+                resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
+        # plot individual contrast response functions in subplots
+        fig = plt.figure(figsize = (6,np.ceil(n_units/2)))
+        for i, ind in enumerate(goodcells.index):
+            plt.subplot(np.ceil(n_units/4),4,i+1)
+            plt.plot(crange[2:-1],resp[i,2:-1])
+        # plt.ylim([0 , max(resp[i,1:-3])*1.2])
+            plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
+        plt.tight_layout()
+        plt.show()
+
+        lag = 0.125;
         plt.figure(figsize = (12,np.ceil(n_units/2)))
         for c, ind in enumerate(goodcells.index):
             r = goodcells.at[ind,'rate']
@@ -175,21 +218,16 @@ def quick_whitenoise_analysis(wn_path):
             if c==1:
                 ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
             for s in sp:
-                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                if (s-lag >5) & ((s-lag) <np.max(worldT)):
                     nsp = nsp+1
-                    im = movInterp((s-lag)*spike_corr)
+                    im = movInterp(s-lag);
                     if c==1:
                         ensemble[nsp-1,:,:] = im
-                    sta = sta+im
+                    sta = sta+im;
             plt.subplot(np.ceil(n_units/4),4,c+1)
-            plt.title(str(c) + ' ' + goodcells.at[ind,'KSLabel']  +  ' cont='+ str(goodcells.at[ind,'ContamPct']))
-            if nsp > 0:
-                sta = sta/nsp
-            else:
-                sta = np.nan
+            sta = sta/nsp
             #sta[abs(sta)<0.1]=0
-            plt.imshow((sta-np.mean(sta)),vmin=-0.3,vmax=0.3,cmap = 'jet')
-            staAll[c,:,:] = sta
+            plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
         plt.tight_layout()
 
-        plt.savefig(os.path.join(wn_path, t_name+'_intial_wn_analysis_summary_plot.png'))
+        plt.savefig(os.path.join(wn_path, t_name+'_intial_wn_analysis_summary_plot.pdf'))
