@@ -13,6 +13,7 @@ import os
 from scipy.io import loadmat
 # module imports
 from util.time import open_time
+from util.paths import find
 
 # format ephys data read in from Phy2 output files
 # returns DataFrame of ephys data
@@ -93,4 +94,45 @@ def format_spikes_multi(merge_file, config):
         ephys_json_path = os.path.join(pathList[0,s][0],fname)
         ephys_data.to_json(ephys_json_path)
 
+# read in many .npy ephys files ending in '*ephys_props.npy' by searching one or more date subdirectories
+# format the data into an xarray dataset of all units, with metadata stored as attributes
+# then, user can search entire dataset including any number of mice, dates, and units, and make comparisons
+# using xr.filter_by_attrs function
+def ephys_to_dataset(path, dates):
+    # path should be something like T:/freely_moving_ephys/ephys_recordings/
+    # dates should be a list of dates to include, as str, in the format 010121 for Jan 1st 2021
 
+    # search for .npy ephys files in subdirectories of date directory
+    # then, organize the returned filepaths into a list
+    ephys_filepaths = []
+    for day in dates:
+        day_npys = find('*ephys_props.npy',os.path.join(path, day))
+        for i in day_npys:
+            ephys_filepaths.append(i)
+
+    # read in the npys, get metadata, and append into dataset
+    for file in ephys_filepaths:
+        ephys = np.load(file, allow_pickle=True) # open npy files
+        keys = ephys.item().keys() # get all the names of unit/cell entries
+        for key in keys:
+            # prepare some metadata from the unit key
+            split_key = key.split('_')
+            date = split_key[1]; mouse = split_key[0]; exp = split_key[2]; rig = split_key[3]; unit = split_key[-1]
+            for x in [date, mouse, exp, rig, unit]:
+                split_key.remove(x) # stim can have variable num of '_', so it's best to remove everything else and add
+                                    # the remaining items in the list to the 'stim' attribute
+            stim = '_'.join(split_key)
+            unit_data = ephys.item().get(key) # get the data for the current key
+            unit_keys = list(unit_data.keys()) # we'll need the keys for each property (e.g. downsacc_avg, etc.)
+            # put into an xarray with labeled coordinates and dims
+            unit_xr = xr.DataArray([unit_data.get(i) for i in unit_keys], dims=['ephys_params'], coords=[('ephys_params', unit_keys)])
+            # add metadata
+            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['unit'] = unit
+            unit_xr.attrs['stim'] = stim; unit_xr.name = key # also important to name so that each datavariable can be indexed once merged into dataset
+            # and append each unit into one big dataset
+            if unit == 'unit1':
+                all_units_xr = unit_xr.copy()
+            else:
+                all_units_xr = xr.merge([all_units_xr, unit_xr])
+
+    return all_units_xr
