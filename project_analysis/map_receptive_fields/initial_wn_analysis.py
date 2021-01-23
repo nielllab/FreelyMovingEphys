@@ -21,6 +21,7 @@ from multiprocessing import freeze_support
 import matplotlib.pyplot as plt
 from glob import glob
 from scipy.interpolate import interp1d
+from matplotlib.backends.backend_pdf import PdfPages
 # module imports
 from util.params import extract_params
 from util.format_data import h5_to_xr, format_frames
@@ -111,7 +112,10 @@ def quick_whitenoise_analysis(wn_path):
         elif temp_config['save_nc_vids'] is False:
             worlddlc.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')))
 
-        print('generating summary plot')
+        print('generating ephys plots')
+
+        pdf = PdfPages(os.path.join(wn_path, (t_name + '_prelim_wn_figures.pdf')))
+    
         # generate summary plot
         samprate = 30000  # ephys sample rate
         ephys_file_path = glob(os.path.join(wn_path, '*_ephys_merge.json'))[0]
@@ -167,21 +171,24 @@ def quick_whitenoise_analysis(wn_path):
         plt.plot(worldT[0:12000],contrast[0:12000])
         plt.xlabel('time')
         plt.ylabel('contrast')
-        plt.show()
+        pdf.savefig()
+        plt.close()
 
         plt.figure()
         plt.plot(t[0:600],contrast_interp[0:600])
         plt.xlabel('secs'); plt.ylabel('contrast')
-        plt.show()
+        pdf.savefig()
+        plt.close()
 
         spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift, but it's now corrected in spikeT and doesn't need to be manually reset
 
         img_norm[img_norm<-2] = -2
         movInterp = interp1d(worldT,img_norm,axis=0, fill_value="extrapolate") # added extrapolate for cases where x_new is below interpolation range
 
-        fig, axs = plt.subplots(1,2,figsize=(8,3))
-        axs[0].plot(np.diff(worldT)); axs[0].set_xlabel('frame'); axs[0].set_ylabel('deltaT'); axs[0].set_title('world cam')
-        plt.show()
+        plt.figure()
+        plt.plot(np.diff(worldT)); plt.xlabel('frame'); plt.ylabel('deltaT'); plt.title('world cam')
+        pdf.savefig()
+        plt.close()
 
         fig, ax = plt.subplots(figsize=(20,8))
         ax.fontsize = 20
@@ -190,7 +197,8 @@ def quick_whitenoise_analysis(wn_path):
             plt.xlim(0, 10); plt.xlabel('secs',fontsize = 20); plt.ylabel('unit #',fontsize=20)
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
-        plt.show()
+        pdf.savefig()
+        plt.close()
 
         # calculate contrast - response functions
         # mean firing rate in timebins correponding to contrast ranges
@@ -207,7 +215,8 @@ def quick_whitenoise_analysis(wn_path):
         # plt.ylim([0 , max(resp[i,1:-3])*1.2])
             plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
         plt.tight_layout()
-        plt.show()
+        pdf.savefig()
+        plt.close()
 
         lag = 0.125;
         plt.figure(figsize = (12,np.ceil(n_units/2)))
@@ -229,5 +238,7 @@ def quick_whitenoise_analysis(wn_path):
             #sta[abs(sta)<0.1]=0
             plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
         plt.tight_layout()
+        pdf.savefig()
+        plt.close()
 
-        plt.savefig(os.path.join(wn_path, t_name+'_intial_wn_analysis_summary_plot.pdf'))
+        pdf.close()
