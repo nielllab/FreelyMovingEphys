@@ -566,7 +566,7 @@ def run_ephys_analysis(file_dict):
     print('getting rasters around saccades')
     # calculate saccade-locked psth
     # spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
-    dEye= np.diff(th_switch)
+    dEye= np.diff(th)
 
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
     trange = np.arange(-1,1.1,0.1)

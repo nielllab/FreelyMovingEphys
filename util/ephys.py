@@ -111,8 +111,8 @@ def ephys_to_dataset(path, dates):
             ephys_filepaths.append(i)
 
     # read in the npys, get metadata, and append into dataset
-    for file in ephys_filepaths:
-        ephys = np.load(file, allow_pickle=True) # open npy files
+    for filepath in ephys_filepaths:
+        ephys = np.load(filepath, allow_pickle=True) # open npy files
         keys = ephys.item().keys() # get all the names of unit/cell entries
         for key in keys:
             # prepare some metadata from the unit key
@@ -130,7 +130,7 @@ def ephys_to_dataset(path, dates):
             unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['unit'] = unit
             unit_xr.attrs['stim'] = stim; unit_xr.name = key # also important to name so that each datavariable can be indexed once merged into dataset
             # and append each unit into one big dataset
-            if unit == 'unit1':
+            if filepath == ephys_filepaths[0] and key == keys[0]:
                 all_units_xr = unit_xr.copy()
             else:
                 all_units_xr = xr.merge([all_units_xr, unit_xr])
