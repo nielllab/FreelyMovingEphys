@@ -381,7 +381,7 @@ def run_ephys_analysis(file_dict):
     spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
 
     staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
-    lag = 0.125
+    lag = 0.075
     plt.figure(figsize = (12,np.ceil(n_units/2)))
     for c, ind in enumerate(goodcells.index):
         r = goodcells.at[ind,'rate']
