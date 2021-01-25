@@ -198,8 +198,11 @@ def run_ephys_analysis(file_dict):
         acc_interp = interp1d(accTraw, (gz-3)*7.5)
         for tstart in range(len(t1)):
             for l in range(len(lag_range)):
-                c, lag= nanxcorr(dEye[t1[tstart]*60 : t2[tstart]*60] + 0.5/60, acc_interp(eyeT[t1[tstart]*60:t2[tstart]*60]+lag_range[l]),1)
-                cc[l] = c[1]
+                try:
+                    c, lag= nanxcorr(dEye[t1[tstart]*60 : t2[tstart]*60] + 0.5/60, acc_interp(eyeT[t1[tstart]*60:t2[tstart]*60]+lag_range[l]),1)
+                    cc[l] = c[1]
+                except: # occasional probelm with operands that cannot be broadcast togther because of different shapes
+                    cc[l] = np.nan
             offset[tstart] = lag_range[np.argmax(cc)]    
             ccmax[tstart] = np.max(cc)
         offset[ccmax<0.1] = nan
@@ -223,12 +226,13 @@ def run_ephys_analysis(file_dict):
         plt.plot(dataT,offset,'.')
         plt.plot(dataT, offset0 + dataT*drift_rate)
         plt.xlabel('secs'); plt.ylabel('offset - secs')
+        plt.title('offset0='+str(offset0)+' drift_rate='+str(drift_rate))
         diagnostic_pdf.savefig()
         plt.close()
 
     elif file_dict['speed'] is not None:
         offset0 = 0.1
-        drift_rate = 0.1/1000
+        drift_rate = - 0.1/1000
 
     if file_dict['imu'] is not None:
         accT = accTraw - (offset0 + accTraw*drift_rate)
@@ -378,10 +382,10 @@ def run_ephys_analysis(file_dict):
 
     print('getting spike-triggered average for lag=0.125')
     # calculate spike-triggered average
-    spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
+    spike_corr = 1 #- 0.125/1200  # correction factor for ephys timing drift
 
     staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
-    lag = 0.125
+    lag = 0.075
     plt.figure(figsize = (12,np.ceil(n_units/2)))
     for c, ind in enumerate(goodcells.index):
         r = goodcells.at[ind,'rate']
@@ -424,7 +428,7 @@ def run_ephys_analysis(file_dict):
         for f in tqdm(range(nf)):
             frm = np.uint8(32*(img_norm[f,:,:]+4))
             frm2 = np.uint8(32*(img_norm[f+1,:,:]+4))
-            frm = cv2.resize(frm, (0,0), fx=0.5); frm2 = cv2.resize(frm2, (0,0), fx=0.5) # added resizing frames to a downscaled resolution
+            # frm = cv2.resize(frm, (0,0), fx=0.5); frm2 = cv2.resize(frm2, (0,0), fx=0.5) # added resizing frames to a downscaled resolution
             flow_norm[f,:,:,:] = cv2.calcOpticalFlowFarneback(frm,frm2, None, 0.5, 3, 30, 3, 7, 1.5, 0)
             #ax.cla()
             #ax.imshow(frm,vmin = 0, vmax = 255)
@@ -508,12 +512,12 @@ def run_ephys_analysis(file_dict):
             plt.plot(ori_tuning[c,:,0],label = 'low sf'); plt.plot(ori_tuning[c,:,1],label = 'mid sf');plt.plot(ori_tuning[c,:,2],label = 'hi sf')
             plt.plot([0,7],[drift_spont[c],drift_spont[c]],'r:', label = 'spont')
             plt.legend()
-            if np.nanmax(ori_tuning[c,:,:]*1.2) == np.nan:
-                plt.ylim(0,1)
-            else:
+            try:
                 plt.ylim(0,np.nanmax(ori_tuning[c,:,:]*1.2))
-            detail_pdf.savefig()
-            plt.close()
+            except ValueError:
+                plt.ylim(0,1)
+        detail_pdf.savefig()
+        plt.close()
 
     print('getting spike-triggered average with range in lags')
     # calculate spike-triggered average
@@ -651,7 +655,10 @@ def run_ephys_analysis(file_dict):
     for i in range(n_units):
         plt.subplot(np.ceil(n_units/4),4,i+1)
         plt.errorbar(R_range[:-1],R_tuning[i,:],yerr=R_tuning_err[i,:])
-        plt.ylim(0,np.nanmax(R_tuning[i,2:-2]*1.2))
+        try:
+            plt.ylim(0,np.nanmax(R_tuning[i,:]*1.2))
+        except ValueError:
+            plt.ylim(0,1)
         plt.xlim([-2, 2])
         plt.xlabel('normalized pupil R'); plt. ylabel('sp/sec'); plt.title(i)
     plt.tight_layout()
@@ -686,7 +693,10 @@ def run_ephys_analysis(file_dict):
     for i in range(n_units):
         plt.subplot(2,np.ceil(n_units/2),i+1)
         plt.errorbar(th_range[:-1],th_tuning[i,:],yerr=th_tuning_err[i,:])
-        plt.ylim(0,np.nanmax(th_tuning[i,:]*1.2))
+        try:
+            plt.ylim(0,np.nanmax(th_tuning[i,:]*1.2))
+        except ValueError:
+            plt.ylim(0,1)
         plt.xlim([-2, 2])
         plt.xlabel('normalized pupil theta'); plt. ylabel('sp/sec'); plt.title(i)
     plt.tight_layout()
@@ -715,7 +725,11 @@ def run_ephys_analysis(file_dict):
             plt.plot(np.arange(8)*45, ori_tuning[i,:,0],label = 'low sf'); plt.plot(np.arange(8)*45,ori_tuning[i,:,1],label = 'mid sf');plt.plot(np.arange(8)*45,ori_tuning[i,:,2],label = 'hi sf')
             plt.plot([0,315],[drift_spont[i],drift_spont[i]],'r:', label = 'spont')
         # plt.legend()
-            plt.ylim(0,np.nanmax(ori_tuning[i,:,:]*1.2)); plt.xlabel('orientation (deg)')
+            try:
+                plt.ylim(0,np.nanmax(ori_tuning[i,:,:]*1.2))
+            except ValueError:
+                plt.ylim(0,1)
+            plt.xlabel('orientation (deg)')
         else:
             sta = staAll[i,:,:]
             staRange = np.max(np.abs(sta))*1.2

@@ -180,7 +180,7 @@ def quick_whitenoise_analysis(wn_path):
         pdf.savefig()
         plt.close()
 
-        spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift, but it's now corrected in spikeT and doesn't need to be manually reset
+        spike_corr = 1 #+ 0.125/1200  # correction factor for ephys timing drift, but it's now corrected in spikeT and doesn't need to be manually reset
 
         img_norm[img_norm<-2] = -2
         movInterp = interp1d(worldT,img_norm,axis=0, fill_value="extrapolate") # added extrapolate for cases where x_new is below interpolation range
@@ -218,7 +218,7 @@ def quick_whitenoise_analysis(wn_path):
         pdf.savefig()
         plt.close()
 
-        lag = 0.125;
+        lag = 0.075
         plt.figure(figsize = (12,np.ceil(n_units/2)))
         for c, ind in enumerate(goodcells.index):
             r = goodcells.at[ind,'rate']
@@ -229,14 +229,42 @@ def quick_whitenoise_analysis(wn_path):
             for s in sp:
                 if (s-lag >5) & ((s-lag) <np.max(worldT)):
                     nsp = nsp+1
-                    im = movInterp(s-lag);
+                    im = movInterp(s-lag)
                     if c==1:
                         ensemble[nsp-1,:,:] = im
-                    sta = sta+im;
+                    sta = sta+im
             plt.subplot(np.ceil(n_units/4),4,c+1)
-            sta = sta/nsp
-            #sta[abs(sta)<0.1]=0
+            if nsp > 0:
+                sta = sta/nsp
+            else:
+                sta = np.nan
             plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close()
+
+        # print('getting spike-triggered average with range in lags')
+        # calculate spike-triggered average
+        spike_corr = 1 # + 0.125/1200 # they're already corrected in spikeT
+        sta = 0
+        lag = 0.075
+        lagRange = np.arange(0,0.25,0.05)
+        plt.figure(figsize = (12,2*n_units))
+        for c, ind in enumerate(goodcells.index):
+            sp = goodcells.at[ind,'spikeT'].copy()
+            for  lagInd, lag in enumerate(lagRange):
+                sta = 0; nsp = 0
+                for s in sp:
+                    if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                        nsp = nsp+1
+                        sta = sta+movInterp((s-lag)*spike_corr)
+                plt.subplot(n_units,6,(c*6)+lagInd + 1)
+                if nsp > 0:
+                    sta = sta/nsp
+                else:
+                    sta = np.nan
+                plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
+                plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
         plt.tight_layout()
         pdf.savefig()
         plt.close()
