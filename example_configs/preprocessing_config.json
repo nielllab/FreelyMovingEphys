@@ -21,7 +21,7 @@
         "world_checker_vid": "T:/freely_moving_ephys/camera_calibration_params/betafpv_checkerboard.avi",
         "world_checker_npz": "T:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz",
         "top_checker_vid":"T:/freely_moving_ephys/camera_calibration_params/122920_camera_calibration_control_Rig2_checkerboard_TOP1.avi",
-        "top_checker_npz": "T:/freely_moving_ephys/camera_calibration_params/top1_checkerboard_calib.npz"
+        "top_checker_npz": "T:/freely_moving_ephys/camera_calibration_params/top_checkerboard_calib.npz"
     },
     "LED_dir_name": "hf1_IRspot",
     "flip_eye_during_deinter": true,
