@@ -130,6 +130,24 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['save_figs'] is True:
         pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
 
+    # if this is a hf recoridng, read in existing fm camera center, scale, etc.
+    if 'hf' in trial_name:
+        path_to_existing_props = sorted(find('*fm*eyecameracalc_props.json', config['data_path'])) # should always go for fm1 before fm2
+        if len(path_to_existing_props) == 0:
+            print('found no existing camera calibration properties from freely moving recording')
+            path_to_existing_props = None
+        elif len(path_to_existing_props) == 1:
+            print('found one existing file of camera calirbation properties from freely moving recording')
+            path_to_existing_props = path_to_existing_props[0]
+        elif len(path_to_existing_props) > 1:
+            print('found multiple existing files of camera calibration properties from freely moving recordings -- using first option from sorted list')
+            path_to_existing_props = path_to_existing_props[0]
+        if path_to_existing_props is not None:
+            with open(path_to_existing_props, 'r') as fp:
+                existing_camera_calib_props = json.load(fp)
+        elif path_to_existing_props is None:
+            existing_camera_calib_props = None
+
     # names of the different points
     pt_names = list(eye_data['point_loc'].values)
 
@@ -222,11 +240,17 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # find camera center
     A = np.vstack([np.cos(ellipse_params[list2,7]),np.sin(ellipse_params[list2,7])])
     b = np.expand_dims(np.diag(A.T@np.squeeze(ellipse_params[list2,11:13].T)),axis=1)
-    cam_cent = np.linalg.inv(A@A.T)@A@b
+    if existing_camera_calib_props is None:
+        cam_cent = np.linalg.inv(A@A.T)@A@b
+    elif existing_camera_calib_props is not None:
+        cam_cent = np.array(existing_camera_calib_props['cam_center_x'], existing_camera_calib_props['cam_center_y'])
 
     # ellipticity and scale
     ellipticity = (ellipse_params[list2,6] / ellipse_params[list2,5]).T
-    scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[list2,11:13]-cam_cent.T,axis=0)))/np.sum(1-(ellipticity)**2)
+    if existing_camera_calib_props is None:
+        scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[list2,11:13]-cam_cent.T,axis=0)))/np.sum(1-(ellipticity)**2)
+    elif existing_camera_calib_props is not None:
+        scale = existing_camera_calib_props['scale']
 
     # angles
     theta = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
@@ -323,6 +347,11 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         xvals = np.linalg.norm(ellipse_params[usegood, 11:13].T - cam_cent, axis=0)
         yvals = scale * np.sqrt(1-(ellipse_params[usegood,6]/ellipse_params[usegood,5])**2)
         slope, intercept, r_value, p_value, std_err = stats.linregress(xvals, yvals.T)
+
+        # save out camera center and scale as np array (but only if this is a freely moving recording)
+        if 'fm' in trial_name:
+            calib_props_dict = {'cam_cent_x':cam_cent[0], 'cam_cent_y':cam_cent[1], 'scale':scale, 'regression_r':r_value, 'regression_m':slope}
+            calib_props_dict_savepath = os.path.join(config['trial_path'], str(trial_name+eye_side+'eyecameracalc_props.json'))
 
         try:
             plt.figure()

@@ -50,6 +50,10 @@ def extract_params(config):
         except UnboundLocalError: # in case the trial doesn't meet criteria
             pass
 
+    # sort so that freely moving recordings are analyzed first
+    # fm eye camera calirbation properties are used in hf analysis, so fm needs to always come first
+    trial_units = sorted(trial_units, key=lambda x:('fm' not in x, x))
+
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_unit in trial_units:
         config['trial_path'] = trial_unit[0]
