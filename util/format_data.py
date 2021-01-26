@@ -121,3 +121,22 @@ def split_xyl(eye_names, eye_data, thresh):
     likeli_pts = xr.DataArray.to_pandas(likeli_pts).T
 
     return x_vals, y_vals, likeli_pts
+
+# safely merge list of xarray dataarrays, even when their lengths do not match
+def safe_xr_merge(obj_list):
+    max_lens = []
+    for obj in obj_list:
+        max_lens.append(len(obj))
+    set_len = np.min(max_lens)
+
+    out_objs = []
+    for obj in obj_list:
+        obj_len = len(obj)
+        if obj_len > set_len:
+            diff = obj_len - set_len
+            obj = obj[:-diff]
+            out_objs.append(obj)
+    
+    merge_objs = xr.merge(out_objs)
+
+    return merge_objs
