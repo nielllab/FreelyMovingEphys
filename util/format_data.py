@@ -136,6 +136,8 @@ def safe_xr_merge(obj_list):
             diff = obj_len - set_len
             obj = obj[:-diff]
             out_objs.append(obj)
+        else:
+            out_objs.append(obj)
     
     merge_objs = xr.merge(out_objs)
 
