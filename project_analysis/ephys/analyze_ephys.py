@@ -205,13 +205,8 @@ def run_ephys_analysis(file_dict):
                     cc[l] = np.nan
             offset[tstart] = lag_range[np.argmax(cc)]    
             ccmax[tstart] = np.max(cc)
-        offset[ccmax<0.1] = nan
-        plt.subplot(1,2,1)
-        plt.plot(eyeT[t1*60],offset)
-        plt.xlabel('secs'); plt.ylabel('offset - secs')
-        plt.subplot(1,2,2)
-        plt.plot(eyeT[t1*60],ccmax)
-        plt.xlabel('secs'); plt.ylabel('max cc')
+        offset[ccmax<0.1] = np.nan
+        acc_eyetime_alligment_fig = plot_acc_eyetime_alignment(eyeT, t1, offset, ccmax)
         diagnostic_pdf.savefig()
         plt.close()
 
@@ -223,10 +218,7 @@ def run_ephys_analysis(file_dict):
         model.fit(dataT[offset>0].reshape(-1,1),offset[offset>0])
         offset0 = model.intercept_
         drift_rate = model.coef_
-        plt.plot(dataT,offset,'.')
-        plt.plot(dataT, offset0 + dataT*drift_rate)
-        plt.xlabel('secs'); plt.ylabel('offset - secs')
-        plt.title('offset0='+str(offset0)+' drift_rate='+str(drift_rate))
+        plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT, offset, offset0, drift_rate)
         diagnostic_pdf.savefig()
         plt.close()
 
@@ -283,36 +275,25 @@ def run_ephys_analysis(file_dict):
     merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
 
     print('merging movie with sound')
-    subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', merge_mp4_name]) 
+    subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', merge_mp4_name])
+
+    th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
+    phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
 
     if free_move is True and file_dict['imu'] is not None:
         plt.figure()
-        plt.plot(eyeT[0:-1],np.diff(th_switch),label = 'dTheta')
+        plt.plot(eyeT[0:-1],np.diff(th),label = 'dTheta')
         plt.plot(accT-0.1,(gz-3)*10, label = 'gyro')
         plt.xlim(30,40); plt.ylim(-12,12); plt.legend(); plt.xlabel('secs')
         diagnostic_pdf.savefig()
         plt.close()
-
-    th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
-    phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
 
     print('plot eye and gaze (i.e. saccade and fixate)')
     dEye = np.diff(th)
     if free_move and file_dict['imu'] is not None:
         gInterp = interp1d(accT,(gz-np.nanmean(gz))*7.5 , bounds_error = False)
         plt.figure(figsize = (8,4))
-        plt.subplot(1,2,1)
-        plt.plot(eyeT[0:-1],dEye, label = 'dEye')
-        plt.plot(eyeT, gInterp(eyeT), label = 'dHead')
-        #plt.plot(accT-0.11,(gz-np.nanmean(gz))*7 )
-        #plt.plot(eyeT[0:-1],gInterp(eyeT[0:-1])-dEye, label = 'dgaze')
-        plt.xlim(37,39); plt.ylim(-10,10); plt.legend(); plt.ylabel('deg'); plt.xlabel('secs')
-        plt.subplot(1,2,2)
-        plt.plot(eyeT[0:-1],np.nancumsum(gInterp(eyeT[0:-1])), label = 'head')
-        plt.plot(eyeT[0:-1],np.nancumsum(gInterp(eyeT[0:-1])-dEye),label ='gaze')
-        plt.plot(eyeT[1:],th[0:-1],label ='eye')
-        plt.xlim(35,40); plt.ylim(-30,30); plt.legend(); plt.ylabel('deg'); plt.xlabel('secs')
-        plt.tight_layout()
+        plot_saccade_and_fixate_fig = plot_saccade_and_fixate(eyeT, dEye, gInterp, th)
         diagnostic_pdf.savefig()
         plt.close()
     
@@ -365,14 +346,7 @@ def run_ephys_analysis(file_dict):
 
     print('plotting individual contrast response functions')
     # plot individual contrast response functions in subplots
-    fig = plt.figure(figsize = (6,np.ceil(n_units/2)))
-    for i, ind in enumerate(goodcells.index):
-        plt.subplot(np.ceil(n_units/4),4,i+1)
-        plt.plot(crange[2:-1],resp[i,2:-1])
-    # plt.ylim([0 , max(resp[i,1:-3])*1.2])
-        plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
-    plt.tight_layout()
-    plt.title('individual contrast reponse')
+    ind_contrast_funcs_fig = plot_ind_contrast_funcs(n_units, goodcells, crange, resp)
     detail_pdf.savefig()
     plt.close()
 
@@ -382,34 +356,7 @@ def run_ephys_analysis(file_dict):
 
     print('getting spike-triggered average for lag=0.125')
     # calculate spike-triggered average
-    spike_corr = 1 #- 0.125/1200  # correction factor for ephys timing drift
-
-    staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
-    lag = 0.075
-    plt.figure(figsize = (12,np.ceil(n_units/2)))
-    for c, ind in enumerate(goodcells.index):
-        r = goodcells.at[ind,'rate']
-        sta = 0; nsp = 0
-        sp = goodcells.at[ind,'spikeT'].copy()
-        if c==1:
-            ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
-        for s in sp:
-            if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
-                nsp = nsp+1
-                im = movInterp((s-lag)*spike_corr)
-                if c==1:
-                    ensemble[nsp-1,:,:] = im
-                sta = sta+im
-        plt.subplot(np.ceil(n_units/4),4,c+1)
-        if nsp > 0:
-            sta = sta/nsp
-        else:
-            sta = np.nan
-        #sta[abs(sta)<0.1]=0
-        plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
-        staAll[c,:,:] = sta
-    # plt.title('spike triggered average (lag=0.125)')
-    plt.tight_layout()
+    staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
     detail_pdf.savefig()
     plt.close()
 
@@ -521,107 +468,43 @@ def run_ephys_analysis(file_dict):
 
     print('getting spike-triggered average with range in lags')
     # calculate spike-triggered average
-    spike_corr = 1 # + 0.125/1200 # they're already corrected in spikeT
-    sta = 0
-    lag = 0.075
-    lagRange = np.arange(0,0.25,0.05)
-    plt.figure(figsize = (12,2*n_units))
-    for c, ind in enumerate(goodcells.index):
-        sp = goodcells.at[ind,'spikeT'].copy()
-        for  lagInd, lag in enumerate(lagRange):
-            sta = 0; nsp = 0
-            for s in sp:
-                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
-                    nsp = nsp+1
-                    sta = sta+movInterp((s-lag)*spike_corr)
-            plt.subplot(n_units,6,(c*6)+lagInd + 1)
-            if nsp > 0:
-                sta = sta/nsp
-            else:
-                sta = np.nan
-        #sta[abs(sta)<0.1]=0
-            plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
-            plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
-    plt.tight_layout()
+    fig = plot_STA_multi_lag(n_units, goodcells, worldT, movInterp)
     detail_pdf.savefig()
     plt.close()
 
     print('getting spike-triggered variance')
     # calculate spike-triggered variance
-    sta = 0
-    lag = 0.125
-    plt.figure(figsize = (12,np.ceil(n_units/2)))
-    for c, ind in enumerate(goodcells.index):
-        r = goodcells.at[ind,'rate']
-        sta = 0
-        for i in range(5,t.size-10):
-            sta = sta+r[i]*(movInterp(t[i]-lag))**2
-        plt.subplot(np.ceil(n_units/4),4,c+1)
-        sta = sta/np.sum(r)
-        plt.imshow(sta - np.mean(img_norm**2,axis=0),vmin=-1,vmax=1)
-    plt.tight_layout()
+    fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm)
     detail_pdf.savefig()
     plt.close()
 
     print('getting rasters around saccades')
     # calculate saccade-locked psth
-    # spike_corr = 1 + 0.125/1200  # correction factor for ephys timing drift
+    spike_corr = 1 #+ 0.125/1200  # correction factor for ephys timing drift
     dEye= np.diff(th)
 
-    fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
     trange = np.arange(-1,1.1,0.1)
     sthresh = 8
     upsacc = eyeT[np.append(dEye,0)>sthresh]/spike_corr
     upsacc = upsacc[upsacc>5]
     upsacc = upsacc[upsacc<np.max(t)-5]
-    downsacc= eyeT[np.append(dEye,0)<-sthresh]/spike_corr
+    downsacc = eyeT[np.append(dEye,0)<-sthresh]/spike_corr
     downsacc = downsacc[downsacc>5]
     downsacc = downsacc[downsacc<np.max(t)-5]
     upsacc_avg = np.zeros((units.size,trange.size))
     downsacc_avg = np.zeros((units.size,trange.size))
-    for i, ind in enumerate(goodcells.index):
-        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
-        for s in upsacc:
-            upsacc_avg[i,:] = upsacc_avg[i,:]+ rateInterp(np.array(s)+trange)/upsacc.size
-        for s in downsacc:
-            downsacc_avg[i,:]= downsacc_avg[i,:]+ rateInterp(np.array(s)+trange)/downsacc.size
-        plt.subplot(np.ceil(n_units/4),4,i+1)
-        plt.plot(trange,upsacc_avg[i,:])
-        plt.plot(trange,downsacc_avg[i,:],'r')
-        plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
-        plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
-        plt.ylabel('sp/sec')
-    plt.tight_layout()
+
+    upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, upsacc_avg, t_range, downsacc, downsacc_avg)
     detail_pdf.savefig()
     plt.close()
 
     # rasters around positive saccades
-    fig = plt.figure(figsize = (12,n_units)) 
-    for i, ind in enumerate(goodcells.index): 
-        sp = np.array(goodcells.at[units[i],'spikeT']) *spike_corr
-        plt.subplot(np.ceil(n_units/4),4,i+1) 
-        n = 0 
-        for s in upsacc: 
-            n= n+1 
-            sd = np.abs(sp-np.array(s))<10 
-            sacc_sp = sp[sd] 
-            plt.vlines(sacc_sp-np.array(s),n-0.25,n+0.25) 
-        plt.xlim(-1,1) #; plt.ylim(0,50)
+    raster_around_upsacc_fig = plot_rasters_around_saccades(n_units, goodcells, upsacc)
     detail_pdf.savefig()
     plt.close()
 
     #rasters around negative saccades
-    fig = plt.figure(figsize = (12,n_units))
-    for i, ind in enumerate(goodcells.index):
-        sp = np.array(goodcells.at[units[i],'spikeT'])
-        plt.subplot(np.ceil(n_units/4),4,i+1)
-        n = 0
-        for s in downsacc:
-            n= n+1
-            sd = np.abs(sp-np.array(s))<10
-            sacc_sp = sp[sd]
-            plt.vlines(sacc_sp-np.array(s),n-0.25,n+0.25)
-        plt.xlim(-1,1)
+    raster_around_downsacc_fig = plot_rasters_around_saccades(n_units, goodcells, downsacc)
     detail_pdf.savefig()
     plt.close()
 
@@ -635,33 +518,13 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
-    print('plotting rate vs pupil radius')
+    print('plotting spike rate vs pupil radius')
     # plot rate vs pupil
     n_units = len(goodcells)
     R_range = np.arange(-4,4,0.5)
     useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
     useR = Rnorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    R_scatter = np.zeros((n_units,len(useR)))
-    R_tuning = np.zeros((n_units,len(R_range)-1))
-    R_tuning_err =R_tuning.copy()
-    for i, ind in enumerate(goodcells.index):
-        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
-        R_scatter[i,:] = rateInterp(useEyeT)
-        for j in range(len(R_range)-1):
-            usePts =(useR>R_range[j]) & (useR<R_range[j+1])
-            R_tuning[i,j] = np.mean(R_scatter[i,usePts])
-            R_tuning_err[i,j] = np.std(R_scatter[i,usePts])/np.sqrt(np.count_nonzero(usePts))
-    fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
-    for i in range(n_units):
-        plt.subplot(np.ceil(n_units/4),4,i+1)
-        plt.errorbar(R_range[:-1],R_tuning[i,:],yerr=R_tuning_err[i,:])
-        try:
-            plt.ylim(0,np.nanmax(R_tuning[i,:]*1.2))
-        except ValueError:
-            plt.ylim(0,1)
-        plt.xlim([-2, 2])
-        plt.xlabel('normalized pupil R'); plt. ylabel('sp/sec'); plt.title(i)
-    plt.tight_layout()
+    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_pupil_radius(n_units, useR, R_range, goodcells, useEyeT, t 'rad')
     detail_pdf.savefig()
     plt.close()
 
@@ -673,78 +536,19 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
-    print('plotting rate vs theta')
+    print('plotting spike rate vs theta')
     # plot rate vs theta
     n_units = len(goodcells)
     th_range = np.arange(-2,3,0.5)
     useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
     useTh = thetaNorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    th_scatter = np.zeros((n_units,len(useR)))
-    th_tuning = np.zeros((n_units,len(th_range)-1))
-    th_tuning_err =th_tuning.copy()
-    for i, ind in enumerate(goodcells.index):
-        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
-        th_scatter[i,:] = rateInterp(useEyeT)
-        for j in range(len(th_range)-1):
-            usePts =(useTh>th_range[j]) & (useTh<th_range[j+1])
-            th_tuning[i,j] = np.mean(th_scatter[i,usePts])
-            th_tuning_err[i,j] = np.std(th_scatter[i,usePts])/np.sqrt(np.count_nonzero(usePts))
-    fig = plt.figure(figsize = (3*np.ceil(n_units/2),6))
-    for i in range(n_units):
-        plt.subplot(2,np.ceil(n_units/2),i+1)
-        plt.errorbar(th_range[:-1],th_tuning[i,:],yerr=th_tuning_err[i,:])
-        try:
-            plt.ylim(0,np.nanmax(th_tuning[i,:]*1.2))
-        except ValueError:
-            plt.ylim(0,1)
-        plt.xlim([-2, 2])
-        plt.xlabel('normalized pupil theta'); plt. ylabel('sp/sec'); plt.title(i)
-    plt.tight_layout()
+    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_pupil_radius(n_units, useTh, th_range, goodcells, useEyeT, t 'rad')
     detail_pdf.savefig()
     plt.close()
 
     print('generating summary plot')
     # generate summary plot
-    samprate = 30000  # ephys sample rate
-    plt.figure(figsize = (12,np.ceil(n_units)*2))
-    for i, ind in enumerate(goodcells.index): 
-        # plot waveform
-        plt.subplot(n_units,4,i*4 + 1)
-        wv = goodcells.at[ind,'waveform']
-        plt.plot(np.arange(len(wv))*1000/samprate,goodcells.at[ind,'waveform'])
-        plt.xlabel('msec'); plt.title(str(i) + ' ' + goodcells.at[ind,'KSLabel']  +  ' cont='+ str(goodcells.at[ind,'ContamPct']))
-        
-        # plot CRF
-        plt.subplot(n_units,4,i*4 + 2)
-        plt.plot(crange[2:-1],resp[i,2:-1])
-        plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
-                                    
-        #plot STA or tuning curve
-        plt.subplot(n_units,4,i*4 + 3)
-        if file_dict['stim_type'] == 'grat':
-            plt.plot(np.arange(8)*45, ori_tuning[i,:,0],label = 'low sf'); plt.plot(np.arange(8)*45,ori_tuning[i,:,1],label = 'mid sf');plt.plot(np.arange(8)*45,ori_tuning[i,:,2],label = 'hi sf')
-            plt.plot([0,315],[drift_spont[i],drift_spont[i]],'r:', label = 'spont')
-        # plt.legend()
-            try:
-                plt.ylim(0,np.nanmax(ori_tuning[i,:,:]*1.2))
-            except ValueError:
-                plt.ylim(0,1)
-            plt.xlabel('orientation (deg)')
-        else:
-            sta = staAll[i,:,:]
-            staRange = np.max(np.abs(sta))*1.2
-            if staRange<0.25:
-                staRange=0.25
-            plt.imshow(staAll[i,:,:],vmin = -staRange, vmax= staRange, cmap = 'jet')
-                      
-        # plot eye movements
-        plt.subplot(n_units,4,i*4 + 4)
-        plt.plot(trange,upsacc_avg[i,:])
-        plt.plot(trange,downsacc_avg[i,:],'r')
-        plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
-        plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
-        plt.ylabel('sp/sec')
-    plt.tight_layout()
+    summary_fig = plot_summary(n_units, goodcells, crange, resp, file_dict, ori_tuning, drift_spont, staAll, trange, upsacc_avg, downsac_avg)
     overview_pdf.savefig()
     plt.close()
 
