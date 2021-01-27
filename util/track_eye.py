@@ -132,7 +132,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # if this is a hf recoridng, read in existing fm camera center, scale, etc.
     if 'hf' in trial_name:
-        path_to_existing_props = sorted(find('*fm*eyecameracalc_props.json', config['data_path'])) # should always go for fm1 before fm2
+        path_to_existing_props = sorted(find(os.path.join(config['trial_path'], '*eyecameracalc_props.json')), config['data_path']) # should always go for fm1 before fm2
         if len(path_to_existing_props) == 0:
             print('found no existing camera calibration properties from freely moving recording')
             path_to_existing_props = None
@@ -147,6 +147,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
                 existing_camera_calib_props = json.load(fp)
         elif path_to_existing_props is None:
             existing_camera_calib_props = None
+    elif 'fm' in trial_name:
+        existing_camera_calib_props = None
 
     # names of the different points
     pt_names = list(eye_data['point_loc'].values)
@@ -352,6 +354,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         if 'fm' in trial_name:
             calib_props_dict = {'cam_cent_x':cam_cent[0], 'cam_cent_y':cam_cent[1], 'scale':scale, 'regression_r':r_value, 'regression_m':slope}
             calib_props_dict_savepath = os.path.join(config['trial_path'], str(trial_name+eye_side+'eyecameracalc_props.json'))
+            with open(calib_props_dict_savepath, 'w') as f:
+                json.dump(calib_props_dict, f)
 
         try:
             plt.figure()
@@ -561,13 +565,15 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
                 rfit_conv = rfit_filt - convolve(rfit_filt, np.ones(filtsize)/filtsize, boundary='wrap')
 
             except ValueError as e: # in case every value in rfit is NaN
+                rift = np.nan*np.zeros(360)
                 rfit_conv = np.nan*np.zeros(360)
         except (KeyError, ValueError) as e:
             key_error_count = key_error_count + 1
+            rift = np.nan*np.zeros(360)
             rfit_conv = np.nan*np.zeros(360)
 
         # get rid of outlier points
-        rfit_conv[np.abs(rfit_conv)>1.5] = np.nan;
+        rfit_conv[np.abs(rfit_conv)>1.5] = np.nan
 
         # save out pupil edge data into one xarray for all frames
         if step == 0:
