@@ -123,15 +123,16 @@ def split_xyl(eye_names, eye_data, thresh):
     return x_vals, y_vals, likeli_pts
 
 # safely merge list of xarray dataarrays, even when their lengths do not match
+# always does it along dim 'frame'
 def safe_xr_merge(obj_list):
     max_lens = []
     for obj in obj_list:
-        max_lens.append(len(obj))
+        max_lens.append(dict(obj.frame.sizes)['frame'])
     set_len = np.min(max_lens)
 
     out_objs = []
     for obj in obj_list:
-        obj_len = len(obj)
+        obj_len = dict(obj.frame.sizes)['frame']
         if obj_len > set_len:
             diff = obj_len - set_len
             obj = obj[:-diff]
