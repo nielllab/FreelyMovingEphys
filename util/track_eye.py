@@ -132,7 +132,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # if this is a hf recoridng, read in existing fm camera center, scale, etc.
     if 'hf' in trial_name:
-        path_to_existing_props = sorted(find(os.path.join(config['trial_path'], '*eyecameracalc_props.json')), config['data_path']) # should always go for fm1 before fm2
+        path_to_existing_props = sorted(find(config['trial_path']+'*fm_eyecameracalc_props.json', config['data_path'])) # should always go for fm1 before fm2
         if len(path_to_existing_props) == 0:
             print('found no existing camera calibration properties from freely moving recording')
             path_to_existing_props = None
@@ -352,8 +352,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
         # save out camera center and scale as np array (but only if this is a freely moving recording)
         if 'fm' in trial_name:
-            calib_props_dict = {'cam_cent_x':cam_cent[0], 'cam_cent_y':cam_cent[1], 'scale':scale, 'regression_r':r_value, 'regression_m':slope}
-            calib_props_dict_savepath = os.path.join(config['trial_path'], str(trial_name+eye_side+'eyecameracalc_props.json'))
+            calib_props_dict = {'cam_cent_x':float(cam_cent[0]), 'cam_cent_y':float(cam_cent[1]), 'scale':float(scale), 'regression_r':float(r_value), 'regression_m':float(slope)}
+            calib_props_dict_savepath = os.path.join(config['trial_path'], str(trial_name+eye_side+'_fm_eyecameracalc_props.json'))
             with open(calib_props_dict_savepath, 'w') as f:
                 json.dump(calib_props_dict, f)
 

@@ -130,7 +130,7 @@ def quick_whitenoise_analysis(wn_path):
         ephys_data['spikeTraw'] = ephys_data['spikeT'].copy()
 
         offset0 = 0.1
-        drift_rate = 0.1/1000
+        drift_rate = -0.1/1000
 
         for i in range(len(ephys_data)):
             ephys_data['spikeT'].iloc[i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
