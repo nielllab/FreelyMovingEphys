@@ -64,7 +64,7 @@ def write_config(user_inputs):
         'save_avi_vids': user_inputs['save_avi_vids'],
         'num_save_frames': [int(user_inputs['num_save_frames']) if user_inputs['num_save_frames'] is not None else user_inputs['num_save_frames']][0],
         'save_figs': user_inputs['save_figs'],
-        'save_nc_vids' user_inputs['save_nc_vids']
+        'save_nc_vids': user_inputs['save_nc_vids'],
         'use_BonsaiTS': user_inputs['use_BonsaiTS'],
         'range_radius': [float(user_inputs['range_radius']) if user_inputs['range_radius'] is not None else user_inputs['range_radius']][0],
         'world_interp_method': user_inputs['world_interp_method'],
