@@ -103,9 +103,14 @@ def run_ephys_analysis(file_dict):
         imu_data = xr.open_dataset(file_dict['imu'])
         accT = imu_data.timestamps
         acc_chans = imu_data.IMU_data
-        gx = np.array(acc_chans.sel(channel='gyro_x'))
-        gy = np.array(acc_chans.sel(channel='gyro_y'))
-        gz = np.array(acc_chans.sel(channel='gyro_z'))
+        try:
+            gx = np.array(acc_chans.sel(channel='gyro_x'))
+            gy = np.array(acc_chans.sel(channel='gyro_y'))
+            gz = np.array(acc_chans.sel(channel='gyro_z'))
+        except:
+            gx = np.array(acc_chans.sel(sample='gyro_x'))
+            gy = np.array(acc_chans.sel(sample='gyro_y'))
+            gz = np.array(acc_chans.sel(sample='gyro_z'))
 
     # load optical mouse data
     if file_dict['speed'] is not None:
@@ -494,7 +499,7 @@ def run_ephys_analysis(file_dict):
     upsacc_avg = np.zeros((units.size,trange.size))
     downsacc_avg = np.zeros((units.size,trange.size))
 
-    upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, upsacc_avg, t_range, downsacc, downsacc_avg)
+    upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, upsacc_avg, trange, downsacc, downsacc_avg)
     detail_pdf.savefig()
     plt.close()
 
@@ -524,7 +529,7 @@ def run_ephys_analysis(file_dict):
     R_range = np.arange(-4,4,0.5)
     useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
     useR = Rnorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_pupil_radius(n_units, useR, R_range, goodcells, useEyeT, t 'rad')
+    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_pupil_radius(n_units, useR, R_range, goodcells, useEyeT, t, 'rad')
     detail_pdf.savefig()
     plt.close()
 
@@ -542,13 +547,13 @@ def run_ephys_analysis(file_dict):
     th_range = np.arange(-2,3,0.5)
     useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
     useTh = thetaNorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_pupil_radius(n_units, useTh, th_range, goodcells, useEyeT, t 'rad')
+    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_pupil_radius(n_units, useTh, th_range, goodcells, useEyeT, t, 'rad')
     detail_pdf.savefig()
     plt.close()
 
     print('generating summary plot')
     # generate summary plot
-    summary_fig = plot_summary(n_units, goodcells, crange, resp, file_dict, ori_tuning, drift_spont, staAll, trange, upsacc_avg, downsac_avg)
+    summary_fig = plot_summary(n_units, goodcells, crange, resp, file_dict, ori_tuning, drift_spont, staAll, trange, upsacc_avg, downsacc_avg)
     overview_pdf.savefig()
     plt.close()
 
