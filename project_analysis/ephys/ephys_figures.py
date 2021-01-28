@@ -338,7 +338,7 @@ def plot_rasters_around_saccades(n_units, goodcells, sacc):
 
 def plot_spike_rate_vs_var(n_units, use, var_range, goodcells, useEyeT, t, var_name):
     scatter = np.zeros((n_units,len(use)))
-    tuning = np.zeros((n_units,len(range)-1))
+    tuning = np.zeros((n_units,len(var_range)-1))
     tuning_err = tuning.copy()
     for i, ind in enumerate(goodcells.index):
         rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
