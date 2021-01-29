@@ -132,7 +132,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # if this is a hf recoridng, read in existing fm camera center, scale, etc.
     if 'hf' in trial_name:
-        path_to_existing_props = sorted(find(config['trial_path']+'*fm_eyecameracalc_props.json', config['data_path'])) # should always go for fm1 before fm2
+        path_to_existing_props = sorted(find('*fm_eyecameracalc_props.json', config['data_path'])) # should always go for fm1 before fm2
         if len(path_to_existing_props) == 0:
             print('found no existing camera calibration properties from freely moving recording')
             path_to_existing_props = None

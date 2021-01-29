@@ -206,15 +206,8 @@ def quick_whitenoise_analysis(wn_path):
         resp = np.empty((n_units,12))
         crange = np.arange(0,1.2,0.1)
         for i,ind in enumerate(goodcells.index):
-        for c,cont in enumerate(crange):
-            resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
-        plt.plot(crange,np.transpose(resp))
-        #plt.ylim(0,10)
-        plt.xlabel('contrast')
-        plt.ylabel('sp/sec')
-        plt.title('mean firing rate in timebins correponding to contrast ranges')
-        pdf.savefig()
-        plt.close()
+            for c,cont in enumerate(crange):
+                resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
         # plot individual contrast response functions in subplots
         ind_contrast_funcs_fig = plot_ind_contrast_funcs(n_units, goodcells, crange, resp)
         pdf.savefig()
