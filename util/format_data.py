@@ -59,11 +59,23 @@ def h5_to_xr(pt_path, time_path, view, config):
         try:
             xrpts = xrpts.assign_coords(timestamps=('frame', time[1:])) # indexing [1:] into time because first row is the empty header, 0
         except ValueError:
-            # this is both messy and temporary -- trying to fix issue: ValueError: conflicting sizes for dimension 'frame': length 71521 on 'timestamps' and length 71522 on 'frame'
-            timestep = time[1] - time[0]
-            last_value = time[-1] + timestep
-            new_time = np.append(time, pd.Series(last_value))
-            xrpts = xrpts.assign_coords(timestamps=('frame', new_time[1:]))
+            diff = len(time[1:]) - len(xrpts['frame'])
+            if diff > 0: # time is longer
+                diff = abs(diff)
+                new_time = time.copy()
+                new_time = new_time[0:-diff]
+                xrpts = xrpts.assign_coords(timestamps=('frame', new_time[1:]))
+            elif diff < 0: # frame is longer
+                diff = abs(diff)
+                timestep = time[1] - time[0]
+                new_time = time.copy()
+                for i in range(1,diff+1):
+                    last_value = new_time[-1] + timestep
+                    new_time = np.append(new_time, pd.Series(last_value))
+                xrpts = xrpts.assign_coords(timestamps=('frame', new_time[1:]))
+            else: # equal (probably won't happen because ValueError should have been caused by unequal lengths)
+                xrpts = xrpts.assign_coords(timestamps=('frame', time[1:]))
+            
     elif pt_path is None or pt_path == []:
         if time_path is not None and time_path != []:
             time = open_time(time_path)
