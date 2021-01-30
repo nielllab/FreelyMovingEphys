@@ -241,8 +241,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # matrix operations don't scale well to recordings of more than 100,000 frames
     # this limits the number of frames used for the calibration
-    if np.size(list2,1) > 10000:
-        shortinds = list(sorted(np.random.choice(np.size(list2,1), size=10000, replace=False)))
+    if np.size(list2,1) > 50000:
+        shortinds = list(sorted(np.random.choice(np.size(list2,1), size=50000, replace=False)))
         shortbool = [True if i in shortinds else False for i in range(np.size(list2,1))]
         shortlist = tuple(np.shape(np.expand_dims(tuple(list2[0][shortbool]),0)))
     else:
@@ -261,7 +261,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if existing_camera_calib_props is None:
         scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[shortlist,11:13]-cam_cent.T,axis=0)))/np.sum(1-(ellipticity)**2)
     elif existing_camera_calib_props is not None:
-        scale = existing_camera_calib_props['scale']
+        scale = float(existing_camera_calib_props['scale'])
 
     # angles
     theta = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
@@ -355,9 +355,12 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         # plt.close()
 
         # check calibration
-        xvals = np.linalg.norm(ellipse_params[usegood, 11:13].T - cam_cent, axis=0)
-        yvals = scale * np.sqrt(1-(ellipse_params[usegood,6]/ellipse_params[usegood,5])**2)
-        slope, intercept, r_value, p_value, std_err = stats.linregress(xvals, yvals.T)
+        try:
+            xvals = np.linalg.norm(ellipse_params[usegood, 11:13].T - cam_cent, axis=0)
+            yvals = scale * np.sqrt(1-(ellipse_params[usegood,6]/ellipse_params[usegood,5])**2)
+            slope, intercept, r_value, p_value, std_err = stats.linregress(xvals, yvals.T)
+        except ValueError:
+            print('no good frames that meet criteria... check DLC tracking!')
 
         # save out camera center and scale as np array (but only if this is a freely moving recording)
         if 'fm' in trial_name:
