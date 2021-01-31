@@ -89,11 +89,11 @@ try
             
             if ~isempty(dat)
                 
-                % perform remapping
-                dat = dat(chanMap,:);
-                
                 %%% select appropriate channels
                 dat = dat(subChans,:);
+                
+                % perform remapping
+                dat = dat(chanMap,:);
                 
                 %%% filtering
                 dat = bsxfun(@minus, dat, median(dat,2)); % subtract median of each channel

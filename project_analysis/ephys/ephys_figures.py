@@ -197,3 +197,219 @@ def make_sound(file_dict, ephys_data, units, this_unit):
     wavio.write(audfile, x, datarate, sampwidth=1)
 
     return audfile
+
+def plot_acc_eyetime_alignment(eyeT, t1, offset, ccmax):
+    fig = plt.subplot(1,2,1)
+    plt.plot(eyeT[t1*60],offset)
+    plt.xlabel('secs'); plt.ylabel('offset - secs')
+    plt.subplot(1,2,2)
+    plt.plot(eyeT[t1*60],ccmax)
+    plt.xlabel('secs'); plt.ylabel('max cc')
+    return fig
+
+def plot_regression_timing_fit(dataT, offset, offset0, drift_rate):
+    fig = plt.figure()
+    plt.plot(dataT,offset,'.')
+    plt.plot(dataT, offset0 + dataT*drift_rate)
+    plt.xlabel('secs'); plt.ylabel('offset - secs')
+    plt.title('offset0='+str(offset0)+' drift_rate='+str(drift_rate))
+    return fig
+
+def plot_saccade_and_fixate(eyeT, dEye, gInterp, th):
+    fig = plt.figure()
+    plt.subplot(1,2,1)
+    plt.plot(eyeT[0:-1],dEye, label = 'dEye')
+    plt.plot(eyeT, gInterp(eyeT), label = 'dHead')
+    plt.xlim(37,39); plt.ylim(-10,10); plt.legend(); plt.ylabel('deg'); plt.xlabel('secs')
+    plt.subplot(1,2,2)
+    plt.plot(eyeT[0:-1],np.nancumsum(gInterp(eyeT[0:-1])), label = 'head')
+    plt.plot(eyeT[0:-1],np.nancumsum(gInterp(eyeT[0:-1])-dEye),label ='gaze')
+    plt.plot(eyeT[1:],th[0:-1],label ='eye')
+    plt.xlim(35,40); plt.ylim(-30,30); plt.legend(); plt.ylabel('deg'); plt.xlabel('secs')
+    plt.tight_layout()
+    return fig
+
+def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
+    fig = plt.figure(figsize = (6,np.ceil(n_units/2)))
+    for i, ind in enumerate(goodcells.index):
+        plt.subplot(np.ceil(n_units/4),4,i+1)
+        plt.plot(crange[2:-1],resp[i,2:-1])
+    # plt.ylim([0 , max(resp[i,1:-3])*1.2])
+        plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
+    plt.title('individual contrast reponse')
+    plt.tight_layout()
+    return fig
+
+def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
+    spike_corr = 1
+    staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
+    lag = 0.075
+    fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
+    for c, ind in enumerate(goodcells.index):
+        r = goodcells.at[ind,'rate']
+        sta = 0; nsp = 0
+        sp = goodcells.at[ind,'spikeT'].copy()
+        if c==1:
+            ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
+        for s in sp:
+            if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                nsp = nsp+1
+                im = movInterp((s-lag)*spike_corr)
+                if c==1:
+                    ensemble[nsp-1,:,:] = im
+                sta = sta+im
+        plt.subplot(np.ceil(n_units/4),4,c+1)
+        if nsp > 0:
+            sta = sta/nsp
+        else:
+            sta = np.nan
+        plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+        staAll[c,:,:] = sta
+    plt.tight_layout()
+    return staAll, fig
+
+def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
+    spike_corr = 1; sta = 0; lag = 0.075
+    lagRange = np.arange(0,0.25,0.05)
+    fig = plt.figure(figsize = (12,2*n_units))
+    for c, ind in enumerate(goodcells.index):
+        sp = goodcells.at[ind,'spikeT'].copy()
+        for  lagInd, lag in enumerate(lagRange):
+            sta = 0; nsp = 0
+            for s in sp:
+                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+                    nsp = nsp+1
+                    sta = sta+movInterp((s-lag)*spike_corr)
+            plt.subplot(n_units,6,(c*6)+lagInd + 1)
+            if nsp > 0:
+                sta = sta/nsp
+            else:
+                sta = np.nan
+            plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
+            plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
+    plt.tight_layout()
+    return fig
+
+def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
+    sta = 0; lag = 0.125
+    fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
+    for c, ind in enumerate(goodcells.index):
+        r = goodcells.at[ind,'rate']
+        sta = 0
+        for i in range(5,t.size-10):
+            sta = sta+r[i]*(movInterp(t[i]-lag))**2
+        plt.subplot(np.ceil(n_units/4),4,c+1)
+        sta = sta/np.sum(r)
+        plt.imshow(sta - np.mean(img_norm**2,axis=0),vmin=-1,vmax=1)
+    plt.tight_layout()
+    return fig
+
+def plot_saccade_locked(n_units, goodcells, t, upsacc, upsacc_avg, trange, downsacc, downsacc_avg):
+    fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
+    for i, ind in enumerate(goodcells.index):
+        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
+        for s in upsacc:
+            upsacc_avg[i,:] = upsacc_avg[i,:]+ rateInterp(np.array(s)+trange)/upsacc.size
+        for s in downsacc:
+            downsacc_avg[i,:]= downsacc_avg[i,:]+ rateInterp(np.array(s)+trange)/downsacc.size
+        plt.subplot(np.ceil(n_units/4),4,i+1)
+        plt.plot(trange,upsacc_avg[i,:])
+        plt.plot(trange,downsacc_avg[i,:],'r')
+        plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
+        plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
+        plt.ylabel('sp/sec')
+    plt.tight_layout()
+    return upsacc_avg, downsacc_avg, fig
+
+def plot_rasters_around_saccades(n_units, goodcells, sacc):
+    fig = plt.figure(figsize = (12,n_units))
+    units = goodcells.index.values
+    for i, ind in enumerate(goodcells.index):
+        sp = np.array(goodcells.at[units[i],'spikeT'])
+        plt.subplot(np.ceil(n_units/4),4,i+1)
+        n = 0
+        for s in sacc:
+            n = n+1
+            sd = np.abs(sp-np.array(s))<10
+            sacc_sp = sp[sd]
+            plt.vlines(sacc_sp-np.array(s),n-0.25,n+0.25)
+        plt.xlim(-1,1)
+    return fig
+
+def plot_spike_rate_vs_var(n_units, use, var_range, goodcells, useEyeT, t, var_name):
+    scatter = np.zeros((n_units,len(use)))
+    tuning = np.zeros((n_units,len(var_range)-1))
+    tuning_err = tuning.copy()
+    for i, ind in enumerate(goodcells.index):
+        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
+        scatter[i,:] = rateInterp(useEyeT)
+        for j in range(len(var_range)-1):
+            usePts =(use>var_range[j]) & (use<var_range[j+1])
+            tuning[i,j] = np.mean(scatter[i,usePts])
+            tuning_err[i,j] = np.std(scatter[i,usePts])/np.sqrt(np.count_nonzero(usePts))
+    if var_name == 'th':
+        fig = plt.figure(figsize = (3*np.ceil(n_units/2),6))
+    elif var_name == 'rad':
+        fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
+    for i in range(n_units):
+        if var_name == 'th':
+            plt.subplot(np.ceil(n_units/4),4,i+1)
+        elif var_name == 'rad':
+            plt.subplot(2,np.ceil(n_units/2),i+1)
+        plt.errorbar(var_range[:-1],tuning[i,:],yerr=tuning_err[i,:])
+        try:
+            plt.ylim(0,np.nanmax(tuning[i,:]*1.2))
+        except ValueError:
+            plt.ylim(0,1)
+        plt.xlim([-2, 2])
+        if var_name == 'th':
+            plt.xlabel('normalized pupil theta'); plt. ylabel('sp/sec'); plt.title(i)
+        elif var_name == 'rad':
+            plt.xlabel('normalized pupil radius'); plt. ylabel('sp/sec'); plt.title(i)
+    plt.tight_layout()
+    return fig
+
+def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=None, drift_spont=None):
+    samprate = 30000  # ephys sample rate
+    fig = plt.figure(figsize = (12,np.ceil(n_units)*2))
+    for i, ind in enumerate(goodcells.index): 
+        # plot waveform
+        plt.subplot(n_units,4,i*4 + 1)
+        wv = goodcells.at[ind,'waveform']
+        plt.plot(np.arange(len(wv))*1000/samprate,goodcells.at[ind,'waveform'])
+        plt.xlabel('msec'); plt.title(str(i) + ' ' + goodcells.at[ind,'KSLabel']  +  ' cont='+ str(goodcells.at[ind,'ContamPct']))
+        
+        # plot CRF
+        plt.subplot(n_units,4,i*4 + 2)
+        plt.plot(crange[2:-1],resp[i,2:-1])
+        plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
+                                    
+        #plot STA or tuning curve
+        plt.subplot(n_units,4,i*4 + 3)
+        if ori_tuning is not None:
+            plt.plot(np.arange(8)*45, ori_tuning[i,:,0],label = 'low sf')
+            plt.plot(np.arange(8)*45,ori_tuning[i,:,1],label = 'mid sf')
+            plt.plot(np.arange(8)*45,ori_tuning[i,:,2],label = 'hi sf')
+            plt.plot([0,315],[drift_spont[i],drift_spont[i]],'r:', label = 'spont')
+        # plt.legend()
+            try:
+                plt.ylim(0,np.nanmax(ori_tuning[i,:,:]*1.2))
+            except ValueError:
+                plt.ylim(0,1)
+            plt.xlabel('orientation (deg)')
+        else:
+            sta = staAll[i,:,:]
+            staRange = np.max(np.abs(sta))*1.2
+            if staRange<0.25:
+                staRange=0.25
+            plt.imshow(staAll[i,:,:],vmin = -staRange, vmax= staRange, cmap = 'jet')
+                      
+        # plot eye movements
+        plt.subplot(n_units,4,i*4 + 4)
+        plt.plot(trange,upsacc_avg[i,:])
+        plt.plot(trange,downsacc_avg[i,:],'r')
+        plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
+        plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
+        plt.ylabel('sp/sec')
+    plt.tight_layout()
+    return fig

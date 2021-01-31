@@ -28,6 +28,7 @@ import time
 from tqdm import tqdm
 import matplotlib as mpl
 from astropy.convolution import convolve
+from scipy.interpolate import interp1d
 
 # module imports
 from util.time import open_time
@@ -210,7 +211,7 @@ def track_LED(config):
     
     print('done preprocessing IR LED calibration videos')
 
-def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
+def adjust_world(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
     
     print('plotting avi of IR LED tracking')
 
@@ -267,110 +268,212 @@ def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
     out_vid.release()
 
 # basic world shifting without pupil rotation
-def adjust_world(data_path, file_name, eyeext, topext, worldext, eye_ds, savepath):
-    # get eye data out of dataset
-    eye_pts = eye_data.raw_pt_values
-    eye_ell_params = eye_data.ellipse_param_values
+def worldcam_correction(worldvid, eyeT, th, phi, worldT, config):
 
-    # find the needed files from path and trial key
-    top1vidpath = os.path.join(data_path, file_name) + '_' + topext + '.avi'
-    eyevidpath = os.path.join(data_path, file_name) + '_' + eyeext + '.avi'
-    worldvidpath = os.path.join(data_path, file_name) + '_' + worldext + '.avi'
-    top1timepath = os.path.join(data_path, file_name) + '_' + topext +'_BonsaiTSformatted.csv'
-    eyetimepath = os.path.join(data_path, file_name) + '_' + eyeext +'_BonsaiTSformatted.csv'
-    worldtimepath = os.path.join(data_path, file_name) + '_' + worldext +'_BonsaiTSformatted.csv'
+    overview_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_overview_analysis_figures.pdf')))
 
-    # create save directory if it does not already exist
-    fig_dir = savepath + '/' + file_name + '/'
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir)
+    print('getting worldcam correction')
+    number_of_iterations = 5000
+    termination_eps = 1e-4
+    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
+    warp_mode = cv2.MOTION_TRANSLATION
+    max_frames = 60*300
+    cc = np.zeros(max_frames); xshift = np.zeros(max_frames); yshift = np.zeros(max_frames);
+    for i in tqdm(range(max_frames)):
+        warp_matrix = np.eye(2, 3, dtype=np.float32)
+        (cc[i], warp_matrix) = cv2.findTransformECC (world_vid[i,:,:],world_vid[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
+        xshift[i] = warp_matrix[0,2]; yshift[i] = warp_matrix[1,2]
 
-    # open time files
-    eyeTS = open_time(eyetimepath)
-    worldTS = open_time(worldtimepath)
-    topTS = open_time(top1timepath)
-
-    # interpolate ellipse parameters to worldcam timestamps
-    eye_ell_interp_params = eye_ell_params.interp_like(xr.DataArray(worldTS), method=interp_method)
-
-    # the very first timestamp
-    start_time = min(eyeTS[0], worldTS[0], topTS[0])
-
-    eye_theta = eye_ell_interp_params.sel(ellipse_params='theta')
-    eye_phi = eye_ell_interp_params.sel(ellipse_params='phi')
-    eye_longaxis= eye_ell_interp_params.sel(ellipse_params='longaxis')
-    eye_shortaxis = eye_ell_interp_params.sel(ellipse_params='shortaxis')
-
-    eye_raw_theta = eye_ell_params.sel(ellipse_params='theta')
-    eye_raw_phi = eye_ell_params.sel(ellipse_params='phi')
-    eye_raw_longaxis= eye_ell_params.sel(ellipse_params='longaxis')
-    eye_raw_shortaxis = eye_ell_params.sel(ellipse_params='shortaxis')
-
-    eyeTSminusstart = [(t-start_time).seconds for t in eyeTS]
-    worldTSminusstart = [(t-start_time).seconds for t in worldTS]
-
-    # saftey check
-    plt.subplots(2, 1, figsize=(15, 15))
-    plt.subplot(211)
-    plt.title('raw/interpolated theta for ' + eyeext + ' side')
-    plt.plot(eyeTSminusstart, eye_raw_theta.values, 'r--', label='raw theta')
-    plt.plot(worldTSminusstart[:-1], eye_theta.values, 'b-', label='interp theta')
-    plt.subplot(212)
-    plt.title('raw/interpolated phi for ' + eyeext + ' side')
-    plt.plot(eyeTSminusstart, eye_raw_phi.values, 'r--', label='raw phi')
-    plt.plot(worldTSminusstart[:-1], eye_phi.values, 'b-', label='interp phi')
-    plt.savefig(fig_dir + eyeext + 'rawinterp_phitheta.png', dpi=300)
+    th_interp = interp1d(eyeT,th,bounds_error = False)
+    phi_interp = interp1d(eyeT, phi, bounds_error = False)
+    dth = np.diff(th_interp(worldT))
+    dphi = np.diff(phi_interp(worldT))
+    plt.figure(figsize = (12,8))
+    plt.subplot(2,2,1)
+    plt.plot(dth[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dtheta'); plt.ylabel('xshift')
+    plt.subplot(2,2,2)
+    plt.plot(dth[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dtheta'); plt.ylabel('yshift')
+    plt.subplot(2,2,3)
+    plt.plot(dphi[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dphi'); plt.ylabel('xshift')
+    plt.subplot(2,2,4)
+    plt.plot(dphi[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-8,8); plt.ylim(-6,6); plt.xlabel('dphi'); plt.ylabel('yshift')
+    plt.tight_layout()
+    pdf.savefig()
     plt.close()
 
-    worldvid = cv2.VideoCapture(worldvidpath)
-    topvid = cv2.VideoCapture(top1vidpath)
-    eyevid = cv2.VideoCapture(eyevidpath)
+    plt.figure()
+    plt.subplot(3,1,1)
+    plt.plot(worldT[0:max_frames],cc); plt.ylabel('cc')
+    if file_dict['imu'] is not None:
+        plt.subplot(3,1,2)
+        plt.plot(worldT[0:max_frames],xshift, label = 'image x shift');
+        plt.plot(accT,-(gz-2.9)*7.5, label = 'gyro')
+        #plt.plot(worldT[0:max_frames],yshift, label = 'y');
+        #plt.plot(eyeT[0:-1],-dEye,label = 'eye dtheta')
+        plt.xlim(0,2); plt.ylim(-2,2)
+        plt.xlabel('secs'); plt.ylabel('deg')
+        plt.legend()
+    plt.subplot(3,1,3)
+    plt.plot(worldT[0:max_frames],xshift, label = 'image x shift');
+    #plt.plot(accT,-(gz-2.9)*7.5, label = 'gyro')
+    #plt.plot(worldT[0:max_frames],yshift, label = 'y');
+    plt.plot(worldT[0:-1],-dphi,'r',label = 'eye dtheta', alpha = 1)
+    plt.xlim(0,2); plt.ylim(-0.5,0.5)
+    plt.xlabel('secs'); plt.ylabel('deg')
+    plt.legend()
+    plt.tight_layout()
+    diagnostic_pdf.savefig()
+    plt.close()
 
-    # setup the file to save out of this
-    savepath = os.path.join(fig_dir, str(file_name + '_worldshift_' + eyeext + '.avi'))
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out_vid = cv2.VideoWriter(savepath, fourcc, 20.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH))*2, int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))*2))
+    xmodel = LinearRegression()
+    ymodel = LinearRegression()
+    eyeData = np.zeros((max_frames,2))
+    eyeData[:,0] = dth[0:max_frames];
+    eyeData[:,1] = dphi[0:max_frames];
+    xshiftdata = xshift[0:max_frames];
+    yshiftdata = yshift[0:max_frames];
+    usedata = ~np.isnan(eyeData[:,0]) & ~np.isnan(eyeData[:,1])  & (np.abs(eyeData[:,0])<2) & (np.abs(eyeData[:,1])<2)
+    xmodel.fit(eyeData[usedata,:],xshiftdata[usedata])
 
-    set_size = (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH)), int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+    #offset0 = xmodel.intercept
+    xmap = xmodel.coef_;
+    print(xmap)
 
-    while(1):
-        # read the frame for this pass through while loop
-        wrld_ret, wrld_frame = worldvid.read()
-        eye_ret, eye_frame = eyevid.read()
-        top_ret, top_frame = topvid.read()
+    ymodel.fit(eyeData[usedata,:],yshiftdata[usedata])
+    ymap = ymodel.coef_;
 
-        if not wrld_ret:
-            break
-        if not eye_ret:
-            break
-        if not top_ret:
-            break
+    # eye correction movie
+    print('getting eye correction movie')
+    tr = [15,20]
+    fig = plt.figure(figsize = (8,16))
+    gs = fig.add_gridspec(10,1)
+    axEye = fig.add_subplot(gs[0,0])
+    axWorld = fig.add_subplot(gs[0:3,:])
+    axWorldFix = fig.add_subplot(gs[3:6,:])
 
-        # create empty frame to shift the world in
-        wrld_shift = np.zeros(set_size)
+    axTheta = fig.add_subplot(gs[6,:])
+    axPhi = fig.add_subplot(gs[7,:])
+    axOmega = fig.add_subplot(gs[8,:])
+    axGyro = fig.add_subplot(gs[9,:])
 
-        # limit range to shift over
-        phi_max = np.where(eye_phi > 15, -15, 15)
-        theta_max = np.where(eye_theta > 20, -20, 20)
+    th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
+    phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
 
-        # insert world frame into world shift with offset
-        if np.isnan(eye_theta) is False and np.isnan(eye_phi) is False:
-            wrld_shift[(range(61,180) - np.round(phi_max * pix_deg)), (range(81,240) - np.round(theta_max * pix_deg))] = wrld_frame
+    axTheta.plot(eyeT,th)
+    axTheta.set_xlim(tr[0],tr[1]); 
+    axTheta.set_ylabel('theta - deg'); axTheta.set_ylim(-30,30)
 
-        # resize the frames before plotting
-        wrld_frame_resz = cv2.resize(wrld_frame, set_size)
-        wrld_shift_resz = cv2.resize(np.uint8(wrld_shift), set_size)
-        eye_frame_resz = cv2.resize(eye_frame, set_size)
-        top_frame_resz = cv2.resize(top_frame, set_size)
+    axPhi.plot(eyeT,phi)
+    axPhi.set_xlim(tr[0],tr[1]); 
+    axPhi.set_ylabel('phi - deg'); axPhi.set_ylim(-30,30)
 
-        # concat frames together into a 2x2 grid
-        a = np.concatenate((cv2.cvtColor(eye_frame_resz, cv2.COLOR_BGR2GRAY), cv2.cvtColor(top_frame_resz, cv2.COLOR_BGR2GRAY)), axis=1)
-        b = np.concatenate((cv2.cvtColor(wrld_frame_resz, cv2.COLOR_BGR2GRAY), wrld_shift_resz), axis=1)
-        all_vids = np.concatenate((a, b), axis=0)
+    #axOmega.plot(eyeT,omega)
+    axOmega.set_xlim(tr[0],tr[1]); 
+    axOmega.set_ylabel('omega - deg'); axOmega.set_ylim(-20,20)
 
-        out_vid.write(all_vids)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+    if free_move & has_imu:
+        axGyro.plot(accT,gz)
+        axGyro.set_xlim(tr[0],tr[1]); 
+        axGyro.set_ylabel('gyro - deg'); axGyro.set_ylim(1,4)
 
-    out_vid.release()
-    cv2.destroyAllWindows()
+    thInterp =interp1d(eyeT,th)
+    phiInterp =interp1d(eyeT,phi)
+    pix_per_deg = 1.6
+
+    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_corrected.mp4'))
+    # now animate
+    writer = FFMpegWriter(fps=30)
+    with writer.saving(fig, vidfile, 100):
+    #    for t in np.arange(tr[0],tr[1],1/30):
+        for t in tqdm(worldT[(worldT>tr[0]) & (worldT<tr[1])]):        
+            # show eye and world frames
+            axEye.cla(); axEye.axis('off'); 
+            axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
+            #axEye.set_xlim(0,160); axEye.set_ylim(0,120)
+            
+            world = worldInterp(t)
+            axWorld.cla(); axWorld.axis('off'); 
+            axWorld.imshow(world,'gray',vmin=0,vmax=255,aspect = "equal")
+            
+            worldFix= np.roll(world,(-np.int8(thInterp(t)*ymap[0] + phiInterp(t)*ymap[1]),-np.int8(thInterp(t)*xmap[0] + phiInterp(t)*xmap[1])),axis = (0,1))
+            axWorldFix.imshow(worldFix,'gray',vmin=0, vmax = 255, aspect = 'equal')
+            
+            #plot line for time, then remove
+            ln1 = axTheta.vlines(t,-0.5,30,'b')
+            ln2 = axPhi.vlines(t,-0.5,30,'b')
+            writer.grab_frame()
+            ln1.remove()
+            ln2.remove()
+        
+
+    max_frames = 60*60
+    thInterp =interp1d(eyeT,th, bounds_error = False, fill_value = 0)
+    phiInterp =interp1d(eyeT,phi, bounds_error = False, fill_value = 0)
+
+    world_fix = np.zeros((max_frames, np.size(world_vid,1), np.size(world_vid,2)),'uint8')
+    for f in tqdm(range(max_frames)):
+        t = worldT[f]
+        thInt = thInterp(t)
+        if np.isnan(thInt):
+            thInt =0
+        phiInt = phiInterp(t) 
+        if np.isnan(phiInt):
+            phiInt =0
+                
+        world_fix[f,:,:]= imshift(world_vid[f,:,:],(-(thInt*ymap[0] + phiInt*ymap[1]),-(thInt*xmap[0] + phiInt*xmap[1])))
+
+    number_of_iterations = 5000
+    termination_eps = 1e-4
+    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
+    warp_mode = cv2.MOTION_TRANSLATION
+    cc_fix = np.zeros(max_frames); xshift_fix = np.zeros(max_frames); yshift_fix = np.zeros(max_frames);
+    for i in tqdm(range(max_frames-1)):
+        try:
+            warp_matrix = np.eye(2, 3, dtype=np.float32)
+            (cc_fix[i], warp_matrix) = cv2.findTransformECC (world_fix[i,:,:],world_fix[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
+            xshift_fix[i] = warp_matrix[0,2]; yshift_fix[i] = warp_matrix[1,2]
+        except:
+            xshift_fix[i] = np.nan; yshift_fix[i] = np.nan # very rarely, a frame will raise cv2 error when iterations do not converge for transform
+
+    if free_move:
+        plt.figure()
+        plt.subplot(2,1,1)
+        plt.plot(xshift,label = 'x pre alignment')
+        plt.plot(xshift_fix,label = 'x post alignement')
+        plt.ylim(-5,5); plt.xlim(1000,1500)
+
+        plt.subplot(2,1,2)
+        plt.plot(yshift,label = 'y pre alignment')
+        plt.plot(yshift_fix, label = 'y post alignement')
+        plt.ylim(-5,5); plt.xlim(1000,1500)
+
+        diagnostic_pdf.savefig()
+        plt.close()
+
+    max_frame = 60*60
+    flow = np.zeros((max_frame, np.size(world_vid,1), np.size(world_vid,2),2))
+    flow_fix = np.zeros((max_frame, np.size(world_vid,1), np.size(world_vid,2),2))
+    x,y = np.meshgrid(np.arange(0, np.size(world_vid,2)), np.arange(0,np.size(world_vid,1)))
+    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_flowfix.mp4'))
+
+    print('plotting video of optical flow')
+    fig, axs = plt.subplots(1,2,figsize = (16,8))
+    # now animate
+    writer = FFMpegWriter(fps=30)
+    nx = 5
+    with writer.saving(fig, vidfile, 100):
+        for f in tqdm(range(max_frame-1)):
+
+            flow[f,:,:,:] = cv2.calcOpticalFlowFarneback(world_vid[f,:,:],world_vid[f+1,:,:], None, 0.5, 3, 15, 3, 5, 1.2, 0)
+            axs[0].cla()
+            axs[0].imshow(world_vid[f,:,:],vmin = 0, vmax = 255)
+            u = flow[f,:,:,0]; v = flow[f,:,:,1]
+            axs[0].quiver(x[::nx,::nx],y[::nx,::nx],u[::nx,::nx],-v[::nx,::nx], scale = 100 )
+            
+            flow_fix[f,:,:,:] = cv2.calcOpticalFlowFarneback(world_fix[f,:,:],world_fix[f+1,:,:], None, 0.5, 3, 15, 3, 5, 1.2, 0)
+            axs[1].cla()
+            axs[1].imshow(world_fix[f,:,:],vmin = 0, vmax = 255)
+            u = flow_fix[f,:,:,0]; v = flow[f,:,:,1]
+            axs[1].quiver(x[::nx,::nx],y[::nx,::nx],u[::nx,::nx],-v[::nx,::nx], scale = 100 )
+            
+            writer.grab_frame()

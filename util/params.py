@@ -16,7 +16,7 @@ import warnings
 from glob import glob
 from multiprocessing import freeze_support
 # module imports
-from util.format_data import h5_to_xr, format_frames
+from util.format_data import h5_to_xr, format_frames, safe_xr_merge
 from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
@@ -49,6 +49,10 @@ def extract_params(config):
                 path_check.append(path_to_trial); name_check.append(trial_name)
         except UnboundLocalError: # in case the trial doesn't meet criteria
             pass
+
+    # sort so that freely moving recordings are analyzed first
+    # fm eye camera calirbation properties are used in hf analysis, so fm needs to always come first
+    trial_units = sorted(trial_units, key=lambda x:('fm' not in x, x))
 
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_unit in trial_units:
@@ -142,14 +146,14 @@ def extract_params(config):
                     pts.name = top_view+'_pts'
                     if config['save_nc_vids'] is True:
                         if config['run_top_angles'] is True:
-                            trial_top_data = xr.merge([pts, head_theta, body_theta, xr_top_frames])
-                            trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+                            trial_top_data = safe_xr_merge([pts, head_theta, body_theta, xr_top_frames])
+                            trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 4}})
                         elif config['run_top_angles'] is False:
-                            trial_top_data = xr.merge([pts, xr_top_frames])
-                            trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+                            trial_top_data = safe_xr_merge([pts, xr_top_frames])
+                            trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 4}})
                     elif config['save_nc_vids'] is False:
                         if config['run_top_angles'] is True:
-                            trial_top_data = xr.merge([pts, head_theta, body_theta])
+                            trial_top_data = safe_xr_merge([pts, head_theta, body_theta])
                             trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')))
                         elif config['run_top_angles'] is False:
                             pts.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')))
@@ -160,19 +164,13 @@ def extract_params(config):
                     # make xarray of video frames
                     if config['save_nc_vids'] is True:
                         xr_top_frames = format_frames(top_avi, config); xr_top_frames.name = top_view+'_video'
-                    try:
-                        if config['save_nc_vids'] is True:
-                            trial_top_data = xr.merge([topdlc, xr_top_frames])
-                        elif config['save_nc_vids'] is False:
-                            trial_top_data = topdlc
-                    except ValueError:
-                        if len(topdlc) > len(xr_top_frames):
-                            trial_top_data = xr.merge([topdlc[:-1], xr_top_frames])
-                        elif len(topdlc) < len(xr_top_frames):
-                            trial_top_data = xr.merge([topdlc, xr_top_frames[:-1]])
+                    if config['save_nc_vids'] is True:
+                        trial_top_data = safe_xr_merge([topdlc, xr_top_frames])
+                    elif config['save_nc_vids'] is False:
+                        trial_top_data = topdlc
                     print('saving...')
                     if config['save_nc_vids'] is True:
-                        trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 9}})
+                        trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')), engine='netcdf4', encoding={top_view+'_video':{"zlib": True, "complevel": 4}})
                     elif config['save_nc_vids'] is False:
                         trial_top_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+top_view+'.nc')))
         except IndexError:
@@ -219,19 +217,19 @@ def extract_params(config):
                 eyedlc.name = eye_side+'EYE_pts'; eyeparams.name = eye_side+'EYE_ellipse_params'
                 if config['save_nc_vids'] is True and config['run_pupil_rotation'] is True:
                     print('saving...')
-                    trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames, rfit, rfit_conv, shift])
-                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
+                    trial_eye_data = safe_xr_merge([eyedlc, eyeparams, xr_eye_frames, rfit, rfit_conv, shift])
+                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 4}})
                 elif config['save_nc_vids'] is False and config['run_pupil_rotation'] is True:
                     print('saving...')
-                    trial_eye_data = xr.merge([eyedlc, eyeparams, rfit, rfit_conv, shift])
+                    trial_eye_data = safe_xr_merge([eyedlc, eyeparams, rfit, rfit_conv, shift])
                     trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')))
                 elif config['save_nc_vids'] is True and config['run_pupil_rotation'] is False:
                     print('saving...')
-                    trial_eye_data = xr.merge([eyedlc, eyeparams, xr_eye_frames])
-                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 9}})
+                    trial_eye_data = safe_xr_merge([eyedlc, eyeparams, xr_eye_frames])
+                    trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'EYE_video':{"zlib": True, "complevel": 4}})
                 elif config['save_nc_vids'] is False and config['run_pupil_rotation'] is False:
                     print('saving...')
-                    trial_eye_data = xr.merge([eyedlc, eyeparams])
+                    trial_eye_data = safe_xr_merge([eyedlc, eyeparams])
                     trial_eye_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+eye_side+'eye.nc')))
         except IndexError as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -266,14 +264,9 @@ def extract_params(config):
                 # merge but make sure they're not off in lenght by one value, which happens occasionally
                 print('saving...')
                 if config['save_nc_vids'] is True:
-                    try:
-                        trial_world_data = xr.merge([worlddlc, xr_world_frames])
-                    except ValueError:
-                        if len(worlddlc) > len(xr_world_frames):
-                            trial_world_data = xr.merge([worlddlc[:-1], xr_world_frames])
-                        elif len(worlddlc) < len(xr_world_frames):
-                            trial_world_data = xr.merge([worlddlc, xr_world_frames[:-1]])
-                    trial_world_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 9}})
+                    trial_world_data = safe_xr_merge([worlddlc, xr_world_frames])
+
+                    trial_world_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
                 elif config['save_nc_vids'] is False:
                     worlddlc.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_world.nc')))
         except IndexError:
@@ -307,10 +300,10 @@ def extract_params(config):
                 xr_side_frames = format_frames(side_avi, config); xr_side_frames.name = 'SIDE_video'
                 # save data
                 print('saving...')
-                trial_side_data = xr.merge([side_pts, side_theta, xr_side_frames])
-                trial_side_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_side.nc')), engine='netcdf4', encoding={'SIDE_video':{"zlib": True, "complevel": 9}})
+                trial_side_data = safe_xr_merge([side_pts, side_theta, xr_side_frames])
+                trial_side_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_side.nc')), engine='netcdf4', encoding={'SIDE_video':{"zlib": True, "complevel": 4}})
             if config['save_nc_vids'] is False:
-                trial_side_data = xr.merge([side_pts, side_theta])
+                trial_side_data = safe_xr_merge([side_pts, side_theta])
                 trial_side_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_side.nc')))
 
         # analyze ball movements

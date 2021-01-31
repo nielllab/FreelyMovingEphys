@@ -36,6 +36,7 @@ from util.track_side import side_angle, side_tracking
 from util.track_imu import read_8ch_imu, convert_acc_gyro
 from util.deinterlace import deinterlace_data
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
+from project_analysis.ephys.ephys_figures import *
 
 def quick_whitenoise_analysis(wn_path):
     temp_config = {
@@ -208,65 +209,28 @@ def quick_whitenoise_analysis(wn_path):
             for c,cont in enumerate(crange):
                 resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
         # plot individual contrast response functions in subplots
-        fig = plt.figure(figsize = (6,np.ceil(n_units/2)))
-        for i, ind in enumerate(goodcells.index):
-            plt.subplot(np.ceil(n_units/4),4,i+1)
-            plt.plot(crange[2:-1],resp[i,2:-1])
-        # plt.ylim([0 , max(resp[i,1:-3])*1.2])
-            plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
-        plt.tight_layout()
+        ind_contrast_funcs_fig = plot_ind_contrast_funcs(n_units, goodcells, crange, resp)
         pdf.savefig()
         plt.close()
 
-        lag = 0.075
-        plt.figure(figsize = (12,np.ceil(n_units/2)))
-        for c, ind in enumerate(goodcells.index):
-            r = goodcells.at[ind,'rate']
-            sta = 0; nsp = 0
-            sp = goodcells.at[ind,'spikeT'].copy()
-            if c==1:
-                ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
-            for s in sp:
-                if (s-lag >5) & ((s-lag) <np.max(worldT)):
-                    nsp = nsp+1
-                    im = movInterp(s-lag)
-                    if c==1:
-                        ensemble[nsp-1,:,:] = im
-                    sta = sta+im
-            plt.subplot(np.ceil(n_units/4),4,c+1)
-            if nsp > 0:
-                sta = sta/nsp
-            else:
-                sta = np.nan
-            plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
-        plt.tight_layout()
+        # calculate spike-triggered average
+        staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
         pdf.savefig()
         plt.close()
 
         # print('getting spike-triggered average with range in lags')
         # calculate spike-triggered average
-        spike_corr = 1 # + 0.125/1200 # they're already corrected in spikeT
-        sta = 0
-        lag = 0.075
-        lagRange = np.arange(0,0.25,0.05)
-        plt.figure(figsize = (12,2*n_units))
-        for c, ind in enumerate(goodcells.index):
-            sp = goodcells.at[ind,'spikeT'].copy()
-            for  lagInd, lag in enumerate(lagRange):
-                sta = 0; nsp = 0
-                for s in sp:
-                    if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
-                        nsp = nsp+1
-                        sta = sta+movInterp((s-lag)*spike_corr)
-                plt.subplot(n_units,6,(c*6)+lagInd + 1)
-                if nsp > 0:
-                    sta = sta/nsp
-                else:
-                    sta = np.nan
-                plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
-                plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
-        plt.tight_layout()
+        print('getting spike-triggered average with range in lags')
+        # calculate spike-triggered average
+        fig = plot_STA_multi_lag(n_units, goodcells, worldT, movInterp)
         pdf.savefig()
         plt.close()
+
+        print('getting spike-triggered variance')
+        # calculate spike-triggered variance
+        fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm)
+        pdf.savefig()
+        plt.close()
+        
 
         pdf.close()
