@@ -369,7 +369,7 @@ def plot_spike_rate_vs_var(n_units, use, var_range, goodcells, useEyeT, t, var_n
     plt.tight_layout()
     return fig
 
-def plot_summary(n_units, goodcells, crange, resp, file_dict, ori_tuning, drift_spont, staAll, trange, upsacc_avg, downsacc_avg):
+def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=None, drift_spont=None):
     samprate = 30000  # ephys sample rate
     fig = plt.figure(figsize = (12,np.ceil(n_units)*2))
     for i, ind in enumerate(goodcells.index): 
@@ -386,7 +386,7 @@ def plot_summary(n_units, goodcells, crange, resp, file_dict, ori_tuning, drift_
                                     
         #plot STA or tuning curve
         plt.subplot(n_units,4,i*4 + 3)
-        if file_dict['stim_type'] == 'grat':
+        if ori_tuning is not None:
             plt.plot(np.arange(8)*45, ori_tuning[i,:,0],label = 'low sf')
             plt.plot(np.arange(8)*45,ori_tuning[i,:,1],label = 'mid sf')
             plt.plot(np.arange(8)*45,ori_tuning[i,:,2],label = 'hi sf')

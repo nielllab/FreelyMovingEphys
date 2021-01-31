@@ -280,7 +280,7 @@ def run_ephys_analysis(file_dict):
     merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
 
     print('merging movie with sound')
-    subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', merge_mp4_name])
+    subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
 
     th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
     phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
@@ -529,7 +529,7 @@ def run_ephys_analysis(file_dict):
     R_range = np.arange(-4,4,0.5)
     useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
     useR = Rnorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_pupil_radius(n_units, useR, R_range, goodcells, useEyeT, t, 'rad')
+    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(n_units, useR, R_range, goodcells, useEyeT, t, 'rad')
     detail_pdf.savefig()
     plt.close()
 
@@ -547,13 +547,16 @@ def run_ephys_analysis(file_dict):
     th_range = np.arange(-2,3,0.5)
     useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
     useTh = thetaNorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_pupil_radius(n_units, useTh, th_range, goodcells, useEyeT, t, 'rad')
+    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(n_units, useTh, th_range, goodcells, useEyeT, t, 'th')
     detail_pdf.savefig()
     plt.close()
 
     print('generating summary plot')
     # generate summary plot
-    summary_fig = plot_summary(n_units, goodcells, crange, resp, file_dict, ori_tuning, drift_spont, staAll, trange, upsacc_avg, downsacc_avg)
+    if file_dict['stim_type'] == 'grat':
+        summary_fig = plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=ori_tuning, drift_spont=drift_spont)
+    else:
+        summary_fig = plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg)
     overview_pdf.savefig()
     plt.close()
 
