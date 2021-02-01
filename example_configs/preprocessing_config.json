@@ -45,7 +45,7 @@
     "range_radius": 10,
     "world_interp_method": "linear",
     "num_ellipse_pts_needed": 7,
-    "dwnsmpl": 0.5,
+    "dwnsmpl": 0.25,
     "ephys_sample_rate": 30000,
     "run_pupil_rotation": false,
     "run_top_angles": false,
