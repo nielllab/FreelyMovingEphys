@@ -211,7 +211,7 @@ def track_LED(config):
     
     print('done preprocessing IR LED calibration videos')
 
-def adjust_world(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
+def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
     
     print('plotting avi of IR LED tracking')
 
