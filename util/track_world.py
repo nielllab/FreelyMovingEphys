@@ -268,7 +268,7 @@ def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
     out_vid.release()
 
 # basic world shifting without pupil rotation
-def worldcam_correction(worldvid, eyeT, th, phi, worldT, config):
+def adjust_world(worldvid, eyeT, th, phi, worldT, config):
 
     overview_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_overview_analysis_figures.pdf')))
 

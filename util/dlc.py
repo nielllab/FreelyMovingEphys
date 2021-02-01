@@ -74,7 +74,7 @@ def run_DLC_Analysis(config):
             else:
                 # find all the videos for camera types that don't neeed to be deinterlaced
                 if config['run_with_form_time'] is True:
-                    vids_this_cam = find('*'+cam_key+'*calib.avi', config['data_path'])
+                    vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
                 elif config['run_with_form_time'] is False:
                     vids_this_cam = find('*'+cam_key+'*.avi', config['data_path'])
                 print('found ' + str(len(vids_this_cam)) + ' videos from cam_key ' + cam_key)
