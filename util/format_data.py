@@ -147,11 +147,11 @@ def safe_xr_merge(obj_list):
         obj_len = dict(obj.frame.sizes)['frame']
         if obj_len > set_len:
             diff = obj_len - set_len
-            obj = obj.sel(frame=slice(0,-diff))
+            good_inds = range(0,obj_len-diff)
+            obj = obj.sel(frame=good_inds)
             out_objs.append(obj)
         else:
             out_objs.append(obj)
-    
     merge_objs = xr.merge(out_objs)
 
     return merge_objs
