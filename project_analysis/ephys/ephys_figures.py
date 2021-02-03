@@ -263,8 +263,11 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
             sta = sta/nsp
         else:
             sta = np.nan
-        plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
-        staAll[c,:,:] = sta
+        if pd.isna(sta) is True:
+            plt.imshow(np.zeros([120,160]))
+        else:
+            plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+            staAll[c,:,:] = sta
     plt.tight_layout()
     return staAll, fig
 
@@ -285,7 +288,10 @@ def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
                 sta = sta/nsp
             else:
                 sta = np.nan
-            plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
+            if pd.isna(sta) is True:
+                plt.imshow(np.zeros([120,160]))
+            else:
+                plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
             plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
     plt.tight_layout()
     return fig
