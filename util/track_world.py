@@ -206,6 +206,8 @@ def track_LED(config):
 
         pdf.close()
     
+        np.savez(os.path.join(config['data_path'], (t_name + 'LED_positions.npz')), eye_x=eye_x, eye_y=eye_y, world_x=world_x, world_y=world_y)
+
     if config['save_avi_vids'] is True:
         plot_IR_track(world_avi, worldxr, eye_avi, eyexr, t_name, config)
     

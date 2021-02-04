@@ -57,8 +57,8 @@ def quick_whitenoise_analysis(wn_path):
     world_vids = glob(os.path.join(wn_path, '*WORLD.avi'))
     world_times = glob(os.path.join(wn_path, '*WORLD_BonsaiTS.csv'))
 
-    # deinterlace_data(temp_config, world_vids, world_times)
-    # calibrate_new_world_vids(temp_config)
+    deinterlace_data(temp_config, world_vids, world_times)
+    calibrate_new_world_vids(temp_config)
 
     trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', temp_config['data_path']):
