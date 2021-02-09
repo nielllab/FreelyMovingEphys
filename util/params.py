@@ -116,7 +116,7 @@ def extract_params(config):
                     top_h5 = None
                 if config['run_with_form_time'] is True:
                     top_csv = [i for i in trial_cam_csv if top_view in i][0]
-                    top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i and 'calib' in i][0]
+                    top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i and 'calib' not in i][0]
                 elif config['run_with_form_time'] is False:
                     top_csv = [i for i in trial_cam_csv if top_view in i][0]
                     top_avi = [i for i in trial_cam_avi if top_view in i and 'plot' not in i][0]

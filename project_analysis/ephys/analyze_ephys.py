@@ -235,7 +235,7 @@ def run_ephys_analysis(file_dict):
         accT = accTraw - (offset0 + accTraw*drift_rate)
 
     for i in range(len(ephys_data)):
-        ephys_data['spikeT'].iloc[i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
+        ephys_data['spikeT'][i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
 
     print('finding contrast of normalized worldcam')
     # normalize world movie and calculate contrast
@@ -496,10 +496,8 @@ def run_ephys_analysis(file_dict):
     downsacc = eyeT[np.append(dEye,0)<-sthresh]/spike_corr
     downsacc = downsacc[downsacc>5]
     downsacc = downsacc[downsacc<np.max(t)-5]
-    upsacc_avg = np.zeros((units.size,trange.size))
-    downsacc_avg = np.zeros((units.size,trange.size))
 
-    upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, upsacc_avg, trange, downsacc, downsacc_avg)
+    upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
     detail_pdf.savefig()
     plt.close()
 

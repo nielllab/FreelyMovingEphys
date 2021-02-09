@@ -206,12 +206,14 @@ def track_LED(config):
 
         pdf.close()
     
+        np.savez(os.path.join(config['data_path'], (t_name + 'LED_positions.npz')), eye_x=eye_x, eye_y=eye_y, world_x=world_x, world_y=world_y)
+
     if config['save_avi_vids'] is True:
         plot_IR_track(world_avi, worldxr, eye_avi, eyexr, t_name, config)
     
     print('done preprocessing IR LED calibration videos')
 
-def adjust_world(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
+def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
     
     print('plotting avi of IR LED tracking')
 
@@ -268,7 +270,7 @@ def adjust_world(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
     out_vid.release()
 
 # basic world shifting without pupil rotation
-def worldcam_correction(worldvid, eyeT, th, phi, worldT, config):
+def adjust_world(worldvid, eyeT, th, phi, worldT, config):
 
     overview_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_overview_analysis_figures.pdf')))
 

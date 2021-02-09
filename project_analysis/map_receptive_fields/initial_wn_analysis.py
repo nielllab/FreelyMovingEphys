@@ -24,7 +24,7 @@ from scipy.interpolate import interp1d
 from matplotlib.backends.backend_pdf import PdfPages
 # module imports
 from util.params import extract_params
-from util.format_data import h5_to_xr, format_frames
+from util.format_data import h5_to_xr, format_frames, safe_xr_merge
 from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
@@ -49,7 +49,7 @@ def quick_whitenoise_analysis(wn_path):
         },
         'save_nc_vids': True,
         'use_BonsaiTS': True,
-        'dwnsmpl': 0.5,
+        'dwnsmpl': 0.25,
         'ephys_sample_rate': 30000,
         'run_with_form_time': True
     } # 'G:/freely_moving_ephys/ephys_recordings_copy_011721/calibration_params/world_checkerboard_calib.npz'
@@ -102,14 +102,8 @@ def quick_whitenoise_analysis(wn_path):
         # merge but make sure they're not off in lenght by one value, which happens occasionally
         print('saving nc file of world view...')
         if temp_config['save_nc_vids'] is True:
-            try:
-                trial_world_data = xr.merge([worlddlc, xr_world_frames])
-            except ValueError:
-                if len(worlddlc) > len(xr_world_frames):
-                    trial_world_data = xr.merge([worlddlc[:-1], xr_world_frames])
-                elif len(worlddlc) < len(xr_world_frames):
-                    trial_world_data = xr.merge([worlddlc, xr_world_frames[:-1]])
-            trial_world_data.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 9}})
+            trial_world_data = safe_xr_merge([worlddlc, xr_world_frames])
+            trial_world_data.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
         elif temp_config['save_nc_vids'] is False:
             worlddlc.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')))
 
@@ -139,11 +133,7 @@ def quick_whitenoise_analysis(wn_path):
             worldT = worldT + 8*60*60
         
         # resize worldcam to make more manageable
-        sz = world_vid_raw.shape
-        downsamp = 0.5
-        world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
-        for f in range(sz[0]):
-            world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
+        world_vid = world_vid_raw.copy()
 
         cam_gamma = 2
         world_norm = (world_vid/255)**cam_gamma

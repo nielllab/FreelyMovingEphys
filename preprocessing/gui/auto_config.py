@@ -25,6 +25,10 @@ def write_config(user_inputs):
 
     # if no cameras were provided for DLC, but they were provided in params
     # this assumes that params will always match DLC, but that DLC need not always match params?
+    try:
+        del user_inputs['cam_inputs']['None']
+    except KeyError:
+        pass
     if user_inputs['cam_inputs'] == {}:
         user_inputs['cam_inputs'] = dict(zip(key,'') for key in user_inputs['param_cams'] if key is not None)
 

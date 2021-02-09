@@ -235,7 +235,8 @@ def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
         plt.subplot(np.ceil(n_units/4),4,i+1)
         plt.plot(crange[2:-1],resp[i,2:-1])
     # plt.ylim([0 , max(resp[i,1:-3])*1.2])
-        plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
+        # plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec')
+        plt.ylim([0,np.nanmax(resp[i,2:-1])])
     plt.title('individual contrast reponse')
     plt.tight_layout()
     return fig
@@ -259,13 +260,18 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
                     ensemble[nsp-1,:,:] = im
                 sta = sta+im
         plt.subplot(np.ceil(n_units/4),4,c+1)
+        plt.title(str(i))
         if nsp > 0:
             sta = sta/nsp
         else:
             sta = np.nan
-        plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
-        staAll[c,:,:] = sta
+        if pd.isna(sta) is True:
+            plt.imshow(np.zeros([120,160]))
+        else:
+            plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+            staAll[c,:,:] = sta
     plt.tight_layout()
+    plt.axis('off')
     return staAll, fig
 
 def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
@@ -285,9 +291,15 @@ def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
                 sta = sta/nsp
             else:
                 sta = np.nan
-            plt.imshow(sta ,vmin=-0.35,vmax=0.35,cmap = 'jet')
-            plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
+            if pd.isna(sta) is True:
+                plt.imshow(np.zeros([120,160]))
+            else:
+                plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+            # plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
+            if c == 0:
+                plt.title(str(np.round(lag*1000)) + 'msec')
     plt.tight_layout()
+    plt.axis('off')
     return fig
 
 def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
@@ -302,9 +314,12 @@ def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
         sta = sta/np.sum(r)
         plt.imshow(sta - np.mean(img_norm**2,axis=0),vmin=-1,vmax=1)
     plt.tight_layout()
+    plt.axis('off')
     return fig
 
-def plot_saccade_locked(n_units, goodcells, t, upsacc, upsacc_avg, trange, downsacc, downsacc_avg):
+def plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc):
+    upsacc_avg = np.zeros((units.size,trange.size))
+    downsacc_avg = np.zeros((units.size,trange.size))
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
     for i, ind in enumerate(goodcells.index):
         rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
