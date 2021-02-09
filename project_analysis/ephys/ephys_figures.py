@@ -317,7 +317,9 @@ def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
     plt.axis('off')
     return fig
 
-def plot_saccade_locked(n_units, goodcells, t, upsacc, upsacc_avg, trange, downsacc, downsacc_avg):
+def plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc):
+    upsacc_avg = np.zeros((units.size,trange.size))
+    downsacc_avg = np.zeros((units.size,trange.size))
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
     for i, ind in enumerate(goodcells.index):
         rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
