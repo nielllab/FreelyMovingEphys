@@ -243,7 +243,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if np.size(list2,1) > 50000:
         shortlist = sorted(np.random.choice(list2[0],size=50000, replace=False))
     else:
-        shortlist = list2
+        shortlist = list2.copy()
 
     # find camera center
     A = np.vstack([np.cos(ellipse_params[shortlist,7]),np.sin(ellipse_params[shortlist,7])])
