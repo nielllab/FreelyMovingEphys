@@ -239,12 +239,9 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     list1 = np.where((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh']) # short axis / long axis
     list2 = np.where((usegood == True) & ((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh']))
 
-    # matrix operations don't scale well to recordings of more than 100,000 frames
     # this limits the number of frames used for the calibration
     if np.size(list2,1) > 50000:
-        shortinds = list(sorted(np.random.choice(np.size(list2,1), size=50000, replace=False)))
-        shortbool = [True if i in shortinds else False for i in range(np.size(list2,1))]
-        shortlist = tuple(np.shape(np.expand_dims(tuple(list2[0][shortbool]),0)))
+        shortlist = sorted(np.random.choice(list2[0],size=50000, replace=False))
     else:
         shortlist = list2
 
