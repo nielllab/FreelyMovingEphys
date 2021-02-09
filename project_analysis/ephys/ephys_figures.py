@@ -260,7 +260,7 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
                     ensemble[nsp-1,:,:] = im
                 sta = sta+im
         plt.subplot(np.ceil(n_units/4),4,c+1)
-        plt.title(str(i))
+        plt.title(str(c))
         if nsp > 0:
             sta = sta/nsp
         else:
