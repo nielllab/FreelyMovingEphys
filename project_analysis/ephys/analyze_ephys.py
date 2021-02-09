@@ -74,7 +74,7 @@ def run_ephys_analysis(file_dict):
     detail_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_detailed_analysis_figures.pdf')))
     diagnostic_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_diagnostic_analysis_figures.pdf')))
 
-    print('opening data')
+    print('opening worldcam data')
     # load worldcam
     world_data = xr.open_dataset(file_dict['world'])
     world_vid_raw = np.uint8(world_data['WORLD_video'])
@@ -97,7 +97,8 @@ def run_ephys_analysis(file_dict):
     plt.imshow(np.mean(world_vid,axis=0)); plt.title('mean world image')
     diagnostic_pdf.savefig()
     plt.close()
-
+    
+    print('opening imu data')
     # load IMU data
     if file_dict['imu'] is not None:
         imu_data = xr.open_dataset(file_dict['imu'])
@@ -111,8 +112,15 @@ def run_ephys_analysis(file_dict):
             gx = np.array(acc_chans.sel(sample='gyro_x'))
             gy = np.array(acc_chans.sel(sample='gyro_y'))
             gz = np.array(acc_chans.sel(sample='gyro_z'))
+        plt.figure()
+        plt.plot(gz[0:100*60])
+        plt.title('gyro z')
+        plt.xlabel('frame')
+        diagnostic_pdf.savefig()
+        plt.close()
 
     # load optical mouse data
+    print('opening speed data')
     if file_dict['speed'] is not None:
         speed_data = xr.open_dataset(file_dict['speed'])
         spdVals = speed_data.BALL_data
@@ -125,6 +133,7 @@ def run_ephys_analysis(file_dict):
 
 
     # read ephys data
+    print('opening ephys data')
     ephys_data = pd.read_json(file_dict['ephys'])
     ephys_data['spikeTraw'] = ephys_data['spikeT']
 
@@ -142,6 +151,7 @@ def run_ephys_analysis(file_dict):
     plt.close()
 
     # load eye data
+    print('opening eyecam data')
     eye_data = xr.open_dataset(file_dict['eye'])
     eye_vid = np.uint8(eye_data['REYE_video'])
     eyeT = eye_data.timestamps.copy()
@@ -194,6 +204,13 @@ def run_ephys_analysis(file_dict):
     print('checking accelerometer / eye temporal alignment')
     # check accelerometer / eye temporal alignment
     if file_dict['imu'] is not None:
+        plt.figure
+        plt.plot(eyeT[0:10*60],dEye[0:10*60],label = 'dEye')
+        plt.plot(accTraw[0:10*60],(gz[0:10*60]*3)-7.5,label = 'gz')
+        plt.legend()
+        diagnostic_pdf.savefig()
+        plt.close()
+        
         lag_range = np.arange(-0.2,0.2,0.002)
         cc = np.zeros(np.shape(lag_range))
         t1 = np.arange(5,1600,20)
@@ -280,7 +297,7 @@ def run_ephys_analysis(file_dict):
     merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
 
     print('merging movie with sound')
-    subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+    #subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
 
     th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
     phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
