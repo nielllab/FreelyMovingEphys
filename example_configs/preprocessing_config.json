@@ -1,19 +1,17 @@
 {
     "data_path": "T:/path/to/animal/directory/",
     "steps_to_run":{
-        "deinter": false,
+        "deinter": true,
         "get_cam_calibration_params": false,
-        "undistort_recording": false,
-        "dlc": false,
-        "params": false,
+        "undistort_recording": true,
+        "dlc": true,
+        "params": true,
         "addtl_params": false
     },
     "cams": {
         "WORLD": "",
         "REYE": "C:/Users/Niell Lab/Documents/deeplabcut_projects/EphysEyeCams3-dylan-2021-02-02/config.yaml",
-        "TOP1": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
-        "TOP2": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml",
-        "TOP3": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
+        "TOP1": "C:/Users/Niell Lab/Documents/deeplabcut_projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml"
     },
     "calibration":{
         "eye_LED_config": "C:/Users/Niell Lab/Documents/deeplabcut_projects/LED_eye_view2-dylan-2021-01-10/config.yaml",
