@@ -25,7 +25,7 @@ import os
 # diagnostic figure of camera timing
 def plot_cam_time(camT, camname):
     fig, axs = plt.subplots(1,2)
-    axs[0].plot(np.diff(camT)); axs[0].set_xlabel('frame'); axs[0].set_ylabel('deltaT'); axs[0].set_title(camname+' cam timing')
+    axs[0].plot(np.diff(camT)[0:-1:10]); axs[0].set_xlabel('every 10th frame'); axs[0].set_ylabel('deltaT'); axs[0].set_title(camname+' cam timing')
     axs[1].hist(np.diff(camT),100);axs[1].set_xlabel('deltaT')
     return fig
 
@@ -43,7 +43,7 @@ def plot_spike_rasters(goodcells):
 # plot theta vs phi across recording
 def plot_eye_pos(eye_params):
     fig = plt.figure()
-    plt.plot(np.rad2deg(eye_params.sel(ellipse_params='theta')),np.rad2deg(eye_params.sel(ellipse_params='phi')),'.')
+    plt.plot(np.rad2deg(eye_params.sel(ellipse_params='theta'))[0:-1:10],np.rad2deg(eye_params.sel(ellipse_params='phi'))[0:-1:10],'.')
     plt.xlabel('theta'); plt.ylabel('phi'); plt.title('eye position accross recording')
     return fig
 
@@ -74,7 +74,7 @@ def plot_param_switch_check(eye_params):
 def plot_eye_params(eye_params, eyeT):
     fig, axs = plt.subplots(4,1)
     for i,val in enumerate(eye_params.ellipse_params[0:4]):
-        axs[i].plot(eyeT,eye_params.sel(ellipse_params = val))
+        axs[i].plot(eyeT[0:-1:10],eye_params.sel(ellipse_params = val)[0:-1:10])
         axs[i].set_ylabel(val.values)
     plt.tight_layout()
     return fig
@@ -223,7 +223,7 @@ def plot_saccade_and_fixate(eyeT, dEye, gInterp, th):
     plt.xlim(37,39); plt.ylim(-10,10); plt.legend(); plt.ylabel('deg'); plt.xlabel('secs')
     plt.subplot(1,2,2)
     plt.plot(eyeT[0:-1],np.nancumsum(gInterp(eyeT[0:-1])), label = 'head')
-    plt.plot(eyeT[0:-1],np.nancumsum(gInterp(eyeT[0:-1])-dEye),label ='gaze')
+    plt.plot(eyeT[0:-1],np.nancumsum(gInterp(eyeT[0:-1])+dEye),label ='gaze')
     plt.plot(eyeT[1:],th[0:-1],label ='eye')
     plt.xlim(35,40); plt.ylim(-30,30); plt.legend(); plt.ylabel('deg'); plt.xlabel('secs')
     plt.tight_layout()
@@ -244,7 +244,7 @@ def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
 def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
     spike_corr = 1
     staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
-    lag = 0.075
+    lag = 0.05
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
     for c, ind in enumerate(goodcells.index):
         r = goodcells.at[ind,'rate']
@@ -276,9 +276,10 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
 
 def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
     spike_corr = 1; sta = 0; lag = 0.075
-    lagRange = np.arange(0,0.25,0.05)
+    lagRange = np.arange(-0.05,0.2,0.05)
     fig = plt.figure(figsize = (12,2*n_units))
     for c, ind in enumerate(goodcells.index):
+        print(c)
         sp = goodcells.at[ind,'spikeT'].copy()
         for  lagInd, lag in enumerate(lagRange):
             sta = 0; nsp = 0
@@ -298,8 +299,9 @@ def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
             # plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
             if c == 0:
                 plt.title(str(np.round(lag*1000)) + 'msec')
+            plt.axis('off')
     plt.tight_layout()
-    plt.axis('off')
+    
     return fig
 
 def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):

@@ -205,9 +205,10 @@ def run_ephys_analysis(file_dict):
     # check accelerometer / eye temporal alignment
     if file_dict['imu'] is not None:
         plt.figure
-        plt.plot(eyeT[0:10*60],dEye[0:10*60],label = 'dEye')
-        plt.plot(accTraw[0:10*60],(gz[0:10*60]*3)-7.5,label = 'gz')
+        plt.plot(eyeT[0:-1],-dEye,label = '-dEye')
+        plt.plot(accTraw,gz*3-7.5,label = 'gz')
         plt.legend()
+        plt.xlim(0,10); plt.xlabel('secs')
         diagnostic_pdf.savefig()
         plt.close()
         
@@ -221,7 +222,7 @@ def run_ephys_analysis(file_dict):
         for tstart in range(len(t1)):
             for l in range(len(lag_range)):
                 try:
-                    c, lag= nanxcorr(dEye[t1[tstart]*60 : t2[tstart]*60] + 0.5/60, acc_interp(eyeT[t1[tstart]*60:t2[tstart]*60]+lag_range[l]),1)
+                    c, lag= nanxcorr(-dEye[t1[tstart]*60 : t2[tstart]*60] + 0.5/60, acc_interp(eyeT[t1[tstart]*60:t2[tstart]*60]+lag_range[l]),1)
                     cc[l] = c[1]
                 except: # occasional probelm with operands that cannot be broadcast togther because of different shapes
                     cc[l] = np.nan
@@ -237,7 +238,7 @@ def run_ephys_analysis(file_dict):
     if file_dict['imu'] is not None:
         model = LinearRegression()
         dataT = np.array(eyeT[t1*60 + 30])
-        model.fit(dataT[offset>0].reshape(-1,1),offset[offset>0])
+        model.fit(dataT[offset>-5].reshape(-1,1),offset[offset>-5])
         offset0 = model.intercept_
         drift_rate = model.coef_
         plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT, offset, offset0, drift_rate)
@@ -246,7 +247,7 @@ def run_ephys_analysis(file_dict):
 
     elif file_dict['speed'] is not None:
         offset0 = 0.1
-        drift_rate = - 0.1/1000
+        drift_rate = -0.000114
 
     if file_dict['imu'] is not None:
         accT = accTraw - (offset0 + accTraw*drift_rate)
@@ -374,7 +375,7 @@ def run_ephys_analysis(file_dict):
 
     # create interpolator for movie data so we can evaluate at same timebins are firing rate
     img_norm[img_norm<-2] = -2
-    movInterp = interp1d(worldT,img_norm,axis=0)
+    movInterp = interp1d(worldT,img_norm,axis=0, kind = 'nearest')
 
     print('getting spike-triggered average for lag=0.125')
     # calculate spike-triggered average
@@ -505,8 +506,16 @@ def run_ephys_analysis(file_dict):
     spike_corr = 1 #+ 0.125/1200  # correction factor for ephys timing drift
     dEye= np.diff(th)
 
+    plt.hist(dEye,bins = 21, range = (-10,10), density = True)
+    plt.xlabel('eye dtheta'); plt.ylabel('fraction')
+    detail_pdf.savefig()
+    plt.close()
+    
     trange = np.arange(-1,1.1,0.1)
-    sthresh = 8
+    if free_move is True:
+        sthresh = 7
+    else:
+        sthresh = 3
     upsacc = eyeT[np.append(dEye,0)>sthresh]/spike_corr
     upsacc = upsacc[upsacc>5]
     upsacc = upsacc[upsacc<np.max(t)-5]
