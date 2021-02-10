@@ -12,9 +12,9 @@ def pars_args():
     parser = argparse.ArgumentParser(description='deinterlace videos and adjust timestamps to match')
     parser.add_argument('--multi_animal', type=bool, default=False)
     parser.add_argument('--add_videos', type=bool, default=False)
-    parser.add_argument('--retrain', type=bool, default=True)
-    parser.add_argument('--path_config_file', type=str, default='~\Documents\deeplabcut_projects\JumpingEyeCam-dylan-2020-07-07\config.yaml')
-    parser.add_argument('--videofile_path', type=str, default='~\Documents\deeplabcut_projects\JumpingEyeCam-dylan-2020-07-07\videos')
+    parser.add_argument('--retrain', type=bool, default=False)
+    parser.add_argument('--path_config_file', type=str, default='~\Documents\deeplabcut_projects\EphysEyeCams3-dylan-2021-02-02\config.yaml')
+    parser.add_argument('--videofile_path', type=str, default='~\Documents\deeplabcut_projects\EphysEyeCams3-dylan-2021-02-02\videos')
     args = parser.parse_args()
     return args
 
@@ -129,7 +129,7 @@ def main(ags):
         cfg_dlc['scale_jitter_lo']= 0.5
         cfg_dlc['scale_jitter_up']=1.5
         cfg_dlc['augmentationprobability']=.5
-        cfg_dlc['batch_size']=16 #pick that as large as your GPU can handle it
+        cfg_dlc['batch_size']=4 #pick that as large as your GPU can handle it
         cfg_dlc['elastic_transform']=True
         cfg_dlc['rotation']=180
         cfg_dlc['covering']=True
