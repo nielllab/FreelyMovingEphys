@@ -43,8 +43,10 @@ def plot_spike_rasters(goodcells):
 # plot theta vs phi across recording
 def plot_eye_pos(eye_params):
     fig = plt.figure()
-    plt.plot(np.rad2deg(eye_params.sel(ellipse_params='theta'))[0:-1:10],np.rad2deg(eye_params.sel(ellipse_params='phi'))[0:-1:10],'.')
-    plt.xlabel('theta'); plt.ylabel('phi'); plt.title('eye position accross recording')
+    th = np.array(eye_params.sel(ellipse_params='theta'))
+    plt.plot(np.rad2deg(th)[0:-1:10],np.rad2deg(eye_params.sel(ellipse_params='phi'))[0:-1:10],'.')
+    good_pts = np.sum(~np.isnan(th))/len(th)
+    plt.xlabel('theta'); plt.ylabel('phi'); plt.title(f'eye position fraction good = {good_pts:.3}')
     return fig
 
 # optical mouse speed
@@ -242,7 +244,6 @@ def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
     return fig
 
 def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
-    spike_corr = 1
     staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
     lag = 0.05
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
@@ -253,14 +254,15 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
         if c==1:
             ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
         for s in sp:
-            if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
+            if (s-lag >5) & ((s-lag) <np.max(worldT)):
                 nsp = nsp+1
-                im = movInterp((s-lag)*spike_corr)
-                if c==1:
-                    ensemble[nsp-1,:,:] = im
+                im = movInterp(s-lag)
+                # if c==1:
+                #     ensemble[nsp-1,:,:] = im
                 sta = sta+im
         plt.subplot(np.ceil(n_units/4),4,c+1)
-        plt.title(str(c))
+        #plt.title(str(nsp))
+        plt.title(f'c={c!s} nsp={nsp!s}')
         if nsp > 0:
             sta = sta/nsp
         else:
@@ -320,6 +322,8 @@ def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
     return fig
 
 def plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc):
+    upsacc = upsacc[upsacc>5];     upsacc = upsacc[upsacc<np.max(t)-5]
+    downsacc = downsacc[downsacc>5]; downsacc = downsacc[downsacc<np.max(t)-5]
     upsacc_avg = np.zeros((units.size,trange.size))
     downsacc_avg = np.zeros((units.size,trange.size))
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
@@ -353,36 +357,31 @@ def plot_rasters_around_saccades(n_units, goodcells, sacc):
         plt.xlim(-1,1)
     return fig
 
-def plot_spike_rate_vs_var(n_units, use, var_range, goodcells, useEyeT, t, var_name):
+def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_name):
+    n_units = len(goodcells)
     scatter = np.zeros((n_units,len(use)))
     tuning = np.zeros((n_units,len(var_range)-1))
     tuning_err = tuning.copy()
+    var_cent = np.zeros(len(var_range)-1)
+    for j in range(len(var_range)-1):
+        var_cent[j] = 0.5*(var_range[j] + var_range[j+1])
     for i, ind in enumerate(goodcells.index):
-        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
-        scatter[i,:] = rateInterp(useEyeT)
+        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'],bounds_error=False)
+        scatter[i,:] = rateInterp(useT)
         for j in range(len(var_range)-1):
-            usePts =(use>var_range[j]) & (use<var_range[j+1])
-            tuning[i,j] = np.mean(scatter[i,usePts])
-            tuning_err[i,j] = np.std(scatter[i,usePts])/np.sqrt(np.count_nonzero(usePts))
-    if var_name == 'th':
-        fig = plt.figure(figsize = (3*np.ceil(n_units/2),6))
-    elif var_name == 'rad':
-        fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
+            usePts =(use>=var_range[j]) & (use<var_range[j+1])
+            tuning[i,j] = np.nanmean(scatter[i,usePts])
+            tuning_err[i,j] = np.nanstd(scatter[i,usePts])/np.sqrt(np.count_nonzero(usePts))
+    fig = plt.figure(figsize = (12,3*np.ceil(n_units/4)))
     for i in range(n_units):
-        if var_name == 'th':
-            plt.subplot(np.ceil(n_units/4),4,i+1)
-        elif var_name == 'rad':
-            plt.subplot(2,np.ceil(n_units/2),i+1)
-        plt.errorbar(var_range[:-1],tuning[i,:],yerr=tuning_err[i,:])
+        plt.subplot(np.ceil(n_units/4),4,i+1)
+        plt.errorbar(var_cent,tuning[i,:],yerr=tuning_err[i,:])
         try:
             plt.ylim(0,np.nanmax(tuning[i,:]*1.2))
         except ValueError:
             plt.ylim(0,1)
-        plt.xlim([-2, 2])
-        if var_name == 'th':
-            plt.xlabel('normalized pupil theta'); plt. ylabel('sp/sec'); plt.title(i)
-        elif var_name == 'rad':
-            plt.xlabel('normalized pupil radius'); plt. ylabel('sp/sec'); plt.title(i)
+        plt.xlim([var_range[0], var_range[-1]]);  plt.title(i)
+    plt.xlabel(var_name); plt. ylabel('sp/sec')
     plt.tight_layout()
     return fig
 

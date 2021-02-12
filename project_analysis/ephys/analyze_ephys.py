@@ -373,6 +373,16 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
+    eyeR = eye_params.sel(ellipse_params = 'longaxis').copy()
+    Rnorm = (eyeR - np.mean(eyeR))/np.std(eyeR)
+    plt.figure()
+    plt.plot(eyeT,Rnorm)
+    #plt.xlim([0,60])
+    plt.xlabel('secs')
+    plt.ylabel('normalized pupil R')
+    diagnostic_pdf.savefig()
+    plt.close()  
+
     # create interpolator for movie data so we can evaluate at same timebins are firing rate
     img_norm[img_norm<-2] = -2
     movInterp = interp1d(worldT,img_norm,axis=0, kind = 'nearest')
@@ -515,14 +525,16 @@ def run_ephys_analysis(file_dict):
     
     if free_move is True:
         dhead = interp1d(accT,(gz-np.mean(gz))*7.5, bounds_error=False)
-
+        dgz = dEye + dhead(eyeT[0:-1]);
+        
         plt.figure()
         plt.hist(dhead(eyeT),bins=21,range = (-10,10))
         plt.xlabel('dhead')
         detail_pdf.savefig()
         plt.close()
         
-        dgz = dEye + dhead(eyeT[0:-1]+0.5/60);
+
+        plt.figure()
         plt.hist(dgz,bins=21,range = (-10,10))
         plt.xlabel('dgaze')
         detail_pdf.savefig()
@@ -530,41 +542,75 @@ def run_ephys_analysis(file_dict):
         
         plt.figure()
         plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
-        plt.xlabel('dEye'); plt.ylabel('dHead')
+        plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
         detail_pdf.savefig()
         plt.close()
         
     trange = np.arange(-1,1.1,0.1)
     if free_move is True:
         sthresh = 5
+        upsacc = eyeT[ (np.append(dEye,0)>sthresh)]
+        downsacc = eyeT[ (np.append(dEye,0)<-sthresh)]
     else:
         sthresh = 3
-    upsacc = eyeT[np.append(dEye,0)>sthresh]/spike_corr
-    upsacc = upsacc[upsacc>5]
-    upsacc = upsacc[upsacc<np.max(t)-5]
-    downsacc = eyeT[np.append(dEye,0)<-sthresh]/spike_corr
-    downsacc = downsacc[downsacc>5]
-    downsacc = downsacc[downsacc<np.max(t)-5]
-
+        upsacc = eyeT[np.append(dEye,0)>sthresh]
+        downsacc = eyeT[np.append(dEye,0)<-sthresh]   
+    upsacc = upsacc[upsacc>5];     upsacc = upsacc[upsacc<np.max(t)-5]
+    downsacc = downsacc[downsacc>5]; downsacc = downsacc[downsacc<np.max(t)-5]
     upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+    plt.title('all dEye')
     detail_pdf.savefig()
     plt.close()
 
+
+    if free_move is True:
+    #plot gaze shifting eye movements
+        sthresh = 3
+        upsacc = eyeT[ (np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
+        downsacc = eyeT[ (np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+        plt.title('gaze shift dEye');  detail_pdf.savefig() ;  plt.close()
+
+        
+    #plot compensatory eye movements    
+        sthresh = 3
+        upsacc = eyeT[ (np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
+        downsacc = eyeT[ (np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
+        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+        plt.title('comp dEye'); detail_pdf.savefig() ;  plt.close()
+        
+    
+    #plot gaze shifting head movements
+        sthresh = 3
+        upsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)>sthresh)]
+        downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+        plt.title('gaze shift dhead') ; detail_pdf.savefig() ;  plt.close()
+        
+    #plot compensatory eye movements    
+        sthresh = 3
+        upsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
+        downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
+        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+        plt.title('comp dhead') ; detail_pdf.savefig() ;  plt.close()
+
+        
     # rasters around positive saccades
-    raster_around_upsacc_fig = plot_rasters_around_saccades(n_units, goodcells, upsacc)
-    detail_pdf.savefig()
-    plt.close()
+    # raster_around_upsacc_fig = plot_rasters_around_saccades(n_units, goodcells, upsacc)
+    # detail_pdf.savefig()
+    # plt.close()
 
-    #rasters around negative saccades
-    raster_around_downsacc_fig = plot_rasters_around_saccades(n_units, goodcells, downsacc)
-    detail_pdf.savefig()
-    plt.close()
+    # #rasters around negative saccades
+    # raster_around_downsacc_fig = plot_rasters_around_saccades(n_units, goodcells, downsacc)
+    # detail_pdf.savefig()
+    # plt.close()
 
     # normalize and plot eye radius
     eyeR = eye_params.sel(ellipse_params = 'longaxis').copy()
     Rnorm = (eyeR - np.mean(eyeR))/np.std(eyeR)
+    plt.figure()
     plt.plot(eyeT,Rnorm)
-    plt.xlim([0,60])
+    #plt.xlim([0,60])
     plt.xlabel('secs')
     plt.ylabel('normalized pupil R')
     diagnostic_pdf.savefig()
@@ -572,11 +618,8 @@ def run_ephys_analysis(file_dict):
 
     print('plotting spike rate vs pupil radius')
     # plot rate vs pupil
-    n_units = len(goodcells)
-    R_range = np.arange(-4,4,0.5)
-    useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    useR = Rnorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(n_units, useR, R_range, goodcells, useEyeT, t, 'rad')
+    R_range = np.arange(-2,2.5,0.5)
+    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(Rnorm, R_range, goodcells, eyeT, t, 'pupil radius')
     detail_pdf.savefig()
     plt.close()
 
@@ -590,20 +633,21 @@ def run_ephys_analysis(file_dict):
 
     print('plotting spike rate vs theta')
     # plot rate vs theta
-    n_units = len(goodcells)
-    th_range = np.arange(-2,3,0.5)
-    useEyeT = eyeT[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    useTh = thetaNorm[(eyeT<t[-2]) & (eyeT>t[0])].copy()
-    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(n_units, useTh, th_range, goodcells, useEyeT, t, 'th')
+    th_range = np.arange(-2,2.5,0.5)
+    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(thetaNorm, th_range, goodcells, eyeT, t, 'eye theta')
     detail_pdf.savefig()
     plt.close()
 
     if free_move is True:
-        n_units = len(goodcells)
         gz_range = np.arange(-10,10,1)
-        useAccT = accT[(accT<t[-2]) & (accT>t[0])].copy()
-        useGz = gz[(accT<t[-2]) & (accT>t[0])].copy()
-        spike_rate_vs_gz_fig = plot_spike_rate_vs_var(n_units, useGz, gz_range, goodcells, useAccT, t, 'gz')
+        spike_rate_vs_gz_fig = plot_spike_rate_vs_var((gz-np.mean(gz))*7.5, gz_range, goodcells, accT, t, 'gyro z')
+        detail_pdf.savefig()
+        plt.close()
+
+    if has_mouse:
+        #spd_range = np.arange(0,1.1,0.1)
+        spd_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
+        spike_rate_vs_gz_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
         detail_pdf.savefig()
         plt.close()
 
