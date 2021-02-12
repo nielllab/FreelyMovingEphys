@@ -180,14 +180,22 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['save_figs'] is True:
         try:
             plt.figure()
-            plt.plot(np.sum(likelihood,1))
+            plt.plot(np.sum(likelihood >= config['lik_thresh'], 1)[0:-1:10])
             plt.title(str(np.round(np.mean(usegood), 3)) + ' good; thresh= ' + str(config['lik_thresh']))
-            plt.ylabel('num good eye points'); plt.xlabel('frame')
+            plt.ylabel('num good eye points'); plt.xlabel('every 10th frame')
             pdf.savefig()
             plt.close()
         except:
             print('figure error')
-
+        try:
+            plt.figure()
+            plt.hist(np.sum(likelihood >= config['lik_thresh'], 1),bins=9, range = (0,9))
+            plt.xlabel('num good eye points'); plt.ylabel('n frames')
+            pdf.savefig()
+            plt.close()
+        except:
+            print('figure error')
+            
     # threshold out pts more than a given distance away from nanmean of that point
     std_thresh_x = np.empty(np.shape(x_vals))
     for point_loc in range(0,np.size(x_vals, 1)):
@@ -274,16 +282,16 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['save_figs'] is True:
         try:
             plt.figure()
-            plt.plot(np.rad2deg(phi))
+            plt.plot(np.rad2deg(phi)[0:-1:10])
             plt.title('phi')
-            plt.ylabel('deg'); plt.xlabel('frame')
+            plt.ylabel('deg'); plt.xlabel('every 10th frame')
             pdf.savefig()
             plt.close()
 
             plt.figure()
-            plt.plot(np.rad2deg(theta))
+            plt.plot(np.rad2deg(theta)[0:-1:10])
             plt.title('theta')
-            plt.ylabel('deg'); plt.xlabel('frame')
+            plt.ylabel('deg'); plt.xlabel('every 10th frame')
             pdf.savefig()
             plt.close()
         except:

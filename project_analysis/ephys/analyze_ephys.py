@@ -506,14 +506,37 @@ def run_ephys_analysis(file_dict):
     spike_corr = 1 #+ 0.125/1200  # correction factor for ephys timing drift
     dEye= np.diff(th)
 
+    plt.figure()
     plt.hist(dEye,bins = 21, range = (-10,10), density = True)
     plt.xlabel('eye dtheta'); plt.ylabel('fraction')
     detail_pdf.savefig()
     plt.close()
     
+    
+    if free_move is True:
+        dhead = interp1d(accT,(gz-np.mean(gz))*7.5, bounds_error=False)
+
+        plt.figure()
+        plt.hist(dhead(eyeT),bins=21,range = (-10,10))
+        plt.xlabel('dhead')
+        detail_pdf.savefig()
+        plt.close()
+        
+        dgz = dEye + dhead(eyeT[0:-1]+0.5/60);
+        plt.hist(dgz,bins=21,range = (-10,10))
+        plt.xlabel('dgaze')
+        detail_pdf.savefig()
+        plt.close()
+        
+        plt.figure()
+        plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+        plt.xlabel('dEye'); plt.ylabel('dHead')
+        detail_pdf.savefig()
+        plt.close()
+        
     trange = np.arange(-1,1.1,0.1)
     if free_move is True:
-        sthresh = 7
+        sthresh = 5
     else:
         sthresh = 3
     upsacc = eyeT[np.append(dEye,0)>sthresh]/spike_corr
@@ -574,6 +597,15 @@ def run_ephys_analysis(file_dict):
     spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(n_units, useTh, th_range, goodcells, useEyeT, t, 'th')
     detail_pdf.savefig()
     plt.close()
+
+    if free_move is True:
+        n_units = len(goodcells)
+        gz_range = np.arange(-10,10,1)
+        useAccT = accT[(accT<t[-2]) & (accT>t[0])].copy()
+        useGz = gz[(accT<t[-2]) & (accT>t[0])].copy()
+        spike_rate_vs_gz_fig = plot_spike_rate_vs_var(n_units, useGz, gz_range, goodcells, useAccT, t, 'gz')
+        detail_pdf.savefig()
+        plt.close()
 
     print('generating summary plot')
     # generate summary plot
