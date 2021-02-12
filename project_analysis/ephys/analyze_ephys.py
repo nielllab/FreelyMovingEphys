@@ -35,7 +35,7 @@ from sklearn.cluster import KMeans
 # module imports
 from project_analysis.ephys.ephys_figures import *
 
-def find_files(rec_path, rec_name, free_move, cell, stim_type):
+def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4):
     print('find ephys files')
 
     # get the files names in the provided path
@@ -55,9 +55,9 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type):
         stim_type = None
 
     if free_move is True:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4}
     elif free_move is False:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4}
 
     return dict_out
 
@@ -285,20 +285,21 @@ def run_ephys_analysis(file_dict):
     # make movie and sound
     print('making video figure')
     this_unit = file_dict['cell']
-
-    if file_dict['imu'] is not None:
-        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
-    elif file_dict['speed'] is not None:
-        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
-
-    print('making audio figure')
-    audfile = make_sound(file_dict, ephys_data, units, this_unit)
     
-    # merge video and audio
-    merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
+    if file_dict['mp4']:
+        if file_dict['imu'] is not None:
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
+        elif file_dict['speed'] is not None:
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
 
-    print('merging movie with sound')
-    subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+        print('making audio figure')
+        audfile = make_sound(file_dict, ephys_data, units, this_unit)
+        
+        # merge video and audio
+        merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
+
+        print('merging movie with sound')
+        subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
 
     th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
     phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
