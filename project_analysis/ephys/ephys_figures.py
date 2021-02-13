@@ -239,7 +239,6 @@ def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
     # plt.ylim([0 , max(resp[i,1:-3])*1.2])
         # plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec')
         plt.ylim([0,np.nanmax(resp[i,2:-1])])
-    plt.title('individual contrast reponse')
     plt.tight_layout()
     return fig
 
@@ -262,7 +261,8 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
                 sta = sta+im
         plt.subplot(np.ceil(n_units/4),4,c+1)
         #plt.title(str(nsp))
-        plt.title(f'c={c!s} nsp={nsp!s}')
+        plt.title(f'ind={ind!s} nsp={nsp!s}')
+        plt.axis('off')
         if nsp > 0:
             sta = sta/nsp
         else:
@@ -273,7 +273,6 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
             plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
             staAll[c,:,:] = sta
     plt.tight_layout()
-    plt.axis('off')
     return staAll, fig
 
 def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
@@ -281,7 +280,6 @@ def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
     lagRange = np.arange(-0.05,0.2,0.05)
     fig = plt.figure(figsize = (12,2*n_units))
     for c, ind in enumerate(goodcells.index):
-        print(c)
         sp = goodcells.at[ind,'spikeT'].copy()
         for  lagInd, lag in enumerate(lagRange):
             sta = 0; nsp = 0
@@ -373,14 +371,14 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_name):
             tuning[i,j] = np.nanmean(scatter[i,usePts])
             tuning_err[i,j] = np.nanstd(scatter[i,usePts])/np.sqrt(np.count_nonzero(usePts))
     fig = plt.figure(figsize = (12,3*np.ceil(n_units/4)))
-    for i in range(n_units):
+    for i, ind in enumerate(goodcells.index):
         plt.subplot(np.ceil(n_units/4),4,i+1)
         plt.errorbar(var_cent,tuning[i,:],yerr=tuning_err[i,:])
         try:
             plt.ylim(0,np.nanmax(tuning[i,:]*1.2))
         except ValueError:
             plt.ylim(0,1)
-        plt.xlim([var_range[0], var_range[-1]]);  plt.title(i)
+        plt.xlim([var_range[0], var_range[-1]]);  plt.title(ind)
     plt.xlabel(var_name); plt. ylabel('sp/sec')
     plt.tight_layout()
     return fig
@@ -393,7 +391,7 @@ def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, up
         plt.subplot(n_units,4,i*4 + 1)
         wv = goodcells.at[ind,'waveform']
         plt.plot(np.arange(len(wv))*1000/samprate,goodcells.at[ind,'waveform'])
-        plt.xlabel('msec'); plt.title(str(i) + ' ' + goodcells.at[ind,'KSLabel']  +  ' cont='+ str(goodcells.at[ind,'ContamPct']))
+        plt.xlabel('msec'); plt.title(str(ind) + ' ' + goodcells.at[ind,'KSLabel']  +  ' cont='+ str(goodcells.at[ind,'ContamPct']))
         
         # plot CRF
         plt.subplot(n_units,4,i*4 + 2)

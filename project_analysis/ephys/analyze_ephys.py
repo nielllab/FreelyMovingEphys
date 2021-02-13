@@ -357,7 +357,7 @@ def run_ephys_analysis(file_dict):
     # mean firing rate in timebins correponding to contrast ranges
     resp = np.empty((n_units,12))
     crange = np.arange(0,1.2,0.1)
-    for i,ind in enumerate(goodcells.index):
+    for i, ind in enumerate(goodcells.index):
         for c,cont in enumerate(crange):
             resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
     plt.plot(crange,np.transpose(resp))
@@ -523,10 +523,9 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
     
-    
     if free_move is True:
         dhead = interp1d(accT,(gz-np.mean(gz))*7.5, bounds_error=False)
-        dgz = dEye + dhead(eyeT[0:-1]);
+        dgz = dEye + dhead(eyeT[0:-1])
         
         plt.figure()
         plt.hist(dhead(eyeT),bins=21,range = (-10,10))
@@ -685,7 +684,7 @@ def run_ephys_analysis(file_dict):
         plt.subplot(n_units+3,1,i+4)
         plt.plot(bins[0:-1],rate)
         plt.xlabel('secs')
-        plt.ylabel('sp/sec'); plt.xlim(bins[0],bins[-1]); plt.title('unit ' + str(i))
+        plt.ylabel('sp/sec'); plt.xlim(bins[0],bins[-1]); plt.title('unit ' + str(ind))
     plt.tight_layout()
     detail_pdf.savefig()
     plt.close()
@@ -701,9 +700,9 @@ def run_ephys_analysis(file_dict):
         stim = '_'.join(split_base_name[4:])
     except:
         stim = split_base_name[4:]
-    var_names = ['_'.join([mouse, date, exp, rig, stim, 'unit'+str(i)]) for i in range(1,n_units+1)]
+    var_names = ['_'.join([mouse, date, exp, rig, stim, 'unit'+str(ind)]) for i, ind in enumerate(goodcells.index)]
     
-    unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
+    unit_names = [(file_dict['name']+'_unit'+str(ind)) for i, ind in enumerate(goodcells.index)]
     if file_dict['stim_type'] == 'grat':
         all_units = {}
         for unit_num, ind in enumerate(goodcells.index):
