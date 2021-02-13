@@ -35,7 +35,7 @@ from sklearn.cluster import KMeans
 # module imports
 from project_analysis.ephys.ephys_figures import *
 
-def find_files(rec_path, rec_name, free_move, cell, stim_type):
+def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4):
     print('find ephys files')
 
     # get the files names in the provided path
@@ -55,9 +55,9 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type):
         stim_type = None
 
     if free_move is True:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4}
     elif free_move is False:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4}
 
     return dict_out
 
@@ -291,19 +291,21 @@ def run_ephys_analysis(file_dict):
     print('making video figure')
     this_unit = file_dict['cell']
 
-    # if file_dict['imu'] is not None:
-    #     vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
-    # elif file_dict['speed'] is not None:
-    #     vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
+    if file_dict['mp4']:
+        if file_dict['imu'] is not None:
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
+        elif file_dict['speed'] is not None:
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
 
-    # print('making audio figure')
-    # audfile = make_sound(file_dict, ephys_data, units, this_unit)
-    
-    # # merge video and audio
-    # merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
+        print('making audio figure')
+        audfile = make_sound(file_dict, ephys_data, units, this_unit)
+        
+        # merge video and audio
+        merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
 
-    # print('merging movie with sound')
-    # subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+        print('merging movie with sound')
+        subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+
 
     th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
     phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
@@ -361,7 +363,7 @@ def run_ephys_analysis(file_dict):
     # mean firing rate in timebins correponding to contrast ranges
     resp = np.empty((n_units,12))
     crange = np.arange(0,1.2,0.1)
-    for i,ind in enumerate(goodcells.index):
+    for i, ind in enumerate(goodcells.index):
         for c,cont in enumerate(crange):
             resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
     plt.plot(crange,np.transpose(resp))
@@ -550,10 +552,9 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
     
-    
     if free_move is True:
         dhead = interp1d(accT,(gz-np.mean(gz))*7.5, bounds_error=False)
-        dgz = dEye + dhead(eyeT[0:-1]);
+        dgz = dEye + dhead(eyeT[0:-1])
         
         plt.figure()
         plt.hist(dhead(eyeT),bins=21,range = (-10,10))
@@ -712,7 +713,7 @@ def run_ephys_analysis(file_dict):
         plt.subplot(n_units+3,1,i+4)
         plt.plot(bins[0:-1],rate)
         plt.xlabel('secs')
-        plt.ylabel('sp/sec'); plt.xlim(bins[0],bins[-1]); plt.title('unit ' + str(i))
+        plt.ylabel('sp/sec'); plt.xlim(bins[0],bins[-1]); plt.title('unit ' + str(ind))
     plt.tight_layout()
     detail_pdf.savefig()
     plt.close()
@@ -728,9 +729,9 @@ def run_ephys_analysis(file_dict):
         stim = '_'.join(split_base_name[4:])
     except:
         stim = split_base_name[4:]
-    var_names = ['_'.join([mouse, date, exp, rig, stim, 'unit'+str(i)]) for i in range(1,n_units+1)]
+    var_names = ['_'.join([mouse, date, exp, rig, stim, 'unit'+str(ind)]) for i, ind in enumerate(goodcells.index)]
     
-    unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
+    unit_names = [(file_dict['name']+'_unit'+str(ind)) for i, ind in enumerate(goodcells.index)]
     if file_dict['stim_type'] == 'grat':
         all_units = {}
         for unit_num, ind in enumerate(goodcells.index):
