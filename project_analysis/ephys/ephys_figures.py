@@ -22,6 +22,30 @@ from numpy import nan
 from matplotlib.backends.backend_pdf import PdfPages
 import os
 
+# calculate and plot psth relative to timepoints
+def plot_psth(goodcells,onsets,lower,upper,dt,drawfig):
+    n_units = len(goodcells)
+    bins = np.arange(lower,upper+dt,dt)
+    fig = plt.figure(figsize = (10,np.ceil(n_units/2)))
+    psth_all = np.zeros((n_units,len(bins)-1))
+    for i, ind in enumerate(goodcells.index):
+        plt.subplot(np.ceil(n_units/4),4,i+1)
+        psth = np.zeros(len(bins)-1)
+        for t in onsets:
+            hist,edges = np.histogram(goodcells.at[ind,'spikeT']-t,bins)
+            psth = psth+hist
+        psth = psth/len(onsets)
+        psth = psth/dt
+        plt.plot(bins[0:-1]+ dt/2,psth)
+        plt.ylim(0,np.nanmax(psth)*1.2)
+        psth_all[i,:]=psth
+    plt.xlabel('time'); plt.ylabel('sp/sec')    
+    plt.tight_layout()
+    
+    if drawfig is False:
+        plt.close()
+    return psth_all
+        
 # diagnostic figure of camera timing
 def plot_cam_time(camT, camname):
     fig, axs = plt.subplots(1,2)
