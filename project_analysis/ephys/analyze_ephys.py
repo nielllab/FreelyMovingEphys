@@ -81,10 +81,14 @@ def run_ephys_analysis(file_dict):
 
     # resize worldcam to make more manageable
     sz = world_vid_raw.shape
-    downsamp = 0.5
-    world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
-    for f in range(sz[0]):
-        world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
+
+    if sz[1]>160:
+        downsamp = 0.5
+        world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
+        for f in range(sz[0]):
+            world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
+    else:
+        world_vid = world_vid_raw
     worldT = world_data.timestamps.copy()
 
     # plot worldcam timing
@@ -262,11 +266,12 @@ def run_ephys_analysis(file_dict):
     std_im = np.std(world_norm,axis=0)
     std_im[std_im<10/255] = 10/255
     img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
+    img_norm = img_norm * (std_im>10/255)
 
     contrast = np.empty(worldT.size)
     for i in range(worldT.size):
         contrast[i] = np.std(img_norm[i,:,:])
-    plt.plot(worldT[0:6000],contrast[0:6000])
+    plt.plot(contrast[2000:3000])
     plt.xlabel('time')
     plt.ylabel('contrast')
     diagnostic_pdf.savefig()
@@ -285,7 +290,7 @@ def run_ephys_analysis(file_dict):
     # make movie and sound
     print('making video figure')
     this_unit = file_dict['cell']
-    
+
     if file_dict['mp4']:
         if file_dict['imu'] is not None:
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
@@ -300,6 +305,7 @@ def run_ephys_analysis(file_dict):
 
         print('merging movie with sound')
         subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+
 
     th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
     phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
@@ -357,7 +363,7 @@ def run_ephys_analysis(file_dict):
     # mean firing rate in timebins correponding to contrast ranges
     resp = np.empty((n_units,12))
     crange = np.arange(0,1.2,0.1)
-    for i,ind in enumerate(goodcells.index):
+    for i, ind in enumerate(goodcells.index):
         for c,cont in enumerate(crange):
             resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
     plt.plot(crange,np.transpose(resp))
@@ -384,15 +390,7 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()  
 
-    # create interpolator for movie data so we can evaluate at same timebins are firing rate
-    img_norm[img_norm<-2] = -2
-    movInterp = interp1d(worldT,img_norm,axis=0, kind = 'nearest')
 
-    print('getting spike-triggered average for lag=0.125')
-    # calculate spike-triggered average
-    staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
-    detail_pdf.savefig()
-    plt.close()
 
     if file_dict['stim_type'] == 'grat':
         print('getting grating flow')
@@ -414,8 +412,8 @@ def run_ephys_analysis(file_dict):
             #ax.cla()
             #ax.imshow(frm,vmin = 0, vmax = 255)
             u = flow_norm[f,:,:,0]; v = -flow_norm[f,:,:,1]  # negative to fix sign for y axis in images
-            sx = cv2.Sobel(frm,cv2.CV_64F,1,0,ksize=7)
-            sy = -cv2.Sobel(frm,cv2.CV_64F,0,1,ksize=7)# negative to fix sign for y axis in images
+            sx = cv2.Sobel(frm,cv2.CV_64F,1,0,ksize=11)
+            sy = -cv2.Sobel(frm,cv2.CV_64F,0,1,ksize=11)# negative to fix sign for y axis in images
             sx[std_im<0.05]=0; sy[std_im<0.05]=0; # get rid of values outside of monitor
             sy[sx<0] = -sy[sx<0]  #make vectors point in positive x direction (so opposite sides of grating don't cancel)
             sx[sx<0] = -sx[sx<0]
@@ -428,6 +426,10 @@ def run_ephys_analysis(file_dict):
         stimOn = signal.medfilt(stimOn,11)
 
         stim_start = np.array(worldT[np.where(np.diff(stimOn)>0)])
+        grating_psth = plot_psth(goodcells,stim_start,-0.5,1.5,0.1,True)
+        plt.title('grating psth')
+        detail_pdf.savefig(); plt.close()
+        
         stim_end = np.array(worldT[np.where(np.diff(stimOn)<0)])
         stim_end = stim_end[stim_end>stim_start[0]]
         stim_start = stim_start[stim_start<stim_end[-1]]
@@ -435,10 +437,15 @@ def run_ephys_analysis(file_dict):
         grating_mag = np.zeros(len(stim_start))
         grating_dir = np.zeros(len(stim_start))
         for i in range(len(stim_start)):
-            stim_u = np.median(u_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
-            stim_v = np.median(v_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
-            stim_sx = np.median(sx_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
-            stim_sy = np.median(sy_mn[np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))])
+            tpts = np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))
+            mag = np.sqrt(sx_mn[tpts]**2 + sy_mn[tpts]**2)
+            this = np.where(mag[:,0]>np.percentile(mag,25))
+            goodpts = np.array(tpts)[0,this]
+
+            stim_sx = np.nanmedian(sx_mn[goodpts])
+            stim_sy = np.nanmedian(sy_mn[goodpts])
+            stim_u = np.nanmedian(u_mn[goodpts])
+            stim_v = np.nanmedian(v_mn[goodpts])
             grating_th[i] = np.arctan2(stim_sy,stim_sx)
             grating_mag[i] = np.sqrt(stim_sx**2 + stim_sy**2)
             grating_dir[i] = np.sign(stim_u*stim_sx + stim_v*stim_sy) # dot product of gratient and flow gives direction
@@ -450,12 +457,14 @@ def run_ephys_analysis(file_dict):
         np.unique(grating_ori)
         plt.figure(figsize = (8,8))
 
+        lowmag = np.where(grating_mag<np.percentile(grating_mag,100*2/24))
+        grating_ori[lowmag] = grating_ori[lowmag]+np.pi/8
         ori_cat = np.floor((grating_ori+np.pi/8)/(np.pi/4))
 
         # might be a bad idea...
         # replace all NaN values in grating_mag with 0, same for pos/neg inf
         # any NaN value raises ValueError in KMeans below
-        grating_mag = np.nan_to_num(grating_mag, copy=True, nan=0.0, posinf=0.0, neginf=0.0)
+        #grating_mag = np.nan_to_num(grating_mag, copy=True, nan=0.0, posinf=0.0, neginf=0.0)
 
         km = KMeans(n_clusters=3).fit(np.reshape(grating_mag,(-1,1)))
         sf_cat = km.labels_
@@ -465,9 +474,19 @@ def run_ephys_analysis(file_dict):
             sf_catnew[sf_cat == order[i]]=i
         sf_cat = sf_catnew.copy()
         plt.scatter(grating_mag,grating_ori,c=ori_cat)
-        detail_pdf.savefig()
-        plt.plot()
+        plt.xlabel('grating magnitude'); plt.ylabel('theta')
+        diagnostic_pdf.savefig()
+        plt.close()
 
+        ntrial = np.zeros((3,8))
+        for i in range(3):
+            for j in range(8):
+                ntrial[i,j]= np.sum((sf_cat==i)&(ori_cat==j))
+        plt.figure; plt.imshow(ntrial,vmin = 0, vmax = 2*np.mean(ntrial)); plt.colorbar()
+        plt.xlabel('orientations'); plt.ylabel('sfs'); plt.title('trials per condition')
+        diagnostic_pdf.savefig()
+        plt.close()
+        
         print('plotting grading orientation and tuning curves')
         edge_win = 0.025
         grating_rate = np.zeros((len(goodcells),len(stim_start)))
@@ -500,6 +519,16 @@ def run_ephys_analysis(file_dict):
         detail_pdf.savefig()
         plt.close()
 
+    # create interpolator for movie data so we can evaluate at same timebins are firing rate
+    img_norm[img_norm<-2] = -2
+    movInterp = interp1d(worldT,img_norm,axis=0, kind = 'nearest')
+
+    print('getting spike-triggered average for lag=0.125')
+    # calculate spike-triggered average
+    staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
+    detail_pdf.savefig()
+    plt.close()
+    
     print('getting spike-triggered average with range in lags')
     # calculate spike-triggered average
     fig = plot_STA_multi_lag(n_units, goodcells, worldT, movInterp)
@@ -523,10 +552,9 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
     
-    
     if free_move is True:
         dhead = interp1d(accT,(gz-np.mean(gz))*7.5, bounds_error=False)
-        dgz = dEye + dhead(eyeT[0:-1]);
+        dgz = dEye + dhead(eyeT[0:-1])
         
         plt.figure()
         plt.hist(dhead(eyeT),bins=21,range = (-10,10))
@@ -685,7 +713,7 @@ def run_ephys_analysis(file_dict):
         plt.subplot(n_units+3,1,i+4)
         plt.plot(bins[0:-1],rate)
         plt.xlabel('secs')
-        plt.ylabel('sp/sec'); plt.xlim(bins[0],bins[-1]); plt.title('unit ' + str(i))
+        plt.ylabel('sp/sec'); plt.xlim(bins[0],bins[-1]); plt.title('unit ' + str(ind))
     plt.tight_layout()
     detail_pdf.savefig()
     plt.close()
@@ -701,9 +729,9 @@ def run_ephys_analysis(file_dict):
         stim = '_'.join(split_base_name[4:])
     except:
         stim = split_base_name[4:]
-    var_names = ['_'.join([mouse, date, exp, rig, stim, 'unit'+str(i)]) for i in range(1,n_units+1)]
+    var_names = ['_'.join([mouse, date, exp, rig, stim, 'unit'+str(ind)]) for i, ind in enumerate(goodcells.index)]
     
-    unit_names = [(file_dict['name']+'_unit'+str(i)) for i in range(1,n_units+1)]
+    unit_names = [(file_dict['name']+'_unit'+str(ind)) for i, ind in enumerate(goodcells.index)]
     if file_dict['stim_type'] == 'grat':
         all_units = {}
         for unit_num, ind in enumerate(goodcells.index):
