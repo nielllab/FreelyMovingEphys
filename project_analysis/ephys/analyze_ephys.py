@@ -89,6 +89,7 @@ def run_ephys_analysis(file_dict):
             world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
     else:
         world_vid = world_vid_raw
+    world_vid_raw = None #clear large variable
     worldT = world_data.timestamps.copy()
 
     # plot worldcam timing
