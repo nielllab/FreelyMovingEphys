@@ -89,6 +89,7 @@ def run_ephys_analysis(file_dict):
             world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
     else:
         world_vid = world_vid_raw
+    world_vid_raw = None #clear large variable
     worldT = world_data.timestamps.copy()
 
     # plot worldcam timing
@@ -129,10 +130,10 @@ def run_ephys_analysis(file_dict):
         speed_data = xr.open_dataset(file_dict['speed'])
         spdVals = speed_data.BALL_data
         try:
-            spd = spdVals.sel(move_params = 'cm_per_sec')
+            spd = spdVals.sel(move_params = 'speed_cmpersec')
             spd_tstamps = spdVals.sel(move_params = 'timestamps')
         except:
-            spd = spdVals.sel(frame = 'cm_per_sec')
+            spd = spdVals.sel(frame = 'speed_cmpersec')
             spd_tstamps = spdVals.sel(frame = 'timestamps')
 
 
