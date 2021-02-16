@@ -140,6 +140,7 @@ def quick_whitenoise_analysis(wn_path):
         std_im = np.std(world_norm,axis=0)
         std_im[std_im<10/255] = 10/255
         img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
+        img_norm = img_norm * (std_im>10/255)
 
         contrast = np.empty(worldT.size)
         for i in range(worldT.size):
