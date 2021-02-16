@@ -138,3 +138,17 @@ def ephys_to_dataset(path, dates):
             processed_unit_count = processed_unit_count + 1
 
     return all_units_xr
+
+# read in many .json ephys files of spike data, etc. and save them into a dictionary
+# each entry in dictionary will have a key for the name of the recording
+def ephys_to_dict(path, dates):
+    # path and dates should be in the same format as func ephys_to_dataset
+    ephys_filepaths = []
+    for day in dates:
+        day_jsons = find('*ephys_merge.json',os.path.join(path, day)) # get the .json for all recordings
+        for rec in day_jsons:
+            ephys_filepaths.append(rec) # append into list
+    # build a dictionary with the filename as the key and the pandas df as a value
+    dict_out = {os.path.split(filepath)[1]: pd.read_json(filepath) for filepath in ephys_filepaths}
+    
+    return dict_out
