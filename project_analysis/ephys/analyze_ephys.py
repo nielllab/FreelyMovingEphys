@@ -129,10 +129,10 @@ def run_ephys_analysis(file_dict):
         speed_data = xr.open_dataset(file_dict['speed'])
         spdVals = speed_data.BALL_data
         try:
-            spd = spdVals.sel(move_params = 'cm_per_sec')
+            spd = spdVals.sel(move_params = 'speed_cmpersec')
             spd_tstamps = spdVals.sel(move_params = 'timestamps')
         except:
-            spd = spdVals.sel(frame = 'cm_per_sec')
+            spd = spdVals.sel(frame = 'speed_cmpersec')
             spd_tstamps = spdVals.sel(frame = 'timestamps')
 
 
