@@ -259,10 +259,10 @@ def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
     fig = plt.figure(figsize = (6,np.ceil(n_units/2)))
     for i, ind in enumerate(goodcells.index):
         plt.subplot(np.ceil(n_units/4),4,i+1)
-        plt.plot(crange[2:-1],resp[i,2:-1])
+        plt.plot(crange[1:-1],resp[i,1:-1])
     # plt.ylim([0 , max(resp[i,1:-3])*1.2])
         # plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec')
-        plt.ylim([0,np.nanmax(resp[i,2:-1])])
+        plt.ylim([0,np.nanmax(resp[i,1:-1])])
     plt.tight_layout()
     return fig
 
@@ -359,7 +359,7 @@ def plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc):
         plt.plot(trange,upsacc_avg[i,:])
         plt.plot(trange,downsacc_avg[i,:],'r')
         plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
-        plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
+        plt.ylim([0, np.max(np.max(upsacc_avg[i,:],downsacc_avg[i,:]))*1.2])
         plt.ylabel('sp/sec')
     plt.tight_layout()
     return upsacc_avg, downsacc_avg, fig
