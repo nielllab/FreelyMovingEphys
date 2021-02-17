@@ -219,7 +219,7 @@ def run_ephys_analysis(file_dict):
         
         lag_range = np.arange(-0.2,0.2,0.002)
         cc = np.zeros(np.shape(lag_range))
-        t1 = np.arange(5,len(dEye)/60-120,20) # was np.arange(5,1600,20), changed for shorter videos
+        t1 = np.arange(5,len(dEye)/60-120,20).astype(int) # was np.arange(5,1600,20), changed for shorter videos
         t2 = t1 + 60
         offset = np.zeros(np.shape(t1))
         ccmax = np.zeros(np.shape(t1))
@@ -243,10 +243,10 @@ def run_ephys_analysis(file_dict):
     if file_dict['imu'] is not None:
         model = LinearRegression()
         dataT = np.array(eyeT[t1*60 + 30])
-        model.fit(dataT[offset>-5].reshape(-1,1),offset[offset>-5])
+        model.fit(dataT[offset>-5][~np.isnan(dataT)].reshape(-1,1),offset[offset>-5][~np.isnan(dataT)]) # handles cases that include nans
         offset0 = model.intercept_
         drift_rate = model.coef_
-        plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT, offset, offset0, drift_rate)
+        plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT[~np.isnan(dataT)], offset[~np.isnan(dataT)], offset0, drift_rate)
         diagnostic_pdf.savefig()
         plt.close()
 
