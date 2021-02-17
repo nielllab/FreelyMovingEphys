@@ -359,7 +359,7 @@ def plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc):
         plt.plot(trange,upsacc_avg[i,:])
         plt.plot(trange,downsacc_avg[i,:],'r')
         plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
-        plt.ylim([0, np.max(np.max(upsacc_avg[i,:],downsacc_avg[i,:]))*1.2])
+        plt.ylim([0, np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))*1.2])
         plt.ylabel('sp/sec')
     plt.tight_layout()
     return upsacc_avg, downsacc_avg, fig
