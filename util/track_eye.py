@@ -264,7 +264,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # ellipticity and scale
     ellipticity = (ellipse_params[shortlist,6] / ellipse_params[shortlist,5]).T
     if existing_camera_calib_props is None:
-        scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[shortlist,11:13]-cam_cent.T,axis=1)))/np.sum(1-(ellipticity)**2)
+        scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[shortlist,11:13]-cam_cent.T,axis=0)))/np.sum(1-(ellipticity)**2)
     elif existing_camera_calib_props is not None:
         scale = float(existing_camera_calib_props['scale'])
 

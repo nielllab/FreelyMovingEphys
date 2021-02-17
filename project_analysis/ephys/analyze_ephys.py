@@ -130,10 +130,10 @@ def run_ephys_analysis(file_dict):
         speed_data = xr.open_dataset(file_dict['speed'])
         spdVals = speed_data.BALL_data
         try:
-            spd = spdVals.sel(move_params = 'cm_per_sec')
+            spd = spdVals.sel(move_params = 'speed_cmpersec')
             spd_tstamps = spdVals.sel(move_params = 'timestamps')
         except:
-            spd = spdVals.sel(frame = 'cm_per_sec')
+            spd = spdVals.sel(frame = 'speed_cmpersec')
             spd_tstamps = spdVals.sel(frame = 'timestamps')
 
 
@@ -219,7 +219,7 @@ def run_ephys_analysis(file_dict):
         
         lag_range = np.arange(-0.2,0.2,0.002)
         cc = np.zeros(np.shape(lag_range))
-        t1 = np.arange(5,1600,20)
+        t1 = np.arange(5,len(dEye)/60-120,20).astype(int) # was np.arange(5,1600,20), changed for shorter videos
         t2 = t1 + 60
         offset = np.zeros(np.shape(t1))
         ccmax = np.zeros(np.shape(t1))
@@ -242,11 +242,12 @@ def run_ephys_analysis(file_dict):
     # fit regression to timing drift
     if file_dict['imu'] is not None:
         model = LinearRegression()
+
         dataT = np.array(eyeT[t1*60 + 30*60])
-        model.fit(dataT[offset>-5].reshape(-1,1),offset[offset>-5])
+        model.fit(dataT[offset>-5][~np.isnan(dataT)].reshape(-1,1),offset[offset>-5][~np.isnan(dataT)]) # handles cases that include nans
         offset0 = model.intercept_
         drift_rate = model.coef_
-        plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT, offset, offset0, drift_rate)
+        plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT[~np.isnan(dataT)], offset[~np.isnan(dataT)], offset0, drift_rate)
         diagnostic_pdf.savefig()
         plt.close()
 
