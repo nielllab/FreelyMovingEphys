@@ -674,7 +674,7 @@ def run_ephys_analysis(file_dict):
         detail_pdf.savefig()
         plt.close()
 
-    if has_mouse:
+    if free_move is False and has_mouse is True:
         #spd_range = np.arange(0,1.1,0.1)
         spd_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
         spike_rate_vs_gz_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
