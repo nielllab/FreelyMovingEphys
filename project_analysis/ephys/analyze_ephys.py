@@ -227,7 +227,7 @@ def run_ephys_analysis(file_dict):
         for tstart in range(len(t1)):
             for l in range(len(lag_range)):
                 try:
-                    c, lag= nanxcorr(-dEye[t1[tstart]*60 : t2[tstart]*60] + 0.5/60, acc_interp(eyeT[t1[tstart]*60:t2[tstart]*60]+lag_range[l]),1)
+                    c, lag= nanxcorr(-dEye[t1[tstart]*60 : t2[tstart]*60] , acc_interp(eyeT[t1[tstart]*60:t2[tstart]*60]+lag_range[l]),1)
                     cc[l] = c[1]
                 except: # occasional probelm with operands that cannot be broadcast togther because of different shapes
                     cc[l] = np.nan
@@ -242,7 +242,8 @@ def run_ephys_analysis(file_dict):
     # fit regression to timing drift
     if file_dict['imu'] is not None:
         model = LinearRegression()
-        dataT = np.array(eyeT[t1*60 + 30])
+
+        dataT = np.array(eyeT[t1*60 + 30*60])
         model.fit(dataT[offset>-5][~np.isnan(dataT)].reshape(-1,1),offset[offset>-5][~np.isnan(dataT)]) # handles cases that include nans
         offset0 = model.intercept_
         drift_rate = model.coef_
@@ -262,7 +263,7 @@ def run_ephys_analysis(file_dict):
 
     print('finding contrast of normalized worldcam')
     # normalize world movie and calculate contrast
-    cam_gamma = 2
+    cam_gamma = 1
     world_norm = (world_vid/255)**cam_gamma
     std_im = np.std(world_norm,axis=0)
     std_im[std_im<10/255] = 10/255
@@ -521,7 +522,7 @@ def run_ephys_analysis(file_dict):
         plt.close()
 
     # create interpolator for movie data so we can evaluate at same timebins are firing rate
-    img_norm[img_norm<-2] = -2
+    #img_norm[img_norm<-2] = -2
     movInterp = interp1d(worldT,img_norm,axis=0, kind = 'nearest')
 
     print('getting spike-triggered average for lag=0.125')
