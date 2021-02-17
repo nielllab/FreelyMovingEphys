@@ -219,7 +219,7 @@ def run_ephys_analysis(file_dict):
         
         lag_range = np.arange(-0.2,0.2,0.002)
         cc = np.zeros(np.shape(lag_range))
-        t1 = np.arange(5,1600,20)
+        t1 = np.arange(5,len(dEye)/60-120,20) # was np.arange(5,1600,20), changed for shorter videos
         t2 = t1 + 60
         offset = np.zeros(np.shape(t1))
         ccmax = np.zeros(np.shape(t1))
