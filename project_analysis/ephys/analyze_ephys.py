@@ -251,9 +251,11 @@ def run_ephys_analysis(file_dict):
         model = LinearRegression()
 
         dataT = np.array(eyeT[t1*60 + 30*60])
+
         # this version doesnt work? and dataT shouldn't have Nans - it's based on eyeT which is just eye timestamps. if timestamps have nans, that's a bigger problem
         #model.fit(dataT[offset>-5][~np.isnan(dataT)].reshape(-1,1),offset[offset>-5][~np.isnan(dataT)]) # handles cases that include nans
         model.fit(dataT[~np.isnan(offset)].reshape(-1,1),offset[~np.isnan(offset)]) 
+
         offset0 = model.intercept_
         drift_rate = model.coef_
         plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT[~np.isnan(dataT)], offset[~np.isnan(dataT)], offset0, drift_rate)
@@ -531,23 +533,23 @@ def run_ephys_analysis(file_dict):
     #img_norm[img_norm<-2] = -2
     movInterp = interp1d(worldT,img_norm,axis=0, kind = 'nearest')
 
-    # print('getting spike-triggered average for lag=0.125')
-    # # calculate spike-triggered average
-    # staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
-    # detail_pdf.savefig()
-    # plt.close()
+    print('getting spike-triggered average for lag=0.125')
+    # calculate spike-triggered average
+    staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
+    detail_pdf.savefig()
+    plt.close()
     
-    # print('getting spike-triggered average with range in lags')
-    # # calculate spike-triggered average
-    # fig = plot_STA_multi_lag(n_units, goodcells, worldT, movInterp)
-    # detail_pdf.savefig()
-    # plt.close()
+    print('getting spike-triggered average with range in lags')
+    # calculate spike-triggered average
+    fig = plot_STA_multi_lag(n_units, goodcells, worldT, movInterp)
+    detail_pdf.savefig()
+    plt.close()
 
-    # print('getting spike-triggered variance')
-    # # calculate spike-triggered variance
-    # fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm)
-    # detail_pdf.savefig()
-    # plt.close()
+    print('getting spike-triggered variance')
+    # calculate spike-triggered variance
+    fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm)
+    detail_pdf.savefig()
+    plt.close()
 
     print('plotting eye movements')
     # calculate saccade-locked psth
@@ -577,8 +579,17 @@ def run_ephys_analysis(file_dict):
         detail_pdf.savefig()
         plt.close()
         
+        # ValueEror length mistamtch fix
+        # this should be done in a better way
         plt.figure()
-        plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+        if len(dEye[0:-1:10]) == len(dhead(eyeT[0:-1:10])):
+            plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+        elif len(dEye[0:-1:10]) > len(dhead(eyeT[0:-1:10])):
+            len_diff = len(dEye[0:-1:10]) - len(dhead(eyeT[0:-1:10]))
+            plt.plot(dEye[0:-1:10][:-len_diff],dhead(eyeT[0:-1:10]),'.')
+        elif len(dEye[0:-1:10]) < len(dhead(eyeT[0:-1:10])):
+            len_diff = len(dhead(eyeT[0:-1:10])) - len(dEye[0:-1:10])
+            plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10])[:-len_diff],'.')
         plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
         detail_pdf.savefig()
         plt.close()
@@ -681,7 +692,7 @@ def run_ephys_analysis(file_dict):
         detail_pdf.savefig()
         plt.close()
 
-    if has_mouse:
+    if free_move is False and has_mouse is True:
         #spd_range = np.arange(0,1.1,0.1)
         spd_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
         spike_rate_vs_gz_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
