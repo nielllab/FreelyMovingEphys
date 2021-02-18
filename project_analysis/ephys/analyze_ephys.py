@@ -571,8 +571,17 @@ def run_ephys_analysis(file_dict):
         detail_pdf.savefig()
         plt.close()
         
+        # ValueEror length mistamtch fix
+        # this should be done in a better way
         plt.figure()
-        plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+        if len(dEye[0:-1:10]) == len(dhead(eyeT[0:-1:10])):
+            plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+        elif len(dEye[0:-1:10]) > len(dhead(eyeT[0:-1:10])):
+            len_diff = len(dEye[0:-1:10]) - len(dhead(eyeT[0:-1:10]))
+            plt.plot(dEye[0:-1:10][:-len_diff],dhead(eyeT[0:-1:10]),'.')
+        elif len(dEye[0:-1:10]) < len(dhead(eyeT[0:-1:10])):
+            len_diff = len(dhead(eyeT[0:-1:10])) - len(dEye[0:-1:10])
+            plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10])[:-len_diff],'.')
         plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
         detail_pdf.savefig()
         plt.close()
