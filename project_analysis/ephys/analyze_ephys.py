@@ -244,7 +244,7 @@ def run_ephys_analysis(file_dict):
         model = LinearRegression()
 
         dataT = np.array(eyeT[t1*60 + 30*60])
-        model.fit(dataT[offset>-5][~np.isnan(dataT)].reshape(-1,1),offset[offset>-5][~np.isnan(dataT)]) # handles cases that include nans
+        model.fit(dataT[~np.isnan(dataT)][offset>-5].reshape(-1,1),offset[~np.isnan(dataT)][offset>-5]) # handles cases that include nans
         offset0 = model.intercept_
         drift_rate = model.coef_
         plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT[~np.isnan(dataT)], offset[~np.isnan(dataT)], offset0, drift_rate)
