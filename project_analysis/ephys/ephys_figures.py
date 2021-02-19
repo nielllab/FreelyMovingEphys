@@ -448,8 +448,8 @@ def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, up
                       
         # plot eye movements
         plt.subplot(n_units,4,i*4 + 4)
-        plt.plot(trange,upsacc_avg[i,:])
-        plt.plot(trange,downsacc_avg[i,:],'r')
+        plt.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[i,:])
+        plt.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[i,:],'r')
         plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
         plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
         plt.ylabel('sp/sec')
