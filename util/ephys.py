@@ -152,6 +152,8 @@ def ephys_to_dataframe(path, dates):
     spike_data = {os.path.split(filepath)[1]: pd.read_json(filepath) for filepath in ephys_filepaths}
     
     # iterate through dictionary to add a column, 'doi', of whether or not it was a doi recording
+    dates_pathdoi=[]
+    dates_pathsaline=[]
     for key,data in spike_data.items():
         data['date'] = key.split('_')[0]
         data['mouse'] = key.split('_')[1]
