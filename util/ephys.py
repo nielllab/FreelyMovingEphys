@@ -166,7 +166,7 @@ def ephys_to_dataframe(path,dates,conditions):
 
         if any(i in key.split('_')[0] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_')[0] in conditions.get('dates_predoi'):
             data['pre/post'] = 'pre'
-        elif any(i in key.split('_')[0] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_') in conditions.get('dates_postdoi'):
+        elif any(i in key.split('_')[0] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_')[0] in conditions.get('dates_postdoi'):
             data['pre/post'] = 'post'
         elif any(i in key.split('_')[0] for i in ['fm2','hf5','hf6','hf7','hf8']):
             data['pre/post'] = 'none'
