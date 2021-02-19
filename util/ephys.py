@@ -141,7 +141,7 @@ def ephys_to_dataset(path, dates):
 
 # read in many .json ephys files of spike data, etc. and save them into a dictionary
 # each entry in dictionary will have a key for the name of the recording
-def ephys_to_dataframe(path,dates,conditons):
+def ephys_to_dataframe(path,dates,conditions):
     # path and dates should be in the same format as func ephys_to_dataset
     ephys_filepaths = []
     for day in dates:
