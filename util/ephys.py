@@ -168,6 +168,8 @@ def ephys_to_dataframe(path,dates,conditions):
             data['pre/post'] = 'pre'
         elif any(i in key.split('_')[0] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_') in conditions.get('dates_postdoi'):
             data['pre/post'] = 'post'
+        elif any(i in key.split('_')[0] for i in ['fm2','hf5','hf6','hf7','hf8']):
+            data['pre/post'] = 'none'
 
     all_data = pd.concat([data for key,data in spike_data.items()], keys=[key for key,data in spike_data.items()])
 
