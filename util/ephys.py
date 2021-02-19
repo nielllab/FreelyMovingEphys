@@ -159,9 +159,9 @@ def ephys_to_dataframe(path,dates,conditions):
         data['rec'] = key.split('_')[4]
         if any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']):
             data['doi'] = 'none'
-        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_pathdoi'):
+        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_doi'):
             data['doi'] = 'doi'
-        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_pathsaline'):
+        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_saline'):
             data['doi'] = 'saline'
 
     all_data = pd.concat([data for key,data in spike_data.items()], keys=[key for key,data in spike_data.items()])
