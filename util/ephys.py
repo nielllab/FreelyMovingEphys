@@ -157,7 +157,7 @@ def ephys_to_dataframe(path, dates):
         data['mouse'] = key.split('_')[1]
         data['rec'] = key.split('_')[4]
         if any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']):
-            data['doi'] = 'saline'
+            data['doi'] = 'none'
         elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']):
             data['doi'] = 'doi'
 
