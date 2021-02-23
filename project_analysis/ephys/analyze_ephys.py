@@ -64,7 +64,7 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4):
 def run_ephys_analysis(file_dict):
 
     if file_dict['speed'] is None:
-        free_move = True; has_imu = True; has_mouse = True
+        free_move = True; has_imu = True; has_mouse = False
     else:
         free_move = False; has_imu = False; has_mouse = True
 
@@ -82,7 +82,7 @@ def run_ephys_analysis(file_dict):
     # resize worldcam to make more manageable
     sz = world_vid_raw.shape
 
-    if sz[1]>160:
+    if sz[1]>80:
         downsamp = 0.5
         world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
         for f in range(sz[0]):
@@ -172,6 +172,13 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
+    
+    #define theta, phi
+    th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
+    phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
+
+    
+
     if file_dict['speed'] is not None:
         # plot optical mouse speeds
         optical_mouse_sp_fig = plot_optmouse_spd(spd_tstamps, spd)
@@ -224,7 +231,7 @@ def run_ephys_analysis(file_dict):
         offset = np.zeros(np.shape(t1))
         ccmax = np.zeros(np.shape(t1))
         acc_interp = interp1d(accTraw, (gz-3)*7.5)
-        for tstart in range(len(t1)):
+        for tstart in tqdm(range(len(t1))):
             for l in range(len(lag_range)):
                 try:
                     c, lag= nanxcorr(-dEye[t1[tstart]*60 : t2[tstart]*60] , acc_interp(eyeT[t1[tstart]*60:t2[tstart]*60]+lag_range[l]),1)
@@ -244,13 +251,18 @@ def run_ephys_analysis(file_dict):
         model = LinearRegression()
 
         dataT = np.array(eyeT[t1*60 + 30*60])
-        model.fit(dataT[~np.isnan(dataT)][offset>-5].reshape(-1,1),offset[~np.isnan(dataT)][offset>-5]) # handles cases that include nans
+
+        # this version doesnt work? and dataT shouldn't have Nans - it's based on eyeT which is just eye timestamps. if timestamps have nans, that's a bigger problem
+        #model.fit(dataT[offset>-5][~np.isnan(dataT)].reshape(-1,1),offset[offset>-5][~np.isnan(dataT)]) # handles cases that include nans
+        model.fit(dataT[~np.isnan(offset)].reshape(-1,1),offset[~np.isnan(offset)]) 
+
         offset0 = model.intercept_
         drift_rate = model.coef_
         plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT[~np.isnan(dataT)], offset[~np.isnan(dataT)], offset0, drift_rate)
         diagnostic_pdf.savefig()
         plt.close()
-
+        print(offset0,drift_rate)
+        
     elif file_dict['speed'] is not None:
         offset0 = 0.1
         drift_rate = -0.000114
@@ -307,10 +319,6 @@ def run_ephys_analysis(file_dict):
 
         print('merging movie with sound')
         subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
-
-
-    th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
-    phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
 
     if free_move is True and file_dict['imu'] is not None:
         plt.figure()
@@ -543,7 +551,7 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
-    print('getting rasters around saccades')
+    print('plotting eye movements')
     # calculate saccade-locked psth
     spike_corr = 1 #+ 0.125/1200  # correction factor for ephys timing drift
     dEye= np.diff(th)
@@ -585,8 +593,9 @@ def run_ephys_analysis(file_dict):
         plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
         detail_pdf.savefig()
         plt.close()
-        
-    trange = np.arange(-1,1.1,0.1)
+      
+    print('plotting saccade-locked psths')
+    trange = np.arange(-1,1.1,0.025)
     if free_move is True:
         sthresh = 5
         upsacc = eyeT[ (np.append(dEye,0)>sthresh)]
@@ -595,9 +604,8 @@ def run_ephys_analysis(file_dict):
         sthresh = 3
         upsacc = eyeT[np.append(dEye,0)>sthresh]
         downsacc = eyeT[np.append(dEye,0)<-sthresh]   
-    upsacc = upsacc[upsacc>5];     upsacc = upsacc[upsacc<np.max(t)-5]
-    downsacc = downsacc[downsacc>5]; downsacc = downsacc[downsacc<np.max(t)-5]
-    upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+
+    upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
     plt.title('all dEye')
     detail_pdf.savefig()
     plt.close()
@@ -608,7 +616,7 @@ def run_ephys_analysis(file_dict):
         sthresh = 3
         upsacc = eyeT[ (np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
         downsacc = eyeT[ (np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('gaze shift dEye');  detail_pdf.savefig() ;  plt.close()
 
         
@@ -616,7 +624,7 @@ def run_ephys_analysis(file_dict):
         sthresh = 3
         upsacc = eyeT[ (np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
         downsacc = eyeT[ (np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
-        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('comp dEye'); detail_pdf.savefig() ;  plt.close()
         
     
@@ -624,14 +632,14 @@ def run_ephys_analysis(file_dict):
         sthresh = 3
         upsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)>sthresh)]
         downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('gaze shift dhead') ; detail_pdf.savefig() ;  plt.close()
         
     #plot compensatory eye movements    
         sthresh = 3
         upsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
         downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
-        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc)
+        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('comp dhead') ; detail_pdf.savefig() ;  plt.close()
 
         

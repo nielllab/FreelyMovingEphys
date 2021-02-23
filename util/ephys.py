@@ -141,7 +141,7 @@ def ephys_to_dataset(path, dates):
 
 # read in many .json ephys files of spike data, etc. and save them into a dictionary
 # each entry in dictionary will have a key for the name of the recording
-def ephys_to_dataframe(path, dates):
+def ephys_to_dataframe(path,dates,conditions):
     # path and dates should be in the same format as func ephys_to_dataset
     ephys_filepaths = []
     for day in dates:
@@ -152,14 +152,24 @@ def ephys_to_dataframe(path, dates):
     spike_data = {os.path.split(filepath)[1]: pd.read_json(filepath) for filepath in ephys_filepaths}
     
     # iterate through dictionary to add a column, 'doi', of whether or not it was a doi recording
+   
     for key,data in spike_data.items():
         data['date'] = key.split('_')[0]
         data['mouse'] = key.split('_')[1]
         data['rec'] = key.split('_')[4]
         if any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']):
-            data['doi'] = 'saline'
-        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']):
+            data['doi'] = 'none'
+        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_doi'):
             data['doi'] = 'doi'
+        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_saline'):
+            data['doi'] = 'saline'
+
+        if any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_')[0] in conditions.get('dates_predoi'):
+            data['pre/post'] = 'pre'
+        elif any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_')[0] in conditions.get('dates_postdoi'):
+            data['pre/post'] = 'post'
+        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']):
+            data['pre/post'] = 'none'
 
     all_data = pd.concat([data for key,data in spike_data.items()], keys=[key for key,data in spike_data.items()])
 

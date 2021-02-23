@@ -343,23 +343,27 @@ def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
     plt.axis('off')
     return fig
 
-def plot_saccade_locked(n_units, goodcells, t, upsacc, trange, units, downsacc):
-    upsacc = upsacc[upsacc>5];     upsacc = upsacc[upsacc<np.max(t)-5]
-    downsacc = downsacc[downsacc>5]; downsacc = downsacc[downsacc<np.max(t)-5]
-    upsacc_avg = np.zeros((units.size,trange.size))
-    downsacc_avg = np.zeros((units.size,trange.size))
+def plot_saccade_locked(goodcells, upsacc,  downsacc, trange):
+    #upsacc = upsacc[upsacc>5];     upsacc = upsacc[upsacc<np.max(t)-5]
+    #downsacc = downsacc[downsacc>5]; downsacc = downsacc[downsacc<np.max(t)-5]
+    n_units = len(goodcells)
+    upsacc_avg = np.zeros((n_units,trange.size-1))
+    downsacc_avg = np.zeros((n_units,trange.size-1))
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
     for i, ind in enumerate(goodcells.index):
-        rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
-        for s in upsacc:
-            upsacc_avg[i,:] = upsacc_avg[i,:]+ rateInterp(np.array(s)+trange)/upsacc.size
-        for s in downsacc:
-            downsacc_avg[i,:]= downsacc_avg[i,:]+ rateInterp(np.array(s)+trange)/downsacc.size
-        plt.subplot(np.ceil(n_units/4),4,i+1)
-        plt.plot(trange,upsacc_avg[i,:])
-        plt.plot(trange,downsacc_avg[i,:],'r')
+        #rateInterp = interp1d(t[0:-1],goodcells.at[ind,'rate'])
+        for s in np.array(upsacc):
+            hist,edges = np.histogram(goodcells.at[ind,'spikeT']-s,trange)
+            upsacc_avg[i,:] = upsacc_avg[i,:]+ hist/(upsacc.size*np.diff(trange))
+        for s in np.array(downsacc):
+            hist,edges = np.histogram(goodcells.at[ind,'spikeT']-s,trange)
+            downsacc_avg[i,:]= downsacc_avg[i,:]+ hist/(downsacc.size*np.diff(trange))
+        plt.subplot(np.ceil(n_units/4).astype('int'),4,i+1)
+        plt.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[i,:])
+        plt.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[i,:],'r')
+        maxval = np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))
         plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
-        plt.ylim([0, np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))*1.2])
+        plt.ylim([0,maxval*1.2])
         plt.ylabel('sp/sec')
     plt.tight_layout()
     return upsacc_avg, downsacc_avg, fig
@@ -444,8 +448,8 @@ def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, up
                       
         # plot eye movements
         plt.subplot(n_units,4,i*4 + 4)
-        plt.plot(trange,upsacc_avg[i,:])
-        plt.plot(trange,downsacc_avg[i,:],'r')
+        plt.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[i,:])
+        plt.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[i,:],'r')
         plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
         plt.ylim([0, np.max(upsacc_avg[i,:])*1.8])
         plt.ylabel('sp/sec')
