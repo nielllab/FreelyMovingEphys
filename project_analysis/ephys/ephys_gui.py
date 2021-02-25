@@ -66,7 +66,7 @@ def launch_ephys_gui():
     fm1.grid(column=1, row=3)
 
     # checkbox for freemoving or headfixed
-    hf_stim_options = ['None','gratings','sparse_noise','white_noise']
+    hf_stim_options = ['None','gratings','sparse_noise','white_noise','revchecker']
     stim_type_label = Label(entry, text="Specific headfixed stimulus?")
     stim_type_label.grid(column=0, row=4)
     stim_type = StringVar()
