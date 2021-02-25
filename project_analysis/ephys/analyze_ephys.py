@@ -29,6 +29,7 @@ mpl.rcParams['ps.fonttype'] = 42
 from util.aux_funcs import nanxcorr
 from sklearn.linear_model import LinearRegression
 from tqdm import tqdm
+import os
 from scipy.ndimage import shift as imshift
 from scipy import signal
 from sklearn.cluster import KMeans
@@ -47,12 +48,6 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4):
 
     if stim_type == 'gratings':
         stim_type = 'grat'
-    elif stim_type == 'white_noise':
-        pass
-    elif stim_type == 'sparse_noise':
-        pass
-    else:
-        stim_type = None
 
     if free_move is True:
         dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4}
@@ -144,7 +139,6 @@ def run_ephys_analysis(file_dict):
 
     # select good cells from phy2
     goodcells = ephys_data.loc[ephys_data['group']=='good']
-    goodcells.shape
     units = goodcells.index.values
 
     # get number of good units
@@ -171,13 +165,10 @@ def run_ephys_analysis(file_dict):
     eyepos_fig = plot_eye_pos(eye_params)
     detail_pdf.savefig()
     plt.close()
-
     
     #define theta, phi
     th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
     phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
-
-    
 
     if file_dict['speed'] is not None:
         # plot optical mouse speeds
@@ -398,9 +389,7 @@ def run_ephys_analysis(file_dict):
     plt.xlabel('secs')
     plt.ylabel('normalized pupil R')
     diagnostic_pdf.savefig()
-    plt.close()  
-
-
+    plt.close()
 
     if file_dict['stim_type'] == 'grat':
         print('getting grating flow')
@@ -470,11 +459,6 @@ def run_ephys_analysis(file_dict):
         lowmag = np.where(grating_mag<np.percentile(grating_mag,100*2/24))
         grating_ori[lowmag] = grating_ori[lowmag]+np.pi/8
         ori_cat = np.floor((grating_ori+np.pi/8)/(np.pi/4))
-
-        # might be a bad idea...
-        # replace all NaN values in grating_mag with 0, same for pos/neg inf
-        # any NaN value raises ValueError in KMeans below
-        #grating_mag = np.nan_to_num(grating_mag, copy=True, nan=0.0, posinf=0.0, neginf=0.0)
 
         km = KMeans(n_clusters=3).fit(np.reshape(grating_mag,(-1,1)))
         sf_cat = km.labels_
@@ -547,7 +531,7 @@ def run_ephys_analysis(file_dict):
 
     print('getting spike-triggered variance')
     # calculate spike-triggered variance
-    fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm)
+    st_var, fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm)
     detail_pdf.savefig()
     plt.close()
 
@@ -572,7 +556,6 @@ def run_ephys_analysis(file_dict):
         detail_pdf.savefig()
         plt.close()
         
-
         plt.figure()
         plt.hist(dgz,bins=21,range = (-10,10))
         plt.xlabel('dgaze')
@@ -616,15 +599,14 @@ def run_ephys_analysis(file_dict):
         sthresh = 3
         upsacc = eyeT[ (np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
         downsacc = eyeT[ (np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
+        upsacc_avg_gaze_shift_dEye, downsacc_avg_gaze_shift_dEye, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('gaze shift dEye');  detail_pdf.savefig() ;  plt.close()
-
         
     #plot compensatory eye movements    
         sthresh = 3
         upsacc = eyeT[ (np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
         downsacc = eyeT[ (np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
-        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
+        upsacc_avg_comp_dEye, downsacc_avg_comp_dEye, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('comp dEye'); detail_pdf.savefig() ;  plt.close()
         
     
@@ -632,14 +614,14 @@ def run_ephys_analysis(file_dict):
         sthresh = 3
         upsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)>sthresh)]
         downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
+        upsacc_avg_gaze_shift_dHead, downsacc_avg_gaze_shift_dHead, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('gaze shift dhead') ; detail_pdf.savefig() ;  plt.close()
         
     #plot compensatory eye movements    
         sthresh = 3
         upsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
         downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
-        upsacc_avg, downsacc_avg, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
+        upsacc_avg_comp_dHead, downsacc_avg_comp_dHead, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('comp dhead') ; detail_pdf.savefig() ;  plt.close()
 
         
@@ -667,7 +649,7 @@ def run_ephys_analysis(file_dict):
     print('plotting spike rate vs pupil radius')
     # plot rate vs pupil
     R_range = np.arange(-2,2.5,0.5)
-    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(Rnorm, R_range, goodcells, eyeT, t, 'pupil radius')
+    spike_rate_vs_pupil_radius_cent, spike_rate_vs_pupil_radius_tuning, spike_rate_vs_pupil_radius_err, spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(Rnorm, R_range, goodcells, eyeT, t, 'pupil radius')
     detail_pdf.savefig()
     plt.close()
 
@@ -682,20 +664,20 @@ def run_ephys_analysis(file_dict):
     print('plotting spike rate vs theta')
     # plot rate vs theta
     th_range = np.arange(-2,2.5,0.5)
-    spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(thetaNorm, th_range, goodcells, eyeT, t, 'eye theta')
+    spike_rate_vs_theta_cent, spike_rate_vs_theta_tuning, spike_rate_vs_theta_err, spike_rate_vs_theta_fig = plot_spike_rate_vs_var(thetaNorm, th_range, goodcells, eyeT, t, 'eye theta')
     detail_pdf.savefig()
     plt.close()
 
     if free_move is True:
         gz_range = np.arange(-10,10,1)
-        spike_rate_vs_gz_fig = plot_spike_rate_vs_var((gz-np.mean(gz))*7.5, gz_range, goodcells, accT, t, 'gyro z')
+        spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var((gz-np.mean(gz))*7.5, gz_range, goodcells, accT, t, 'gyro z')
         detail_pdf.savefig()
         plt.close()
 
     if free_move is False and has_mouse is True:
         #spd_range = np.arange(0,1.1,0.1)
         spd_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
-        spike_rate_vs_gz_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
+        spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
         detail_pdf.savefig()
         plt.close()
 
@@ -739,7 +721,7 @@ def run_ephys_analysis(file_dict):
 
     overview_pdf.close(); detail_pdf.close(); diagnostic_pdf.close()
 
-    print('organizing data and saving as xarray')
+    print('organizing data and saving .h5')
 
     split_base_name = file_dict['name'].split('_')
 
@@ -748,40 +730,161 @@ def run_ephys_analysis(file_dict):
         stim = '_'.join(split_base_name[4:])
     except:
         stim = split_base_name[4:]
-    var_names = ['_'.join([mouse, date, exp, rig, stim, 'unit'+str(ind)]) for i, ind in enumerate(goodcells.index)]
-    
-    unit_names = [(file_dict['name']+'_unit'+str(ind)) for i, ind in enumerate(goodcells.index)]
+    session_name = date+'_'+mouse+'_'+exp+'_'+rig
+    unit_data = pd.DataFrame([])
+
     if file_dict['stim_type'] == 'grat':
-        all_units = {}
         for unit_num, ind in enumerate(goodcells.index):
-            unit = unit_num+1
-            unit_dict = {
-                'contrast_range': crange,
-                'orientation_tuning':ori_tuning[unit_num],
-                'drift_spont': drift_spont[unit_num],
-                'contrast_response': resp[unit_num],
-                'waveform': goodcells.at[ind,'waveform'],
-                'trange': trange,
-                'upsacc_avg': upsacc_avg[unit_num],
-                'downsacc_avg':downsacc_avg[unit_num]
-            }
-            all_units[var_names[unit_num]] = unit_dict
-    elif file_dict['stim_type'] != 'grat':
-        all_units = {}
+            unit_df = pd.DataFrame([]).astype(object)
+            cols = [stim+'_'+i for i in ['c_range',
+                                        'contrast_response',
+                                        'spike_triggered_average',
+                                        'sta_shape',
+                                        'spike_triggered_variance',
+                                        'upsacc_avg',
+                                        'downsacc_avg',
+                                        'spike_rate_vs_pupil_radius_cent',
+                                        'spike_rate_vs_pupil_radius_tuning',
+                                        'spike_rate_vs_pupil_radius_err',
+                                        'spike_rate_vs_theta_cent',
+                                        'spike_rate_vs_theta_tuning',
+                                        'spike_rate_vs_theta_err',
+                                        'spike_rate_vs_gz_cent',
+                                        'spike_rate_vs_gz_tuning',
+                                        'spike_rate_vs_gz_err',
+                                        'grating_psth',
+                                        'grating_ori',
+                                        'ori_tuning',
+                                        'drift_spont',
+                                        'spont_rate',
+                                        'grating_rate',
+                                        'trange']]
+            unit_df = pd.DataFrame(pd.Series([crange,
+                                    resp[unit_num],
+                                    np.ndarray.flatten(staAll[unit_num]),
+                                    np.shape(staAll[unit_num]),
+                                    np.ndarray.flatten(st_var[unit_num]),
+                                    upsacc_avg[unit_num],
+                                    downsacc_avg[unit_num],
+                                    spike_rate_vs_pupil_radius_cent,
+                                    spike_rate_vs_pupil_radius_tuning[unit_num],
+                                    spike_rate_vs_pupil_radius_err[unit_num],
+                                    spike_rate_vs_theta_cent,
+                                    spike_rate_vs_theta_tuning[unit_num],
+                                    spike_rate_vs_theta_err[unit_num],
+                                    spike_rate_vs_gz_cent,
+                                    spike_rate_vs_gz_tuning[unit_num],
+                                    spike_rate_vs_gz_err[unit_num],
+                                    grating_psth[unit_num],
+                                    grating_ori[unit_num],
+                                    ori_tuning[unit_num],
+                                    drift_spont[unit_num],
+                                    spont_rate[unit_num],
+                                    grating_rate[unit_num],
+                                    trange]),dtype=object).T
+            unit_df.columns = cols
+            unit_df.index = [ind]
+            unit_df['session'] = session_name
+            unit_data = pd.concat([unit_data, unit_df], axis=0)
+    elif file_dict['stim_type'] != 'grat' and free_move is False:
         for unit_num, ind in enumerate(goodcells.index):
-            unit = unit_num+1
-            unit_dict = {
-                'contrast_range': crange,
-                'sta':staAll[unit_num],
-                'contrast_response': resp[unit_num],
-                'waveform': goodcells.at[ind,'waveform'],
-                'trange': trange,
-                'upsacc_avg': upsacc_avg[unit_num],
-                'downsacc_avg':downsacc_avg[unit_num]
-            }
-            all_units[var_names[unit_num]] = unit_dict
+            cols = [stim+'_'+i for i in ['c_range',
+                                        'contrast_response',
+                                        'spike_triggered_average',
+                                        'sta_shape',
+                                        'spike_triggered_variance',
+                                        'upsacc_avg',
+                                        'downsacc_avg',
+                                        'spike_rate_vs_pupil_radius_cent',
+                                        'spike_rate_vs_pupil_radius_tuning',
+                                        'spike_rate_vs_pupil_radius_err',
+                                        'spike_rate_vs_theta_cent',
+                                        'spike_rate_vs_theta_tuning',
+                                        'spike_rate_vs_theta_err',
+                                        'spike_rate_vs_gz_cent',
+                                        'spike_rate_vs_gz_tuning',
+                                        'spike_rate_vs_gz_err',
+                                        'trange']]
+            unit_df = pd.DataFrame(pd.Series([crange,
+                                    resp[unit_num],
+                                    np.ndarray.flatten(staAll[unit_num]),
+                                    np.shape(staAll[unit_num]),
+                                    np.ndarray.flatten(st_var[unit_num]),
+                                    upsacc_avg[unit_num],
+                                    downsacc_avg[unit_num],
+                                    spike_rate_vs_pupil_radius_cent,
+                                    spike_rate_vs_pupil_radius_tuning[unit_num],
+                                    spike_rate_vs_pupil_radius_err[unit_num],
+                                    spike_rate_vs_theta_cent,
+                                    spike_rate_vs_theta_tuning[unit_num],
+                                    spike_rate_vs_theta_err[unit_num],
+                                    spike_rate_vs_gz_cent,
+                                    spike_rate_vs_gz_tuning[unit_num],
+                                    spike_rate_vs_gz_err[unit_num],
+                                    trange]),dtype=object).T
+            unit_df.columns = cols
+            unit_df.index = [ind]
+            unit_df['session'] = session_name
+            unit_data = pd.concat([unit_data, unit_df], axis=0)
+    elif free_move is True:
+        for unit_num, ind in enumerate(goodcells.index):
+            cols = [stim+'_'+i for i in ['c_range',
+                                        'contrast_response',
+                                        'spike_triggered_average',
+                                        'sta_shape',
+                                        'spike_triggered_variance',
+                                        'upsacc_avg',
+                                        'downsacc_avg',
+                                        'upsacc_avg_gaze_shift_dEye',
+                                        'downsacc_avg_gaze_shift_dEye',
+                                        'upsacc_avg_comp_dEye',
+                                        'downsacc_avg_comp_dEye',
+                                        'upsacc_avg_gaze_shift_dHead',
+                                        'downsacc_avg_gaze_shift_dHead',
+                                        'upsacc_avg_comp_dHead',
+                                        'downsacc_avg_comp_dHead',
+                                        'spike_rate_vs_pupil_radius_cent',
+                                        'spike_rate_vs_pupil_radius_tuning',
+                                        'spike_rate_vs_pupil_radius_err',
+                                        'spike_rate_vs_theta_cent',
+                                        'spike_rate_vs_theta_tuning',
+                                        'spike_rate_vs_theta_err',
+                                        'spike_rate_vs_gz_cent',
+                                        'spike_rate_vs_gz_tuning',
+                                        'spike_rate_vs_gz_err',
+                                        'trange']]
+            unit_df = pd.DataFrame(pd.Series([crange,
+                                    resp[unit_num],
+                                    np.ndarray.flatten(staAll[unit_num]),
+                                    np.shape(staAll[unit_num]),
+                                    np.ndarray.flatten(st_var[unit_num]),
+                                    upsacc_avg[unit_num],
+                                    downsacc_avg[unit_num],
+                                    upsacc_avg_gaze_shift_dEye[unit_num],
+                                    downsacc_avg_gaze_shift_dEye[unit_num],
+                                    upsacc_avg_comp_dEye[unit_num],
+                                    downsacc_avg_comp_dEye[unit_num],
+                                    upsacc_avg_gaze_shift_dHead[unit_num],
+                                    downsacc_avg_gaze_shift_dHead[unit_num],
+                                    upsacc_avg_comp_dHead[unit_num],
+                                    downsacc_avg_comp_dHead[unit_num],
+                                    spike_rate_vs_pupil_radius_cent,
+                                    spike_rate_vs_pupil_radius_tuning[unit_num],
+                                    spike_rate_vs_pupil_radius_err[unit_num],
+                                    spike_rate_vs_theta_cent,
+                                    spike_rate_vs_theta_tuning[unit_num],
+                                    spike_rate_vs_theta_err[unit_num],
+                                    spike_rate_vs_gz_cent,
+                                    spike_rate_vs_gz_tuning[unit_num],
+                                    spike_rate_vs_gz_err[unit_num],
+                                    trange]),dtype=object).T
+            unit_df.columns = cols
+            unit_df.index = [ind]
+            unit_df['session'] = session_name
+            unit_data = pd.concat([unit_data, unit_df], axis=0)
+            
+    data_out = pd.concat([goodcells, unit_data],axis=1)
 
-    np.save(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.npy')), all_units)
-    # have to open like d1.item().get('name_of_unit')
+    data_out.to_hdf(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.h5')), 'w')
 
-    print('analysis complete; pdfs closed and .npy saved to file')
+    print('analysis complete; pdfs closed and .h5 saved to file')
