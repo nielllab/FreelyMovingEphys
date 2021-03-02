@@ -10,11 +10,11 @@ import numpy as np
 
 def doi_saline_label(row, stim, group1, group2, condition_dict):
     date = str(row['session']).split('_')[0]
-    if any(i in row['session'] for i in group1):
+    if any(i in stim for i in group1):
         val = None
-    elif any(i in row['session'] for i in group2) and date in condition_dict.get('doi_dates'):
+    elif any(i in stim for i in group2) and date in condition_dict.get('doi_dates'):
         val = 'doi'
-    elif any(i in row['session'] for i in group2) and date in condition_dict.get('saline_dates'):
+    elif any(i in stim for i in group2) and date in condition_dict.get('saline_dates'):
         val = 'saline'
     else:
         val = None
@@ -22,11 +22,11 @@ def doi_saline_label(row, stim, group1, group2, condition_dict):
 
 def pre_post_label(row, stim, group1, group2, condition_dict):
     date = str(row['session']).split('_')[0]
-    if any(i in row['session'] for i in group1) and date in condition_dict.get('pre_dates'):
+    if any(i in stim for i in group1) and date in condition_dict.get('pre_dates'):
         val = 'pre'
-    elif any(i in row['session'] for i in group1) and date in condition_dict.get('post_dates'):
+    elif any(i in stim for i in group1) and date in condition_dict.get('post_dates'):
         val = 'post'
-    elif any(i in row['session'] for i in group2):
+    elif any(i in stim for i in group2):
         val = None
     else:
         val = None
