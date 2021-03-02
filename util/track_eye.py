@@ -180,14 +180,22 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['save_figs'] is True:
         try:
             plt.figure()
-            plt.plot(np.sum(likelihood,1))
+            plt.plot(np.sum(likelihood >= config['lik_thresh'], 1)[0:-1:10])
             plt.title(str(np.round(np.mean(usegood), 3)) + ' good; thresh= ' + str(config['lik_thresh']))
-            plt.ylabel('num good eye points'); plt.xlabel('frame')
+            plt.ylabel('num good eye points'); plt.xlabel('every 10th frame')
             pdf.savefig()
             plt.close()
         except:
             print('figure error')
-
+        try:
+            plt.figure()
+            plt.hist(np.sum(likelihood >= config['lik_thresh'], 1),bins=9, range = (0,9))
+            plt.xlabel('num good eye points'); plt.ylabel('n frames')
+            pdf.savefig()
+            plt.close()
+        except:
+            print('figure error')
+            
     # threshold out pts more than a given distance away from nanmean of that point
     std_thresh_x = np.empty(np.shape(x_vals))
     for point_loc in range(0,np.size(x_vals, 1)):
@@ -239,12 +247,9 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     list1 = np.where((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh']) # short axis / long axis
     list2 = np.where((usegood == True) & ((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh']))
 
-    # matrix operations don't scale well to recordings of more than 100,000 frames
     # this limits the number of frames used for the calibration
     if np.size(list2,1) > 50000:
-        shortinds = list(sorted(np.random.choice(np.size(list2,1), size=50000, replace=False)))
-        shortbool = [True if i in shortinds else False for i in range(np.size(list2,1))]
-        shortlist = tuple(np.shape(np.expand_dims(tuple(list2[0][shortbool]),0)))
+        shortlist = sorted(np.random.choice(list2[0],size=50000, replace=False))
     else:
         shortlist = list2
 
@@ -259,7 +264,10 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # ellipticity and scale
     ellipticity = (ellipse_params[shortlist,6] / ellipse_params[shortlist,5]).T
     if existing_camera_calib_props is None:
-        scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[shortlist,11:13]-cam_cent.T,axis=0)))/np.sum(1-(ellipticity)**2)
+        try:
+            scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[shortlist,11:13]-cam_cent.T,axis=0)))/np.sum(1-(ellipticity)**2)
+        except ValueError:
+            scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[shortlist,11:13]-cam_cent.T,axis=1)))/np.sum(1-(ellipticity)**2)
     elif existing_camera_calib_props is not None:
         scale = float(existing_camera_calib_props['scale'])
 
@@ -277,16 +285,16 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['save_figs'] is True:
         try:
             plt.figure()
-            plt.plot(np.rad2deg(phi))
+            plt.plot(np.rad2deg(phi)[0:-1:10])
             plt.title('phi')
-            plt.ylabel('deg'); plt.xlabel('frame')
+            plt.ylabel('deg'); plt.xlabel('every 10th frame')
             pdf.savefig()
             plt.close()
 
             plt.figure()
-            plt.plot(np.rad2deg(theta))
+            plt.plot(np.rad2deg(theta)[0:-1:10])
             plt.title('theta')
-            plt.ylabel('deg'); plt.xlabel('frame')
+            plt.ylabel('deg'); plt.xlabel('every 10th frame')
             pdf.savefig()
             plt.close()
         except:

@@ -66,7 +66,7 @@ def launch_ephys_gui():
     fm1.grid(column=1, row=3)
 
     # checkbox for freemoving or headfixed
-    hf_stim_options = ['None','gratings','sparse_noise','white_noise']
+    hf_stim_options = ['None','gratings','sparse_noise','white_noise','revchecker']
     stim_type_label = Label(entry, text="Specific headfixed stimulus?")
     stim_type_label.grid(column=0, row=4)
     stim_type = StringVar()
@@ -74,12 +74,19 @@ def launch_ephys_gui():
     stim_type1 = OptionMenu(entry, stim_type, *hf_stim_options)
     stim_type1.grid(column=1, row=4)
 
+    # checkbox for saving out videos
+    mp4_label = Label(entry, text="Save .mp4 video?")
+    mp4_label.grid(column=0, row=5)
+    mp4 = BooleanVar()
+    mp4_1 = Checkbutton(entry, variable=mp4)
+    mp4_1.grid(column=1, row=5)
+
     ### run tab
     run_label = Label(run, text="Do not close this window or the terminal while the analysis runs.", wraplength=500)
     run_label.grid(column=0, row=0)
 
     def run_pipeline():
-        file_dict = find_files(data_path, recording_name.get(), fm.get(), int(this_unit.get()), stim_type.get())
+        file_dict = find_files(data_path, recording_name.get(), fm.get(), int(this_unit.get()), stim_type.get(), mp4.get())
         run_ephys_analysis(file_dict)
 
     run_label = Label(run, text="Run ephys analysis:", wraplength=500)

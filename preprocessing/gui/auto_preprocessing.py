@@ -47,7 +47,7 @@ def run_auto_preprocessing(config_path):
         get_calibration_params(config)
     if steps['undistort_recording'] is True:
         calibrate_new_world_vids(config)
-        calibrate_new_top_vids(config)
+        # calibrate_new_top_vids(config)
     # get dlc tracking
     if steps['dlc'] is True:
         run_DLC_Analysis(config)

@@ -1,7 +1,9 @@
 %% Preprocess ephys data
 %%% runs applyCARtoDat_subset on data with user params
+
+%% 64-channel version
 nchan = 64;
-medfilt = 0;
+medfilt = 1;
 subset = 1:64;
 isuint16 = 1;
 

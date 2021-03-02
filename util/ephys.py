@@ -111,6 +111,7 @@ def ephys_to_dataset(path, dates):
             ephys_filepaths.append(i)
 
     # read in the npys, get metadata, and append into dataset
+    processed_unit_count = 0
     for filepath in ephys_filepaths:
         ephys = np.load(filepath, allow_pickle=True) # open npy files
         keys = ephys.item().keys() # get all the names of unit/cell entries
@@ -130,9 +131,46 @@ def ephys_to_dataset(path, dates):
             unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['unit'] = unit
             unit_xr.attrs['stim'] = stim; unit_xr.name = key # also important to name so that each datavariable can be indexed once merged into dataset
             # and append each unit into one big dataset
-            if filepath == ephys_filepaths[0] and key == keys[0]:
+            if processed_unit_count == 0:
                 all_units_xr = unit_xr.copy()
             else:
                 all_units_xr = xr.merge([all_units_xr, unit_xr])
+            processed_unit_count = processed_unit_count + 1
 
     return all_units_xr
+
+# read in many .json ephys files of spike data, etc. and save them into a dictionary
+# each entry in dictionary will have a key for the name of the recording
+def ephys_to_dataframe(path,dates,conditions):
+    # path and dates should be in the same format as func ephys_to_dataset
+    ephys_filepaths = []
+    for day in dates:
+        day_jsons = find('*ephys_merge.json',os.path.join(path, day)) # get the .json for all recordings
+        for rec in day_jsons:
+            ephys_filepaths.append(rec) # append into list
+    # build a dictionary with the filename as the key and the pandas df as a value
+    spike_data = {os.path.split(filepath)[1]: pd.read_json(filepath) for filepath in ephys_filepaths}
+    
+    # iterate through dictionary to add a column, 'doi', of whether or not it was a doi recording
+   
+    for key,data in spike_data.items():
+        data['date'] = key.split('_')[0]
+        data['mouse'] = key.split('_')[1]
+        data['rec'] = key.split('_')[4]
+        if any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']):
+            data['doi'] = 'none'
+        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_doi'):
+            data['doi'] = 'doi'
+        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_saline'):
+            data['doi'] = 'saline'
+
+        if any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_')[0] in conditions.get('dates_predoi'):
+            data['pre/post'] = 'pre'
+        elif any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_')[0] in conditions.get('dates_postdoi'):
+            data['pre/post'] = 'post'
+        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']):
+            data['pre/post'] = 'none'
+
+    all_data = pd.concat([data for key,data in spike_data.items()], keys=[key for key,data in spike_data.items()])
+
+    return all_data
