@@ -63,6 +63,11 @@ def run_ephys_analysis(file_dict):
     else:
         free_move = False; has_imu = False; has_mouse = True
 
+    # delete the existing h5 file, so that a new one can be written
+    # overwriting isn't possible on all maachines (package version issue?)
+    if os.path.isfile(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.h5'))):
+        os.remove(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.h5')))
+
     print('opening pdfs')
     # three pdf outputs will be saved
     overview_pdf = PdfPages(os.path.join(file_dict['save'], (file_dict['name'] + '_overview_analysis_figures.pdf')))
