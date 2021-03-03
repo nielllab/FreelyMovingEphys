@@ -33,7 +33,7 @@ def load_ephys(datapath, dates):
             # get name of the current recording (i.e. 'fm' or 'hf1_wn')
             rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
             # rename spike time columns so that data is retained for each of the seperate trials
-            rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate'})
+            rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
             # get column names
             column_names = list(session_data.columns.values) + list(rec_data.columns.values)
             # new columns for same unit within a session

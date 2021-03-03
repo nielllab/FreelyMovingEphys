@@ -27,7 +27,7 @@ def make_unit_summary(df, savepath):
         unitfig_wv = unitfig.add_subplot(spec[0, 0])
         wv = row['waveform']
         unitfig_wv.plot(np.arange(len(wv))*1000/samprate,wv)
-        unitfig_wv.set_title(str(row['session'])+'_unit'+str(index))
+        unitfig_wv.set_title(str(row['session'])+'_unit'+str(index)+' '+row['KSLabel']+' cont='+str(row['ContamPct']))
 
         # wn contrast response
         unitfig_crf = unitfig.add_subplot(spec[1, 0])
