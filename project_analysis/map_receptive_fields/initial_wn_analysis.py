@@ -127,7 +127,7 @@ def quick_whitenoise_analysis(wn_path):
         drift_rate = -0.1/1000
 
         for i in range(len(ephys_data)):
-            ephys_data['spikeT'].iloc[i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
+            ephys_data['spikeT'].iloc[i] = (np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)).astype(object)
         
         if worldT[0]<-600:
             worldT = worldT + 8*60*60

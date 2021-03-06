@@ -329,6 +329,7 @@ def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
     return fig
 
 def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
+    stv_all = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
     sta = 0; lag = 0.125
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
     for c, ind in enumerate(goodcells.index):
@@ -339,9 +340,10 @@ def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
         plt.subplot(np.ceil(n_units/4),4,c+1)
         sta = sta/np.sum(r)
         plt.imshow(sta - np.mean(img_norm**2,axis=0),vmin=-1,vmax=1)
+        stv_all[c,:,:] = sta - np.mean(img_norm**2,axis=0)
     plt.tight_layout()
     plt.axis('off')
-    return fig
+    return stv_all, fig
 
 def plot_saccade_locked(goodcells, upsacc,  downsacc, trange):
     #upsacc = upsacc[upsacc>5];     upsacc = upsacc[upsacc<np.max(t)-5]
@@ -409,7 +411,7 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_name):
         plt.xlim([var_range[0], var_range[-1]]);  plt.title(ind)
     plt.xlabel(var_name); plt. ylabel('sp/sec')
     plt.tight_layout()
-    return fig
+    return var_cent, tuning, tuning_err, fig
 
 def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=None, drift_spont=None):
     samprate = 30000  # ephys sample rate
