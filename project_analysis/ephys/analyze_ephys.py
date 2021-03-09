@@ -82,7 +82,7 @@ def run_ephys_analysis(file_dict):
     # resize worldcam to make more manageable
     sz = world_vid_raw.shape
 
-    if sz[1]>80:
+    if sz[1]>160:
         downsamp = 0.5
         world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
         for f in range(sz[0]):
@@ -274,9 +274,10 @@ def run_ephys_analysis(file_dict):
     cam_gamma = 1
     world_norm = (world_vid/255)**cam_gamma
     std_im = np.std(world_norm,axis=0)
-    std_im[std_im<10/255] = 10/255
+
     img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
-    img_norm = img_norm * (std_im>10/255)
+    std_im[std_im<20/255] = 0
+    img_norm = img_norm * (std_im>0)
 
     contrast = np.empty(worldT.size)
     for i in range(worldT.size):
@@ -404,6 +405,13 @@ def run_ephys_analysis(file_dict):
         flow_norm = np.zeros((nf,np.size(img_norm,1),np.size(img_norm,2),2 ))
         vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_grating_flow'))
 
+        # find screen
+        meanx = np.mean(std_im>0,axis=0);
+        xcent = np.int(np.sum(meanx*np.arange(len(meanx)))/ np.sum(meanx))
+        meany = np.mean(std_im>0,axis=1);
+        ycent = np.int(np.sum(meany*np.arange(len(meany)))/ np.sum(meany))
+        xrg = 40;   yrg = 25; #pixel range to define monitor
+
         fig, ax = plt.subplots(1,1,figsize = (16,8))
         # now animate
         #writer = FFMpegWriter(fps=30)
@@ -422,12 +430,21 @@ def run_ephys_analysis(file_dict):
             sy[sx<0] = -sy[sx<0]  #make vectors point in positive x direction (so opposite sides of grating don't cancel)
             sx[sx<0] = -sx[sx<0]
             #ax.quiver(x[::nx,::nx],y[::nx,::nx],sx[::nx,::nx],sy[::nx,::nx], scale = 100000 )
-            u_mn[f]= np.mean(u); v_mn[f]= np.mean(v); sx_mn[f] = np.mean(sx); sy_mn[f] = np.mean(sy)
-            #plt.title(str(np.round(np.arctan2(sy_mn[f],sx_mn[f])*180/np.pi))
-            #writer.grab_frame()
+            #u_mn[f]= np.mean(u); v_mn[f]= np.mean(v); sx_mn[f] = np.mean(sx); sy_mn[f] = np.mean(sy)
+            u_mn[f]= np.mean(u[ycent-yrg:ycent+yrg, xcent-xrg:xcent+xrg]); v_mn[f]= np.mean(v[ycent-yrg:ycent+yrg, xcent-xrg:xcent+xrg]); 
+            sx_mn[f] = np.mean(sx[ycent-yrg:ycent+yrg, xcent-xrg:xcent+xrg]); sy_mn[f] = np.mean(sy[ycent-yrg:ycent+yrg, xcent-xrg:xcent+xrg])
 
-        stimOn = contrast>0.5
-        stimOn = signal.medfilt(stimOn,11)
+#plt.title(str(np.round(np.arctan2(sy_mn[f],sx_mn[f])*180/np.pi))
+            #writer.grab_frame()
+        
+
+        scr_contrast = np.empty(worldT.size)
+        for i in range(worldT.size):
+            scr_contrast[i] = np.nanmean(np.abs(img_norm[i,ycent-25:ycent+25,xcent-40:xcent+40]))
+        scr_contrast = signal.medfilt(scr_contrast,11)
+        
+        stimOn = np.double(contrast>0.5)
+
 
         stim_start = np.array(worldT[np.where(np.diff(stimOn)>0)])
         grating_psth = plot_psth(goodcells,stim_start,-0.5,1.5,0.1,True)
@@ -459,10 +476,7 @@ def run_ephys_analysis(file_dict):
         grating_ori[grating_dir<0] = grating_ori[grating_dir<0] + np.pi
         grating_ori = grating_ori - np.min(grating_ori)
         np.unique(grating_ori)
-        plt.figure(figsize = (8,8))
 
-        lowmag = np.where(grating_mag<np.percentile(grating_mag,100*2/24))
-        grating_ori[lowmag] = grating_ori[lowmag]+np.pi/8
         ori_cat = np.floor((grating_ori+np.pi/8)/(np.pi/4))
 
         km = KMeans(n_clusters=3).fit(np.reshape(grating_mag,(-1,1)))
@@ -472,6 +486,8 @@ def run_ephys_analysis(file_dict):
         for i in range(3):
             sf_catnew[sf_cat == order[i]]=i
         sf_cat = sf_catnew.copy()
+        
+        plt.figure(figsize = (8,8))
         plt.scatter(grating_mag,grating_ori,c=ori_cat)
         plt.xlabel('grating magnitude'); plt.ylabel('theta')
         diagnostic_pdf.savefig()
@@ -510,11 +526,12 @@ def run_ephys_analysis(file_dict):
             plt.subplot(n_units,2,2*c+2)
             plt.plot(ori_tuning[c,:,0],label = 'low sf'); plt.plot(ori_tuning[c,:,1],label = 'mid sf');plt.plot(ori_tuning[c,:,2],label = 'hi sf')
             plt.plot([0,7],[drift_spont[c],drift_spont[c]],'r:', label = 'spont')
-            plt.legend()
+            
             try:
                 plt.ylim(0,np.nanmax(ori_tuning[c,:,:]*1.2))
             except ValueError:
                 plt.ylim(0,1)
+        plt.legend()
         detail_pdf.savefig()
         plt.close()
 
