@@ -460,13 +460,13 @@ def run_ephys_analysis(file_dict):
         for i in range(len(stim_start)):
             tpts = np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))
             mag = np.sqrt(sx_mn[tpts]**2 + sy_mn[tpts]**2)
-            this = np.where(mag[:,0]>np.percentile(mag,25))
-            goodpts = np.array(tpts)[0,this]
+            #this = np.where(mag[:,0]>np.percentile(mag,25))
+            #goodpts = np.array(tpts)[0,this]
 
-            stim_sx = np.nanmedian(sx_mn[goodpts])
-            stim_sy = np.nanmedian(sy_mn[goodpts])
-            stim_u = np.nanmedian(u_mn[goodpts])
-            stim_v = np.nanmedian(v_mn[goodpts])
+            stim_sx = np.nanmedian(sx_mn[tpts])
+            stim_sy = np.nanmedian(sy_mn[tpts])
+            stim_u = np.nanmedian(u_mn[tpts])
+            stim_v = np.nanmedian(v_mn[tpts])
             grating_th[i] = np.arctan2(stim_sy,stim_sx)
             grating_mag[i] = np.sqrt(stim_sx**2 + stim_sy**2)
             grating_dir[i] = np.sign(stim_u*stim_sx + stim_v*stim_sy) # dot product of gratient and flow gives direction
