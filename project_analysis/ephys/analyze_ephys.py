@@ -266,8 +266,12 @@ def run_ephys_analysis(file_dict):
     if file_dict['imu'] is not None:
         accT = accTraw - (offset0 + accTraw*drift_rate)
 
-    for i in range(len(ephys_data)):
-        ephys_data['spikeT'][i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
+    for i in ephys_data.index:
+        ephys_data.at[i,'spikeT'] = np.array(ephys_data.at[i,'spikeTraw']) - (offset0 + np.array(ephys_data.at[i,'spikeTraw']) *drift_rate)
+    goodcells = ephys_data.loc[ephys_data['group']=='good']
+#    for i in range(len(ephys_data)):
+#        ephys_data['spikeT'].iloc[i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
+
 
     print('finding contrast of normalized worldcam')
     # normalize world movie and calculate contrast
@@ -373,7 +377,7 @@ def run_ephys_analysis(file_dict):
     for i, ind in enumerate(goodcells.index):
         for c,cont in enumerate(crange):
             resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
-    plt.plot(crange,np.transpose(resp))
+    plt.plot(crange[:-1],np.transpose(resp[:,:-1]))
     #plt.ylim(0,10)
     plt.xlabel('contrast')
     plt.ylabel('sp/sec')
@@ -554,6 +558,10 @@ def run_ephys_analysis(file_dict):
     print('getting spike-triggered variance')
     # calculate spike-triggered variance
     st_var, fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm)
+    detail_pdf.savefig()
+    plt.close()
+
+    spikeraster_fig = plot_spike_rasters(goodcells)
     detail_pdf.savefig()
     plt.close()
 
