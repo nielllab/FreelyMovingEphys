@@ -447,7 +447,7 @@ def run_ephys_analysis(file_dict):
             scr_contrast[i] = np.nanmean(np.abs(img_norm[i,ycent-25:ycent+25,xcent-40:xcent+40]))
         scr_contrast = signal.medfilt(scr_contrast,11)
         
-        stimOn = np.double(contrast>0.5)
+        stimOn = np.double(scr_contrast>0.5)
 
 
         stim_start = np.array(worldT[np.where(np.diff(stimOn)>0)])
@@ -464,8 +464,8 @@ def run_ephys_analysis(file_dict):
         for i in range(len(stim_start)):
             tpts = np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))
             mag = np.sqrt(sx_mn[tpts]**2 + sy_mn[tpts]**2)
-            #this = np.where(mag[:,0]>np.percentile(mag,25))
-            #goodpts = np.array(tpts)[0,this]
+            this = np.where(mag[:,0]>np.percentile(mag,25))
+            goodpts = np.array(tpts)[0,this]
 
             stim_sx = np.nanmedian(sx_mn[tpts])
             stim_sy = np.nanmedian(sy_mn[tpts])

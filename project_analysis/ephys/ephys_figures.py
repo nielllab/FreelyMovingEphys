@@ -29,7 +29,7 @@ def plot_psth(goodcells,onsets,lower,upper,dt,drawfig):
     fig = plt.figure(figsize = (10,np.ceil(n_units/2)))
     psth_all = np.zeros((n_units,len(bins)-1))
     for i, ind in enumerate(goodcells.index):
-        plt.subplot(np.ceil(n_units/4),4,i+1)
+        plt.subplot(int(np.ceil(n_units/4)),4,i+1)
         psth = np.zeros(len(bins)-1)
         for t in onsets:
             hist,edges = np.histogram(goodcells.at[ind,'spikeT']-t,bins)
