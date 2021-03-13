@@ -29,7 +29,7 @@ def plot_psth(goodcells,onsets,lower,upper,dt,drawfig):
     fig = plt.figure(figsize = (10,np.ceil(n_units/2)))
     psth_all = np.zeros((n_units,len(bins)-1))
     for i, ind in enumerate(goodcells.index):
-        plt.subplot(np.ceil(n_units/4),4,i+1)
+        plt.subplot(int(np.ceil(n_units/4)),4,i+1)
         psth = np.zeros(len(bins)-1)
         for t in onsets:
             hist,edges = np.histogram(goodcells.at[ind,'spikeT']-t,bins)
@@ -258,11 +258,11 @@ def plot_saccade_and_fixate(eyeT, dEye, gInterp, th):
 def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
     fig = plt.figure(figsize = (6,np.ceil(n_units/2)))
     for i, ind in enumerate(goodcells.index):
-        plt.subplot(np.ceil(n_units/4),4,i+1)
-        plt.plot(crange[1:-1],resp[i,1:-1])
+        plt.subplot(int(np.ceil(n_units/4)),4,i+1)
+        plt.plot(crange[:-2],resp[i,:-2])
     # plt.ylim([0 , max(resp[i,1:-3])*1.2])
         # plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec')
-        plt.ylim([0,np.nanmax(resp[i,1:-1])])
+        plt.ylim([0,np.nanmax(resp[i,1:-2])])
     plt.tight_layout()
     return fig
 
@@ -283,7 +283,7 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
                 # if c==1:
                 #     ensemble[nsp-1,:,:] = im
                 sta = sta+im
-        plt.subplot(np.ceil(n_units/4),4,c+1)
+        plt.subplot(int(np.ceil(n_units/4)),4,c+1)
         #plt.title(str(nsp))
         plt.title(f'ind={ind!s} nsp={nsp!s}')
         plt.axis('off')
@@ -337,7 +337,7 @@ def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
         sta = 0
         for i in range(5,t.size-10):
             sta = sta+r[i]*(movInterp(t[i]-lag))**2
-        plt.subplot(np.ceil(n_units/4),4,c+1)
+        plt.subplot(int(np.ceil(n_units/4)),4,c+1)
         sta = sta/np.sum(r)
         plt.imshow(sta - np.mean(img_norm**2,axis=0),vmin=-1,vmax=1)
         stv_all[c,:,:] = sta - np.mean(img_norm**2,axis=0)
