@@ -2,10 +2,7 @@
 paths.py
 
 functions for searching and manipulating file paths
-
-Dec. 02, 2020
 """
-# package imports
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -19,8 +16,15 @@ from datetime import datetime
 import time
 import argparse
 
-# glob for subdirectories
 def find(pattern, path):
+    """
+    glob for subdirectories
+    INPUTS:
+        pattern -- str (with * for missing sectiosn of characters) like glob function
+        path -- dict to search, including subdirectories
+    OUTPUTS:
+        result -- list of files
+    """
     result = [] # initialize the list as empty
     for root, dirs, files in os.walk(path): # walk though the path directory, and files
         for name in files:  # walk to the file in the directory
@@ -28,8 +32,10 @@ def find(pattern, path):
                 result.append(os.path.join(root,name))
     return result # return full list of file of a given type
 
-# check if path exists, if not then create directory
 def check_path(basepath, path):
+    """
+    check if path exists, if not then create directory
+    """
     if path in basepath:
         return basepath
     elif not os.path.exists(os.path.join(basepath, path)):

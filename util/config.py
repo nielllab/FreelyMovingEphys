@@ -10,8 +10,10 @@ def set_preprocessing_config_defaults(novel_config):
     set default values for config file, if any are missing
     defaults are read in from /FreelyMovingEphys/example_configs/preprocessing_config.json
     changing the default values, or adding new config options should be done in that json in the /example_configs/ directory
-    input, novel_config, should be a dictionary with config options, structured largely like the default config .json in /example_configs/
-    returns the same config with any missing values filled in
+    INPUTS:
+        novel_config -- dictionary with config options, structured largely like the default config .json in /example_configs/
+    OUTPUTS:
+        novel_config -- same config as input, with any missing values filled in with the defaults in /example_configs/
     """
     try:
         # get the path of the default json config file in this repository, relative to util/config.py
@@ -37,6 +39,10 @@ def set_preprocessing_config_defaults(novel_config):
 def str_to_bool(value):
     """
     parse strings to read argparse flag entries in as True/False
+    INPUTS:
+        value -- input value
+    OUTPUTS:
+        either True, False, or raises error
     """
     if isinstance(value, bool):
         return value

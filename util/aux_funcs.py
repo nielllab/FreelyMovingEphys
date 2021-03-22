@@ -3,9 +3,7 @@ aux_funcs.py
 
 auxiliary functions
 
-Dec. 02, 2020
 """
-# package imports
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -19,9 +17,18 @@ from datetime import datetime
 import time
 import argparse
 
-# calculates xcorr ignoring NaNs without altering timing
-# adapted from /niell-lab-analysis/freely moving/nanxcorr.m
 def nanxcorr(x, y, maxlag=25):
+    """
+    calculates xcorr ignoring NaNs without altering timing
+    adapted from /niell-lab-analysis/freely moving/nanxcorr.m
+    INPUTS:
+        x -- np array
+        y -- np array (should be arrays of same length as x)
+        maxlag -- number of lags to shift y prior to testing correlation
+    OUTPUTS:
+        cc_out -- cross correlation
+        lags -- lag vector
+    """
     lags = range(-maxlag, maxlag)
     cc = []
     for i in range(0,len(lags)):
@@ -38,4 +45,5 @@ def nanxcorr(x, y, maxlag=25):
         # get correlation
         cc.append(np.correlate(x_use, yshift_use))
     cc_out = np.hstack(np.stack(cc))
+    
     return cc_out, lags
