@@ -38,7 +38,7 @@ def get_args():
 
 def main(csv_filepath, log_dir, clear_dlc):
     # initialize logger
-    logf = log(os.path.join(args.log_dir,'batch_log.csv'),name=['recording'])
+    logf = log(os.path.join(log_dir,'batch_log.csv'),name=['recording'])
 
     # read in the csv batch file
     csv = pd.read_csv(csv_filepath)
@@ -49,13 +49,14 @@ def main(csv_filepath, log_dir, clear_dlc):
 
     # delete existing DLC .h5 files so that there will be only one in the directory
     # needed in case a different DLC network is being used
-    for ind, row in run_preproc.iterrows():
-        del_path = row['Data location (i.e. V2/Kraken, drive)']
-        h5_list = find('*DLC_resnet50*.h5',del_path)
-        pickle_list = find('*DLC_resnet50*.pickle',del_path)
-        file_list = h5_list + pickle_list
-        for item in file_list:
-            os.remove(item)
+    if clear_dlc is True:
+        for ind, row in run_preproc.iterrows():
+            del_path = row['Data location (i.e. V2/Kraken, drive)']
+            h5_list = find('*DLC_resnet50*.h5',del_path)
+            pickle_list = find('*DLC_resnet50*.pickle',del_path)
+            file_list = h5_list + pickle_list
+            for item in file_list:
+                os.remove(item)
 
     # itereate through the preprocessing list
     for ind, row in run_preproc.iterrows():

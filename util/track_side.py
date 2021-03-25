@@ -2,18 +2,18 @@
 track_side.py
 
 side camera tracking utilities
-
-Oct. 26, 2020
 """
-
-# package imports
 import xarray as xr
 import pandas as pd
 import numpy as np
 
-# interpolate and threshold side camera dlc data
 def side_tracking(sidedlc, config):
-
+    """
+    interpolate and threshold side camera dlc data
+    INPUTS:
+        sidedlc -- .h5 to DLC data
+        config -- options dict
+    """
     # get point names
     side_pt_names = list(sidedlc['point_loc'].values)
 
@@ -50,9 +50,11 @@ def side_tracking(sidedlc, config):
 
     return sidepts_out
 
-# get angle of head from side view
-# outputs list of angles in radians
 def side_angle(sidepts):
+    """
+    get angle of head from side view
+    outputs list of angles in radians
+    """
     head_ang = []
     # loop through each frame and get the angle for each
     for frame_num in range(0,np.size(sidepts['frame'].values)):

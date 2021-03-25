@@ -2,10 +2,7 @@
 params.py
 
 get parameters from DLC points and generate .nc or .json files
-
-Dec. 02, 2020
 """
-# package imports
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
@@ -15,7 +12,7 @@ import xarray as xr
 import warnings
 from glob import glob
 from multiprocessing import freeze_support
-# module imports
+
 from util.format_data import h5_to_xr, format_frames, safe_xr_merge
 from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
@@ -28,12 +25,21 @@ from util.track_side import side_angle, side_tracking
 from util.track_imu import read_8ch_imu, convert_acc_gyro
 
 def extract_params(config):
+    """
+    get parameters out of video, optical mouse, IMU, etc.
+    INPUTS:
+        config -- options dict
+    OUTPUTS: None
+    """
     # get trial name out of each avi file and make a list of the unique entries
     trial_units = []; name_check = []; path_check = []
+    # iterate through every video in every subdirectory in the provided data path
     for avi in find('*.avi', config['data_path']):
-        bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
+        # don't use trials that have these strings in their path
+        bad_list = ['plot','IR','rep11','betafpv','side_gaze']
+        # if user is using strict file names (usually the case)
         if config['run_with_form_time'] is True:
-            if all(bad not in avi for bad in bad_list):
+            if all(bad not in avi for bad in bad_list): # exclude some videos
                 split_name = avi.split('_')[:-1]
                 trial = '_'.join(split_name)
                 path_to_trial = os.path.join(os.path.split(trial)[0])
@@ -44,6 +50,7 @@ def extract_params(config):
                 path_to_trial, trial_name_long = os.path.split(trial_path_noext)
                 trial_name = '_'.join(trial_name_long.split('_')[:3])
         try:
+            # add the trial to a list of session names if it isn't already there
             if trial_name not in name_check:
                 trial_units.append([path_to_trial, trial_name])
                 path_check.append(path_to_trial); name_check.append(trial_name)
@@ -51,13 +58,13 @@ def extract_params(config):
             pass
 
     # sort so that freely moving recordings are analyzed first
-    # fm eye camera calirbation properties are used in hf analysis, so fm needs to always come first
+    # fm eye camera calibration properties are used in hf analysis, so fm needs to always come first
     trial_units = sorted(trial_units, key=lambda x:('fm' not in x, x))
 
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for trial_unit in trial_units:
         config['trial_path'] = trial_unit[0]
-        t_name = trial_unit[1]
+        t_name = trial_unit[1] # should probably be renamed... 'trial' should be 'recording' in this case
         trial_cam_h5 = find(('*.h5'), config['trial_path'])
         trial_cam_csv = find(('*BonsaiTS*.csv'), config['trial_path'])
         trial_cam_avi = find(('*.avi'), config['trial_path'])
@@ -94,7 +101,8 @@ def extract_params(config):
                 print('missing one or more ephys files -- assuming no ephys analysis for this trial')
 
         try:
-            # analyze top views
+            # add top views to the list of items to analyze
+            # looks for specific capitalization
             top_views = []
             if 'TOP' in config['cams']:
                 top_views.append('TOP')
@@ -106,8 +114,9 @@ def extract_params(config):
                 top_views.append('TOP2')
             if 'TOP3' in config['cams']:
                 top_views.append('TOP3')
+            # iterate through found top views
             for i in range(0,len(top_views)):
-                top_view = top_views[i]
+                top_view = top_views[i] # get the name of this top view
                 print('tracking '+top_view+ ' for ' + t_name)
                 # filter the list of files for the current trial to get the topdown view
                 try:
