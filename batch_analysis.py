@@ -24,23 +24,24 @@ from util.config import set_preprocessing_config_defaults, str_to_bool
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
 from project_analysis.ephys.analyze_ephys import find_files, run_ephys_analysis
 from util.log import log
+from util.paths import find
 
 # get user arguments
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--csv_path', type=str, help='read path for metadata .csv')
-    parser.add_argument('--log_path', type=str, help='save path for logger .csv')
+    parser.add_argument('--csv_filepath', type=str, help='read path for metadata .csv')
+    parser.add_argument('--log_dir', type=str, help='save path for logger .csv')
     parser.add_argument('--clear_dlc', type=str_to_bool, nargs='?', const=True, default=False, help='delete existing DLC .h5 files?')
     args = parser.parse_args()
 
     return args
 
-def main(csv_path, log_path, clear_dlc):
+def main(csv_filepath, log_dir, clear_dlc):
     # initialize logger
-    logf = log(os.path.join(args.log_path+'_log.csv'),name=['recording'])
+    logf = log(os.path.join(log_dir,'batch_log.csv'),name=['recording'])
 
     # read in the csv batch file
-    csv = pd.read_csv(csv_path)
+    csv = pd.read_csv(csv_filepath)
 
     # filter out rows of the csv that are marked to be analyzed with preprocessing and ephys analysis (these should be seperate columns in the df)
     run_preproc = csv.loc[csv['run_preproc'] == True]
@@ -48,13 +49,14 @@ def main(csv_path, log_path, clear_dlc):
 
     # delete existing DLC .h5 files so that there will be only one in the directory
     # needed in case a different DLC network is being used
-    for ind, row in run_preproc.iterrows():
-        del_path = row['Data location (i.e. V2/Kraken, drive)']
-        h5_list = find('*DLC_resnet50*.h5',del_path)
-        pickle_list = find('*DLC_resnet50*.pickle',del_path)
-        file_list = h5_list + pickle_list
-        for item in file_list:
-            os.remove(item)
+    if clear_dlc is True:
+        for ind, row in run_preproc.iterrows():
+            del_path = row['Data location (i.e. V2/Kraken, drive)']
+            h5_list = find('*DLC_resnet50*.h5',del_path)
+            pickle_list = find('*DLC_resnet50*.pickle',del_path)
+            file_list = h5_list + pickle_list
+            for item in file_list:
+                os.remove(item)
 
     # itereate through the preprocessing list
     for ind, row in run_preproc.iterrows():
@@ -71,7 +73,9 @@ def main(csv_path, log_path, clear_dlc):
                 config['save_path'] = data_path
             else: 
                 save_path = os.path.expanduser(config['save_path'])
-                
+            
+            print('starting '+data_path)
+
             steps = config['steps_to_run']
             # deinterlace data
             if steps['deinter'] is True:
@@ -98,6 +102,8 @@ def main(csv_path, log_path, clear_dlc):
         recording_names = row['rec_types'].split(',')
         for recording_name in recording_names:
             try:
+                recording_name = recording_name.replace(' ','').lstrip(' ').rstrip(' ')
+                print('starting '+recording_name)
                 if 'fm' in recording_name:
                     fm = True
                 elif 'fm' not in recording_name:
@@ -113,17 +119,18 @@ def main(csv_path, log_path, clear_dlc):
                     stim_type = 'sparse_noise'
                 elif 'revchecker' in recording_name:
                     stim_type = 'rev_checker'
-                if 'Rig' in recording:
-                    rec_label = recording.split('_')[4:]
+                if 'Rig' in recording_name:
+                    rec_label = '_'.join(recording_name.split('_')[4:])
                 else: # for older trials before rig was labeled
-                    rec_label = recording.split('_')[3:]
+                    rec_label = '_'.join(recording_name.split('_')[3:])
                 recording_path = os.path.join(data_path, rec_label)
                 mp4 = True
-                find_files(recording_path, recording_name, fm, this_unit, stim_type, mp4)
+                file_dict = find_files(recording_path, recording_name, fm, this_unit, stim_type, mp4)
+                print(file_dict)
                 run_ephys_analysis(file_dict)
             except Exception as e:
                 logf.log([ind, e],PRINT=False)
 
 if __name__ == '__main__':
     args = get_args()
-    main(args.csv_path, args.log_path, args.clear_dlc)
+    main(args.csv_filepath, args.log_dir, args.clear_dlc)
