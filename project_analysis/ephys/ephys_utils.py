@@ -10,20 +10,16 @@ import numpy as np
 import os
 from util.paths import find
 
-def load_ephys(datapath, dates):
+def load_ephys(csv_filepath):
+    # open the csv file of metadata and pull out all of the desired data paths
+    csv = pd.read_csv(csv_filepath)
+    for_data_pool = csv.loc[csv['load_for_data_pool'] == 'TRUE']
+    sessions = []
+    for ind, row in for_data_pool.iterrows():
+        sessions.append(row['Data location (i.e. V2/Kraken, drive)'])
     # get the .h5 files from each day
     # this will be a list of lists, where each list inside of the main list has all the data of a single session
-    sessions = [find('*_ephys_props.h5',os.path.join(datapath, day)) for day in dates]
-    # break apart sessions that include more than one subject, and reformat them into seperate lists in the main list
-    for session in sessions:
-        subject = os.path.split(session[0])[1].split('_')[1]
-        new_session = []
-        for recording in session:
-            if subject not in recording:
-                new_session.append(recording)
-                session.remove(recording)
-        if new_session != []:
-            sessions.append(new_session)
+    sessions = [find('*_ephys_props.h5',session) for session in goodsessions]
     # read the data in and append them into one shared df
     all_data = pd.DataFrame([])
     for session in sessions:
@@ -46,7 +42,7 @@ def load_ephys(datapath, dates):
         all_data = pd.concat([all_data,session_data],axis=0)
     return all_data
 
- read in many .npy ephys files ending in '*ephys_props.npy' by searching one or more date subdirectories
+# read in many .npy ephys files ending in '*ephys_props.npy' by searching one or more date subdirectories
 # format the data into an xarray dataset of all units, with metadata stored as attributes
 # then, user can search entire dataset including any number of mice, dates, and units, and make comparisons
 # using xr.filter_by_attrs function
