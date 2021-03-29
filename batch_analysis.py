@@ -41,11 +41,14 @@ def main(csv_filepath, log_dir, clear_dlc):
     logf = log(os.path.join(log_dir,'batch_log.csv'),name=['recording'])
 
     # read in the csv batch file
+    print('opening csv file')
     csv = pd.read_csv(csv_filepath)
 
     # filter out rows of the csv that are marked to be analyzed with preprocessing and ephys analysis (these should be seperate columns in the df)
-    run_preproc = csv.loc[csv['run_preproc'] == True]
-    run_ephys = csv.loc[csv['run_ephys'] == True]
+    run_preproc = csv.loc[csv['run_preproc'] == 'TRUE']
+    run_ephys = csv.loc[csv['run_ephys'] == 'TRUE']
+
+    # print(run_preproc, run_ephys)
 
     # delete existing DLC .h5 files so that there will be only one in the directory
     # needed in case a different DLC network is being used

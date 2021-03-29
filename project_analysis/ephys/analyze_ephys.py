@@ -298,15 +298,16 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
-    # set up interpolators for eye and world videos
-    eyeInterp = interp1d(eyeT,eye_vid,axis=0)
-    worldInterp = interp1d(worldT,world_vid,axis=0)
 
     # make movie and sound
     print('making video figure')
     this_unit = file_dict['cell']
 
     if file_dict['mp4']:
+    # set up interpolators for eye and world videos
+        eyeInterp = interp1d(eyeT,eye_vid,axis=0)
+        worldInterp = interp1d(worldT,world_vid,axis=0)
+        
         if file_dict['imu'] is not None:
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
         elif file_dict['speed'] is not None:
@@ -538,14 +539,24 @@ def run_ephys_analysis(file_dict):
         plt.legend()
         detail_pdf.savefig()
         plt.close()
+        
+        eyeInterp=[];
+        worldInterp=[];
 
     # create interpolator for movie data so we can evaluate at same timebins are firing rate
     #img_norm[img_norm<-2] = -2
-    movInterp = interp1d(worldT,img_norm,axis=0, kind = 'nearest')
+    sz = np.shape(img_norm)
+    downsamp = 0.5;
+    img_norm_sm = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)))
+ 
+    for f in range(sz[0]):
+        img_norm_sm[f,:,:] = cv2.resize(img_norm[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
+   
+    movInterp = interp1d(worldT,img_norm_sm,axis=0, kind = 'nearest')
 
     print('getting spike-triggered average for lag=0.125')
     # calculate spike-triggered average
-    staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
+    staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm_sm, goodcells, worldT, movInterp)
     detail_pdf.savefig()
     plt.close()
     
@@ -557,7 +568,7 @@ def run_ephys_analysis(file_dict):
 
     print('getting spike-triggered variance')
     # calculate spike-triggered variance
-    st_var, fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm)
+    st_var, fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm_sm)
     detail_pdf.savefig()
     plt.close()
 
@@ -691,12 +702,32 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
+    eyePhi = eye_params.sel(ellipse_params = 'phi').copy()
+    phiNorm = (eyePhi - np.mean(eyePhi))/np.std(eyePhi)
+    
     print('plotting spike rate vs theta')
     # plot rate vs theta
     th_range = np.arange(-2,2.5,0.5)
     spike_rate_vs_theta_cent, spike_rate_vs_theta_tuning, spike_rate_vs_theta_err, spike_rate_vs_theta_fig = plot_spike_rate_vs_var(thetaNorm, th_range, goodcells, eyeT, t, 'eye theta')
     detail_pdf.savefig()
     plt.close()
+
+    phi_range = np.arange(-2,2.5,0.5)
+    spike_rate_vs_phi_cent, spike_rate_vs_phi_tuning, spike_rate_vs_phi_err, spike_rate_vs_phi_fig = plot_spike_rate_vs_var(phiNorm, phi_range, goodcells, eyeT, t, 'eye phi')
+    detail_pdf.savefig()
+    plt.close()
+    
+    if free_move is True:
+        gx_range = np.arange(-5,5,1)
+        spike_rate_vs_gx_cent, spike_rate_vs_gx_tuning, spike_rate_vs_gx_err, spike_rate_vs_gx_fig = plot_spike_rate_vs_var((gx-np.mean(gx))*7.5, gx_range, goodcells, accT, t, 'gyro x')
+        detail_pdf.savefig()
+        plt.close()
+        
+    if free_move is True:
+        gy_range = np.arange(-5,5,1)
+        spike_rate_vs_gy_cent, spike_rate_vs_gy_tuning, spike_rate_vs_gy_err, spike_rate_vs_gy_fig = plot_spike_rate_vs_var((gy-np.mean(gy))*7.5, gy_range, goodcells, accT, t, 'gyro y')
+        detail_pdf.savefig()
+        plt.close()
 
     if free_move is True:
         gz_range = np.arange(-10,10,1)
