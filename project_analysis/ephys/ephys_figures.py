@@ -365,6 +365,7 @@ def plot_saccade_locked(goodcells, upsacc,  downsacc, trange):
         plt.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[i,:],'r')
         maxval = np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))
         plt.vlines(0,0,np.max(upsacc_avg[i,:]*0.2),'r')
+        plt.xlim([-0.5,0.5])
         plt.ylim([0,maxval*1.2])
         plt.ylabel('sp/sec')
     plt.tight_layout()

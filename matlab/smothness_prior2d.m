@@ -1,6 +1,6 @@
 %%% create a matrix that calculates rms smoothness
 
-nk = [10 15];
+nk = [10 10];
 nks = prod(nk);
 consecutive = ones(nks,1);
 consecutive(nk(1):nk(1):end) = 0;
@@ -14,6 +14,10 @@ figure
 imagesc(Dxx); title('dxx')
 figure
 imagesc(Dxy); title('dxy')
+
+figure
+imagesc(Dx)
+colormap jet
 
 data = rand(nk);
 rmsx =  sum(sum((data(1:end-1,:) - data(2:end,:)).^2))  
