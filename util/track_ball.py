@@ -2,10 +2,7 @@
 track_ball.py
 
 tracking mouse movement on ball or running wheel
-
-Feb. 15, 2021
 """
-
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -13,8 +10,15 @@ from datetime import datetime
 
 from util.time import open_time1
 
-# track the movement of the ball for headfixed recordings
 def ball_tracking(csv_path, config):
+    """
+    track the movement of the ball for headfixed recordings
+    INPUTS:
+        csv_path -- optical mouse csv data file
+        config -- a dictionary of options
+    OUTPUTS:
+        xr_out -- xarray of optical mouse tracking data
+    """
     # get coordinates on screen where optical mouse is centered out of preprocessing config file
     screen_center = config['optical_mouse_screen_center']
     centX = screen_center['x']; centY = screen_center['y']

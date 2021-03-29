@@ -7,6 +7,7 @@ Dec. 02, 2020
 """
 # package imports
 import argparse, json, sys, os, subprocess, shutil
+os.environ["DLClight"] = "True"
 import cv2
 import pandas as pd
 import deeplabcut

@@ -2,8 +2,6 @@
 unit_summary.py
 
 utilities for using ephys analysis outputs
-
-Feb 23, 2021
 """
 import pandas as pd
 import numpy as np
@@ -16,12 +14,12 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
 
 def make_unit_summary(df, savepath):
-    fmA = 'fm1'; fmB = 'fm2'
+    fmA = 'fm1'
     pdf = PdfPages(os.path.join(savepath, 'unit_summary.pdf'))
     samprate = 30000
     for index, row in tqdm(df.iterrows()):
         unitfig = plt.figure(constrained_layout=True, figsize=(15,20))
-        spec = gridspec.GridSpec(ncols=4, nrows=10, figure=unitfig)
+        spec = gridspec.GridSpec(ncols=3, nrows=10, figure=unitfig)
 
         # waveform
         unitfig_wv = unitfig.add_subplot(spec[0, 0])
@@ -64,29 +62,12 @@ def make_unit_summary(df, savepath):
         unitfig_fm1sta.imshow(fm1sta,vmin=-fm1staRange,vmax=fm1staRange,cmap='jet')
         unitfig_fm1sta.axis('off')
 
-        # fm2 sta
-        unitfig_fm2sta = unitfig.add_subplot(spec[0, 3])
-        fm2sta = np.reshape(row[fmB+'_spike_triggered_average'],tuple(row[fmB+'_sta_shape'])) #change to fm1!
-        fm2staRange = np.max(np.abs(fm2sta))*1.2
-        if fm2staRange<0.25:
-            fm2staRange=0.25
-        unitfig_fm2sta.set_title('FM2 spike triggered average')
-        unitfig_fm2sta.imshow(fm2sta,vmin=-fm2staRange,vmax=fm2staRange,cmap='jet')
-        unitfig_fm2sta.axis('off')
-
         # fm1 stv
         unitfig_fm1stv = unitfig.add_subplot(spec[1, 2])
         wnstv = np.reshape(row[fmA+'_spike_triggered_variance'],tuple(row[fmA+'_sta_shape']))
         unitfig_fm1stv.imshow(wnstv,vmin=-1,vmax=1)
         unitfig_fm1stv.set_title('FM1 spike triggered variance')
         unitfig_fm1stv.axis('off')
-
-        # fm2 stv
-        unitfig_fm2stv = unitfig.add_subplot(spec[1, 3])
-        wnstv = np.reshape(row[fmB+'_spike_triggered_variance'],tuple(row[fmB+'_sta_shape']))
-        unitfig_fm2stv.imshow(wnstv,vmin=-1,vmax=1)
-        unitfig_fm2stv.set_title('FM2 spike triggered variance')
-        unitfig_fm2stv.axis('off')
 
         # orientation tuning curve
         unitfig_ori_tuning = unitfig.add_subplot(spec[6, 0:2])
@@ -106,14 +87,6 @@ def make_unit_summary(df, savepath):
         unitfig_fm1saccavg.set_title('FM1 upsacc/downsacc')
         unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
         unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-
-        # fm2 eye movements
-        unitfig_fm2saccavg = unitfig.add_subplot(spec[2, 3])
-        trange = row[fmB+'_trange']
-        upsacc_avg = row[fmB+'_upsacc_avg']; downsacc_avg = row[fmB+'_downsacc_avg']
-        unitfig_fm2saccavg.set_title('FM2 upsacc/downsacc')
-        unitfig_fm2saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-        unitfig_fm2saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
 
         # wn eye movements
         unitfig_wnsaccavg = unitfig.add_subplot(spec[2, 1])
@@ -142,15 +115,6 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srpupilrad.set_title('FM1 spike rate vs pupil radius')
         unitfig_fm1srpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
 
-        # fm2 spike rate vs pupil radius
-        unitfig_fm2srpupilrad = unitfig.add_subplot(spec[3, 3])
-        var_cent = row[fmB+'_spike_rate_vs_pupil_radius_cent']
-        tuning = row[fmB+'_spike_rate_vs_pupil_radius_tuning']
-        tuning_err = row[fmB+'_spike_rate_vs_pupil_radius_err']
-        unitfig_fm2srpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-        unitfig_fm2srpupilrad.set_title('FM2 spike rate vs pupil radius')
-        unitfig_fm2srpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
-
         # fm1 spike rate vs theta
         unitfig_fm1srth = unitfig.add_subplot(spec[4, 2])
         var_cent = row[fmA+'_spike_rate_vs_theta_cent']
@@ -158,15 +122,6 @@ def make_unit_summary(df, savepath):
         tuning_err = row[fmA+'_spike_rate_vs_theta_err']
         unitfig_fm1srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srth.set_title('FM1 spike rate vs theta')
-        unitfig_fm1srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
-
-        # fm2 spike rate vs theta
-        unitfig_fm1srth = unitfig.add_subplot(spec[4, 3])
-        var_cent = row[fmB+'_spike_rate_vs_theta_cent']
-        tuning = row[fmB+'_spike_rate_vs_theta_tuning']
-        tuning_err = row[fmB+'_spike_rate_vs_theta_err']
-        unitfig_fm1srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-        unitfig_fm1srth.set_title('FM2 spike rate vs theta')
         unitfig_fm1srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
 
         # wn spike rate vs theta
@@ -195,15 +150,6 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srth.set_title('FM1 spike rate vs gyro_z')
         unitfig_fm1srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
-
-        # fm2 spike rate vs gz
-        unitfig_fm2srth = unitfig.add_subplot(spec[5, 3])
-        var_cent = row[fmB+'_spike_rate_vs_gz_cent']
-        tuning = row[fmB+'_spike_rate_vs_gz_tuning']
-        tuning_err = row[fmB+'_spike_rate_vs_gz_err']
-        unitfig_fm2srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-        unitfig_fm2srth.set_title('FM2 spike rate vs gyro_z')
-        unitfig_fm2srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
 
         ### fm1
         # gaze shift dEye
@@ -257,59 +203,6 @@ def make_unit_summary(df, savepath):
         unitfig_fm1upsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
         unitfig_fm1upsacc_compdHead.set_ylim([0,maxval*1.2])
         unitfig_fm1upsacc_compdHead.set_ylabel('sp/sec')
-
-        ### fm2
-        # gaze shift dEye
-        unitfig_fm2upsacc_gazedEye = unitfig.add_subplot(spec[6, 3])
-        upsacc_avg = row[fmB+'_upsacc_avg_gaze_shift_dEye']
-        downsacc_avg = row[fmB+'_downsacc_avg_gaze_shift_dEye']
-        trange = row[fmB+'_trange']
-        maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-        unitfig_fm2upsacc_gazedEye.set_title('FM2 gaze shift dEye')
-        unitfig_fm2upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-        unitfig_fm2upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-        unitfig_fm2upsacc_gazedEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
-        unitfig_fm2upsacc_gazedEye.set_ylim([0,maxval*1.2])
-        unitfig_fm2upsacc_gazedEye.set_ylabel('sp/sec')
-
-        # comp dEye
-        unitfig_fm2upsacc_compdEye = unitfig.add_subplot(spec[7, 3])
-        upsacc_avg = row[fmB+'_upsacc_avg_comp_dEye']
-        downsacc_avg = row[fmB+'_downsacc_avg_comp_dEye']
-        trange = row[fmB+'_trange']
-        maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-        unitfig_fm2upsacc_compdEye.set_title('FM2 comp dEye')
-        unitfig_fm2upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-        unitfig_fm2upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-        unitfig_fm2upsacc_compdEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
-        unitfig_fm2upsacc_compdEye.set_ylim([0,maxval*1.2])
-        unitfig_fm2upsacc_compdEye.set_ylabel('sp/sec')
-
-        # gaze shift dEye
-        unitfig_fm2upsacc_gazedHead = unitfig.add_subplot(spec[8, 3])
-        upsacc_avg = row[fmB+'_upsacc_avg_gaze_shift_dHead']
-        downsacc_avg = row[fmB+'_downsacc_avg_gaze_shift_dHead']
-        trange = row[fmB+'_trange']
-        maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-        unitfig_fm2upsacc_gazedHead.set_title('FM2 gaze shift dHead')
-        unitfig_fm2upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-        unitfig_fm2upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-        unitfig_fm2upsacc_gazedHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
-        unitfig_fm2upsacc_gazedHead.set_ylim([0,maxval*1.2])
-        unitfig_fm2upsacc_gazedHead.set_ylabel('sp/sec')
-
-        # gaze shift dHead
-        unitfig_fm2upsacc_compdHead = unitfig.add_subplot(spec[9, 3])
-        upsacc_avg = row[fmB+'_upsacc_avg_comp_dHead']
-        downsacc_avg = row[fmB+'_downsacc_avg_comp_dHead']
-        trange = row[fmB+'_trange']
-        maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-        unitfig_fm2upsacc_compdHead.set_title('FM2 comp dHead')
-        unitfig_fm2upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-        unitfig_fm2upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-        unitfig_fm2upsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
-        unitfig_fm2upsacc_compdHead.set_ylim([0,maxval*1.2])
-        unitfig_fm2upsacc_compdHead.set_ylabel('sp/sec')
 
         # psth gratings
         unitfig_grat_psth = unitfig.add_subplot(spec[2, 0])
