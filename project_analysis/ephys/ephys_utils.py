@@ -13,10 +13,10 @@ from util.paths import find
 def load_ephys(csv_filepath):
     # open the csv file of metadata and pull out all of the desired data paths
     csv = pd.read_csv(csv_filepath)
-    for_data_pool = csv.loc[csv['load_for_data_pool'] == 'TRUE']
-    sessions = []
+    for_data_pool = csv.loc[csv['load_for_data_pool'] == True]
+    goodsessions = []
     for ind, row in for_data_pool.iterrows():
-        sessions.append(row['Data location (i.e. V2/Kraken, drive)'])
+        goodsessions.append(row['Data location (i.e. V2/Kraken, drive)'])
     # get the .h5 files from each day
     # this will be a list of lists, where each list inside of the main list has all the data of a single session
     sessions = [find('*_ephys_props.h5',session) for session in goodsessions]

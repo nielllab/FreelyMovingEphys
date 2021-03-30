@@ -127,7 +127,7 @@ def main(csv_filepath, log_dir, clear_dlc):
                 else: # for older trials before rig was labeled
                     rec_label = '_'.join(recording_name.split('_')[3:])
                 recording_path = os.path.join(data_path, rec_label)
-                mp4 = True
+                mp4 = False
                 file_dict = find_files(recording_path, recording_name, fm, this_unit, stim_type, mp4)
                 print(file_dict)
                 run_ephys_analysis(file_dict)
