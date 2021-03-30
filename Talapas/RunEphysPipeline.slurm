@@ -14,7 +14,7 @@
 
 ##turn on e-mail notification
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=elliottabe@gmail.com
+#SBATCH --mail-user=nlab@uoregon.com
 
 module load tensorflow #anaconda3/2019.07 cuda/10.1
 conda deactivate
@@ -29,13 +29,13 @@ do
 done
 
 full_talapas_path="/gpfs/projects/niell/nlab/freely_moving_ephys/ephys_recordings/$date_ani/"
-full_lab_path="/volume1/nlab-nas/Phil/freely_moving_ephys/$date_ani/"
+full_lab_path="/volume1/nlab-nas/freely_moving_ephys/ephys_recordings/$date_ani/"
 
 mkdir -p $full_talapas_path
-rsync -ahSP nlabadmin@184.171.85.98:$full_lab_path $full_talapas_path --no-compress
+rsync -ahSP goeppert:$full_lab_path $full_talapas_path --no-compress
 
 python -u /gpfs/projects/niell/nlab/FreelyMovingEphys/manual_preprocessing_talapas.py --config_path=/gpfs/projects/niell/nlab/FreelyMovingEphys/Talapas/preprocessing_config.json --data_path=$full_talapas_path
 
-# rm -rf $full_talapas_path
-rsync -ahSP $full_talapas_path nlabadmin@184.171.85.98:$full_lab_path --no-compress
+rsync -ahSP $full_talapas_path goeppert:$full_lab_path --no-compress
 
+# rm -rf $full_talapas_path

@@ -23,6 +23,7 @@ from util.deinterlace import deinterlace_data
 from util.track_world import track_LED
 from util.config import set_preprocessing_config_defaults
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
+from util.paths import find
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -62,6 +63,15 @@ def main(json_config_path):
     end_undistort = timeit.default_timer()
     # get dlc tracking
     if steps['dlc'] is True:
+        # delete existing DLC .h5 files so that there will be only one in the directory
+        # needed in case a different DLC network is being used
+        h5_list = find('*DLC_resnet50*.h5',data_path)
+        pickle_list = find('*DLC_resnet50*.pickle',data_path)
+        file_list = h5_list + pickle_list
+        for item in file_list:
+            os.remove(item)
+            print('Deleted:',item)
+
         run_DLC_Analysis(config)
     end_dlc = timeit.default_timer()
     # extract parameters from dlc

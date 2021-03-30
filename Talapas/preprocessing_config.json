@@ -1,9 +1,9 @@
 {
     "data_path": "/gpfs/projects/niell/nlab/freely_moving_ephys/ephys_recordings/030921/EE8P7RT",
     "steps_to_run":{
-        "deinter": false,
+        "deinter": true,
         "get_cam_calibration_params": false,
-        "undistort_recording": false,
+        "undistort_recording": true,
         "dlc": true,
         "params": true,
         "addtl_params": false
