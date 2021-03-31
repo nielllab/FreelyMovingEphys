@@ -378,17 +378,9 @@ def run_ephys_analysis(file_dict):
     for i, ind in enumerate(goodcells.index):
         for c,cont in enumerate(crange):
             resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
-    plt.plot(crange[:-1],np.transpose(resp[:,:-1]))
-    #plt.ylim(0,10)
-    plt.xlabel('contrast')
-    plt.ylabel('sp/sec')
-    plt.title('mean firing rate in timebins correponding to contrast ranges')
-    detail_pdf.savefig()
-    plt.close()
-
-    print('plotting individual contrast response functions')
     # plot individual contrast response functions in subplots
-    ind_contrast_funcs_fig = plot_ind_contrast_funcs(n_units, goodcells, crange, resp)
+    crange = np.arange(0,1.2,0.1)
+    crf_cent, crf_tuning, crf_err, crf_fig = plot_spike_rate_vs_var(resp, crange, goodcells, eyeT, t, 'contrast')
     detail_pdf.savefig()
     plt.close()
 
@@ -913,6 +905,12 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_gz_cent',
                                         'spike_rate_vs_gz_tuning',
                                         'spike_rate_vs_gz_err',
+                                        'spike_rate_vs_gx_cent',
+                                        'spike_rate_vs_gx_tuning',
+                                        'spike_rate_vs_gx_err',
+                                        'spike_rate_vs_gy_cent',
+                                        'spike_rate_vs_gy_tuning',
+                                        'spike_rate_vs_gy_err',
                                         'trange']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     resp[unit_num],
@@ -938,6 +936,12 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_gz_cent,
                                     spike_rate_vs_gz_tuning[unit_num],
                                     spike_rate_vs_gz_err[unit_num],
+                                    spike_rate_vs_gx_cent,
+                                    spike_rate_vs_gx_tuning[unit_num],
+                                    spike_rate_vs_gx_err[unit_num],
+                                    spike_rate_vs_gy_cent,
+                                    spike_rate_vs_gy_tuning[unit_num],
+                                    spike_rate_vs_gy_err[unit_num],
                                     trange]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]

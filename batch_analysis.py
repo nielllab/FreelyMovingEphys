@@ -48,13 +48,11 @@ def main(csv_filepath, log_dir, clear_dlc):
     run_preproc = csv.loc[csv['run_preproc'] == 'TRUE']
     run_ephys = csv.loc[csv['run_ephys'] == 'TRUE']
 
-    # print(run_preproc, run_ephys)
-
     # delete existing DLC .h5 files so that there will be only one in the directory
     # needed in case a different DLC network is being used
     if clear_dlc is True:
         for ind, row in run_preproc.iterrows():
-            del_path = row['Data location (i.e. V2/Kraken, drive)']
+            del_path = row['data_location']
             h5_list = find('*DLC_resnet50*.h5',del_path)
             pickle_list = find('*DLC_resnet50*.pickle',del_path)
             file_list = h5_list + pickle_list
@@ -65,7 +63,7 @@ def main(csv_filepath, log_dir, clear_dlc):
     for ind, row in run_preproc.iterrows():
         try:
             # get the provided data path
-            data_path = row['Data location (i.e. V2/Kraken, drive)']
+            data_path = row['data_location']
             # create a config file w/ data path from csv
             config = {'data_path': data_path}
             # set all of the default config options in the github default json
@@ -101,11 +99,11 @@ def main(csv_filepath, log_dir, clear_dlc):
 
     # iterate through ephys analysis list
     for ind, row in run_ephys.iterrows():
-        data_path = row['Data location (i.e. V2/Kraken, drive)']
-        recording_names = row['rec_types'].split(',')
+        data_path = row['data_location']
+        dirpath, dirnames, filenames = os.walk('.'):
+        recording_names = sorted([i for i in dirnames if 'hf' in i or 'fm' in i])
         for recording_name in recording_names:
             try:
-                recording_name = recording_name.replace(' ','').lstrip(' ').rstrip(' ')
                 print('starting '+recording_name)
                 if 'fm' in recording_name:
                     fm = True

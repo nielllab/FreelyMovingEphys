@@ -14,10 +14,16 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
 
 def make_unit_summary(df, savepath):
-    fmA = 'fm1'
     pdf = PdfPages(os.path.join(savepath, 'unit_summary.pdf'))
     samprate = 30000
     for index, row in tqdm(df.iterrows()):
+
+        # set which fm recording to use
+        if not row['best_fm_rec']:
+            fmA = 'fm1'
+        else:
+            fmA = row['best_fm_rec']
+
         unitfig = plt.figure(constrained_layout=True, figsize=(15,20))
         spec = gridspec.GridSpec(ncols=3, nrows=10, figure=unitfig)
 
@@ -86,7 +92,7 @@ def make_unit_summary(df, savepath):
 
         try:
             # orientation tuning curve
-            unitfig_ori_tuning = unitfig.add_subplot(spec[6, 0:2])
+            unitfig_ori_tuning = unitfig.add_subplot(spec[3, 0])
             unitfig_ori_tuning.set_title('GRAT orientation tuning')
             ori_tuning = row['hf3_gratings_ori_tuning']
             drift_spont = row['hf3_gratings_drift_spont']
@@ -106,6 +112,8 @@ def make_unit_summary(df, savepath):
             unitfig_fm1saccavg.set_title('FM1 upsacc/downsacc')
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
+            maxval = np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))
+            unitfig_fm1saccavg.ylim([0,maxval*1.2])
         except:
             pass
 
@@ -118,6 +126,8 @@ def make_unit_summary(df, savepath):
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_wnsaccavg.legend(['upsacc_avg','downsacc_avg'])
+            maxval = np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))
+            unitfig_wnsaccavg.ylim([0,maxval*1.2])
         except:
             pass
 
@@ -176,7 +186,7 @@ def make_unit_summary(df, savepath):
             tuning = row['hf1_wn_spike_rate_vs_gz_tuning']
             tuning_err = row['hf1_wn_spike_rate_vs_gz_err']
             unitfig_wnsrth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_wnsrth.set_title('WN spike rate vs gyro_z')
+            unitfig_wnsrth.set_title('WN spike rate vs speed')
             unitfig_wnsrth.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -266,7 +276,8 @@ def make_unit_summary(df, savepath):
             psth = row['hf3_gratings_grating_psth']
             unitfig_grat_psth.plot(bins[0:-1]+ dt/2,psth)
             unitfig_grat_psth.set_title('gratings psth')
-            unitfig_grat_psth.set_xlabel('time'); unitfig_grat_psth.set_ylabel('sp/sec') 
+            unitfig_grat_psth.set_xlabel('time'); unitfig_grat_psth.set_ylabel('sp/sec')
+            unitfig_grat_psth.set_ylim([0,np.nanmax(psth)*1.2)])
         except:
             pass
 
