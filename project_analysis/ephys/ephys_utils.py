@@ -2,8 +2,6 @@
 ephys_utils.py
 
 utilities for using ephys analysis outputs
-
-Feb 23, 2021
 """
 import pandas as pd
 import numpy as np
@@ -15,8 +13,11 @@ def load_ephys(csv_filepath):
     csv = pd.read_csv(csv_filepath)
     for_data_pool = csv.loc[csv['load_for_data_pool'] == True]
     goodsessions = []
+    # get all of the best freely moving recordings of a session into a dictionary
+    goodfmrecs = dict(zip(list(for_data_pool['session']),list(for_data_pool['best_fm_rec'])))
+    # get all of the session data locations into a list
     for ind, row in for_data_pool.iterrows():
-        goodsessions.append(row['Data location (i.e. V2/Kraken, drive)'])
+        goodsessions.append(row['data_location'])
     # get the .h5 files from each day
     # this will be a list of lists, where each list inside of the main list has all the data of a single session
     sessions = [find('*_ephys_props.h5',session) for session in goodsessions]
@@ -30,6 +31,8 @@ def load_ephys(csv_filepath):
             rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
             # rename spike time columns so that data is retained for each of the seperate trials
             rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
+            # add a column for which fm recording should be prefered
+            rec_data['best_fm_rec'] = goodfmrecs[rec_data['session']]
             # get column names
             column_names = list(session_data.columns.values) + list(rec_data.columns.values)
             # new columns for same unit within a session

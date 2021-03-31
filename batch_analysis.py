@@ -100,7 +100,7 @@ def main(csv_filepath, log_dir, clear_dlc):
     # iterate through ephys analysis list
     for ind, row in run_ephys.iterrows():
         data_path = row['data_location']
-        dirpath, dirnames, filenames = os.walk('.'):
+        dirpath, dirnames, filenames = os.walk(data_path)
         recording_names = sorted([i for i in dirnames if 'hf' in i or 'fm' in i])
         for recording_name in recording_names:
             try:
