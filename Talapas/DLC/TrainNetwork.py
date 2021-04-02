@@ -10,17 +10,17 @@ def pars_args():
     parser.add_argument('--add_videos', type=bool, default=False)
     parser.add_argument('--retrain', type=bool, default=False)
     parser.add_argument('--config_path', type=str, default='~/config.yaml')
-    parser.add_argument('--videofile_path', type=str, default='~/videos')
+    parser.add_argument('--data_path', type=str, default='~/videos')
     args = parser.parse_args()
     return args
 
 if __name__ == '__main__':
     args = pars_args()
-    path_config_file = os.path.expanduser(args.path_config_file)
-    videofile_path = os.path.expanduser(args.videofile_path)
+    path_config_file = os.path.expanduser(args.config_path)
+    videofile_path = os.path.expanduser(args.data_path)
 
     
-    deeplabcut.create_training_dataset(path_config_file, augmenter_type='imgaug')
+    deeplabcut.create_training_dataset(path_config_file, augmenter_type='imgaug',windows2linux=True)
     # Set up pose_config.yaml
     cfg = deeplabcut.auxiliaryfunctions.read_config(path_config_file)
     # Add imageaug to pose_config.yaml 
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     cfg_dlc['scale_jitter_lo']= 0.5
     cfg_dlc['scale_jitter_up']=1.5
     cfg_dlc['augmentationprobability']=.5
-    cfg_dlc['batch_size']=4 #pick that as large as your GPU can handle it
+    cfg_dlc['batch_size']=1 #pick that as large as your GPU can handle it
     cfg_dlc['elastic_transform']=True
     cfg_dlc['rotation']=180
     cfg_dlc['covering']=True
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     else:
         cfg_dlc['dataset_type']='imgaug'
         
-    cfg_dlc['multi_step']=[[1e-4, 7500], [5.0e-5, 12000], [1e-5, 50000]]
+    # cfg_dlc['multi_step']=[[1e-4, 7500], [5.0e-5, 12000], [1e-5, 50000]]
     deeplabcut.auxiliaryfunctions.write_plainconfig(trainposeconfigfile,cfg_dlc)
     # Train and Evaluate Network
     deeplabcut.train_network(path_config_file, allow_growth=True, displayiters=500, maxiters=100000, saveiters=10000)

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=DLC      ### Job Name
 #SBATCH --partition=longgpu       ### Quality of Service (like a queue in PBS)
-#SBATCH --time=1-12:00:00       ### Wall clock time limit in Days-HH:MM:SS
+#SBATCH --time=3-00:00:00       ### Wall clock time limit in Days-HH:MM:SS
 #SBATCH --nodes=1             ### Node count required for the job
 #SBATCH --ntasks-per-node=1   ### Nuber of tasks to be launched per Node
 #SBATCH --gres=gpu:1          ### General REServation of gpu:number of gpus
@@ -14,7 +14,7 @@
 
 ##turn on e-mail notification
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=nlab@uoregon.com
+#SBATCH --mail-user=mydogblue.86@gmail.com
 
 module load tensorflow 
 conda deactivate
@@ -25,18 +25,18 @@ while getopts u:c: flag
 do
     case "${flag}" in
         u) user=${OPTARG};;
-        c) config=${OPTARG};;
+        c) DLCProject=${OPTARG};;
     esac
 done
 
-full_talapas_path="/gpfs/projects/niell/nlab/DLCProjects/$user/$config/"
-full_lab_path="/volume1/nlab-nas/DLCProjects/$user/$config/"
+full_talapas_path="/gpfs/projects/niell/nlab/DLCProjects/$DLCProject/"
+# full_lab_path="/volume1/nlab-nas/DLCProjects/$DLCProject/"
 
-mkdir -p $full_talapas_path
-rsync -ahSP goeppert:$full_lab_path $full_talapas_path --no-compress
+# mkdir -p $full_talapas_path
+# rsync -ahSP goeppert:$full_lab_path $full_talapas_path --no-compress
 
 python -u /gpfs/projects/niell/nlab/FreelyMovingEphys/Talapas/DLC/TrainNetwork.py --config_path="$full_talapas_path/config.yaml" --data_path="$full_talapas_path/videos"
 
-rsync -ahSP $full_talapas_path goeppert:$full_lab_path --no-compress
+# rsync -ahSP $full_talapas_path goeppert:$full_lab_path --no-compress
 
 # rm -rf $full_talapas_path
