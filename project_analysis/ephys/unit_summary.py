@@ -24,8 +24,8 @@ def make_unit_summary(df, savepath):
         else:
             fmA = row['best_fm_rec']
 
-        unitfig = plt.figure(constrained_layout=True, figsize=(15,20))
-        spec = gridspec.GridSpec(ncols=3, nrows=10, figure=unitfig)
+        unitfig = plt.figure(constrained_layout=True, figsize=(12,18))
+        spec = gridspec.GridSpec(ncols=3, nrows=8, figure=unitfig)
 
         # waveform
         unitfig_wv = unitfig.add_subplot(spec[0, 0])
@@ -34,13 +34,14 @@ def make_unit_summary(df, savepath):
         unitfig_wv.set_title(str(row['session'])+'_unit'+str(index)+' '+row['KSLabel']+' cont='+str(row['ContamPct']))
 
         try:
-            # wn contrast response
-            unitfig_crf = unitfig.add_subplot(spec[1, 0])
-            crange = row['hf1_wn_c_range']
-            resp = row['hf1_wn_contrast_response']
-            unitfig_crf.plot(crange[2:-1],resp[2:-1])
-            unitfig_crf.set_xlabel('contrast a.u.'); unitfig_crf.set_ylabel('sp/sec'); unitfig_crf.set_ylim([0,np.nanmax(resp[2:-1])])
+            unitfig_crf = unitfig.add_subplot(spec[4, 1])
+            var_cent = row['hf1_wn_crf_cent']
+            tuning = row['hf1_wn_crf_tuning']
+            tuning_err = row['hf1_wn_crf_err']
+            unitfig_crf.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_crf.set_title('WN contrast response')
+            unitfig_crf.set_xlabel('contrast a.u.'); unitfig_crf.set_ylabel('sp/sec')
+            unitfig_crf.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
 
@@ -181,32 +182,56 @@ def make_unit_summary(df, savepath):
 
         try:
             # wn spike rate vs gz
-            unitfig_wnsrth = unitfig.add_subplot(spec[5, 1])
+            unitfig_wnsrvgz = unitfig.add_subplot(spec[4, 0])
             var_cent = row['hf1_wn_spike_rate_vs_gz_cent']
             tuning = row['hf1_wn_spike_rate_vs_gz_tuning']
             tuning_err = row['hf1_wn_spike_rate_vs_gz_err']
-            unitfig_wnsrth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_wnsrth.set_title('WN spike rate vs speed')
-            unitfig_wnsrth.set_ylim(0,np.nanmax(tuning[:]*1.2))
+            unitfig_wnsrvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
+            unitfig_wnsrvgz.set_title('WN spike rate vs running speed')
+            unitfig_wnsrvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
 
         try:
             # fm1 spike rate vs gz
-            unitfig_fm1srth = unitfig.add_subplot(spec[5, 2])
+            unitfig_fm1srvgz = unitfig.add_subplot(spec[5, 0])
             var_cent = row[fmA+'_spike_rate_vs_gz_cent']
             tuning = row[fmA+'_spike_rate_vs_gz_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_gz_err']
-            unitfig_fm1srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srth.set_title('FM1 spike rate vs gyro_z')
-            unitfig_fm1srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
+            unitfig_fm1srvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
+            unitfig_fm1srvgz.set_title('FM1 spike rate vs gyro_z')
+            unitfig_fm1srvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        except:
+            pass
+
+        try:
+            # fm1 spike rate vs gx
+            unitfig_fm1srvgx = unitfig.add_subplot(spec[5, 1])
+            var_cent = row[fmA+'_spike_rate_vs_gx_cent']
+            tuning = row[fmA+'_spike_rate_vs_gx_tuning']
+            tuning_err = row[fmA+'_spike_rate_vs_gx_err']
+            unitfig_fm1srvgx.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
+            unitfig_fm1srvgx.set_title('FM1 spike rate vs gyro_x')
+            unitfig_fm1srvgx.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        except:
+            pass
+
+        try:
+            # fm1 spike rate vs gy
+            unitfig_fm1srvgy = unitfig.add_subplot(spec[5, 2])
+            var_cent = row[fmA+'_spike_rate_vs_gy_cent']
+            tuning = row[fmA+'_spike_rate_vs_gy_tuning']
+            tuning_err = row[fmA+'_spike_rate_vs_gy_err']
+            unitfig_fm1srvgy.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
+            unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_z')
+            unitfig_fm1srvgy.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
 
             ### fm1
             # gaze shift dEye
         try:
-            unitfig_fm1upsacc_gazedEye = unitfig.add_subplot(spec[6, 2])
+            unitfig_fm1upsacc_gazedEye = unitfig.add_subplot(spec[6, 0])
             upsacc_avg = row[fmA+'_upsacc_avg_gaze_shift_dEye']
             downsacc_avg = row[fmA+'_downsacc_avg_gaze_shift_dEye']
             trange = row[fmA+'_trange']
@@ -222,7 +247,7 @@ def make_unit_summary(df, savepath):
 
         try:
             # comp dEye
-            unitfig_fm1upsacc_compdEye = unitfig.add_subplot(spec[7, 2])
+            unitfig_fm1upsacc_compdEye = unitfig.add_subplot(spec[6, 1])
             upsacc_avg = row[fmA+'_upsacc_avg_comp_dEye']
             downsacc_avg = row[fmA+'_downsacc_avg_comp_dEye']
             trange = row[fmA+'_trange']
@@ -238,7 +263,7 @@ def make_unit_summary(df, savepath):
         
         try:
             # gaze shift dEye
-            unitfig_fm1upsacc_gazedHead = unitfig.add_subplot(spec[8, 2])
+            unitfig_fm1upsacc_gazedHead = unitfig.add_subplot(spec[6, 2])
             upsacc_avg = row[fmA+'_upsacc_avg_gaze_shift_dHead']
             downsacc_avg = row[fmA+'_downsacc_avg_gaze_shift_dHead']
             trange = row[fmA+'_trange']
@@ -254,7 +279,7 @@ def make_unit_summary(df, savepath):
         
         try:
             # gaze shift dHead
-            unitfig_fm1upsacc_compdHead = unitfig.add_subplot(spec[9, 2])
+            unitfig_fm1upsacc_compdHead = unitfig.add_subplot(spec[7, 0])
             upsacc_avg = row[fmA+'_upsacc_avg_comp_dHead']
             downsacc_avg = row[fmA+'_downsacc_avg_comp_dHead']
             trange = row[fmA+'_trange']

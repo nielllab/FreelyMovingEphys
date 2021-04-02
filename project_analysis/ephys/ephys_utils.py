@@ -5,6 +5,7 @@ utilities for using ephys analysis outputs
 """
 import pandas as pd
 import numpy as np
+import json
 import os
 from util.paths import find
 
@@ -33,6 +34,12 @@ def load_ephys(csv_filepath):
             rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
             # add a column for which fm recording should be prefered
             rec_data['best_fm_rec'] = goodfmrecs[rec_data['session']]
+            # add a column for the 'r' and 'm' of ellipse fit
+            ellipse_json_path = find('*'+rec_data['best_fm_rec']+'*fm_eyecameracalc_props.json',session)
+            with open(ellipse_json_path, 'r') as fp:
+                ellipse_fit_params = json.load(fp)
+            rec_data['best_ellipse_fit_m'] = ellipse_fit_params['regression_m']
+            rec_data['best_ellipse_fit_r'] = ellipse_fit_params['regression_r']
             # get column names
             column_names = list(session_data.columns.values) + list(rec_data.columns.values)
             # new columns for same unit within a session
