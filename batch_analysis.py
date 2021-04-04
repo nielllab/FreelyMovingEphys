@@ -7,6 +7,7 @@ runs preprocessing and ephys analysis for each of the trials marked to be analyz
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
+os.environ["DLClight"] = "True"
 import deeplabcut
 import numpy as np
 import xarray as xr
@@ -15,6 +16,7 @@ import tkinter as tk
 from tkinter import filedialog
 from glob import glob
 from multiprocessing import freeze_support
+import traceback
 
 from util.params import extract_params
 from util.dlc import run_DLC_Analysis
@@ -95,12 +97,15 @@ def main(csv_filepath, log_dir, clear_dlc):
             if steps['addtl_params']:
                 track_LED(config)
         except Exception as e:
-            logf.log([ind, e],PRINT=False)
+            logf.log([row['Experiment date']+'_'+row['Animal name'], traceback.format_exc()],PRINT=False)
 
     # iterate through ephys analysis list
     for ind, row in run_ephys.iterrows():
         data_path = row['data_location']
-        dirpath, dirnames, filenames = os.walk(data_path)
+        dirnames = []
+        for root, dirs, files in os.walk(data_path):
+            for rec_dir in dirs:
+                dirnames.append(rec_dir)
         recording_names = sorted([i for i in dirnames if 'hf' in i or 'fm' in i])
         for recording_name in recording_names:
             try:
@@ -120,17 +125,13 @@ def main(csv_filepath, log_dir, clear_dlc):
                     stim_type = 'sparse_noise'
                 elif 'revchecker' in recording_name:
                     stim_type = 'rev_checker'
-                if 'Rig' in recording_name:
-                    rec_label = '_'.join(recording_name.split('_')[4:])
-                else: # for older trials before rig was labeled
-                    rec_label = '_'.join(recording_name.split('_')[3:])
-                recording_path = os.path.join(data_path, rec_label)
+                recording_path = os.path.join(data_path, recording_name)
+                full_recording_name = '_'.join(recording_path.split(os.sep)[-3:-1])+'_control_Rig2_'+recording_path.split(os.sep)[-1]
                 mp4 = False
-                file_dict = find_files(recording_path, recording_name, fm, this_unit, stim_type, mp4)
-                print(file_dict)
+                file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4)
                 run_ephys_analysis(file_dict)
             except Exception as e:
-                logf.log([ind, e],PRINT=False)
+                logf.log([row['Experiment date']+'_'+row['Animal name']+'_'+recording_name, traceback.format_exc()],PRINT=False)
 
 if __name__ == '__main__':
     args = get_args()
