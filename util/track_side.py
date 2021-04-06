@@ -63,6 +63,15 @@ def side_angle(sidepts):
         earx = sidepts.sel(point_loc='LEar_x', frame=frame_num)
         eary = sidepts.sel(point_loc='LEar_y', frame=frame_num)
 
+        camx = sidepts.sel(point_loc='LCam_x', frame=frame_num)
+        camy = sidepts.sel(point_loc='LCam_y', frame=frame_num)
+
+        # when nosex and nosey is obscured, try assuming that it's obscured by the camera and use it's position
+        # ear should track pretty reliably without being blocked by anything
+        if np.isnan(nosex) and np.isnan(nosey):
+            nosex = camx
+            nosey = camy
+
         x_dist = (nosex - earx)
         y_dist = (nosey - eary)
         th = np.arctan2(y_dist, x_dist)
