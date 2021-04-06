@@ -93,9 +93,12 @@ def run_ephys_analysis(file_dict):
     worldT = world_data.timestamps.copy()
 
     # plot worldcam timing
-    worldcam_fig = plot_cam_time(worldT, 'world')
-    diagnostic_pdf.savefig()
-    plt.close()
+    try:
+        worldcam_fig = plot_cam_time(worldT, 'world')
+        diagnostic_pdf.savefig()
+        plt.close()
+    except:
+        pass
 
     # plot mean world image
     plt.figure()
@@ -355,7 +358,6 @@ def run_ephys_analysis(file_dict):
     # interpolate and plot contrast
     newc = interp1d(worldT,contrast)
     contrast_interp = newc(t[0:-1])
-    contrast_interp.shape
     plt.plot(t[0:600],contrast_interp[0:600])
     plt.xlabel('secs'); plt.ylabel('world contrast')
     diagnostic_pdf.savefig()
@@ -379,20 +381,22 @@ def run_ephys_analysis(file_dict):
         for c,cont in enumerate(crange):
             resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
     # plot individual contrast response functions in subplots
-    crange = np.arange(0,1.2,0.1)
-    crf_cent, crf_tuning, crf_err, crf_fig = plot_spike_rate_vs_var(resp, crange, goodcells, eyeT, t, 'contrast')
+    crf_cent, crf_tuning, crf_err, crf_fig = plot_spike_rate_vs_var(contrast, crange, goodcells, worldT, t, 'contrast')
     detail_pdf.savefig()
     plt.close()
 
     eyeR = eye_params.sel(ellipse_params = 'longaxis').copy()
     Rnorm = (eyeR - np.mean(eyeR))/np.std(eyeR)
-    plt.figure()
-    plt.plot(eyeT,Rnorm)
-    #plt.xlim([0,60])
-    plt.xlabel('secs')
-    plt.ylabel('normalized pupil R')
-    diagnostic_pdf.savefig()
-    plt.close()
+    try: # test excluding this because of C++ assertion error raised during batch analysis
+        plt.figure()
+        plt.plot(eyeT,Rnorm)
+        #plt.xlim([0,60])
+        plt.xlabel('secs')
+        plt.ylabel('normalized pupil R')
+        diagnostic_pdf.savefig()
+        plt.close()
+    except:
+        pass
 
     if file_dict['stim_type'] == 'grat':
         print('getting grating flow')
@@ -790,7 +794,9 @@ def run_ephys_analysis(file_dict):
         for unit_num, ind in enumerate(goodcells.index):
             unit_df = pd.DataFrame([]).astype(object)
             cols = [stim+'_'+i for i in ['c_range',
-                                        'contrast_response',
+                                        'crf_cent',
+                                        'crf_tuning',
+                                        'crf_err',
                                         'spike_triggered_average',
                                         'sta_shape',
                                         'spike_triggered_variance',
@@ -813,7 +819,9 @@ def run_ephys_analysis(file_dict):
                                         'grating_rate',
                                         'trange']]
             unit_df = pd.DataFrame(pd.Series([crange,
-                                    resp[unit_num],
+                                    crf_cent,
+                                    crf_tuning[unit_num],
+                                    crf_err[unit_num],
                                     np.ndarray.flatten(staAll[unit_num]),
                                     np.shape(staAll[unit_num]),
                                     np.ndarray.flatten(st_var[unit_num]),
@@ -842,7 +850,9 @@ def run_ephys_analysis(file_dict):
     elif file_dict['stim_type'] != 'grat' and free_move is False:
         for unit_num, ind in enumerate(goodcells.index):
             cols = [stim+'_'+i for i in ['c_range',
-                                        'contrast_response',
+                                        'crf_cent',
+                                        'crf_tuning',
+                                        'crf_err',
                                         'spike_triggered_average',
                                         'sta_shape',
                                         'spike_triggered_variance',
@@ -859,7 +869,9 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_gz_err',
                                         'trange']]
             unit_df = pd.DataFrame(pd.Series([crange,
-                                    resp[unit_num],
+                                    crf_cent,
+                                    crf_tuning[unit_num],
+                                    crf_err[unit_num],
                                     np.ndarray.flatten(staAll[unit_num]),
                                     np.shape(staAll[unit_num]),
                                     np.ndarray.flatten(st_var[unit_num]),
@@ -882,7 +894,9 @@ def run_ephys_analysis(file_dict):
     elif free_move is True:
         for unit_num, ind in enumerate(goodcells.index):
             cols = [stim+'_'+i for i in ['c_range',
-                                        'contrast_response',
+                                        'crf_cent',
+                                        'crf_tuning',
+                                        'crf_err',
                                         'spike_triggered_average',
                                         'sta_shape',
                                         'spike_triggered_variance',
@@ -913,7 +927,9 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_gy_err',
                                         'trange']]
             unit_df = pd.DataFrame(pd.Series([crange,
-                                    resp[unit_num],
+                                    crf_cent,
+                                    crf_tuning[unit_num],
+                                    crf_err[unit_num],
                                     np.ndarray.flatten(staAll[unit_num]),
                                     np.shape(staAll[unit_num]),
                                     np.ndarray.flatten(st_var[unit_num]),
