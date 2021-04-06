@@ -6,6 +6,7 @@ deinterlace eye and world videos
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
+os.environ["DLClight"] = "True"
 import deeplabcut
 import numpy as np
 import xarray as xr
