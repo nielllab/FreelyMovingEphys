@@ -16,9 +16,9 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=nlab@uoregon.com
 
-module load tensorflow #anaconda3/2019.07 cuda/10.1
-conda deactivate
-conda activate /gpfs/projects/niell/nlab/DLC_GPU2
+module load miniconda cuda/10.2
+# conda deactivate
+conda activate /gpfs/projects/niell/nlab/conda/DLC
 set -x
 
 while getopts t: flag
