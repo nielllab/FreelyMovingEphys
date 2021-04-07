@@ -2,6 +2,7 @@
     "data_path": "/path/to/animal/directory/",
     "steps_to_run":{
         "deinter": true,
+        "img_correction": false,
         "get_cam_calibration_params": false,
         "undistort_recording": true,
         "dlc": true,
@@ -24,6 +25,7 @@
     "LED_dir_name": "IRspot",
     "flip_eye_during_deinter": true,
     "flip_world_during_deinter": true,
+    "apply_auto_gamma": false,
     "crop_for_dlc": false,
     "multianimal_TOP": false,
     "filter_dlc_predictions": false,

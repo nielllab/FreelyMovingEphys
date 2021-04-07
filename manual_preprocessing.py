@@ -23,6 +23,7 @@ from util.deinterlace import deinterlace_data
 from util.track_world import track_LED
 from util.config import set_preprocessing_config_defaults
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
+from util.img_processing import auto_contrast
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -49,6 +50,9 @@ def main(json_config_path):
     if steps['deinter'] is True:
         deinterlace_data(config)
     end_deinter = timeit.default_timer()
+    if steps['img_correction'] is True:
+        auto_contrast(config)
+    end_imgcorr = timeit.default_timer()
     if steps['get_cam_calibration_params'] is True:
         get_calibration_params(config)
     end_calib = timeit.default_timer()
@@ -70,7 +74,8 @@ def main(json_config_path):
 
     print('PREPROCESSING TIMES (min):')
     print('deinterlacing: '+str((end_deinter-start)/60))
-    print('calibration: '+str((end_calib-end_deinter)/60))
+    print('image correction: '+str(end_imgcorr-end_deinter)/60)
+    print('calibration: '+str((end_calib-end_imgcorr)/60))
     print('undistortion: '+str((end_undistort-end_calib)/60))
     print('pose estimation: '+str((end_dlc-end_undistort)/60))
     print('parameters: '+str((end_params-end_dlc)/60))

@@ -117,6 +117,19 @@ def h5_to_xr(pt_path, time_path, view, config):
             names = None
         elif time_path is None or time_path == []:
             xrpts = None; names = None
+    # if timestamps are missing, still read in and format as xarray
+    elif pt_path is not None and pt_path != [] and time_path is None:
+        # open multianimal project with a different function than single animal h5 files
+        if 'TOP' in view and config['multianimal_TOP'] is True:
+            # add a step to convert pickle files here?
+            pts = open_ma_h5(pt_path)
+        # otherwise, use regular h5 file read-in
+        else:
+            pts, names = open_h5(pt_path)
+        # label dimensions of the points dataarray
+        xrpts = xr.DataArray(pts, dims=['frame', 'point_loc'])
+        # label the camera view
+        xrpts.name = view
 
     return xrpts
 
