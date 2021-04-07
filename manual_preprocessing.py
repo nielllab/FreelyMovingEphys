@@ -74,7 +74,7 @@ def main(json_config_path):
 
     print('PREPROCESSING TIMES (min):')
     print('deinterlacing: '+str((end_deinter-start)/60))
-    print('image correction: '+str(end_imgcorr-end_deinter)/60)
+    print('image correction: '+str((end_imgcorr-end_deinter)/60))
     print('calibration: '+str((end_calib-end_imgcorr)/60))
     print('undistortion: '+str((end_undistort-end_calib)/60))
     print('pose estimation: '+str((end_dlc-end_undistort)/60))

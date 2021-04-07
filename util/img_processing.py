@@ -14,18 +14,13 @@ def auto_contrast(config):
     read in eyecam videos and apply a gamma contrast correction
     """
     if config['apply_auto_gamma'] is True:
-        if config['run_with_form_time'] is True:
-            input_list find('*EYEdeinter.avi', config['data_path'])
-        elif config['run_with_form_time'] is False: # this is what we'll want to use for widefield
-            input_list find('*EYE.avi', config['data_path'])
+        input_list = find('*EYE.avi', config['data_path'])
         # iterate through input videos
         for video in input_list:
+            print('correcting gamma for '+video)
             # build the save path
             head, tail = os.path.split(video)
-            if config['run_with_form_time'] is True:
-                new_name = tail
-            elif config['run_with_form_time'] is False:
-                new_name = os.path.splitext(tail) + 'deinter.avi'
+            new_name = os.path.splitext(tail)[0] + 'deinter.avi'
             savepath = os.path.join(head, new_name)
             # write new video with gamma correction
             vid_read = cv2.VideoCapture(video)
@@ -34,6 +29,7 @@ def auto_contrast(config):
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
             num_frames = int(vid_read.get(cv2.CAP_PROP_FRAME_COUNT))
+            print('num_frames', num_frames)
             # iterate through frames, find ideal gamma, apply, write frame
             for step in tqdm(range(0,num_frames)):
                 ret, frame = vid_read.read()

@@ -68,7 +68,7 @@ def h5_to_xr(pt_path, time_path, view, config):
         xrpts -- pose estimate xarray
     """
     # check that pt_path exists
-    if pt_path is not None and pt_path != []:
+    if pt_path is not None and pt_path != [] and time_path is not None:
         # open multianimal project with a different function than single animal h5 files
         if 'TOP' in view and config['multianimal_TOP'] is True:
             # add a step to convert pickle files here?
@@ -105,7 +105,7 @@ def h5_to_xr(pt_path, time_path, view, config):
             else: # equal (probably won't happen because ValueError should have been caused by unequal lengths)
                 xrpts = xrpts.assign_coords(timestamps=('frame', time[1:]))
     # pt_path will have no data in it for world cam data, so it will make an xarray with just timestamps
-    elif pt_path is None or pt_path == []:
+    elif pt_path is None or pt_path == [] and time_path is not None:
         if time_path is not None and time_path != []:
             # read in the time
             time = open_time(time_path)
