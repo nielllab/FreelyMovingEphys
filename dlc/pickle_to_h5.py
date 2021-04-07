@@ -5,7 +5,7 @@ convert any DeepLabcut .pickle outputs to .h5 files
 
 Sept. 29, 2020
 """
-
+os.environ["DLClight"] = "True"
 import deeplabcut
 import argparse
 

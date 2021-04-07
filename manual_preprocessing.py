@@ -2,13 +2,11 @@
 manual_preprocessing.py
 
 deinterlace videos, analyze with DLC, and extract parameters
-
-Jan. 14, 2021
 """
-# package imports
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
+os.environ["DLClight"] = "True"
 import deeplabcut
 import numpy as np
 import xarray as xr
@@ -18,7 +16,7 @@ from tkinter import filedialog
 from glob import glob
 from multiprocessing import freeze_support
 import timeit
-# module imports
+
 from util.params import extract_params
 from util.dlc import run_DLC_Analysis
 from util.deinterlace import deinterlace_data
@@ -26,7 +24,6 @@ from util.track_world import track_LED
 from util.config import set_preprocessing_config_defaults
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
 
-# get user arguemnts
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_path', type=str)
@@ -34,7 +31,6 @@ def get_args():
     return args
 
 def main(json_config_path):
-
     # open config file
     with open(json_config_path, 'r') as fp:
         config = json.load(fp)

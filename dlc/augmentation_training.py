@@ -6,7 +6,7 @@ uses data augmentation
 
 Oct. 11, 2020
 """
-
+os.environ["DLClight"] = "True"
 import deeplabcut 
 
 path_config_file = '/home/dmartins/projects/FreelyMovingTOP_wGear-dylan-2020-10-08/config.yaml'

@@ -2,11 +2,10 @@
 dlc.py
 
 analyze new videos with DeepLabCut given already trained networks
-
-Dec. 02, 2020
 """
 # package imports
 import argparse, json, sys, os, subprocess, shutil
+os.environ["DLClight"] = "True"
 import cv2
 import pandas as pd
 import deeplabcut
@@ -30,11 +29,15 @@ def runDLCbatch(vid_list, config_path, config):
             if config['crop_for_dlc'] is True:
                 deeplabcut.cropimagesandlabels(config_path, size=(400, 400), userfeedback=False)
             deeplabcut.analyze_videos(config_path, [vid])
+            if config['filter_dlc_predictions'] is True:
+                deeplabcut.filterpredictions(config_path, vid)
     else:
         print('analyzing ' + vid_list)
         if config['crop_for_dlc'] is True:
             deeplabcut.cropimagesandlabels(config_path, size=(400, 400), userfeedback=False)
         deeplabcut.analyze_videos(config_path, [vid_list])
+        if config['filter_dlc_predictions'] is True:
+                deeplabcut.filterpredictions(config_path, vid_list)
 
 # find files and organize them by which DLC config file they are associated with
 def run_DLC_Analysis(config):

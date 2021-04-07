@@ -2,10 +2,7 @@
 time.py
 
 functions for reading in and manipulating time
-
-Dec. 02, 2020
 """
-# package imports
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -19,8 +16,16 @@ from datetime import datetime
 import time
 import argparse
 
-# read in the timestamps for a camera and adjust to deinterlaced video length if needed
 def open_time(path, dlc_len=None, force_shift=False):
+    """
+    read in the timestamps for a camera and adjust to deinterlaced video length if needed
+    INPUTS:
+        path -- path to a timestamp .csv file
+        dlc_len -- int, number of frames in the DLC data (used to decide if interpolation is needed, but this can be left as None to ignore)
+        force_shift --  bool, whether or not to interpolate timestamps without checking
+    OUTPUTS:
+        time_out -- timestamps as numpy array
+    """
     # read in the timestamps if they've come directly from cameras
     read_time = pd.read_csv(path, encoding='utf-8', engine='c', header=None).squeeze()
     if read_time[0] == 0: # in case header == 0, which is true of some files, drop that header which will have been read in as the first entry
@@ -71,10 +76,16 @@ def open_time(path, dlc_len=None, force_shift=False):
 
     return time_out
 
-# read in the timestamps for a camera when they come from a csv file
-# this does not read or open a file, it takes in a DataFrame column
-# written to be used with ball rotation timestamps
 def open_time1(read_time):
+    """
+    read in the timestamps for a camera when they come from a csv file containing other data
+    this does not read or open a file, it takes in a DataFrame column
+    written to be used with ball rotation timestamps
+    INPUTS:
+        read_time -- column of a dataframe to read in and format
+    OUTPUTS:
+        time_in -- numpy array of timestamps
+    """
     time_in = []
     fmt = '%H:%M:%S.%f'
     if read_time.dtype!=np.float64:
@@ -96,9 +107,10 @@ def open_time1(read_time):
 
     return time_in
 
-# Sort out what the first timestamp in all DataArrays is so that videos can be set to start playing at the corresponding frame
 def find_start_end(topdown_data, leftellipse_data, rightellipse_data, side_data):
-
+    """
+    find the first timestamp in all DataArrays is so that videos can be set to start playing at the corresponding frame
+    """
     # bin the times
     topdown_binned = topdown_data.resample(time='10ms').mean()
     left_binned = leftellipse_data.resample(time='10ms').mean()
@@ -134,11 +146,13 @@ def find_start_end(topdown_data, leftellipse_data, rightellipse_data, side_data)
 
     return td_startframe, td_endframe, left_startframe, left_endframe, right_startframe, right_endframe, side_startframe, side_endframe, first_real_time, last_real_time
 
-# align xarrays by time and merge
-# first input will start at frame 0, the second input will be aligned to the first using timestamps in nanoseconds
-# so that the first frame in a new dimension, 'merge_time', will start at either a positive or negative integer which
-# is shifted forward or back from 0
 def merge_xr_by_timestamps(xr1, xr2):
+    """
+    align xarrays by time and merge
+    first input will start at frame 0, the second input will be aligned to the first using timestamps in nanoseconds
+    so that the first frame in a new dimension, 'merge_time', will start at either a positive or negative integer which
+    is shifted forward or back from 0
+    """
     # round the nanoseseconds in each xarray
     round1 = np.around(xr1['timestamps'].data.astype(np.int), -4)
     round2 = np.around(xr2['timestamps'].data.astype(np.int), -4)

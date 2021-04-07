@@ -2,10 +2,7 @@
 track_eye.py
 
 utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
-
-Jan. 14, 2021
 """
-# package imports
 from skimage import measure
 from itertools import product
 from numpy import *
@@ -37,18 +34,21 @@ from tqdm import tqdm
 import matplotlib as mpl
 from astropy.convolution import convolve
 
-# module imports
 from util.format_data import split_xyl
 from util.time import open_time
 from util.paths import find
 from util.aux_funcs import nanxcorr
 
-# finds the best fit to an ellipse for the given set of points in a single frame
-# inputs should be x and y values of points around pupil as two numpy arrays
-# outputs dictionary of ellipse parameters for a single frame
-# adapted from /niell-lab-analysis/freely moving/fit_ellipse2.m
 def fit_ellipse(x,y):
-
+    """
+    finds the best fit to an ellipse for the given set of points in a single frame
+    INPUTS:
+        x -- x values of points around pupil as two numpy arrays
+        y -- y values of points around pupil as two numpy arrays
+    RETURNS:
+        ellipse_dict -- dictionary of ellipse parameters for a single frame
+    adapted from /niell-lab-analysis/freely moving/fit_ellipse2.m
+    """
     orientation_tolerance = 1*np.exp(-3)
     
     # remove bias of the ellipse
@@ -123,14 +123,25 @@ def fit_ellipse(x,y):
 
     return ellipse_dict
 
-# get the ellipse parameters from DeepLabCut points and save into an xarray
-# equivilent to /niell-lab-analysis/freely moving/EyeCameraCalc1.m
 def eye_tracking(eye_data, config, trial_name, eye_side):
-    
+    """
+    get the ellipse parameters from DeepLabCut points and save into an xarray
+    INPUTS:
+        eye_data -- xarray of eye point positions and likelihood
+        config -- dictionary of options
+        trial_name -- str, e.g. '010121_subject_...'
+        eye_side -- str, e.g. 'REYE'
+    OUTPUTS:
+        ellipse_out -- xarray DataArray of ellipse parameters
+    also saves to file a pdf of diagnostic figures
+    adapted from /niell-lab-analysis/freely moving/EyeCameraCalc1.m
+    """
+    # set up the pdf to be saved out with diagnostic figures
     if config['save_figs'] is True:
         pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
 
     # if this is a hf recoridng, read in existing fm camera center, scale, etc.
+    # it should run all fm recordings first, so it will be possible to read in fm camera calibration parameters for every hf recording
     if 'hf' in trial_name:
         path_to_existing_props = sorted(find('*fm_eyecameracalc_props.json', config['data_path'])) # should always go for fm1 before fm2
         if len(path_to_existing_props) == 0:
@@ -146,6 +157,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
             with open(path_to_existing_props, 'r') as fp:
                 existing_camera_calib_props = json.load(fp)
         elif path_to_existing_props is None:
+            # if a json of paramters can't be found, though, we'll get these values for the hf recording
             existing_camera_calib_props = None
     elif 'fm' in trial_name:
         existing_camera_calib_props = None
@@ -156,19 +168,22 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['lik_thresh'])
     likelihood = likeli_vals.values
 
-    # plot of likelihood over time
-    # removed -- doesn't show all that much since it's such a dense plot
-    # if config['save_figs'] is True:
-    #     plt.figure()
-    #     plt.plot(likelihood.T)
-    #     plt.title('likelihood all timepoints')
-    #     plt.ylabel('likelihood'); plt.xlabel('frame')
-    #     pdf.savefig()
-    #     plt.close()
+    # subtract center of IR light reflection from all other pts
+    if config['has_ir_spot_labeled'] and config['spot_subtract']:
+        spot_xcent = np.mean(x_vals.iloc[:,-5:], 1)
+        spot_ycent = np.mean(y_vals.iloc[:,-5:], 1)
+        spotsub_x_vals = x_vals.iloc[:,:-5] - spot_xcent
+        spotsub_x_vals = y_vals.iloc[:,:-5] - spot_ycent
 
-    # drop tear
-    # these points ought to be used, this will be addressed later
-    if config['tear'] is True:
+        x_vals = spotsub_x_vals.copy()
+        y_vals = spotsub_Y_vals.copy()
+
+    elif config['has_ir_spot_labeled'] is True and config['spot_subtract'] is False:
+        x_vals = x_vals.iloc[:,:-5]
+        y_vals = y_vals.iloc[:,:-5]
+
+    # drop tear/outer
+    if config['has_tear_labeled'] is True:
         x_vals = x_vals.iloc[:,:-2]
         y_vals = y_vals.iloc[:,:-2]
         likelihood = likelihood[:,:-2]
@@ -209,7 +224,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     y_vals[std_thresh_y > 0] = np.nan
 
     ellipse_params = np.empty([len(usegood), 14])
-    # step through each frame, fit an ellipse to points, and add ellipse parameters to array with data for all frames together
+    # step through each frame, fit an ellipse to points, and
+    # add ellipse parameters to array with data for all frames together
     linalgerror = 0
     for step in tqdm(range(0,len(usegood))):
         if usegood[step] == True:
@@ -234,13 +250,6 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
                                     e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
                                     e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
     print('lin alg error count = ' + str(linalgerror))
-    
-    # if config['save_figs'] is True:
-    #     plt.figure()
-    #     plt.scatter(ellipse_params[:,11], ellipse_params[:,0])
-    #     plt.title('X0_in vs X0')
-    #     pdf.savefig()
-    #     plt.close()
 
     # list of all places where the ellipse meets threshold
     R = np.linspace(0,2*np.pi, 100)
@@ -331,37 +340,6 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         except:
             print('figure error')
 
-        # # one example image
-        # plt.figure()
-        # i = 50
-        # w = ellipse_params[:,7] # angle to x
-        # L = ellipse_params[:,5] # long axis
-        # l = ellipse_params[:,6] # short axis
-        # x_C = ellipse_params[:,11] # x coord of ellipse
-        # y_C = ellipse_params[:,12] # y coord of ellipse
-        # rotation1 = np.array([[np.cos(w),-np.sin(w)],[np.sin(w),np.cos(w)]])
-        # L1 = np.vstack([[L,0],[0,l]])
-        # C1 = np.vstack([[x_C],[y_C]])
-        # q = np.vstack([[np.cos(R)],[np.sin(R)]])
-        # q_star = (rotation1.T @ (L1 @ q)) + C1
-        # qcirc = np.vstack([[L / scale, 0],[0,L1 @ q+C1]])
-        # qcirc2 = np.vstack([[L,0],[0,L]])@q+cam_cent
-        # theta2 = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
-        # phi2 = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
-        # new_cent = scale@np.stack(np.sin(theta2), np.sin(phi2) * np.cos(theta2))*cam_cent
-        # points_rot = new_cent + scale * np.vstack([np.cos(theta2), 0],[-np.sin(theta2)@np.sin(phi2),np.cos(phi2)])@qcirc
-
-        # plt.figure()
-        # plt.plot(q_star[0,:], q_star[1,:], 'g')
-        # plt.scatter(ellipse_params[i,11], ellipse_params[i,12], 100, 'og')
-        # plt.scatter(x_vals[i,:], y_vals[i,:], 100,'.m') # DLC points
-        # plt.scatter(cam_cent[0], cam_cent[1],100,'or') # theoretical cam center
-        # plt.scatter(qcirc2[0,:],qcirc2[1,:],50,'r.') # new center
-        # plt.scatter(points_rot[0,:],points_rot[1,:],100,'b.')# transform from red to green -- good if matches green
-        # plt.title(sprintf('angle to x = ',w*180/np.pi))
-        # pdf.savefig()
-        # plt.close()
-
         # check calibration
         try:
             xvals = np.linalg.norm(ellipse_params[usegood, 11:13].T - cam_cent, axis=0)
@@ -406,12 +384,21 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     return ellipse_out
 
-# plot the ellipse and dlc points on the video frames
-# then, save the video out as an .avi file
 def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
-
-    # read topdown video in
-    # setup the file to save out of this
+    """
+    plot the ellipse and dlc points on the video frames
+    then, save the video out as an .avi file
+    INPUTS:
+        vid_path -- file path of existing .avi video (should be deinterlaced and calibrated, i.e. what ran through DeepLabCut)
+        dlc_data -- xarray of dlc data (this should be before pts and ell params are merged into one)
+        ell_data -- ellipse fit xarray
+        config -- dict of options
+        trial_name -- str, e.g. '010121_subject_...'
+        eye_letter -- str, e.g. 'R'
+    OUTPUTS: None
+    """
+    # read in video
+    # setup the file to save out
     vidread = cv2.VideoCapture(vid_path)
     width = int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -419,53 +406,63 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
+    # only do the first number of frames (limit of frames to use should be set in config dict)
     if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
         num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
     else:
         num_save_frames = config['num_save_frames']
 
+    # iterate through frames
     for frame_num in tqdm(range(0,num_save_frames)):
+        # read frame and make sure it's read in correctoy
         ret, frame = vidread.read()
-
         if not ret:
             break
-
+        # plot on the frame if there is data to be used
         if dlc_data is not None and ell_data is not None:
             try:
+                # open the ellipse data
                 ell_data_thistime = ell_data.sel(frame=frame_num)
-                # get out ellipse parameters and plot them on the video
+                # get out ellipse long/short axes and put into tuple
                 ellipse_axes = (int(ell_data_thistime.sel(ellipse_params='longaxis').values), int(ell_data_thistime.sel(ellipse_params='shortaxis').values))
+                # get out ellipse phi and round to int -- note: this is ellipse_phi not phi
                 ellipse_phi = int(np.rad2deg(ell_data_thistime.sel(ellipse_params='ellipse_phi').values))
+                # get ellipse center out, round to int, and put into tuple
                 ellipse_cent = (int(ell_data_thistime.sel(ellipse_params='X0').values), int(ell_data_thistime.sel(ellipse_params='Y0').values))
+                # update this frame with an ellipse
                 frame = cv2.ellipse(frame, ellipse_cent, ellipse_axes, ellipse_phi, 0, 360, (255,0,0), 2) # ellipse in blue
+            # skip if the ell data from this frame are bad
             except (ValueError, KeyError):
                 pass
-
             try:
+                # open the points that come directly from DLC
                 pts = dlc_data.sel(frame=frame_num)
+                # iterate through each point in the list
                 for k in range(0, len(pts), 3):
+                    # get the point center of each point num, k
                     pt_cent = (int(pts.isel(point_loc=k).values), int(pts.isel(point_loc=k+1).values))
+                    # compare to threshold set in config and plot
                     if pts.isel(point_loc=k+2).values < config['lik_thresh']: # bad points in red
                         frame = cv2.circle(frame, pt_cent, 3, (0,0,255), -1)
                     elif pts.isel(point_loc=k+2).values >= config['lik_thresh']: # good points in green
                         frame = cv2.circle(frame, pt_cent, 3, (0,255,0), -1)
-
             except (ValueError, KeyError):
                 pass
-
         elif dlc_data is None or ell_data is None:
             pass
-
         out_vid.write(frame)
-
     out_vid.release()
 
-# sigmoid function
 def curve_func(xval, a, b, c):
+    """
+    sigmoid function for pupil rotation
+    """
     return a+(b-a)/(1+10**((c-xval)*2))
 
-# multiprocessing-ready fit to sigmoid function
 def sigm_fit_mp(d):
+    """
+    multiprocessing-ready fit to sigmoid function
+    """
     try:
         popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d,
                                 p0=[100.0,200.0,len(d)/2], method='lm', xtol=10**-3, ftol=10**-3)
@@ -476,6 +473,18 @@ def sigm_fit_mp(d):
     return (popt, ci)
 
 def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
+    """
+    find the cyclotorsion (pupil rotation) using eye videos
+    INPUTS:
+        eye_ell_params -- eye theta, phi, etc. xarray
+        config -- options dict
+        trial_name -- str, e.g. '010121_subject_...'
+        side_letter -- str, poorly named, actually the side name, default = 'REYE'
+    OUTPUTS:
+        rfit_xr -- pupil radius as xarray (at each of 360deg)
+        rfit_conv_xr -- convolved radius of pupil as xarray (at each of 360deg)
+        shift -- shift in pxls needed to get best correlation with template 
+    """
     eyevidpath = find((trial_name + '*' + side_letter + 'deinter.avi'), config['data_path'])[0]
     eyetimepath = find((trial_name + '*' + side_letter + '_BonsaiTSformatted.csv'), config['data_path'])[0]
     save_path = config['save_path']; world_interp_method = config['world_interp_method']; ranger = config['range_radius']

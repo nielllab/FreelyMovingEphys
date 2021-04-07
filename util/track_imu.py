@@ -2,23 +2,28 @@
 track_imu.py
 
 read imu from binary
-
-Dec. 07, 2020
 """
-# package imports
 import xarray as xr
 import pandas as pd
 import numpy as np
 from scipy.signal import medfilt
-# module imports
+
 from util.time import open_time1
 
-# read an 8-channel binary file of variable length
-# only channels 0-3, 4-7 will be saved out, channels, 3 and 7 are thrown out
-# expected binary channel order: acc first, empty channel, then gyro, then empty channel
-# returns a dataarray of constructed timestamps and imu readings from -5V to 5V
-# dataarray values are downsampled by value in input dictionary config
 def read_8ch_imu(imupath, timepath, config):
+    """
+    read an 8-channel binary file of variable length
+    INPUTS:
+        imupath -- imu binary file
+        timepath -- timestamp csv file to imu data
+        config -- options dict
+    OUTPUTS:
+        imu_out -- xarray of IMU data
+    only channels 0-3, 4-7 will be saved out, channels, 3 and 7 are thrown out
+    expected binary channel order: acc first, empty channel, then gyro, then empty channel
+    returns a dataarray of constructed timestamps and imu readings from -5V to 5V
+    dataarray values are downsampled by value in input dictionary config
+    """
     # set up datatypes and names for each channel
     dtypes = np.dtype([
         ("acc_x",np.uint16),

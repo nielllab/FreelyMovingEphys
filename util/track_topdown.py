@@ -2,11 +2,7 @@
 track_topdown.py
 
 topdown tracking utilities
-
-Dec. 02, 2020
 """
-
-# package imports
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -21,16 +17,13 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from tqdm import tqdm
 
-# module imports
 from util.time import open_time
 from util.format_data import split_xyl
 
-# matrix rotation, used to find head angle
-def rotmat(theta):
-    m = [[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]]
-    return m
-
 def body_angle(pt_input, config, trial_name, top_view):
+    """
+    get body angle of mouse in topdown view
+    """
     print('getting body angle...')
     angs = []
     for step in tqdm(range(0,np.size(pt_input, 1))):
@@ -54,6 +47,9 @@ def body_angle(pt_input, config, trial_name, top_view):
     return body_ang
 
 def head_angle1(pt_input, config, trial_name, top_view):
+    """
+    get head angle of mouse in topdown view
+    """
     angs = []
     print('getting head angle...')
     for step in tqdm(range(0,np.size(pt_input, 1))):
@@ -76,16 +72,17 @@ def head_angle1(pt_input, config, trial_name, top_view):
 
     return head_theta
 
-# using the topdown data, get properties of mouse movement (and cricket, if config file says there is one)
 def body_props(top_pts, mouse_theta, config, trial_name, top_view):
-
+    """
+    using the topdown data, get properties of mouse movement (and cricket, if config file says there is one)
+    """
     # set names of points
     cricketbodyX = 'cricket_body_x'; cricketbodyY = 'cricket_body_y'
     mousenoseX = 'spine_x'; mousenoseY = 'spine_y'
 
     filt = np.ones([3]) / np.sum(np.ones([3]))
 
-    if config['cricket'] is True:
+    if config['has_cricket_labeled'] is True:
         # cricket speed
         vx_c = np.diff(top_pts.sel(point_loc=cricketbodyX).values)
         vy_c = np.diff(top_pts.sel(point_loc=cricketbodyY).values)
@@ -115,8 +112,8 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
     vy_m = np.convolve(vy_m, filt, mode='same')
     mouse_speed = np.sqrt(vx_m**2, vy_m**2)
 
-    if config['cricket'] is True:
-        # a very large plot of the cricket and mouse properties
+    if config['has_cricket_labeled'] is True:
+        # plot of the cricket and mouse properties
         plt.subplots(2,3)
         plt.subplot(231)
         plt.plot(cricket_speed)
@@ -150,7 +147,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
         prop_names = ['cricket_speed', 'range', 'azimuth', 'd_theta', 'mouse_speed']
         props_out_xr = xr.DataArray(props_out, coords=[('frame',range(0,np.size(cricket_speed,0))), ('prop',prop_names)])
 
-    elif config['cricket'] is False:
+    elif config['has_cricket_labeled'] is False:
         props_out = pd.DataFrame({'d_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})
         prop_names = ['d_theta', 'mouse_speed']
         props_out_xr = xr.DataArray(props_out, coords=[('frame',range(0,np.size(mouse_speed,0))), ('prop',prop_names)])
@@ -171,7 +168,6 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
 
     return props_out_xr
 
-# track topdown position by calling other functions, takes in ONE trial at a time
 def topdown_tracking(topdown_data, config, trial_name, top_view):
     topdown_pt_names = list(topdown_data['point_loc'].values)
     topdown_interp = xr.DataArray.interpolate_na(topdown_data, dim='frame', use_coordinate='frame', method='linear')
@@ -244,8 +240,10 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
 
     return likeli_thresh_allpts#, nose_x_thresh_pts, nose_y_thresh_pts
 
-# plot points on topdown video and save as .avi
 def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
+    """
+    plot points on topdown video and save as .avi
+    """
 
     # read topdown video in
     vidread = cv2.VideoCapture(vid_path)

@@ -10,6 +10,7 @@ Jan. 21, 2021
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
+os.environ["DLClight"] = "True"
 import deeplabcut
 import numpy as np
 import xarray as xr
@@ -126,9 +127,10 @@ def quick_whitenoise_analysis(wn_path):
         offset0 = 0.1
         drift_rate = -0.1/1000
 
-        for i in range(len(ephys_data)):
-            ephys_data['spikeT'].iloc[i] = (np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)).astype(object)
-        
+        for i in ephys_data.index:
+            ephys_data.at[i,'spikeT'] = np.array(ephys_data.at[i,'spikeTraw']) - (offset0 + np.array(ephys_data.at[i,'spikeTraw']) *drift_rate)
+        goodcells = ephys_data.loc[ephys_data['group']=='good']
+      
         if worldT[0]<-600:
             worldT = worldT + 8*60*60
         
@@ -140,7 +142,7 @@ def quick_whitenoise_analysis(wn_path):
         std_im = np.std(world_norm,axis=0)
         std_im[std_im<10/255] = 10/255
         img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
-        img_norm = img_norm * (std_im>10/255)
+        img_norm = img_norm * (std_im>20/255)
 
         contrast = np.empty(worldT.size)
         for i in range(worldT.size):

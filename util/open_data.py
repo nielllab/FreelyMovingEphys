@@ -2,10 +2,7 @@
 open_data.py
 
 functions for opening files
-
-Dec. 02, 2020
 """
-# package imports
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -19,9 +16,17 @@ from datetime import datetime
 import time
 import argparse
 
-# read in .h5 DLC files and manage column names
 def open_h5(path):
+    """
+    read in .h5 DLC files and manage column names
+    INPUTS:
+        path -- filepath to .h5 file outputs by DLC
+    OUTPUTS:
+        pts -- pandas dataframe of points
+        pt_loc_names -- list of column names in pts
+    """
     try:
+        # read the .hf file when there is no key
         pts = pd.read_hdf(path)
     except ValueError:
         # read in .h5 file when there is a key set in corral_files.py
@@ -33,8 +38,14 @@ def open_h5(path):
 
     return pts, pt_loc_names
 
-# open .h5 file of a multianimal DLC project
 def open_ma_h5(path):
+    """
+    open .h5 file of a multianimal DLC project
+    INPUTS:
+        path -- filepath to .h5 file outputs by DLC
+    OUTPUTS:
+        pts -- pandas dataframe of points
+    """
     pts = pd.read_hdf(path)
     # flatten columns from MultiIndex 
     pts.columns = ['_'.join(col[:][1:]).strip() for col in pts.columns.values]
