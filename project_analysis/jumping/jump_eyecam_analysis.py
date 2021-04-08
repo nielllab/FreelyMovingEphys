@@ -23,12 +23,17 @@ def main(args):
     preprocessing_config_path = jump_config['preprocessing_config_path']
     with open(preprocessing_config_path, 'r') as fp:
         p_config = json.load(fp)
+    # get steps to run
+    steps = j_config['steps']
     # collect data into recoding directories
-    organize_dirs(j_config)
+    if steps['organize_dirs']:
+        organize_dirs(j_config)
     # run preprocessing
-    preprocessing_main(p_config)
+    if steps['preprocessing']:
+        preprocessing_main(p_config)
     # run jump analysis
-    jump_analysis(j_config)
+    if steps['analysis']:
+        jump_analysis(j_config)
 
 if __name__ == '__main__':
     args = get_args()
