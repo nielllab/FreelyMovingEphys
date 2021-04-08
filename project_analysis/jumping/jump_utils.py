@@ -1,7 +1,22 @@
 """
 jump_utils.py
 """
+import argparse, json, sys, os
+import xarray as xr
+import pandas as pd
+import numpy as np
+import cv2
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.animation import FFMpegWriter
+from tqdm import tqdm
+import traceback
+
 from util.log import log
+from util.paths import find
+from util.aux_funcs import nanxcorr
 
 def organize_dirs(jump_config_path):
     """
@@ -81,7 +96,7 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
     get figures and process data for individual jump recordings
     """
     # handle jump timing metadata
-    jump_num = config['recording_name'].split('_')[-1].lstrip('0') # get the jump number without preceing 0
+    jump_num = config['recording_name'].split('_')[-1].lstrip('0') # get the jump number without preceding 0
     vals = [] # the values in the dictionary for this jump
     cam_points = [] # the entries in time metadata dictionary
     for cam_point in time:
@@ -339,10 +354,10 @@ def jump_analysis(config):
         time_dict = json.loads(time_txt)
         # find the matching sets of .nc files produced during preprocessing
         try:
-            leye = xr.open_dataset(find((trial_name + '*Leye.nc'), head)[0])
-            reye = xr.open_dataset(find((trial_name + '*Reye.nc'), head)[0])
-            side = xr.open_dataset(find((trial_name + '*side.nc'), head)[0])
-            top = xr.open_dataset(find((trial_name + '*top.nc'), head)[0])
+            leye = xr.open_dataset(find((trial_name + '*_Leye.nc'), head)[0])
+            reye = xr.open_dataset(find((trial_name + '*_Reye.nc'), head)[0])
+            side = xr.open_dataset(find((trial_name + '*_side.nc'), head)[0])
+            top = xr.open_dataset(find((trial_name + '*_Top.nc'), head)[0])
             side_vid = find((trial_name + '*Side*.avi'), head)
             top_vid = find((trial_name + '*Top*.avi'), head)
             leye_vid = find((trial_name + '*LEYE*.avi'), head)
@@ -378,8 +393,8 @@ def jump_analysis(config):
                 pooled_data = trial_cc_data.copy()
             else:
                 pooled_data = xr.merge([pooled_data, trial_cc_data])
-         except Exception as e:
-             print('ERROR IN JUMP ANALYSIS! -- logging exception')
+        except Exception as e:
+            print('ERROR IN JUMP ANALYSIS! -- logging exception')
             logf.log([trial_path, traceback.format_exc()],PRINT=False)
         print('done with trial '+str(trial_count)+' of '+str(len(text_file_list)))
     print('saving pooled data at ' + config['analysis_save_dir'])
