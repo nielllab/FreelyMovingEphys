@@ -5,6 +5,7 @@ retrain an existing DeepLabCut network with new videos
 
 Nov. 19, 2020
 """
+os.environ["DLClight"] = "True"
 import deeplabcut 
 import glob, os
 from tqdm import trange, tqdm

@@ -19,10 +19,10 @@ def make_unit_summary(df, savepath):
     for index, row in tqdm(df.iterrows()):
 
         # set which fm recording to use
-        if not row['best_fm_rec']:
-            fmA = 'fm1'
-        else:
+        try:
             fmA = row['best_fm_rec']
+        except:
+            fmA = 'fm1'
 
         unitfig = plt.figure(constrained_layout=True, figsize=(12,18))
         spec = gridspec.GridSpec(ncols=3, nrows=8, figure=unitfig)
@@ -34,7 +34,7 @@ def make_unit_summary(df, savepath):
         unitfig_wv.set_title(str(row['session'])+'_unit'+str(index)+' '+row['KSLabel']+' cont='+str(row['ContamPct']))
 
         try:
-            unitfig_crf = unitfig.add_subplot(spec[4, 1])
+            unitfig_crf = unitfig.add_subplot(spec[1, 0])
             var_cent = row['hf1_wn_crf_cent']
             tuning = row['hf1_wn_crf_tuning']
             tuning_err = row['hf1_wn_crf_err']
@@ -302,7 +302,7 @@ def make_unit_summary(df, savepath):
             unitfig_grat_psth.plot(bins[0:-1]+ dt/2,psth)
             unitfig_grat_psth.set_title('gratings psth')
             unitfig_grat_psth.set_xlabel('time'); unitfig_grat_psth.set_ylabel('sp/sec')
-            unitfig_grat_psth.set_ylim([0,np.nanmax(psth)*1.2)])
+            unitfig_grat_psth.set_ylim([0,np.nanmax(psth)*1.2])
         except:
             pass
 

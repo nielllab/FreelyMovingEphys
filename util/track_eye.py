@@ -168,9 +168,22 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['lik_thresh'])
     likelihood = likeli_vals.values
 
-    # drop tear
-    # these points ought to be used, this will be addressed later
-    if config['tear'] is True:
+    # subtract center of IR light reflection from all other pts
+    if config['has_ir_spot_labeled'] and config['spot_subtract']:
+        spot_xcent = np.mean(x_vals.iloc[:,-5:], 1)
+        spot_ycent = np.mean(y_vals.iloc[:,-5:], 1)
+        spotsub_x_vals = x_vals.iloc[:,:-5] - spot_xcent
+        spotsub_x_vals = y_vals.iloc[:,:-5] - spot_ycent
+
+        x_vals = spotsub_x_vals.copy()
+        y_vals = spotsub_Y_vals.copy()
+
+    elif config['has_ir_spot_labeled'] is True and config['spot_subtract'] is False:
+        x_vals = x_vals.iloc[:,:-5]
+        y_vals = y_vals.iloc[:,:-5]
+
+    # drop tear/outer
+    if config['has_tear_labeled'] is True:
         x_vals = x_vals.iloc[:,:-2]
         y_vals = y_vals.iloc[:,:-2]
         likelihood = likelihood[:,:-2]

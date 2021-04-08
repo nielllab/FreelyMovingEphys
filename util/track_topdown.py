@@ -82,7 +82,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
 
     filt = np.ones([3]) / np.sum(np.ones([3]))
 
-    if config['cricket'] is True:
+    if config['has_cricket_labeled'] is True:
         # cricket speed
         vx_c = np.diff(top_pts.sel(point_loc=cricketbodyX).values)
         vy_c = np.diff(top_pts.sel(point_loc=cricketbodyY).values)
@@ -112,7 +112,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
     vy_m = np.convolve(vy_m, filt, mode='same')
     mouse_speed = np.sqrt(vx_m**2, vy_m**2)
 
-    if config['cricket'] is True:
+    if config['has_cricket_labeled'] is True:
         # plot of the cricket and mouse properties
         plt.subplots(2,3)
         plt.subplot(231)
@@ -147,7 +147,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
         prop_names = ['cricket_speed', 'range', 'azimuth', 'd_theta', 'mouse_speed']
         props_out_xr = xr.DataArray(props_out, coords=[('frame',range(0,np.size(cricket_speed,0))), ('prop',prop_names)])
 
-    elif config['cricket'] is False:
+    elif config['has_cricket_labeled'] is False:
         props_out = pd.DataFrame({'d_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})
         prop_names = ['d_theta', 'mouse_speed']
         props_out_xr = xr.DataArray(props_out, coords=[('frame',range(0,np.size(mouse_speed,0))), ('prop',prop_names)])

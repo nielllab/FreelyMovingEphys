@@ -6,6 +6,7 @@ get parameters from DLC points and generate .nc or .json files
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
+os.environ["DLClight"] = "True"
 import deeplabcut
 import numpy as np
 import xarray as xr
@@ -198,7 +199,10 @@ def extract_params(config):
                 # filter the list of files for the current trial to get the eye of this side
                 if config['run_with_form_time'] is True:
                     eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i and 'deinter' in i][0]
-                    eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i][0]
+                    if len([i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i]) > 0:
+                        eye_csv = [i for i in trial_cam_csv if (eye_side+'EYE') in i and 'formatted' in i][0]
+                    else:
+                        eye_csv = None
                     eye_avi = [i for i in trial_cam_avi if (eye_side+'EYE') in i and 'deinter' in i and 'unflipped' not in i][0]
                 elif config['run_with_form_time'] is False:
                     eye_h5 = [i for i in trial_cam_h5 if (eye_side+'EYE') in i][0]

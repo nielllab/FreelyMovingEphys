@@ -15,7 +15,7 @@ def load_ephys(csv_filepath):
     for_data_pool = csv.loc[csv['load_for_data_pool'] == True]
     goodsessions = []
     # get all of the best freely moving recordings of a session into a dictionary
-    goodfmrecs = dict(zip(list(for_data_pool['session']),list(for_data_pool['best_fm_rec'])))
+    goodfmrecs = dict(zip(list(for_data_pool['Experiment date']+'_'+for_data_pool['Animal name']),['fm1' if np.isnan(i) else i for i in for_data_pool['best_fm_rec']]))
     # get all of the session data locations into a list
     for ind, row in for_data_pool.iterrows():
         goodsessions.append(row['data_location'])
@@ -33,13 +33,19 @@ def load_ephys(csv_filepath):
             # rename spike time columns so that data is retained for each of the seperate trials
             rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
             # add a column for which fm recording should be prefered
-            rec_data['best_fm_rec'] = goodfmrecs[rec_data['session']]
+            for key,val in goodfmrecs.items():
+                if key in rec_data['session']:
+                    rec_data['best_fm_rec'] = val
             # add a column for the 'r' and 'm' of ellipse fit
-            ellipse_json_path = find('*'+rec_data['best_fm_rec']+'*fm_eyecameracalc_props.json',session)
-            with open(ellipse_json_path, 'r') as fp:
-                ellipse_fit_params = json.load(fp)
-            rec_data['best_ellipse_fit_m'] = ellipse_fit_params['regression_m']
-            rec_data['best_ellipse_fit_r'] = ellipse_fit_params['regression_r']
+            try:
+                ellipse_json_path = find('*'+rec_data['best_fm_rec']+'*fm_eyecameracalc_props.json',session)
+                with open(ellipse_json_path, 'r') as fp:
+                    ellipse_fit_params = json.load(fp)
+                rec_data['best_ellipse_fit_m'] = ellipse_fit_params['regression_m']
+                rec_data['best_ellipse_fit_r'] = ellipse_fit_params['regression_r']
+            except:
+                rec_data['best_ellipse_fit_m'] = np.nan
+                rec_data['best_ellipse_fit_r'] = np.nan
             # get column names
             column_names = list(session_data.columns.values) + list(rec_data.columns.values)
             # new columns for same unit within a session

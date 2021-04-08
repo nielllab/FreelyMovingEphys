@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=DLC      ### Job Name
 #SBATCH --partition=longgpu       ### Quality of Service (like a queue in PBS)
-#SBATCH --time=3-00:00:00       ### Wall clock time limit in Days-HH:MM:SS
+#SBATCH --time=4-00:00:00       ### Wall clock time limit in Days-HH:MM:SS
 #SBATCH --nodes=1             ### Node count required for the job
 #SBATCH --ntasks-per-node=1   ### Nuber of tasks to be launched per Node
 #SBATCH --gres=gpu:1          ### General REServation of gpu:number of gpus
@@ -14,11 +14,11 @@
 
 ##turn on e-mail notification
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=mydogblue.86@gmail.com
+#SBATCH --mail-user=dmartins@uoregon.edu
 
-module load tensorflow 
-conda deactivate
-conda activate /gpfs/projects/niell/nlab/DLC_GPU2
+module load miniconda cuda/10.2 
+# conda deactivate
+conda activate /gpfs/projects/niell/nlab/conda/DLC
 set -x
 
 while getopts u:c: flag
@@ -30,7 +30,7 @@ do
 done
 
 full_talapas_path="/gpfs/projects/niell/nlab/DLCProjects/$DLCProject/"
-# full_lab_path="/volume1/nlab-nas/DLCProjects/$DLCProject/"
+full_lab_path="/volume1/nlab-nas/DLCProjects/$DLCProject/"
 
 # mkdir -p $full_talapas_path
 # rsync -ahSP goeppert:$full_lab_path $full_talapas_path --no-compress

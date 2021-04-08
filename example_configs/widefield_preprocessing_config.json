@@ -1,18 +1,16 @@
 {
-    "data_path": "/path/to/animal/directory/",
+    "data_path": "/path/to/animal/dir/",
     "steps_to_run":{
-        "deinter": true,
+        "deinter": false,
         "img_correction": false,
         "get_cam_calibration_params": false,
-        "undistort_recording": true,
-        "dlc": true,
+        "undistort_recording": false,
+        "dlc": false,
         "params": true,
         "addtl_params": false
     },
     "cams": {
-        "WORLD": "",
-        "REYE": "E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams3-dylan-2021-02-02/config.yaml",
-        "TOP1": "E:/freely_moving_ephys/deeplabcut_projects/EphysTopDark-dylan-2021-02-13/config.yaml"
+        "REYE": "E:/freely_moving_ephys/deeplabcut_projects/passive_threshold_imaging-Kris-2021-03-25/config.yaml"
     },
     "calibration":{
         "eye_LED_config": "E:/freely_moving_ephys/deeplabcut_projects/LED_eye_view2-dylan-2021-01-10/config.yaml",
@@ -25,7 +23,7 @@
     "LED_dir_name": "IRspot",
     "flip_eye_during_deinter": true,
     "flip_world_during_deinter": true,
-    "apply_auto_gamma": false,
+    "apply_auto_gamma": true,
     "crop_for_dlc": false,
     "multianimal_TOP": false,
     "filter_dlc_predictions": false,

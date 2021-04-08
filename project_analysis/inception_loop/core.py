@@ -14,6 +14,8 @@ from torch.nn import functional as F, Parameter
 import torch.nn.init as init
 from torch.autograd import Variable
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class Core:
     def initialize(self):
         log.info('Not initializing anything')
@@ -41,7 +43,7 @@ class Core2d(Core):
 
 class Stacked2dCore(Core2d, nn.Module):
     def __init__(self, input_channels, hidden_channels, input_kern, hidden_kern, layers=3,
-                 gamma_hidden=0, gamma_input=0., skip=0, final_nonlinearity=True, bias=False, skip_nonlin=False,
+                 gamma_hidden=0, gamma_input=0., final_nonlinearity=True, bias=False,
                  momentum=0.1, pad_input=True, batch_norm=True, **kwargs):
         # log.info('Ignoring input {} when creating {}'.format(repr(kwargs), self.__class__.__name__))
         super().__init__()
@@ -82,6 +84,6 @@ class Stacked2dCore(Core2d, nn.Module):
     def forward(self, input_):
         ret = []
         for l, feat in enumerate(self.features):
-            input_ = feat(torch.cat(ret[-min(self.skip, l):], dim=1))
+            input_ = feat(input_) # skip a layer's computation, but we don't need to do this yet
             ret.append(input_)
         return torch.cat(ret, dim=1)
