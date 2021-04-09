@@ -10,6 +10,9 @@ from scipy.signal import medfilt
 
 from util.time import open_time1
 
+from autopilot.transform.geometry import IMU_Orientation
+IMU = IMU_Orientation()
+
 def read_8ch_imu(imupath, timepath, config):
     """
     read an 8-channel binary file of variable length
@@ -43,6 +46,14 @@ def read_8ch_imu(imupath, timepath, config):
     # downsample
     data = data.iloc[0:-1:config['imu_downsample'],:]
     samp_freq = config['imu_sample_rate'] / config['imu_downsample']
+    # convert acc and gyro to g and deg/sec
+    acc = pd.DataFrame.to_numpy((data['acc_x', 'acc_y', 'acc_z']-2.5)*1.6)
+    gyro = pd.DataFrame.to_numpy((data['gyro_x', 'gyro_y', 'gyro_z']-pd.DataFrame.mean(data['gyro_x', 'gyro_y', 'gyro_z']))*400)
+    # collect roll & pitch
+    roll_pitch = np.zeros([len(acc),2])
+    for x in range(len(acc)):
+            roll_pitch[x,:] = IMU.process((acc[x,:],gyro[x,:]))
+    roll_pitch = pd.DataFrame(roll_pitch, columns=['roll','pitch'])
     # read in timestamps
     time = pd.DataFrame(open_time1(pd.read_csv(timepath).iloc[:,0]))
     # get first/last timepoint, num_samples
@@ -50,8 +61,8 @@ def read_8ch_imu(imupath, timepath, config):
     # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
     newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
     # collect the data together to return
-    all_data = data.copy()
-    all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
+    all_data = data.copy() + ### ADD DATAFRAME
+    all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z','roll','pitch']
     imu_out = xr.DataArray(all_data, dims={'channel','sample'})
     try:
         imu_out = imu_out.assign_coords(timestamps=('sample',list(newtime.iloc[:,0])))
@@ -60,26 +71,43 @@ def read_8ch_imu(imupath, timepath, config):
     
     return imu_out
 
-# convert acc and gyro to g and deg/sec
-def convert_acc_gyro(imu_out, timepath, config):
-    # read in timestamps
-    time = pd.DataFrame(open_time1(pd.read_csv(timepath).iloc[:,0]))
-    # get first/last timepoint, num_samples
-    t0 = np.squeeze(time.iloc[0]); num_samp = np.size(imu_out,0)
-    samp_freq = config['imu_sample_rate'] / config['imu_downsample']
-    # make timestamps for all subsequent samples
-    newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
-    # convert from V to deg/sec for gyro
-    gyro = imu_out.isel(sample=range(3,6)) * (400 / samp_freq)
-    # median filter and conversion for acc
-    filt_win = 5
-    filt_acc = (medfilt(imu_out.isel(sample=range(0,3)), filt_win)-2.5)*1.6
-    filt_acc[filt_acc>1] = 1; filt_acc[filt_acc<-1] = -1
-    acc = np.rad2deg(np.arcsin(filt_acc))
-    # change format of acc back to xarray since this was lost during conversion
-    acc = pd.DataFrame(acc)
-    acc.columns = ['acc_x', 'acc_y', 'acc_z']
-    acc_xr = xr.DataArray(acc, dims=['sample', 'channel'])
-    acc_xr = acc_xr.assign_coords(timestamps=('channel',list(newtime.iloc[:,0])))
+def IMU_Roll_Pitch(array):
+# 1. opening the data
+    #with xr.open_dataset(fname) as ds: 
+        #print(ds.keys())
+        #data = ds.IMU_data ### saves the Datasets DataArray
 
-    return acc_xr, gyro
+# 2. Time
+   # timestamps = data.coords['timestamps'] ### seconds past midnight
+
+    #diff = np.diff(timestamps) ### gives the difference between timestamps (in seconds)
+
+    #t = np.zeros([len(timestamps),1]) ### gives a list of seconds over trial period
+    #for i in range(len(diff)):
+     #   t[1+i] = t[i] + diff[i]
+
+# 3. Isolating acceleration and gyro measurments (volts)
+    acc = array[:,0:3]
+    gyro = array[:,3:6]
+
+# 4. Convert acc and gyro to g and deg/sec
+    gyro = (gyro-np.mean(gyro))*(400) ### 1V = 400deg/sec ... mean(gyro) centers data around 0
+
+    acc = (acc-2.5)*1.6 # convert to: g = m/s^2
+
+# 5. Saving Acc and Gyro as ndarrays
+    acc = acc.data
+    gyro = gyro.data
+    
+# 6. Collect Roll & Pitch
+    if len(acc) == len(gyro):
+        roll_pitch = np.zeros([len(acc),2])
+        for x in range(len(acc)):
+            roll_pitch[x,:] = IMU.process((acc[x,:],gyro[x,:]))### update by row
+        #return(roll_pitch)
+    else:
+        print('acc or gyro error: input arguments must be of equal size')
+        
+# 7. Spit out Roll_Pitch_Time
+    #RPT = np.append(roll_pitch, t , axis=1)
+    return(roll_pitch)
