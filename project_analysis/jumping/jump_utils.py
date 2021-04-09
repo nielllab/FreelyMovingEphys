@@ -249,9 +249,9 @@ def mean_within_animal(data):
     return np.array(out)
 
 # make plots using the pooled jumping data
-def pooled_jump_analysis(pooled, config):
+def pooled_jump_analysis(pooled, config, bin_name):
 
-    pdf = PdfPages(os.path.join(config['analysis_save_dir'], 'pooled_jump_plots.pdf'))
+    pdf = PdfPages(os.path.join(config['analysis_save_dir'], bin_name+'_pooled_jump_plots.pdf'))
     
     # convert to dataarray so that indexing can be done accross recordings
     # this is only needed if there's more than one trial read in, so a try/except is used
@@ -288,7 +288,10 @@ def pooled_jump_analysis(pooled, config):
     plt.close()
 
     # organize data for head xcorr with th, divergence, and phi (grouped within each animal's jumps)
-    animal_names = list(set([i.split('_')[1] for i in list(pooled_da['variable'].values)]))
+    try:
+        animal_names = list(set([i.split('_')[1] for i in list(pooled_da.variables.values)]))
+    except:
+        animal_names = list(set([i.split('_')[1] for i in list(pooled_da['variable'].values)]))
     for var in pooled:
         pooled[var].attrs['animal'] = var.split('_')[1]
 
@@ -356,15 +359,21 @@ def jump_analysis(config):
         # find the matching sets of .nc files produced during preprocessing
         for bin_group in bin_group_keys:
             if bin_group == 'complete':
-                leye = xr.open_dataset([i for i in find((trial_name + '*_Leye.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
-                reye = xr.open_dataset([i for i in find((trial_name + '*_Reye.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
-                side = xr.open_dataset([i for i in find((trial_name + '*_side.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
-                top = xr.open_dataset([i for i in find((trial_name + '*_Top.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
+                try:
+                    leye = xr.open_dataset([i for i in find((trial_name + '*_Leye.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
+                    reye = xr.open_dataset([i for i in find((trial_name + '*_Reye.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
+                    side = xr.open_dataset([i for i in find((trial_name + '*_side.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
+                    top = xr.open_dataset([i for i in find((trial_name + '*_Top.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
+                except Exception as e:
+                    logf.log([trial_path, traceback.format_exc()],PRINT=False)
             else:
-                leye = xr.open_dataset([i for i in find((trial_name + '*_Leye.nc'), head) if bin_group in i][0])
-                reye = xr.open_dataset([i for i in find((trial_name + '*_Reye.nc'), head) if bin_group in i][0])
-                side = xr.open_dataset([i for i in find((trial_name + '*_side.nc'), head) if bin_group in i][0])
-                top = xr.open_dataset([i for i in find((trial_name + '*_Top.nc'), head) if bin_group in i][0])
+                try:
+                    leye = xr.open_dataset([i for i in find((trial_name + '*_Leye.nc'), head) if bin_group in i][0])
+                    reye = xr.open_dataset([i for i in find((trial_name + '*_Reye.nc'), head) if bin_group in i][0])
+                    side = xr.open_dataset([i for i in find((trial_name + '*_side.nc'), head) if bin_group in i][0])
+                    top = xr.open_dataset([i for i in find((trial_name + '*_Top.nc'), head) if bin_group in i][0])
+                except Exception as e:
+                    logf.log([trial_path, traceback.format_exc()],PRINT=False)
             try:
                 leye = xr.open_dataset(find((trial_name + '*_Leye.nc'), head)[0])
                 reye = xr.open_dataset(find((trial_name + '*_Reye.nc'), head)[0])
@@ -418,7 +427,6 @@ def jump_analysis(config):
                     elif bin_group == 'late':
                         late_pooled_data = xr.merge([late_pooled_data, trial_cc_data])
             except Exception as e:
-                print('ERROR IN JUMP ANALYSIS! -- logging exception')
                 logf.log([trial_path, traceback.format_exc()],PRINT=False)
             print('done with trial '+str(trial_count)+' of '+str(len(text_file_list)))
         print('saving pooled data at ' + config['analysis_save_dir'])
@@ -427,9 +435,12 @@ def jump_analysis(config):
         early_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'early_pooled_jump_data.nc'))
         jumpprep_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'jumpprep_pooled_jump_data.nc'))
         late_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'alte_pooled_jump_data.nc'))
-        print('making plots of pooled data for all trials')
-        # make a pdf of pooled data
-        pooled_jump_analysis(pooled_data, config)
+    print('making plots of pooled data for all trials')
+    # make a pdf of pooled data
+    pooled_jump_analysis(pooled_data, config, 'combined')
+    pooled_jump_analysis(early_pooled_data, config, 'early')
+    pooled_jump_analysis(jumpprep_pooled_data, config, 'jumpprep')
+    pooled_jump_analysis(late_pooled_data, config, 'late')
     print('done analyzing ' + str(len(text_file_list)) + ' trials')
 
 def split_nc_into_timebins(config):
