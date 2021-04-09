@@ -352,55 +352,115 @@ def jump_analysis(config):
                 with open(time_text_path) as f:
                     time_txt = f.read()
         time_dict = json.loads(time_txt)
+        bin_group_keys = ['complete', 'early', 'jumpprep', 'late']
         # find the matching sets of .nc files produced during preprocessing
-        try:
-            leye = xr.open_dataset(find((trial_name + '*_Leye.nc'), head)[0])
-            reye = xr.open_dataset(find((trial_name + '*_Reye.nc'), head)[0])
-            side = xr.open_dataset(find((trial_name + '*_side.nc'), head)[0])
-            top = xr.open_dataset(find((trial_name + '*_Top.nc'), head)[0])
-            side_vid = find((trial_name + '*Side*.avi'), head)
-            top_vid = find((trial_name + '*Top*.avi'), head)
-            leye_vid = find((trial_name + '*LEYE*.avi'), head)
-            reye_vid = find((trial_name + '*REYE*.avi'), head)
-            for x in side_vid:
-                if 'plot' in x:
-                    side_vid.remove(x)
-            for x in top_vid:
-                if 'plot' in x:
-                    top_vid.remove(x)
-            for x in leye_vid:
-                if 'plot' in leye_vid or 'unflipped' in leye_vid:
-                    leye_vid.remove(x)
-            for x in reye_vid:
-                if 'plot' in reye_vid or 'unflipped' in reye_vid:
-                    reye_vid.remove(x)               
-            side_vid = side_vid[0]
-            top_vid = top_vid[0]
-            leye_vid = leye_vid[0]
-            reye_vid = reye_vid[0]
-
-            # correlation figures
-            trial_cc_data = jump_cc(reye, leye, top, side, time_dict, trial_metadata, config)
-            trial_cc_data.name = config['recording_name']
-            # plot over video
-            if config['plot_avi_vids'] is True:
-                print('plotting jump gaze for side view of ' + config['recording_name'])
-                jump_gaze_trace(reye, leye, top, side, side_vid, config)
-                print('plotting videos with animated plots for ' + config['recording_name'])
-                animated_gaze_plot(reye, leye, top, side, side_vid, leye_vid, reye_vid, top_vid, config)
-
-            if trial_path == text_file_list[0]:
-                pooled_data = trial_cc_data.copy()
+        for bin_group in bin_group_keys:
+            if bin_group == 'complete':
+                leye = xr.open_dataset([i for i in find((trial_name + '*_Leye.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
+                reye = xr.open_dataset([i for i in find((trial_name + '*_Reye.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
+                side = xr.open_dataset([i for i in find((trial_name + '*_side.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
+                top = xr.open_dataset([i for i in find((trial_name + '*_Top.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
             else:
-                pooled_data = xr.merge([pooled_data, trial_cc_data])
-        except Exception as e:
-            print('ERROR IN JUMP ANALYSIS! -- logging exception')
-            logf.log([trial_path, traceback.format_exc()],PRINT=False)
-        print('done with trial '+str(trial_count)+' of '+str(len(text_file_list)))
-    print('saving pooled data at ' + config['analysis_save_dir'])
-    # save out an xarray of pooled data
-    pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'pooled_jump_data.nc'))
-    print('making plots of pooled data for all trials')
-    # make a pdf of pooled data
-    pooled_jump_analysis(pooled_data, config)
+                leye = xr.open_dataset([i for i in find((trial_name + '*_Leye.nc'), head) if bin_group in i][0])
+                reye = xr.open_dataset([i for i in find((trial_name + '*_Reye.nc'), head) if bin_group in i][0])
+                side = xr.open_dataset([i for i in find((trial_name + '*_side.nc'), head) if bin_group in i][0])
+                top = xr.open_dataset([i for i in find((trial_name + '*_Top.nc'), head) if bin_group in i][0])
+            try:
+                leye = xr.open_dataset(find((trial_name + '*_Leye.nc'), head)[0])
+                reye = xr.open_dataset(find((trial_name + '*_Reye.nc'), head)[0])
+                side = xr.open_dataset(find((trial_name + '*_side.nc'), head)[0])
+                top = xr.open_dataset(find((trial_name + '*_Top.nc'), head)[0])
+                side_vid = find((trial_name + '*Side*.avi'), head)
+                top_vid = find((trial_name + '*Top*.avi'), head)
+                leye_vid = find((trial_name + '*LEYE*.avi'), head)
+                reye_vid = find((trial_name + '*REYE*.avi'), head)
+                for x in side_vid:
+                    if 'plot' in x:
+                        side_vid.remove(x)
+                for x in top_vid:
+                    if 'plot' in x:
+                        top_vid.remove(x)
+                for x in leye_vid:
+                    if 'plot' in leye_vid or 'unflipped' in leye_vid:
+                        leye_vid.remove(x)
+                for x in reye_vid:
+                    if 'plot' in reye_vid or 'unflipped' in reye_vid:
+                        reye_vid.remove(x)
+                side_vid = side_vid[0]
+                top_vid = top_vid[0]
+                leye_vid = leye_vid[0]
+                reye_vid = reye_vid[0]
+                # correlation figures
+                trial_cc_data = jump_cc(reye, leye, top, side, time_dict, trial_metadata, config)
+                trial_cc_data.name = config['recording_name']
+                # plot over video
+                if config['plot_avi_vids'] is True:
+                    print('plotting jump gaze for side view of ' + config['recording_name'])
+                    jump_gaze_trace(reye, leye, top, side, side_vid, config)
+                    print('plotting videos with animated plots for ' + config['recording_name'])
+                    animated_gaze_plot(reye, leye, top, side, side_vid, leye_vid, reye_vid, top_vid, config)
+                if trial_path == text_file_list[0]:
+                    if bin_group == 'complete':
+                        pooled_data = trial_cc_data.copy()
+                    elif bin_group == 'early':
+                        early_pooled_data = trial_cc_data.copy()
+                    elif bin_group == 'jumpprep':
+                        jumpprep_pooled_data = trial_cc_data.copy()
+                    elif bin_group == 'late':
+                        late_pooled_data = trial_cc_data.copy()
+                else:
+                    if bin_group == 'complete':
+                        pooled_data = xr.merge([pooled_data, trial_cc_data])
+                    elif bin_group == 'early':
+                        early_pooled_data = xr.merge([early_pooled_data, trial_cc_data])
+                    elif bin_group == 'jumpprep':
+                        jumpprep_pooled_data = xr.merge([jumpprep_pooled_data, trial_cc_data])
+                    elif bin_group == 'late':
+                        late_pooled_data = xr.merge([late_pooled_data, trial_cc_data])
+            except Exception as e:
+                print('ERROR IN JUMP ANALYSIS! -- logging exception')
+                logf.log([trial_path, traceback.format_exc()],PRINT=False)
+            print('done with trial '+str(trial_count)+' of '+str(len(text_file_list)))
+        print('saving pooled data at ' + config['analysis_save_dir'])
+        # save out an xarray of pooled data
+        pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'pooled_jump_data.nc'))
+        early_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'early_pooled_jump_data.nc'))
+        jumpprep_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'jumpprep_pooled_jump_data.nc'))
+        late_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'alte_pooled_jump_data.nc'))
+        print('making plots of pooled data for all trials')
+        # make a pdf of pooled data
+        pooled_jump_analysis(pooled_data, config)
     print('done analyzing ' + str(len(text_file_list)) + ' trials')
+
+def split_nc_into_timebins(config):
+    main_path = config['analysis_save_dir']
+    nc_list = find('*.nc',main_path)
+    nc_list = [i for i in nc_list if 'pooled_jump_data' not in i]
+    nc_list1 = [i for i in nc_list if len(os.path.split(i)[1].split('_'))==4]
+    for i in tqdm(range(len(nc_list1))):
+        try:
+            # open xarray
+            nc_filepath = nc_list1[i]
+            data = xr.open_dataset(nc_filepath)
+            # open text file of time bins for each jump
+            base_name = '_'.join(os.path.splitext(os.path.split(nc_filepath)[1])[0].split('_')[:-1])
+            times_path = find('*'+base_name+'*eyecams_vidclip.txt', main_path)[0]
+            times = dict(np.ndenumerate(np.loadtxt(times_path, dtype=str)))
+            times = eval(times[list(times)[0]])
+            jump_num = str(int(base_name.split('_')[-1].strip('0'))-1)
+            base_cam = 'Side'
+            start = slice(0, (times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num])-120)
+            prejump = slice((times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num])-120,(times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num]))
+            stop = slice(times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num], times[base_cam+'_End'][jump_num]-times[base_cam+'_Start'][jump_num])
+            # index using these times
+            early = data.sel(frame=start)
+            jumpprep = data.sel(frame=prejump)
+            late = data.sel(frame=stop)
+            # save those as new nc files
+            split_name = os.path.split(test)[1].split('_')
+            path_out = os.path.split(nc_filepath)[0]
+            early.to_netcdf(os.path.join(path_out, '_'.join(split_name[:-1]+['early']+[split_name[-1]])))
+            jumpprep.to_netcdf(os.path.join(path_out, '_'.join(split_name[:-1]+['jumpprep']+[split_name[-1]])))
+            late.to_netcdf(os.path.join(path_out, '_'.join(split_name[:-1]+['late']+[split_name[-1]])))
+        except Exception as e:
+            print(e)

@@ -3,7 +3,7 @@ jump_eyecam_analysis.py
 """
 import argparse, os, json, sys
 
-sys.path.insert(0, '/Users/NielL Lab/Documents/GitHub/FreelyMovingEphys')
+sys.path.insert(0, '/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys')
 
 from manual_preprocessing import main as preprocessing_main
 from project_analysis.jumping.jump_utils import *
@@ -28,6 +28,8 @@ def main(args):
     # run preprocessing
     if steps['preprocessing']:
         preprocessing_main(preprocessing_config_path)
+    if steps['split_timebins']:
+        split_nc_into_timebins(j_config)
     # run jump analysis
     if steps['analysis']:
         jump_analysis(j_config)
