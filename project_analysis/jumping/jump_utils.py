@@ -457,7 +457,7 @@ def split_nc_into_timebins(config):
             jumpprep = data.sel(frame=prejump)
             late = data.sel(frame=stop)
             # save those as new nc files
-            split_name = os.path.split(test)[1].split('_')
+            split_name = os.path.split(nc_filepath)[1].split('_')
             path_out = os.path.split(nc_filepath)[0]
             early.to_netcdf(os.path.join(path_out, '_'.join(split_name[:-1]+['early']+[split_name[-1]])))
             jumpprep.to_netcdf(os.path.join(path_out, '_'.join(split_name[:-1]+['jumpprep']+[split_name[-1]])))
