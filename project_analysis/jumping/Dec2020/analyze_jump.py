@@ -163,7 +163,6 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
 
     # make an animated plot of these parameters
     if config['plot_avi_vids'] is True:
-        print('saving animated plots')
         fig, (ax1,ax2,ax3,ax4) = plt.subplots(4,1)
         ax1.plot(pitch, 'b-'); ax1.set_title('pitch')
         ax2.plot(gaze_th, 'b-'); ax2.set_title('mean th')
