@@ -17,6 +17,7 @@ import traceback
 from util.log import log
 from util.paths import find
 from util.aux_funcs import nanxcorr
+from project_analysis.jumping.Dec2020.analyze_jump import jump_gaze_trace, animated_gaze_plot
 
 def organize_dirs(jump_config_path):
     """
@@ -91,7 +92,7 @@ def organize_dirs(jump_config_path):
             shutil.copyfile(file, save_path)
             print('saved ' + file)
 
-def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
+def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config, timebin):
     """
     get figures and process data for individual jump recordings
     """
@@ -110,7 +111,7 @@ def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):
     jump_info.update(time_dict)
 
     # open pdf file to save plots in
-    pdf = PdfPages(os.path.join(config['trial_head'], (config['recording_name'] + '_jump_cc.pdf')))
+    pdf = PdfPages(os.path.join(config['trial_head'], (config['recording_name'] + '_' + timebin + '_jump_cc.pdf')))
 
     # organize data
     REye = REye_ds.REYE_ellipse_params
@@ -248,6 +249,14 @@ def mean_within_animal(data):
         out.append(list(data_mean[var].values))
     return np.array(out)
 
+def jump_hist(div):
+    all_bins = np.arange(-25,26)
+    all_hist = np.zeros([np.size(div, 0), len(all_bins)-1])
+    for jump_num in range(np.size(div, 0)):
+        hist, bin_edges = np.histogram(div[jump_num].dropna(dim='frame'), bins=np.arange(-25,26), density=True)
+        all_hist[jump_num] = hist
+    return all_hist
+
 # make plots using the pooled jumping data
 def pooled_jump_analysis(pooled, config, bin_name):
 
@@ -303,9 +312,9 @@ def pooled_jump_analysis(pooled, config, bin_name):
 
     ani_th_gaze = mean_within_animal(pool_by_animal.sel(jump_params='th_gaze'))
     ani_th_div = mean_within_animal(pool_by_animal.sel(jump_params='th_div'))
-    ani_th_phi = mean_within_animal(pool_by_animal.sel(jump_params='th_phi'))
+    ani_th_phi = - mean_within_animal(pool_by_animal.sel(jump_params='th_phi'))
 
-    # plot haed xcorr
+    # plot head xcorr
     y1 = np.mean(ani_th_gaze,0)
     err1 = np.std(np.array(ani_th_gaze,dtype=np.float64),0)/np.sqrt(np.size(ani_th_gaze,0))
     y2 = np.mean(ani_th_div,0)
@@ -313,18 +322,20 @@ def pooled_jump_analysis(pooled, config, bin_name):
     y3 = np.mean(ani_th_phi,0)
     err3 = np.std(np.array(ani_th_phi,dtype=np.float64),0)/np.sqrt(np.size(ani_th_phi,0))
     plt.figure(figsize=(6,6))
-    plt.plot(lags, y1)
-    plt.fill_between(lags, y1-err1, y1+err1, alpha=0.3)
-    plt.plot(lags, y2)
-    plt.fill_between(lags, y2-err2, y2+err2, alpha=0.3)
-    plt.plot(lags, y3)
-    plt.fill_between(lags, y3-err3, y3+err3, alpha=0.3)
+    plt.plot(lags, y1, 'C1')
+    plt.fill_between(lags, y1-err1, y1+err1, color='C1', alpha=0.3)
+    plt.plot(lags, y2, 'C2')
+    plt.fill_between(lags, y2-err2, y2+err2, color='C2', alpha=0.3)
+    plt.plot(lags, y3, 'k')
+    plt.fill_between(lags, y3-err3, y3+err3, color='k', alpha=0.3)
     plt.ylim([-1,1]); plt.ylabel('correlation'); plt.title('xcorr with head pitch')
     plt.legend(['mean theta', 'theta divergence', 'mean phi'])
     pdf.savefig()
     plt.close()
 
     pdf.close()
+
+    return pool_by_animal
 
 def jump_analysis(config):
     # initialize logger
@@ -366,6 +377,7 @@ def jump_analysis(config):
                     top = xr.open_dataset([i for i in find((trial_name + '*_Top.nc'), head) if 'early' not in i and 'jumpprep' not in i and 'late' not in i][0])
                 except Exception as e:
                     logf.log([trial_path, traceback.format_exc()],PRINT=False)
+                    continue
             else:
                 try:
                     leye = xr.open_dataset([i for i in find((trial_name + '*_Leye.nc'), head) if bin_group in i][0])
@@ -374,11 +386,12 @@ def jump_analysis(config):
                     top = xr.open_dataset([i for i in find((trial_name + '*_Top.nc'), head) if bin_group in i][0])
                 except Exception as e:
                     logf.log([trial_path, traceback.format_exc()],PRINT=False)
+                    continue
             try:
-                leye = xr.open_dataset(find((trial_name + '*_Leye.nc'), head)[0])
-                reye = xr.open_dataset(find((trial_name + '*_Reye.nc'), head)[0])
-                side = xr.open_dataset(find((trial_name + '*_side.nc'), head)[0])
-                top = xr.open_dataset(find((trial_name + '*_Top.nc'), head)[0])
+                # leye = xr.open_dataset(find((trial_name + '*_Leye.nc'), head)[0])
+                # reye = xr.open_dataset(find((trial_name + '*_Reye.nc'), head)[0])
+                # side = xr.open_dataset(find((trial_name + '*_side.nc'), head)[0])
+                # top = xr.open_dataset(find((trial_name + '*_Top.nc'), head)[0])
                 side_vid = find((trial_name + '*Side*.avi'), head)
                 top_vid = find((trial_name + '*Top*.avi'), head)
                 leye_vid = find((trial_name + '*LEYE*.avi'), head)
@@ -400,10 +413,10 @@ def jump_analysis(config):
                 leye_vid = leye_vid[0]
                 reye_vid = reye_vid[0]
                 # correlation figures
-                trial_cc_data = jump_cc(reye, leye, top, side, time_dict, trial_metadata, config)
+                trial_cc_data = jump_cc(reye, leye, top, side, time_dict, trial_metadata, config, bin_group)
                 trial_cc_data.name = config['recording_name']
                 # plot over video
-                if config['plot_avi_vids'] is True:
+                if config['plot_avi_vids'] is True and bin_group=='complete':
                     print('plotting jump gaze for side view of ' + config['recording_name'])
                     jump_gaze_trace(reye, leye, top, side, side_vid, config)
                     print('plotting videos with animated plots for ' + config['recording_name'])
@@ -434,14 +447,19 @@ def jump_analysis(config):
         pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'pooled_jump_data.nc'))
         early_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'early_pooled_jump_data.nc'))
         jumpprep_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'jumpprep_pooled_jump_data.nc'))
-        late_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'alte_pooled_jump_data.nc'))
+        late_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'late_pooled_jump_data.nc'))
     print('making plots of pooled data for all trials')
     # make a pdf of pooled data
-    pooled_jump_analysis(pooled_data, config, 'combined')
-    pooled_jump_analysis(early_pooled_data, config, 'early')
-    pooled_jump_analysis(jumpprep_pooled_data, config, 'jumpprep')
-    pooled_jump_analysis(late_pooled_data, config, 'late')
+    combined_pool_by_animal = pooled_jump_analysis(pooled_data, config, 'combined')
+    early_pool_by_animal = pooled_jump_analysis(early_pooled_data, config, 'early')
+    jumpprep_pool_by_animal = pooled_jump_analysis(jumpprep_pooled_data, config, 'jumpprep')
+    late_pool_by_animal = pooled_jump_analysis(late_pooled_data, config, 'late')
     print('done analyzing ' + str(len(text_file_list)) + ' trials')
+
+    pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'pooled_jump_by_animal.nc'))
+    early_pool_by_animal.to_netcdf(os.path.join(config['analysis_save_dir'], 'early_pooled_jump_by_animal.nc'))
+    jumpprep_pool_by_animal.to_netcdf(os.path.join(config['analysis_save_dir'], 'jumpprep_pooled_jump_by_animal.nc'))
+    late_pool_by_animal.to_netcdf(os.path.join(config['analysis_save_dir'], 'late_pooled_jump_by_animal.nc'))
 
 def split_nc_into_timebins(config):
     main_path = config['analysis_save_dir']
