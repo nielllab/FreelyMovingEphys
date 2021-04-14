@@ -172,11 +172,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['has_ir_spot_labeled'] and config['spot_subtract']:
         spot_xcent = np.mean(x_vals.iloc[:,-5:], 1)
         spot_ycent = np.mean(y_vals.iloc[:,-5:], 1)
-        spotsub_x_vals = x_vals.iloc[:,:-5] - spot_xcent
-        spotsub_x_vals = y_vals.iloc[:,:-5] - spot_ycent
-
-        x_vals = spotsub_x_vals.copy()
-        y_vals = spotsub_Y_vals.copy()
+        x_vals = x_vals.iloc[:,:-5].subtract(spot_xcent, axis=0)
+        y_vals = y_vals.iloc[:,:-5].subtract(spot_ycent, axis=0)
 
     elif config['has_ir_spot_labeled'] is True and config['spot_subtract'] is False:
         x_vals = x_vals.iloc[:,:-5]

@@ -35,6 +35,7 @@
     "has_cricket_labeled": false,
     "has_tear_labeled": true,
     "has_ir_spot_labeled": false,
+    "spot_subtract": false,
     "pxl_thresh": 50,
     "ell_thresh": 0.85,
     "eye_dist_thresh_cm": 4.1,
