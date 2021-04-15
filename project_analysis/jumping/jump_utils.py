@@ -1,7 +1,7 @@
 """
 jump_utils.py
 """
-import argparse, json, sys, os
+import argparse, json, sys, os, shutil
 import xarray as xr
 import pandas as pd
 import numpy as np
@@ -257,6 +257,21 @@ def jump_hist(div):
         all_hist[jump_num] = hist
     return all_hist
 
+def jump_hist1(div, axis=0):
+    all_bins = np.arange(-25,26)
+    all_hist = np.zeros([np.size(div, axis), len(all_bins)-1])
+    for jump_num in range(np.size(div, axis)):
+        hist, bin_edges = np.histogram(div[jump_num], bins=np.arange(-25,26), density=True)
+        all_hist[jump_num] = hist
+    return all_hist
+
+def mean_within_animal1(data):
+    data_mean = data.mean(dim='jump',skipna=True)
+    out = []
+    for var in range(np.size(data_mean,0)):
+        out.append(list(data_mean[var]))
+    return np.array(out)
+
 # make plots using the pooled jumping data
 def pooled_jump_analysis(pooled, config, bin_name):
 
@@ -348,7 +363,7 @@ def jump_analysis(config):
         text_file_list.remove(x)
     # iterate through the text files
     trial_count = 0
-    for trial_path in text_file_list:
+    for trial_path in sorted(text_file_list):
         trial_count = trial_count + 1
         # read the trial metadata data in
         with open(trial_path) as f:
@@ -388,10 +403,6 @@ def jump_analysis(config):
                     logf.log([trial_path, traceback.format_exc()],PRINT=False)
                     continue
             try:
-                # leye = xr.open_dataset(find((trial_name + '*_Leye.nc'), head)[0])
-                # reye = xr.open_dataset(find((trial_name + '*_Reye.nc'), head)[0])
-                # side = xr.open_dataset(find((trial_name + '*_side.nc'), head)[0])
-                # top = xr.open_dataset(find((trial_name + '*_Top.nc'), head)[0])
                 side_vid = find((trial_name + '*Side*.avi'), head)
                 top_vid = find((trial_name + '*Top*.avi'), head)
                 leye_vid = find((trial_name + '*LEYE*.avi'), head)
@@ -421,33 +432,35 @@ def jump_analysis(config):
                     jump_gaze_trace(reye, leye, top, side, side_vid, config)
                     print('plotting videos with animated plots for ' + config['recording_name'])
                     animated_gaze_plot(reye, leye, top, side, side_vid, leye_vid, reye_vid, top_vid, config)
-                if trial_path == text_file_list[0]:
-                    if bin_group == 'complete':
-                        pooled_data = trial_cc_data.copy()
-                    elif bin_group == 'early':
-                        early_pooled_data = trial_cc_data.copy()
-                    elif bin_group == 'jumpprep':
-                        jumpprep_pooled_data = trial_cc_data.copy()
-                    elif bin_group == 'late':
-                        late_pooled_data = trial_cc_data.copy()
-                else:
-                    if bin_group == 'complete':
+                if bin_group == 'complete':
+                    try:
                         pooled_data = xr.merge([pooled_data, trial_cc_data])
-                    elif bin_group == 'early':
+                    except UnboundLocalError:
+                        pooled_data = trial_cc_data.copy()
+                elif bin_group == 'early':
+                    try:
                         early_pooled_data = xr.merge([early_pooled_data, trial_cc_data])
-                    elif bin_group == 'jumpprep':
+                    except UnboundLocalError:
+                        early_pooled_data = trial_cc_data.copy()
+                elif bin_group == 'jumpprep':
+                    try:
                         jumpprep_pooled_data = xr.merge([jumpprep_pooled_data, trial_cc_data])
-                    elif bin_group == 'late':
+                    except UnboundLocalError:
+                        jumpprep_pooled_data = trial_cc_data.copy()
+                elif bin_group == 'late':
+                    try:
                         late_pooled_data = xr.merge([late_pooled_data, trial_cc_data])
+                    except UnboundLocalError:
+                        late_pooled_data = trial_cc_data.copy()
             except Exception as e:
                 logf.log([trial_path, traceback.format_exc()],PRINT=False)
             print('done with trial '+str(trial_count)+' of '+str(len(text_file_list)))
-        print('saving pooled data at ' + config['analysis_save_dir'])
-        # save out an xarray of pooled data
-        pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'pooled_jump_data.nc'))
-        early_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'early_pooled_jump_data.nc'))
-        jumpprep_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'jumpprep_pooled_jump_data.nc'))
-        late_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'late_pooled_jump_data.nc'))
+    print('saving pooled data at ' + config['analysis_save_dir'])
+    # save out an xarray of pooled data
+    pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'pooled_jump_data.nc'))
+    early_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'early_pooled_jump_data.nc'))
+    jumpprep_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'jumpprep_pooled_jump_data.nc'))
+    late_pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'late_pooled_jump_data.nc'))
     print('making plots of pooled data for all trials')
     # make a pdf of pooled data
     combined_pool_by_animal = pooled_jump_analysis(pooled_data, config, 'combined')
@@ -456,13 +469,59 @@ def jump_analysis(config):
     late_pool_by_animal = pooled_jump_analysis(late_pooled_data, config, 'late')
     print('done analyzing ' + str(len(text_file_list)) + ' trials')
 
-    pooled_data.to_netcdf(os.path.join(config['analysis_save_dir'], 'pooled_jump_by_animal.nc'))
+    combined_pool_by_animal.to_netcdf(os.path.join(config['analysis_save_dir'], 'pooled_jump_by_animal.nc'))
     early_pool_by_animal.to_netcdf(os.path.join(config['analysis_save_dir'], 'early_pooled_jump_by_animal.nc'))
     jumpprep_pool_by_animal.to_netcdf(os.path.join(config['analysis_save_dir'], 'jumpprep_pooled_jump_by_animal.nc'))
     late_pool_by_animal.to_netcdf(os.path.join(config['analysis_save_dir'], 'late_pooled_jump_by_animal.nc'))
 
+    pdf = PdfPages(os.path.join(config['analysis_save_dir'], 'pooled_hists_by_animal.pdf'))
+
+    for measurment_name in ['eye_th_div', 'head_pitch']:
+        div_early = early_pool_by_animal.sel(jump_params=measurment_name)
+        div_jumpprep = jumpprep_pool_by_animal.sel(jump_params=measurment_name)
+        early = div_early.drop('variable').rename({'variable':'jump'}).to_array()
+        jumpprep = div_jumpprep.drop('variable').rename({'variable':'jump'}).to_array()
+        early_bins = jump_hist1(early)
+        jumpprep_bins = jump_hist1(jumpprep)
+        early = mean_within_animal1(early)
+        jumpprep = mean_within_animal1(jumpprep)
+
+        lags = np.arange(-25,25)
+        plt.subplots(1,2, figsize=(9,4))
+        plt.subplot(1,2,1)
+        plt.title('early')
+        plt.plot(lags, early_bins.T, alpha=0.3)
+        plt.ylabel('proportion of time'); plt.xlabel(measurment_name)
+        plt.subplot(1,2,2)
+        plt.title('jumpprep')
+        plt.ylabel('proportion of time')
+        plt.xlabel(measurment_name)
+        plt.plot(lags, jumpprep_bins.T, alpha=0.3)
+        pdf.savefig()
+        plt.close()
+
+        axisplot = 0
+        y1 = np.mean(early_bins,axisplot)
+        err1 = np.std(np.array(early_bins,dtype=np.float64),axisplot)/np.sqrt(np.size(early_bins,axisplot))
+        y2 = np.mean(jumpprep_bins,axisplot)
+        err2 = np.std(np.array(jumpprep_bins,dtype=np.float64),axisplot)/np.sqrt(np.size(jumpprep_bins,axisplot))
+
+        lags = np.arange(-25,25)
+        plt.figure(figsize=(4,4))
+        plt.plot(lags, y1)
+        plt.fill_between(lags, y1-err1, y1+err1, alpha=0.3)
+        plt.plot(lags, y2)
+        plt.fill_between(lags, y2-err2, y2+err2, alpha=0.3)
+        plt.ylabel('proportion of time'); plt.xlabel(measurment_name)
+        plt.legend(['early', 'jump prep'])
+        pdf.savefig()
+        plt.close()
+
+    pdf.close()
+
 def split_nc_into_timebins(config):
     main_path = config['analysis_save_dir']
+    prejump_window = 60 * 5 # five seconds before jump (60fps)
     nc_list = find('*.nc',main_path)
     nc_list = [i for i in nc_list if 'pooled_jump_data' not in i]
     nc_list1 = [i for i in nc_list if len(os.path.split(i)[1].split('_'))==4]
@@ -478,8 +537,8 @@ def split_nc_into_timebins(config):
             times = eval(times[list(times)[0]])
             jump_num = str(int(base_name.split('_')[-1].strip('0'))-1)
             base_cam = 'Side'
-            start = slice(0, (times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num])-120)
-            prejump = slice((times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num])-120,(times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num]))
+            start = slice(0, (times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num])-prejump_window)
+            prejump = slice((times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num])-prejump_window,(times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num]))
             stop = slice(times[base_cam+'_Jump'][jump_num]-times[base_cam+'_Start'][jump_num], times[base_cam+'_End'][jump_num]-times[base_cam+'_Start'][jump_num])
             # index using these times
             early = data.sel(frame=start)

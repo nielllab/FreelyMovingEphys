@@ -284,8 +284,9 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
                 #     ensemble[nsp-1,:,:] = im
                 sta = sta+im
         plt.subplot(int(np.ceil(n_units/4)),4,c+1)
-        unit_ch = goodcells.at[ind,'ch']
-        plt.title(f'ind={ind!s} nsp={nsp!s} ch={unit_ch!s}')
+        ch = int(goodcells.at[ind,'ch'])
+        shank = np.floor(ch/32); site = np.mod(ch,32)
+        plt.title(f'ind={ind!s} nsp={nsp!s} ch={ch!s} shank={shank!s} site={site!s}')
         plt.axis('off')
         if nsp > 0:
             sta = sta/nsp

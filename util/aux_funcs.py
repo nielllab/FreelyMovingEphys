@@ -21,13 +21,13 @@ def nanxcorr(x, y, maxlag=25):
     """
     calculates xcorr ignoring NaNs without altering timing
     adapted from /niell-lab-analysis/freely moving/nanxcorr.m
-    INPUTS:
-        x -- np array
-        y -- np array (should be arrays of same length as x)
-        maxlag -- number of lags to shift y prior to testing correlation
-    OUTPUTS:
-        cc_out -- cross correlation
-        lags -- lag vector
+    INPUTS
+        x: np array
+        y: p array (should be arrays of same length as x)
+        maxlag: number of lags to shift y prior to testing correlation
+    OUTPUTS
+        cc_out: cross correlation
+        lags: lag vector
     """
     lags = range(-maxlag, maxlag)
     cc = []

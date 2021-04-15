@@ -3,7 +3,7 @@ jump_eyecam_analysis.py
 """
 import argparse, os, json, sys
 
-sys.path.insert(0, '/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys')
+sys.path.insert(0, '/home/niell_lab/Documents/github/FreelyMovingEphys')
 
 from manual_preprocessing import main as preprocessing_main
 from project_analysis.jumping.jump_utils import *

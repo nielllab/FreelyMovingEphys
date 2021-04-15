@@ -19,7 +19,7 @@ from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking, find_pupil_rotation
-from util.track_world import adjust_world, track_LED
+from util.track_world import track_LED
 from util.ephys import format_spikes
 from util.track_ball import ball_tracking
 from util.track_side import side_angle, side_tracking

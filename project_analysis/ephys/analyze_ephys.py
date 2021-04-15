@@ -462,7 +462,7 @@ def run_ephys_analysis(file_dict):
                     plt.title('ch33:64')
                     plt.axvline(x=(0.1*samprate))
                     # plt.ylim([-1000,500])
-            diagnostic_pdf.savefig(); plt.close()
+            detail_pdf.savefig(); plt.close()
         # channels arranged in columns
         fig, axes = plt.subplots(int(np.size(rev_resp_mean,0)/2),2, figsize=(15,50),sharey=True)
         ch_num = 0
@@ -472,7 +472,7 @@ def run_ephys_analysis(file_dict):
             ax.axis('off')
             ax.set_title(ch_num)
             ch_num = ch_num + 1
-        diagnostic_pdf.savefig(); plt.close()
+        detail_pdf.savefig(); plt.close()
         # csd
         csd = np.ones([np.size(rev_resp_mean,0), np.size(rev_resp_mean,1)])
         csd_interval = 2

@@ -92,9 +92,10 @@ def get_calibration_params(config):
     """
     get out the parameters that can be used to calibrate videos
     looks for the checkerboard recording
-    INPUTS:
-        config -- options dictionary
-    OUTPUTS: None
+    INPUTS
+        config: options dictionary
+    OUTPUTS
+        None
     """
     calib_config = config['calibration']
     W_savepath = calib_config['world_checker_npz']
@@ -109,9 +110,10 @@ def get_calibration_params(config):
 def calibrate_new_world_vids(config):
     """
     calibrate novel world videos using previously genreated .npy of parameters
-    INPUTS:
-        config -- options dictionary
-    OUTPUTS: None
+    INPUTS
+        config: options dictionary
+    OUTPUTS
+        None
     """
     # load the parameters
     calib_config = config['calibration']
@@ -128,9 +130,10 @@ def calibrate_new_world_vids(config):
 def calibrate_new_top_vids(config):
     """
     calibrate novel top videos using previously genreated .npy of parameters
-    INPUTS:
-        config -- options dictionary
-    OUTPUTS: None
+    INPUTS
+        config: options dictionary
+    OUTPUTS
+        None
     """
     # load the parameters
     calib_config = config['calibration']
