@@ -1,0 +1,88 @@
+# preprocessing and analysis config file
+
+animal_dir: /path/                       # animal-specific data directory
+
+# DEINTERLACE
+deinterlace:
+  run_deinter: true                      ### get deinterlaced copy of videos?
+  flip_eye_during_deinter: true          # whether or not to rotate eyecam 180deg
+  flip_world_during_deinter: true        # whether or not to rotate worldcam 180deg
+
+# IMAGE CORRECTION
+img_correction:
+  run_img_correction: false              ### get copy of the eyecam videos with processing applied?
+  apply_auto_gamma: false                # apply an automatic contrast correction to the eyecam videos
+
+# CALIBRATION
+calibration:
+  run_cam_calibration: true              ### calculate needed correction for worldcam and topcam, which only needs to be done once for a camera (default=false)
+  undistort_recordings: true             ### apply correction to novel videos (default=true)
+  top_checker_npz: E:/freely_moving_ephys/camera_calibration_params/top_checkerboard_calib.npz
+                                         # both the read and write path for an .npz file of calibration properties of the top camera(s)
+  top_checker_vid: E:/freely_moving_ephys/camera_calibration_params/122920_camera_calibration_control_Rig2_checkerboard_TOP1.avi
+                                         # the .avi with which to calculate calibration properties of the top camera (should be a recording of checkerboard being moved)
+  world_checker_npz: E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz
+                                         # both the read and write path for an .npz file of calibration properties of the world camera
+  world_checker_vid: E:/freely_moving_ephys/camera_calibration_params/betafpv_checkerboard.avi
+                                        # the .avi with which to calculate calibration properties of the world camera (should be a recording of checkerboard being moved)
+
+# POSE ESTIMATION
+pose_estimation:
+  run_dlc: true                          ### get pose estimation?
+  crop_for_dlc: false                    # crop videos prior to pose estimation (default=false)
+  filter_dlc_predictions: false          # apply median filter to dlc outputs (default=false)
+  has_cricket_labeled: false             # are there two points labeled on a cricket in the topdown view? (default=false)
+  has_ir_spot_labeled: false             # are there five points labeled around the reflection of the eyecam's ir led? (default=false)
+  has_tear_labeled: true                 # are there two points labeled at the tear duct and outer edge of the eye? (default=true)
+  multianimal_top_project: false         # is the topdown camera's dlc network a multianimal project? (default=false)
+  projects:
+    REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams3-dylan-2021-02-02/config.yaml
+    TOP1: E:/freely_moving_ephys/deeplabcut_projects/EphysTopDark-dylan-2021-02-13/config.yaml
+
+# PARAMETERS
+parameters:
+  run_params: true                       ### get parameters?
+  get_top_thetas: false                  # whether or not to calculate head and body angle using the top camera, which is only worthwhile if tracking is good (default=false)
+  get_omega: false                       # whether or not to calculate pupil rotation for each frame, which is very slow (default=false)
+  lik_thresh: 0.99                       # points below this value will be dropped, should be between 0 and 1 (default=0.99)
+  ephys:
+    ephys_sample_rate: 30000             # sample rate of ephys probe (default=30000)
+  eyes:
+    ell_thresh: 0.85                     # maximum ratio of ellipse shortaxis to longaxis during ellipse fit of pupil (default=0.85)
+    eye_dist_thresh_cm: 4.1              # maximum acceptable distance in cm that each frame's point can be from the mean position of that eye point across the recording (default=4.1)
+    eyecam_pxl_per_cm: 24                # scale factor for camera from pixels to cm on eye (default=24)
+    num_ellipse_pts_needed: 7            # drop eyecam frames that don't have this number of ellipse points above the likelihood threshold (default=7, max=8)
+    num_ir_spot_pts_needed: 5            # drop eyecam frames that don't have this number of eyecam ir spot reflection points above the likelihood threshold (default=5, max=5)
+    pxl_thresh: 50                       # maximum acceptable number of pixels for radius of the pupil (default=50)
+  imu:
+    imu_downsample: 100                  # factor by which to downsample the imu data (default=100)
+    imu_sample_rate: 30000               # sample rate of the imu (default=30000)
+  outputs_and_visualization:
+    dwnsmpl: 0.25                        # factor by which to downsample videos before packing into .nc (default=0.25)
+    num_save_frames: 3600                # number of frames to write to dianostic .avi (default=3600 (one minute))
+    save_avi_vids: true                  # whether or not to save diagnostic .avi (default=true)
+    save_figs: true                      # whether or not to save pdfs of diagnostic and summary figures (default=true)
+    save_nc_vids: true                   # whether or not to save nc files of parameters (default=true)
+    eye_fig_pts_dwnspl: 100              # factor by which to downsample the number of points plotted in eyecam diagnostic figures (default=100)
+  running_wheel:
+    optical_mouse_pix2cm: 2840           # pixel to cm conversion factor for optical mouse of running ball
+    optical_mouse_sample_rate_ms: 200    # optical mouse sample rate in ms (default=200)
+    optical_mouse_screen_center:         # coordinates that the optical mouse resets to in x and y
+      x: 960                             # x center (default=960)
+      y: 540                             # y center (default=540)
+  follow_strict_naming: true             # in special cases, make file-searching follow a less strict version of naming (default=true)
+
+# IR SPOT IN SPACE
+ir_spot_in_space:
+  run_is_spot_in_space: false            ### get position of ir spot being moved through space?
+  LED_eye_view_config: E:/freely_moving_ephys/deeplabcut_projects/LED_eye_view2-dylan-2021-01-10/config.yaml
+  LED_world_view_config: E:/freely_moving_ephys/deeplabcut_projects/LED_world_view2-dylan-2021-01-09/config.yaml
+  ir_spot_in_space_dir_name: IRspot      # name of the directory that the ir spot moving through space was saved to
+  lik_thresh_strict: 0.9999              # a more strict likelihood threshold than would be used in calculating parameters
+
+# EPHYS ANALYSIS
+ephys_analysis:
+  run_ephys_analysis: true               ### run ephys analysis?
+  unit_to_highlight: 0                   # unit to highlight in figures
+  channel_count: 64                      # number of channels on the ephys probe (options=16,64)
+  write_videos: true                     # write mp4 videos

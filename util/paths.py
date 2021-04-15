@@ -44,3 +44,10 @@ def check_path(basepath, path):
         return os.path.join(basepath, path)
     else:
         return os.path.join(basepath, path)
+
+def list_subdirs(root_dir):
+    dirnames = []
+    for root, dirs, files in os.walk(root_dir):
+        for rec_dir in dirs:
+            dirnames.append(rec_dir)
+    return dirnames

@@ -23,7 +23,7 @@ from util.track_world import adjust_world, track_LED
 from util.ephys import format_spikes
 from util.track_ball import ball_tracking
 from util.track_side import side_angle, side_tracking
-from util.track_imu import read_8ch_imu, convert_acc_gyro
+from util.track_imu import read_8ch_imu
 
 def extract_params(config):
     """
@@ -328,10 +328,7 @@ def extract_params(config):
         if trial_imu_bin != []:
             print('reading imu data for ' + t_name)
             trial_imu_csv = os.path.join(config['trial_path'],t_name+'_Ephys_BonsaiBoardTS.csv') # use ephys timestamps
-            imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config)
-            # imu_acc, imu_gyro = convert_acc_gyro(imu_data, trial_imu_csv, config)
-            imu_data.name = 'IMU_data'#; imu_acc.name='ACC_data'; imu_gyro.name='GYRO_data'
-            # trial_imu_data = xr.merge(imu_data, imu_acc, imu_gyro)
+            imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config); imu_data.name = 'IMU_data'
             imu_data.to_netcdf(os.path.join(config['trial_path'], str(t_name+'_imu.nc')))
 
     print('done with ' + str(len(trial_units)) + ' queued trials')

@@ -65,7 +65,7 @@ def launch_ephys_gui():
     fm1 = Checkbutton(entry, variable=fm)
     fm1.grid(column=1, row=3)
 
-    # checkbox for freemoving or headfixed
+    # menu of stims
     hf_stim_options = ['None','gratings','sparse_noise','white_noise','revchecker']
     stim_type_label = Label(entry, text="Specific headfixed stimulus?")
     stim_type_label.grid(column=0, row=4)
@@ -81,12 +81,21 @@ def launch_ephys_gui():
     mp4_1 = Checkbutton(entry, variable=mp4)
     mp4_1.grid(column=1, row=5)
 
+    # menu of probe ch nums
+    ch_count_options = ['16','64']
+    ch_count_label = Label(entry, text="Probe channel count?")
+    ch_count_label.grid(column=0, row=6)
+    ch_count = StringVar()
+    ch_count.set(hf_stim_options[0])
+    ch_count1 = OptionMenu(entry, ch_count, *ch_count_options)
+    ch_count1.grid(column=1, row=6)
+
     ### run tab
     run_label = Label(run, text="Do not close this window or the terminal while the analysis runs.", wraplength=500)
     run_label.grid(column=0, row=0)
 
     def run_pipeline():
-        file_dict = find_files(data_path, recording_name.get(), fm.get(), int(this_unit.get()), stim_type.get(), mp4.get())
+        file_dict = find_files(data_path, recording_name.get(), fm.get(), int(this_unit.get()), stim_type.get(), mp4.get(), ch_count.get())
         run_ephys_analysis(file_dict)
 
     run_label = Label(run, text="Run ephys analysis:", wraplength=500)

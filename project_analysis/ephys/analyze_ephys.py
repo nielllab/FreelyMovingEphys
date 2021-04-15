@@ -33,10 +33,12 @@ import os
 from scipy.ndimage import shift as imshift
 from scipy import signal
 from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 # module imports
 from project_analysis.ephys.ephys_figures import *
+from project_analysis.ephys.ephys_utils import *
 
-def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4):
+def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, num_channels):
     print('find ephys files')
 
     # get the files names in the provided path
@@ -45,14 +47,15 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4):
     ephys_file = os.path.join(rec_path, rec_name + '_ephys_merge.json')
     imu_file = os.path.join(rec_path, rec_name + '_imu.nc')
     speed_file = os.path.join(rec_path, rec_name + '_speed.nc')
+    ephys_bin_file = os.path.join(rec_path, rec_name + '_Ephys.bin')
 
     if stim_type == 'gratings':
         stim_type = 'grat'
 
     if free_move is True:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'num_channels':int(num_channels)}
     elif free_move is False:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'num_channels':int(num_channels)}
 
     return dict_out
 
@@ -164,7 +167,7 @@ def run_ephys_analysis(file_dict):
     eyeT = eye_data.timestamps.copy()
 
     # plot eye timestamps
-    reyecam_fig = plot_cam_time(worldT, 'reye')
+    reyecam_fig = plot_cam_time(eyeT, 'reye')
     diagnostic_pdf.savefig()
     plt.close()
 
@@ -275,7 +278,6 @@ def run_ephys_analysis(file_dict):
 #    for i in range(len(ephys_data)):
 #        ephys_data['spikeT'].iloc[i] = np.array(ephys_data['spikeTraw'].iloc[i]) - (offset0 + np.array(ephys_data['spikeTraw'].iloc[i]) *drift_rate)
 
-
     print('finding contrast of normalized worldcam')
     # normalize world movie and calculate contrast
     cam_gamma = 1
@@ -300,7 +302,6 @@ def run_ephys_analysis(file_dict):
     plt.colorbar(); plt.title('std img')
     diagnostic_pdf.savefig()
     plt.close()
-
 
     # make movie and sound
     print('making video figure')
@@ -398,6 +399,98 @@ def run_ephys_analysis(file_dict):
     except:
         pass
 
+    if file_dict['stim_type'] == 'revchecker':
+        print('running revchecker analysis')
+        print('loading ephys binary file and applying filters')
+        # read in the binary file of ephys recording
+        lfp_ephys = read_ephys_bin(file_dict['ephys_bin'], int(file_dict['num_channels']))
+        # subtract off average for each channel, then apply bandpass filter
+        ephys_center_sub = lfp_ephys - np.mean(lfp_ephys,0)
+        filt_ephys = butter_bandpass(ephys_center_sub, lowcut=1, highcut=300, fs=30000, order=6)
+        # k means clustering into two clusters
+        # will seperate out the two checkerboard patterns
+        # diff of labels will give each transition between checkerboard patterns (i.e. each reversal)
+        print('kmeans clustering on revchecker worldcam')
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.85)
+        k = 2
+        num_frames = np.size(world_norm,0); vid_width = np.size(world_norm,1); vid_height = np.size(world_norm,2)
+        kmeans_input = world_norm.reshape(num_frames,vid_width*vid_height)
+        compactness, labels, centers = cv2.kmeans(kmeans_input.astype(np.float32), k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        label_diff = np.diff(np.ndarray.flatten(labels))
+        revind = list(abs(label_diff)) # need abs because reversing back will be -1
+        # plot time between reversals, which should be centered around 1sec
+        plt.figure()
+        plt.title('time between reversals')
+        plt.hist(np.diff(worldT[np.where(revind)]),bins=100); plt.xlim([0.9,1.1])
+        plt.xlabel('time (s)')
+        diagnostic_pdf.savefig(); plt.close()
+        # get response of each channel centered around time of checkerboard reversal
+        revchecker_window_start = 0.1 # in seconds
+        revchecker_window_end = 0.5 # in seconds
+        samprate = 30000 # Hz
+        print('getting reversal response')
+        all_resp = np.zeros([np.size(filt_ephys, 1), np.sum(revind), len(list(set(np.arange(1-revchecker_window_start, 1+revchecker_window_end, 1/samprate))))])
+        true_rev_index = 0
+        for rev_index, rev_label in tqdm(enumerate(revind)):
+            if rev_label == True and worldT[rev_index] > 1:
+                for ch_num in range(np.size(filt_ephys, 1)):
+                    # index of ephys data to start window with, aligned to set time before checkerboard will reverse
+                    bin_start = int((worldT[rev_index]-revchecker_window_start)*samprate)
+                    # index of ephys data to end window with, aligned to time after checkerboard reversed
+                    bin_end = int((worldT[rev_index]+revchecker_window_end)*samprate)
+                    # index into the filtered ephys data and store each trace for this channel of the probe
+                    if bin_end < np.size(filt_ephys, 0): # make sure it's a possible range
+                        all_resp[ch_num, true_rev_index] = filt_ephys[bin_start:bin_end, ch_num]
+                true_rev_index = true_rev_index + 1
+        # mean of responses within each channel
+        rev_resp_mean = np.mean(all_resp, 1)
+        print('generating figures and csd')
+        # plot traces over each other for two shanks
+        colors = plt.cm.jet(np.linspace(0,1,32))
+        if int(file_dict['num_channels']) == 64:
+            plt.subplots(1,2 ,figsize=(24,8))
+            for ch_num in np.arange(0,64):
+                if ch_num<=31:
+                    plt.subplot(1,2,1)
+                    plt.plot(rev_resp_mean[ch_num], color=colors[ch_num], linewidth=1)
+                    plt.title('ch1:32')
+                    plt.axvline(x=(0.1*samprate))
+                    # plt.ylim([-1000,500])
+                if ch_num>31:
+                    plt.subplot(1,2,2)
+                    plt.plot(rev_resp_mean[ch_num], color=colors[ch_num-32], linewidth=1)
+                    plt.title('ch33:64')
+                    plt.axvline(x=(0.1*samprate))
+                    # plt.ylim([-1000,500])
+            diagnostic_pdf.savefig(); plt.close()
+        # channels arranged in columns
+        fig, axes = plt.subplots(int(np.size(rev_resp_mean,0)/2),2, figsize=(15,50),sharey=True)
+        ch_num = 0
+        for ax in axes.T.flatten():
+            ax.plot(rev_resp_mean[ch_num], linewidth=1)
+            ax.axvline(x=(0.1*samprate), linewidth=1)
+            ax.axis('off')
+            ax.set_title(ch_num)
+            ch_num = ch_num + 1
+        diagnostic_pdf.savefig(); plt.close()
+        # csd
+        csd = np.ones([np.size(rev_resp_mean,0), np.size(rev_resp_mean,1)])
+        csd_interval = 2
+        for ch in range(2,np.size(rev_resp_mean,0)-2):
+            csd[ch] = rev_resp_mean[ch] - 0.5*(rev_resp_mean[ch-csd_interval] + rev_resp_mean[ch+csd_interval])
+        # csd between -1 and 1
+        csd_interp = np.interp(csd, (csd.min(), csd.max()), (-1, +1))
+        # visualize csd
+        fig, ax = plt.subplots(1,1)
+        plt.subplot(1,1,1)
+        plt.imshow(csd_interp, cmap='jet')
+        plt.axes().set_aspect('auto'); plt.colorbar()
+        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+        plt.xlabel('msec'); plt.ylabel('channel')
+        plt.axvline(x=(0.1*samprate), color='k')
+        plt.title('revchecker csd')
+        detail_pdf.savefig(); plt.close()
+
     if file_dict['stim_type'] == 'grat':
         print('getting grating flow')
         nf = np.size(img_norm,0)-1
@@ -407,9 +500,9 @@ def run_ephys_analysis(file_dict):
         vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_grating_flow'))
 
         # find screen
-        meanx = np.mean(std_im>0,axis=0);
+        meanx = np.mean(std_im>0,axis=0)
         xcent = np.int(np.sum(meanx*np.arange(len(meanx)))/ np.sum(meanx))
-        meany = np.mean(std_im>0,axis=1);
+        meany = np.mean(std_im>0,axis=1)
         ycent = np.int(np.sum(meany*np.arange(len(meany)))/ np.sum(meany))
         xrg = 40;   yrg = 25; #pixel range to define monitor
 
@@ -847,7 +940,53 @@ def run_ephys_analysis(file_dict):
             unit_df.index = [ind]
             unit_df['session'] = session_name
             unit_data = pd.concat([unit_data, unit_df], axis=0)
-    elif file_dict['stim_type'] != 'grat' and free_move is False:
+    if file_dict['stim_type'] == 'revchecker':
+        for unit_num, ind in enumerate(goodcells.index):
+            cols = [stim+'_'+i for i in ['c_range',
+                                        'crf_cent',
+                                        'crf_tuning',
+                                        'crf_err',
+                                        'spike_triggered_average',
+                                        'sta_shape',
+                                        'spike_triggered_variance',
+                                        'upsacc_avg',
+                                        'downsacc_avg',
+                                        'spike_rate_vs_pupil_radius_cent',
+                                        'spike_rate_vs_pupil_radius_tuning',
+                                        'spike_rate_vs_pupil_radius_err',
+                                        'spike_rate_vs_theta_cent',
+                                        'spike_rate_vs_theta_tuning',
+                                        'spike_rate_vs_theta_err',
+                                        'spike_rate_vs_gz_cent',
+                                        'spike_rate_vs_gz_tuning',
+                                        'spike_rate_vs_gz_err',
+                                        'trange',
+                                        'csd']]
+            unit_df = pd.DataFrame(pd.Series([crange,
+                                    crf_cent,
+                                    crf_tuning[unit_num],
+                                    crf_err[unit_num],
+                                    np.ndarray.flatten(staAll[unit_num]),
+                                    np.shape(staAll[unit_num]),
+                                    np.ndarray.flatten(st_var[unit_num]),
+                                    upsacc_avg[unit_num],
+                                    downsacc_avg[unit_num],
+                                    spike_rate_vs_pupil_radius_cent,
+                                    spike_rate_vs_pupil_radius_tuning[unit_num],
+                                    spike_rate_vs_pupil_radius_err[unit_num],
+                                    spike_rate_vs_theta_cent,
+                                    spike_rate_vs_theta_tuning[unit_num],
+                                    spike_rate_vs_theta_err[unit_num],
+                                    spike_rate_vs_gz_cent,
+                                    spike_rate_vs_gz_tuning[unit_num],
+                                    spike_rate_vs_gz_err[unit_num],
+                                    trange,
+                                    csd_interp]),dtype=object).T
+            unit_df.columns = cols
+            unit_df.index = [ind]
+            unit_df['session'] = session_name
+            unit_data = pd.concat([unit_data, unit_df], axis=0)
+    elif file_dict['stim_type'] != 'grat' and file_dict['stim_type'] != 'revchecker' and free_move is False:
         for unit_num, ind in enumerate(goodcells.index):
             cols = [stim+'_'+i for i in ['c_range',
                                         'crf_cent',

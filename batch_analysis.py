@@ -128,7 +128,11 @@ def main(csv_filepath, log_dir, clear_dlc):
                 recording_path = os.path.join(data_path, recording_name)
                 full_recording_name = '_'.join(recording_path.split(os.sep)[-3:-1])+'_control_Rig2_'+recording_path.split(os.sep)[-1]
                 mp4 = False
-                file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4)
+                if '16' in row['probe_type']:
+                    num_ch = 16
+                elif '64' in row['probe_type']:
+                    num_ch = 64
+                file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4, num_ch)
                 run_ephys_analysis(file_dict)
             except Exception as e:
                 logf.log([row['Experiment date']+'_'+row['Animal name']+'_'+recording_name, traceback.format_exc()],PRINT=False)
