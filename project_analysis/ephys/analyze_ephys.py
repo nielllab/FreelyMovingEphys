@@ -308,8 +308,8 @@ def run_ephys_analysis(file_dict):
 
     if file_dict['mp4']:
     # set up interpolators for eye and world videos
-        eyeInterp = interp1d(eyeT,eye_vid,axis=0)
-        worldInterp = interp1d(worldT,world_vid,axis=0)
+        eyeInterp = interp1d(eyeT,eye_vid,axis=0, bounds_error = False)
+        worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
         
         if file_dict['imu'] is not None:
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
