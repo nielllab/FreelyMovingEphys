@@ -177,7 +177,7 @@ def quick_whitenoise_analysis(wn_path):
         spike_corr = 1 #+ 0.125/1200  # correction factor for ephys timing drift, but it's now corrected in spikeT and doesn't need to be manually reset
 
         img_norm[img_norm<-2] = -2
-        movInterp = interp1d(worldT,img_norm,axis=0, fill_value="extrapolate") # added extrapolate for cases where x_new is below interpolation range
+        movInterp = interp1d(worldT,img_norm,axis=0, bounds_error=False) # added extrapolate for cases where x_new is below interpolation range
 
         plt.figure()
         plt.plot(np.diff(worldT)); plt.xlabel('frame'); plt.ylabel('deltaT'); plt.title('world cam')
