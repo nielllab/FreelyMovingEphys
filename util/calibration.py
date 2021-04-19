@@ -17,10 +17,11 @@ def get_checkerboard_calib(checker_vid_path, savepath):
     """
     get calibration parameters for a camera using a video of the checkerboard pattern
     requires both a path to read the checkerboard video from and a save path
-    INPUTS:
-        checkerboard_vid_path -- file path (not a directory)
-        savepath -- specific file path, including the file name, that the data will be saved to
-    OUTPUTS: None
+    INPUTS
+        checkerboard_vid_path: file path (not a directory)
+        savepath: specific file path, including the file name, that the data will be saved to
+    OUTPUTS:
+        None
     camera properties will be saved to file as a .npz using the provided savepath
     """
     # arrays to store object points and image points from all the images.
@@ -59,14 +60,15 @@ def get_checkerboard_calib(checker_vid_path, savepath):
 def undistort_vid(vidpath, savepath, mtx, dist, rvecs, tvecs):
     """
     undistort novel videos using provided camera calibration properties
-    INPUTS:
-        vidpath -- path to the video file
-        savepath -- file path (not a directory) into which the undistorted video will be saved
-        mtx -- camera matrix
-        dist -- distortion coefficients
-        rvecs -- rotation vectors
-        tvecs -- translation vectors
-    OUTPUTS: None
+    INPUTS
+        vidpath: path to the video file
+        savepath: file path (not a directory) into which the undistorted video will be saved
+        mtx: camera matrix
+        dist: distortion coefficients
+        rvecs: rotation vectors
+        tvecs: translation vectors
+    OUTPUTS
+        None
     if vidpath and savepath are the same filename, the file will be overwritten
     saves a new copy of the video, after it has been undistorted
     """
@@ -121,7 +123,7 @@ def calibrate_new_world_vids(config):
     # unpack camera properties
     mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
     # iterate through eye videos and save out a copy which has had distortions removed
-    world_list = find('*WORLDdeinter*.avi', config['save_path'])
+    world_list = find('*WORLDdeinter*.avi', config['data_path'])
     for world_vid in world_list:
         if 'plot' not in world_vid:
             savepath = '_'.join(world_vid.split('_')[:-1])+'_WORLDcalib.avi'
@@ -140,7 +142,7 @@ def calibrate_new_top_vids(config):
     checker_in = np.load(calib_config['top_checker_npz'])
     # unpack camera properties
     mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
-    top_list = find('*TOP1*.avi', config['save_path'])
+    top_list = find('*TOP1*.avi', config['data_path'])
     for top_vid in top_list:
         if 'plot' not in top_vid:
             savepath = '_'.join(top_vid.split('_')[:-1])+'_TOP1calib.avi'

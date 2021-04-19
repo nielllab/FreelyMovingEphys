@@ -82,8 +82,8 @@ def launch_ephys_gui():
     mp4_1.grid(column=1, row=5)
 
     # menu of probe ch nums
-    ch_count_options = ['16','64']
-    ch_count_label = Label(entry, text="Probe channel count?")
+    ch_count_options = ['default16', 'NN_H16', 'default64', 'NN_H64-LP', 'DB_P64-3', 'DB_P64-8']
+    ch_count_label = Label(entry, text="probe mapping?")
     ch_count_label.grid(column=0, row=6)
     ch_count = StringVar()
     ch_count.set(hf_stim_options[0])

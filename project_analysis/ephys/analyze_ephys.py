@@ -1,12 +1,6 @@
 """
 analyze_ephys.py
-
-make ephys figures
-called by analysis jupyter notebook
-
-Jan. 20, 2021
 """
-# package imports
 from netCDF4 import Dataset
 import numpy as np
 import xarray as xr
@@ -19,8 +13,11 @@ import subprocess
 from matplotlib.animation import FFMpegWriter
 import matplotlib as mpl 
 import wavio
-mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe' # use for windows lab computers
-# mpl.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg' # user has to change to this line on ubuntu
+import platform
+if platform.system() == 'Linux':
+    mpl.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
+else:
+    mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
 from scipy.interpolate import interp1d
 from numpy import nan
 from matplotlib.backends.backend_pdf import PdfPages
@@ -34,13 +31,26 @@ from scipy.ndimage import shift as imshift
 from scipy import signal
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
-# module imports
+
 from project_analysis.ephys.ephys_figures import *
 from project_analysis.ephys.ephys_utils import *
 
-def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, num_channels):
-    print('find ephys files')
-
+def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, probe_name):
+    """
+    assemble file paths and options into dictionary
+    output dictionary is passed into func run_ephys_analysis
+    INPUTS
+        rec_path: path to the recording directory
+        rec_name: name of the recording (e.g. 'date_subject_control_Rig2_hf1_wn')
+        free_move: bool, True if this is a freely moving recording
+        cell: unit index to highlight in figures/videos
+        stim_type: None if freely moving, else any from ['white_noise', 'gratings', 'revchecker', 'sparse_noise']
+        mp4: bool, True if videos of worldcam, eyecam, animated ephys raster + other plots should be written (this is somewhat slow to run)
+        probe_name: name of probe, which should be a key in the .json in this repository, /matlab/channel_maps.json
+    OUTPUTS
+        file_dict: dictionay of the paths to important files and options to run ephys analysis with
+    """
+    print('finding ephys files')
     # get the files names in the provided path
     eye_file = os.path.join(rec_path, rec_name + '_Reye.nc')
     world_file = os.path.join(rec_path, rec_name + '_world.nc')
@@ -48,26 +58,34 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, num_channels
     imu_file = os.path.join(rec_path, rec_name + '_imu.nc')
     speed_file = os.path.join(rec_path, rec_name + '_speed.nc')
     ephys_bin_file = os.path.join(rec_path, rec_name + '_Ephys.bin')
-
+    # shorten gratings stim, since 'grat' is the str used in ephys analysis
+    # this can be eliminated if either name passed in or usage in run_ephys_analysis is changed
     if stim_type == 'gratings':
         stim_type = 'grat'
-
+    # assemble dict
     if free_move is True:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'num_channels':int(num_channels)}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name}
     elif free_move is False:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'num_channels':int(num_channels)}
+        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name}
 
     return dict_out
 
 def run_ephys_analysis(file_dict):
-
+    """
+    ephys analysis bringing together eyecam, worldcam, ephys data, imu data, and running ball optical mouse data
+    runs on one recording at a time
+    saves out an .h5 file for the rec structured as a dict of 
+    h5 file is  best read in with pandas, or if pooling data across recordings, and then across sessions, with load_ephys func in /project_analysis/ephys/ephys_utils.py
+    INPUTS
+        file_dict: dictionary saved out from func find_files (see find_files docstring)
+    """
+    # set up props of this recording
     if file_dict['speed'] is None:
         free_move = True; has_imu = True; has_mouse = False
     else:
         free_move = False; has_imu = False; has_mouse = True
-
     # delete the existing h5 file, so that a new one can be written
-    # overwriting isn't possible on all maachines (package version issue?)
+    # this is only needed on some computers that don't give python overwrite permissions?
     if os.path.isfile(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.h5'))):
         os.remove(os.path.join(file_dict['save'], (file_dict['name']+'_ephys_props.h5')))
 
@@ -84,12 +102,12 @@ def run_ephys_analysis(file_dict):
 
     # resize worldcam to make more manageable
     sz = world_vid_raw.shape
-
     if sz[1]>160:
         downsamp = 0.5
         world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
         for f in range(sz[0]):
             world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
+    # if the worldcam has already been resized when the NC file was written in preprocessing, don't resize
     else:
         world_vid = world_vid_raw
     world_vid_raw = None #clear large variable
@@ -115,6 +133,7 @@ def run_ephys_analysis(file_dict):
         imu_data = xr.open_dataset(file_dict['imu'])
         accT = imu_data.timestamps
         acc_chans = imu_data.IMU_data
+        # coords of imu xarray are occassionally flipped
         try:
             gx = np.array(acc_chans.sel(channel='gyro_x'))
             gy = np.array(acc_chans.sel(channel='gyro_y'))
@@ -130,7 +149,7 @@ def run_ephys_analysis(file_dict):
         diagnostic_pdf.savefig()
         plt.close()
 
-    # load optical mouse data
+    # load optical mouse NC file from running ball
     print('opening speed data')
     if file_dict['speed'] is not None:
         speed_data = xr.open_dataset(file_dict['speed'])
@@ -141,7 +160,6 @@ def run_ephys_analysis(file_dict):
         except:
             spd = spdVals.sel(frame = 'speed_cmpersec')
             spd_tstamps = spdVals.sel(frame = 'timestamps')
-
 
     # read ephys data
     print('opening ephys data')
@@ -177,7 +195,8 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
     
-    #define theta, phi
+    # define theta, phi
+    # zero-center
     th = np.array((eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
     phi = np.array((eye_params.sel(ellipse_params = 'phi')-np.nanmean(eye_params.sel(ellipse_params = 'phi')))*180/3.14159)
 
@@ -218,6 +237,7 @@ def run_ephys_analysis(file_dict):
     print('checking accelerometer / eye temporal alignment')
     # check accelerometer / eye temporal alignment
     if file_dict['imu'] is not None:
+        # eye velocity against head movements
         plt.figure
         plt.plot(eyeT[0:-1],-dEye,label = '-dEye')
         plt.plot(accTraw,gz*3-7.5,label = 'gz')
@@ -238,7 +258,7 @@ def run_ephys_analysis(file_dict):
                 try:
                     c, lag= nanxcorr(-dEye[t1[tstart]*60 : t2[tstart]*60] , acc_interp(eyeT[t1[tstart]*60:t2[tstart]*60]+lag_range[l]),1)
                     cc[l] = c[1]
-                except: # occasional probelm with operands that cannot be broadcast togther because of different shapes
+                except: # occasional problem with operands that cannot be broadcast togther because of different shapes
                     cc[l] = np.nan
             offset[tstart] = lag_range[np.argmax(cc)]    
             ccmax[tstart] = np.max(cc)
@@ -403,7 +423,7 @@ def run_ephys_analysis(file_dict):
         print('running revchecker analysis')
         print('loading ephys binary file and applying filters')
         # read in the binary file of ephys recording
-        lfp_ephys = read_ephys_bin(file_dict['ephys_bin'], int(file_dict['num_channels']))
+        lfp_ephys = read_ephys_bin(file_dict['ephys_bin'], int(file_dict['probe_name']), do_remap=True)
         # subtract off average for each channel, then apply bandpass filter
         ephys_center_sub = lfp_ephys - np.mean(lfp_ephys,0)
         filt_ephys = butter_bandpass(ephys_center_sub, lowcut=1, highcut=300, fs=30000, order=6)

@@ -1,7 +1,7 @@
 """
 session_analysis.py
 """
-import argparse, json, sys, os, subprocess, shutil
+import argparse, json, sys, os, subprocess, shutil, yaml
 import cv2
 import pandas as pd
 os.environ["DLClight"] = "True"
@@ -14,7 +14,6 @@ from tkinter import filedialog
 from glob import glob
 from multiprocessing import freeze_support
 import timeit
-import yaml
 
 from util.params import extract_params
 from util.dlc import run_DLC_Analysis
@@ -31,45 +30,25 @@ def get_args():
     return args
 
 def main(args):
-    # check the file extension of config
-    # json and yaml configs need to be handled differently
-    if os.path.splitext(args.config)[1] == '.json':
-        print('config read in as JSON')
-        config_is_yaml = False
-    elif os.path.splitext(args.config)[1] == '.yaml':
-        print('config read in as YAML')
-        config_is_yaml = True
-    # open config
-    with open(args.config, 'r') as infile:
-        config = yaml.load(infile, Loader=yaml.FullLoader)
-    # label the config internally so that it's clear which format it uses
-    config['config_is_yaml'] = config_is_yaml
-    # update the config read in with default values if any required keys aren't there
+    config = open_config(args.config)
+
+    steps = config['steps_to_run']
     
-
-    # run through steps of preprocessing and subsequent analysis
-    if config['deinterlace']['run_deinter']:
+    if steps['deinter']:
         deinterlace_data(config)
-
-    if config['img_correction']['run_img_correction']:
+    if steps['img_correction']:
         auto_contrast(config)
-
-    if config['calibration']['run_cam_calibration']:
+    if steps['get_cam_calibration_params']:
         get_calibration_params(config)
-
-    if config['calibration']['undistort_recordings']:
+    if steps['undistort_recording']:
         calibrate_new_world_vids(config)
-
-    if config['pose_estimation']['run_dlc']:
+    if steps['dlc']:
         run_DLC_Analysis(config)
-
-    if config['parameters']['run_params']:
+    if steps['params']:
         extract_params(config)
-
-    if config['ir_spot_in_space']['run_is_spot_in_space']:
+    if steps['addtl_params']:
         track_LED(config)
-
-    if config['ephys_analysis']['run_ephys_analysis']:
+    if steps['ephys']:
         session_ephys_analysis(config)
 
 if __name__ == '__main__':

@@ -2,7 +2,6 @@
 aux_funcs.py
 
 auxiliary functions
-
 """
 import pandas as pd
 import numpy as np

@@ -1,7 +1,7 @@
 """
 ephys_utils.py
 
-utilities for using ephys analysis outputs
+utilities for processing ephys data and using ephys analysis outputs
 """
 import pandas as pd
 import numpy as np
@@ -18,6 +18,15 @@ from tqdm import tqdm
 from util.paths import find
 
 def load_ephys(csv_filepath):
+    """
+    using a .csv file of metadata identical to the one used to run batch analysis, pool experiments marked for inclusion and orgainze properties
+    saved out from ephys analysis into .h5 files as columns and each unit as an index
+    also reads in the .json of calibration properties saved out from fm recording eyecam analysis so that filtering can be done based on how well the eye tracking worked
+    INPUTS
+        csv_filepath: path to csv file used for batch analysis
+    OUTPUTS
+        all_data: DataFrame of all units marked for pooled analysis, with each index representing a unit across all recordings of a session
+    """
     # open the csv file of metadata and pull out all of the desired data paths
     csv = pd.read_csv(csv_filepath)
     for_data_pool = csv.loc[csv['load_for_data_pool'] == True]
@@ -66,17 +75,34 @@ def load_ephys(csv_filepath):
         all_data = pd.concat([all_data,session_data],axis=0)
     return all_data
 
-def read_ephys_bin(binpath, ch_num, do_remap=True):
-    if ch_num!=16 and ch_num!=64:
-        print('not 16 or 64 ch probe -- check arg ch_num')
-        return None
+def read_ephys_bin(binpath, probe_name, do_remap=True):
+    """
+    read in ephys binary file and apply remapping using the name of the probe
+    where the binary dimensions and remaping vector are read in from relative
+    path within the FreelyMovingEphys directory (FreelyMovingEphys/matlab/channel_maps.json)
+    INPUTS
+        binpath: path to binary file
+        probe_name: name of probe, which should be a key in the dict stored in the .json of probe remapping vectors
+        do_remap: bool, whether or not to remap the drive
+    OUTPUTS
+        ephys: ephys data as a DataFrame
+    """
+    # get channel number
+    ch_num = ['16' if '16' in config['probe'] else '64'][0]
+    # find the file of default mappings
+    try:
+        mapping_json = '/'.join(os.path.abspath(__file__).split('\\')[:-3]) + '/matlab/channel_maps.json'
+    except FileNotFoundError:
+        mapping_json = '/'.join(os.path.abspath(__file__).split('/')[:-3]) + '/matlab/channel_maps.json'
+    # open file of default mappings
+    with open(mapping_json, 'r') as fp:
+        mappings = json.load(fp)
+    # get the mapping for the probe name used in the current recording
+    ch_remap = mappings[probe_name]
+    # set up data types to read binary file into
     if ch_num == 16:
-        ch_remap = [15,18,10,23,11,22,12,21,9,24,13,20,14,19,16,17] - 8
         dtypes = np.dtype([("ch"+str(i),np.uint16) for i in range(0,16)])
     elif ch_num == 64:
-        ch_remap = [32,62,33,63,34,60,36,61,37,58,38,59,40,56,41,57,42,54,44,55,
-                    45,52,46,53,47,50,43,51,39,48,35,49,0,30,1,31,2,28,3,26,4,27,
-                    5,24,6,22,7,23,8,20,9,18,10,19,11,16,12,17,13,21,14,25,15,29]
         dtypes = np.dtype([("ch"+str(i),np.uint16) for i in range(0,64)])
     # read in binary file
     ephys = pd.DataFrame(np.fromfile(binpath, dtypes, -1, ''))
@@ -85,7 +111,18 @@ def read_ephys_bin(binpath, ch_num, do_remap=True):
         ephys = ephys.iloc[:,list(ch_remap)]
     return ephys
 
-def butter_bandpass(data, lowcut, highcut, fs, order=5):
+def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):
+    """
+    apply bandpass filter to ephys lfp applied along axis=0
+    INPUTS
+        data: 2d array of multiple channels of ephys data as a numpy arrya or pandas dataframe
+        lowcut: low end of cut off for frequency
+        highcut: high end of cut off for frequency
+        fs: sample rate
+        order: order of filter
+    OUTPUTS
+        filtered data in the same type as input data
+    """
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq

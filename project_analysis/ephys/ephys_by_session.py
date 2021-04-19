@@ -10,10 +10,10 @@ from project_analysis.ephys.analyze_ephys import find_files, run_ephys_analysis
 
 def session_ephys_analysis(config):
     # get options out
-    data_path = config['animal_dir']
-    unit = config['ephys_analysis']['unit_to_highlight']
-    ch_count = config['ephys_analysis']['channel_count']
-    mp4 = config['ephys_analysis']['write_videos']
+    data_path = config['data_path']
+    unit = config['unit2highlight']
+    probe_name = config['probe']
+    mp4 = config['write_ephys_vids']
     # get subdirectories (i.e. name of each recording for this session)
     dirnames = list_subdirs(data_path)
     recording_names = sorted([i for i in dirnames if 'hf' in i or 'fm' in i])
@@ -39,7 +39,7 @@ def session_ephys_analysis(config):
             recording_path = os.path.join(data_path, recording_name)
             full_recording_name = '_'.join(recording_path.split(os.sep)[-3:-1])+'_control_Rig2_'+recording_path.split(os.sep)[-1]
             mp4 = False
-            file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4, ch_count)
+            file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4, probe_name)
             run_ephys_analysis(file_dict)
         except Exception as e:
             print(e)
