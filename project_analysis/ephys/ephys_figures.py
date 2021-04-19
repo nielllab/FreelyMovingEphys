@@ -267,26 +267,38 @@ def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
     return fig
 
 def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
+    print('get timing')
+    model_dt = 0.025;
+    model_t = np.arange(0,np.max(worldT),model_dt)
+    model_nsp = np.zeros((n_units,len(model_t)))
+    
+    # get spikes / rate
+    print('get spikes')
+    bins = np.append(model_t,model_t[-1]+model_dt)
+    for i,ind in enumerate(goodcells.index):
+        model_nsp[i,:],bins = np.histogram(goodcells.at[ind,'spikeT'],bins)
+    
+    print('set up video')
+    nks = np.shape(img_norm[0,:,:]); nk = nks[0]*nks[1];    
+    model_vid = np.zeros((len(model_t),nk))
+    for i in range(len(model_t)):
+        model_vid[i,:] = np.reshape(movInterp(model_t[i] + model_dt/2),nk)
+        
     staAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
-    lag = 0.05
+    model_vid[np.isnan(model_vid)]=0;
+    lag = 2
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
     for c, ind in enumerate(goodcells.index):
-        r = goodcells.at[ind,'rate']
-        sta = 0; nsp = 0
-        sp = goodcells.at[ind,'spikeT'].copy()
-        if c==1:
-            ensemble = np.zeros((len(sp),np.shape(img_norm)[1],np.shape(img_norm)[2]))
-        for s in sp:
-            if (s-lag >5) & ((s-lag) <np.max(worldT)):
-                nsp = nsp+1
-                im = movInterp(s-lag)
-                # if c==1:
-                #     ensemble[nsp-1,:,:] = im
-                sta = sta+im
+        sp = model_nsp[c,:].copy();
+        sp = np.roll(sp,-lag)
+        sta = model_vid.T@sp;
+        sta = np.reshape(sta,nks)
+        nsp = np.sum(sp);
+        
         plt.subplot(int(np.ceil(n_units/4)),4,c+1)
-        #plt.title(str(nsp))
         plt.title(f'ind={ind!s} nsp={nsp!s}')
         plt.axis('off')
+        
         if nsp > 0:
             sta = sta/nsp
         else:
@@ -300,17 +312,34 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
     return staAll, fig
 
 def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
-    spike_corr = 1; sta = 0; lag = 0.075
-    lagRange = np.arange(-0.05,0.2,0.05)
+    print('get timing')
+    model_dt = 0.025;
+    model_t = np.arange(0,np.max(worldT),model_dt)
+    model_nsp = np.zeros((n_units,len(model_t)))
+    
+    # get spikes / rate
+    print('get spikes')
+    bins = np.append(model_t,model_t[-1]+model_dt)
+    for i,ind in enumerate(goodcells.index):
+        model_nsp[i,:],bins = np.histogram(goodcells.at[ind,'spikeT'],bins)
+    
+    print('set up video')
+    nks = np.shape(movInterp(model_t[0])); nk = nks[0]*nks[1];    
+    model_vid = np.zeros((len(model_t),nk))
+    for i in range(len(model_t)):
+        model_vid[i,:] = np.reshape(movInterp(model_t[i] + model_dt/2),nk)
+
+    model_vid[np.isnan(model_vid)]=0;
+    sta = 0; 
+    lagRange = np.arange(-2,8,2)
     fig = plt.figure(figsize = (12,2*n_units))
     for c, ind in enumerate(goodcells.index):
-        sp = goodcells.at[ind,'spikeT'].copy()
         for  lagInd, lag in enumerate(lagRange):
-            sta = 0; nsp = 0
-            for s in sp:
-                if (s-lag >5) & ((s-lag)*spike_corr <np.max(worldT)):
-                    nsp = nsp+1
-                    sta = sta+movInterp((s-lag)*spike_corr)
+            sp = model_nsp[c,:].copy();
+            sp = np.roll(sp,-lag)
+            sta = model_vid.T@sp;
+            sta = np.reshape(sta,nks)
+            nsp = np.sum(sp);
             plt.subplot(n_units,6,(c*6)+lagInd + 1)
             if nsp > 0:
                 sta = sta/nsp
@@ -322,7 +351,7 @@ def plot_STA_multi_lag(n_units, goodcells, worldT, movInterp):
                 plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
             # plt.title(str(c) + ' ' + str(np.round(lag*1000)) + 'msec')
             if c == 0:
-                plt.title(str(np.round(lag*1000)) + 'msec')
+                plt.title(str(np.round(lag*model_dt*1000)) + 'msec')
             plt.axis('off')
     plt.tight_layout()
     
