@@ -78,10 +78,6 @@ def extract_params(config):
         trial_ball_csv = [x for x in trial_ball_csv if x != []]
         trial_imu_bin = [x for x in trial_imu_bin if x != []]
 
-        # make the save path if it doesn't exist
-        if not os.path.exists(config['save_path']):
-            os.makedirs(config['save_path'])
-
         # format the ephys data
         if config['has_ephys'] is True:
             print('formatting electrophysiology recordings for ' + t_name)

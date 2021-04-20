@@ -88,10 +88,10 @@ def open_config(input_path):
             'calibration':{
                 'eye_LED_config': y['ir_spot_in_space']['LED_eye_view_config'],
                 'world_LED_config': y['ir_spot_in_space']['LED_world_view_config'],
-                'world_checker_vid': y['ir_spot_in_space']['world_checker_vid'],
-                'world_checker_npz': y['ir_spot_in_space']['world_checker_npz'],
-                'top_checker_vid': y['ir_spot_in_space']['top_checker_vid'],
-                'top_checker_npz': y['ir_spot_in_space']['top_checker_npz']
+                'world_checker_vid': y['calibration']['world_checker_vid'],
+                'world_checker_npz': y['calibration']['world_checker_npz'],
+                'top_checker_vid': y['calibration']['top_checker_vid'],
+                'top_checker_npz': y['calibration']['top_checker_npz']
             },
             'LED_dir_name': y['ir_spot_in_space']['ir_spot_in_space_dir_name'],
             'flip_eye_during_deinter': y['deinterlace']['flip_eye_during_deinter'],
@@ -101,8 +101,8 @@ def open_config(input_path):
             'multianimal_TOP': y['pose_estimation']['multianimal_top_project'],
             'filter_dlc_predictions': y['pose_estimation']['filter_dlc_predictions'],
             'lik_thresh': y['parameters']['lik_thresh'],
-            'lik_thresh_strict': y['parameters']['lik_thresh_strict'],
-            'has_ephys': false,
+            'lik_thresh_strict': y['ir_spot_in_space']['lik_thresh_strict'],
+            'has_ephys': False,
             'has_cricket_labeled': y['pose_estimation']['has_cricket_labeled'],
             'has_tear_labeled': y['pose_estimation']['has_tear_labeled'],
             'has_ir_spot_labeled': y['pose_estimation']['has_ir_spot_labeled'],

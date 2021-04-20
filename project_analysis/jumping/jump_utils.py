@@ -292,22 +292,22 @@ def pooled_jump_analysis(pooled, config, bin_name):
     all_th_phi = - pooled_da.sel(jump_params='th_phi', frame=range(60)).values
     lags = range(-30, 30)
     
-    dwnspl = 100
+    dwnspl = 50
     
     # head theta, phi
     plt.figure(figsize=(5,5))
     plt.plot(all_pitch[::dwnspl], all_phi[::dwnspl], 'k.')
     plt.xlabel('head pitch'); plt.ylabel('phi')
-    plt.xlim([-60,60]); plt.ylim([-30,30])
-    plt.plot([-60,60],[60,-60],':',color=[0.5,0.5,0.5])
+    plt.xlim([-40,40]); plt.ylim([-20,20])
+    plt.plot([-40,40],[40,-40],':',color=[0.5,0.5,0.5])
     pdf.savefig()
     plt.close()
     # head theta, eye theta divergence
     plt.figure(figsize=(5,5))
     plt.plot(all_pitch[::dwnspl], all_div[::dwnspl], 'k.')
     plt.xlabel('head pitch'); plt.ylabel('eye theta div')
-    plt.xlim([-60,60]); plt.ylim([-30,30])
-    plt.plot([-60,60],[60,-60],':',color=[0.5,0.5,0.5])
+    plt.xlim([-40,40]); plt.ylim([-20,20])
+    plt.plot([-40,40],[40,-40],':',color=[0.5,0.5,0.5])
     pdf.savefig()
     plt.close()
 
