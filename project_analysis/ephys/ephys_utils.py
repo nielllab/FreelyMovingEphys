@@ -88,7 +88,7 @@ def read_ephys_bin(binpath, probe_name, do_remap=True):
         ephys: ephys data as a DataFrame
     """
     # get channel number
-    ch_num = ['16' if '16' in config['probe'] else '64'][0]
+    ch_num = [16 if 16 in config['probe'] else 64][0]
     # find the file of default mappings
     try:
         mapping_json = '/'.join(os.path.abspath(__file__).split('\\')[:-3]) + '/matlab/channel_maps.json'
