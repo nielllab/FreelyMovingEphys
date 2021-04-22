@@ -223,7 +223,7 @@ def make_unit_summary(df, savepath):
             tuning = row[fmA+'_spike_rate_vs_gy_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_gy_err']
             unitfig_fm1srvgy.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_z')
+            unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_y')
             unitfig_fm1srvgy.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass

@@ -107,6 +107,7 @@ def main(csv_filepath, log_dir, clear_dlc):
             for rec_dir in dirs:
                 dirnames.append(rec_dir)
         recording_names = sorted([i for i in dirnames if 'hf' in i or 'fm' in i])
+        probe_name = row['probe_name']
         for recording_name in recording_names:
             try:
                 print('starting '+recording_name)
@@ -128,7 +129,7 @@ def main(csv_filepath, log_dir, clear_dlc):
                 recording_path = os.path.join(data_path, recording_name)
                 full_recording_name = '_'.join(recording_path.split(os.sep)[-3:-1])+'_control_Rig2_'+recording_path.split(os.sep)[-1]
                 mp4 = False
-                file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4)
+                file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4, probe_name)
                 run_ephys_analysis(file_dict)
             except Exception as e:
                 logf.log([row['Experiment date']+'_'+row['Animal name']+'_'+recording_name, traceback.format_exc()],PRINT=False)

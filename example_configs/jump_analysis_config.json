@@ -1,0 +1,12 @@
+{
+    "preprocessing_config_path": "/path/to/preprocessing_config.json",
+    "path_to_raw_data": "/path/",
+    "analysis_save_dir": "/path/",
+    "lik_thresh": 0.99,
+    "plot_avi_vids": true,
+    "steps": {
+        "organize_dirs": false,
+        "preprocessing": true,
+        "analysis": true
+    }
+}

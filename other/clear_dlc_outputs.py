@@ -31,15 +31,17 @@ def find(pattern, path):
 # get user inputs
 def pars_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-r', '--recording_dir')
+    parser.add_argument('--dir', type=str)
+    parser.add_argument('--key', type=str, default='')
     args = parser.parse_args()
     
     return args
 
 def main(args):
-    experiment_path = args.recording_dir
-    h5_list = find('*.h5',experiment_path)
-    pickle_list = find('*.pickle',experiment_path)
+    experiment_path = args.dir
+    key = args.key
+    h5_list = find('*'+key+'*.h5',experiment_path)
+    pickle_list = find('*'+key+'*.pickle',experiment_path)
     file_list = h5_list + pickle_list
     for item in file_list:
         os.remove(item)

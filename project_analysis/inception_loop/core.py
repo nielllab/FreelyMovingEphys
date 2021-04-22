@@ -84,6 +84,6 @@ class Stacked2dCore(Core2d, nn.Module):
     def forward(self, input_):
         ret = []
         for l, feat in enumerate(self.features):
-            input_ = feat(input_) # skip a layer's computation, but we don't need to do this yet
+            input_ = feat(input_)
             ret.append(input_)
         return torch.cat(ret, dim=1)

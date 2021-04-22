@@ -29,12 +29,13 @@ def get_args():
     parser.add_argument('--fm', type=str_to_bool, nargs='?', const=True, default=False, help='bool, is this freely moving?')
     parser.add_argument('--stim_type', type=str, choices=['None','gratings','sparse_noise','white_noise','revchecker'], help='stimulus presented on screen. set as None if freely moving.')
     parser.add_argument('--write_mp4', type=str_to_bool, nargs='?', const=True, default=False, help='bool, want to save mp4 video?')
+    parser.add_argument('--probe', type=str, help='probe name')
     args = parser.parse_args()
     return args
 
 def main(args):
     # organize a dictionary of inputs
-    file_dict = find_files(args.data_path, args.rec_name, args.fm, args.unit, args.stim_type, args.write_mp4)
+    file_dict = find_files(args.data_path, args.rec_name, args.fm, args.unit, args.stim_type, args.write_mp4, args.probe)
     # run the analysis
     run_ephys_analysis(file_dict)
 
