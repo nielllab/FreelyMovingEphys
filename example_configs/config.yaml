@@ -24,7 +24,7 @@ calibration:
   world_checker_npz: E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz
                                          # both the read and write path for an .npz file of calibration properties of the world camera
   world_checker_vid: E:/freely_moving_ephys/camera_calibration_params/betafpv_checkerboard.avi
-                                        # the .avi with which to calculate calibration properties of the world camera (should be a recording of checkerboard being moved)
+                                         # the .avi with which to calculate calibration properties of the world camera (should be a recording of checkerboard being moved)
 
 # POSE ESTIMATION
 pose_estimation:
@@ -32,11 +32,11 @@ pose_estimation:
   crop_for_dlc: false                    # crop videos prior to pose estimation (default=false)
   filter_dlc_predictions: false          # apply median filter to dlc outputs (default=false)
   has_cricket_labeled: false             # are there two points labeled on a cricket in the topdown view? (default=false)
-  has_ir_spot_labeled: false             # are there five points labeled around the reflection of the eyecam's ir led? (default=false)
+  has_ir_spot_labeled: true              # are there five points labeled around the reflection of the eyecam's ir led? (default=false)
   has_tear_labeled: true                 # are there two points labeled at the tear duct and outer edge of the eye? (default=true)
   multianimal_top_project: false         # is the topdown camera's dlc network a multianimal project? (default=false)
   projects:
-    REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams3-dylan-2021-02-02/config.yaml
+    REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCamsSpot-dylan-2021-04-01/config.yaml
     TOP1: E:/freely_moving_ephys/deeplabcut_projects/EphysTopDark-dylan-2021-02-13/config.yaml
 
 # PARAMETERS
@@ -46,7 +46,7 @@ parameters:
   ephys:
     ephys_sample_rate: 30000             # sample rate of ephys probe (default=30000)
   eyes:
-    spot_subtract: false                 # whether or not to subtract the center of the ir spot's reflection on the eye from the labeled points around the eye (default=true)
+    spot_subtract: true                 # whether or not to subtract the center of the ir spot's reflection on the eye from the labeled points around the eye (default=true)
     get_eye_omega: false                     # whether or not to calculate pupil rotation for each frame, which is very slow (default=false)
     ell_thresh: 0.85                     # maximum ratio of ellipse shortaxis to longaxis during ellipse fit of pupil (default=0.85)
     eye_dist_thresh_cm: 4.1              # maximum acceptable distance in cm that each frame's point can be from the mean position of that eye point across the recording (default=4.1)

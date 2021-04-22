@@ -47,7 +47,7 @@ def test_loop(dataloader, model, loss_fn):
 
     with torch.no_grad():
         for X in dataloader:
-            pred = model(X)
+            pred = model(X.to(device))
             # test_loss += loss_fn(pred, y).item()
             # correct += (pred.argmax(1) == y).type(torch.float).sum().item()
 
@@ -85,4 +85,4 @@ def main(train_csv, test_csv, root_dir):
 
 if __name__ == '__main__':
     args = get_args()
-    main(args.train_csv, args.test_csv, args.root_dir)
+    main(args.train_csv, args.test_csv, args.root_dir, args.phy_unit)
