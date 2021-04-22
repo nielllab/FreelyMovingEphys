@@ -15,7 +15,7 @@ img_correction:
 
 # CALIBRATION
 calibration:
-  run_cam_calibration: true              ### calculate needed correction for worldcam and topcam, which only needs to be done once for a camera (default=false)
+  run_cam_calibration: false             ### calculate needed correction for worldcam and topcam, which only needs to be done once for a camera (default=false)
   undistort_recordings: true             ### apply correction to novel videos (default=true)
   top_checker_npz: E:/freely_moving_ephys/camera_calibration_params/top_checkerboard_calib.npz
                                          # both the read and write path for an .npz file of calibration properties of the top camera(s)
@@ -46,13 +46,13 @@ parameters:
   ephys:
     ephys_sample_rate: 30000             # sample rate of ephys probe (default=30000)
   eyes:
-    spot_subtract: true                  # whether or not to subtract the center of the ir spot's reflection on the eye from the labeled points around the eye (default=true)
+    spot_subtract: false                 # whether or not to subtract the center of the ir spot's reflection on the eye from the labeled points around the eye (default=true)
     get_eye_omega: false                     # whether or not to calculate pupil rotation for each frame, which is very slow (default=false)
     ell_thresh: 0.85                     # maximum ratio of ellipse shortaxis to longaxis during ellipse fit of pupil (default=0.85)
     eye_dist_thresh_cm: 4.1              # maximum acceptable distance in cm that each frame's point can be from the mean position of that eye point across the recording (default=4.1)
     eyecam_pxl_per_cm: 24                # scale factor for camera from pixels to cm on eye (default=24)
     calib_ellipse_pts_needed: 8          # only use eyecam frames for camera calibration which have this number of good points around the eye (default=8, max=8)
-    num_ellipse_pts_needed: 5            # drop eyecam frames that don't have this number of ellipse points above the likelihood threshold (default=5, max=8)
+    num_ellipse_pts_needed: 7            # drop eyecam frames that don't have this number of ellipse points above the likelihood threshold (default=5, max=8)
     num_ir_spot_pts_needed: 5            # drop eyecam frames that don't have this number of eyecam ir spot reflection points above the likelihood threshold (default=5, max=5)
     pxl_thresh: 50                       # maximum acceptable number of pixels for radius of the pupil (default=50)
   imu:
