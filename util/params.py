@@ -23,7 +23,7 @@ from util.track_world import track_LED
 from util.ephys import format_spikes
 from util.track_ball import ball_tracking
 from util.track_side import side_angle, side_tracking
-from util.track_imu import read_8ch_imu
+from util.track_imu import read_8ch_imu, IMU_Roll_Pitch
 
 def extract_params(config):
     """
