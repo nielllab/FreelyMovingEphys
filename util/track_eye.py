@@ -123,10 +123,10 @@ def fit_ellipse(x,y):
 
     return ellipse_dict
 
-def spot_conv_mean(y, box_pts=3):
-    filt = np.ones(box_pts)/box_pts
-    y_conv = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='same'), axis=0, arr=y)
-    return np.mean(y_conv, 1)
+# def spot_conv_mean(y, box_pts=3):
+#     filt = np.ones(box_pts)/box_pts
+#     y_conv = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='same'), axis=0, arr=y)
+#     return np.mean(y_conv, 1)
 
 def eye_tracking(eye_data, config, trial_name, eye_side):
     """
@@ -178,8 +178,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # subtract center of IR light reflection from all other pts
     if config['has_ir_spot_labeled'] and config['spot_subtract']:
 
-        spot_xcent = spot_conv_mean(x_vals.iloc[:,-5:])
-        spot_ycent = spot_conv_mean(y_vals.iloc[:,-5:])
+        spot_xcent = np.mean(x_vals.iloc[:,-5:], 1)
+        spot_ycent = np.mean(y_vals.iloc[:,-5:], 1)
         spot_likelihood = likelihood_in[:,-5:].copy()
         likelihood = likelihood_in[:,:9]
 

@@ -725,6 +725,7 @@ def run_ephys_analysis(file_dict):
             len_diff = len(dhead(eyeT[0:-1:10])) - len(dEye[0:-1:10])
             plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10])[:-len_diff],'.')
         plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
+        plt.plot([-10,10],[10,-10], 'r')
         detail_pdf.savefig()
         plt.close()
       
