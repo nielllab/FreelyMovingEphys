@@ -329,8 +329,8 @@ def run_ephys_analysis(file_dict):
 
     if file_dict['mp4']:
     # set up interpolators for eye and world videos
-        eyeInterp = interp1d(eyeT,eye_vid,axis=0)
-        worldInterp = interp1d(worldT,world_vid,axis=0)
+        eyeInterp = interp1d(eyeT,eye_vid,axis=0, bounds_error = False)
+        worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
         
         if file_dict['imu'] is not None:
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
@@ -662,8 +662,8 @@ def run_ephys_analysis(file_dict):
     for f in range(sz[0]):
         img_norm_sm[f,:,:] = cv2.resize(img_norm[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
    
-    movInterp = interp1d(worldT,img_norm_sm,axis=0, kind = 'nearest')
-
+    movInterp = interp1d(worldT,img_norm_sm,axis=0, bounds_error = False)
+        
     print('getting spike-triggered average for lag=0.125')
     # calculate spike-triggered average
     staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm_sm, goodcells, worldT, movInterp)

@@ -180,6 +180,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
         spot_xcent = np.mean(x_vals.iloc[:,-5:], 1)
         spot_ycent = np.mean(y_vals.iloc[:,-5:], 1)
+        
         spot_likelihood = likelihood_in[:,-5:].copy()
         likelihood = likelihood_in[:,:9]
 
