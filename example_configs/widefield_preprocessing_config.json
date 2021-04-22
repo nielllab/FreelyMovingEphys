@@ -2,10 +2,10 @@
     "data_path": "/path/to/animal/dir/",
     "steps_to_run":{
         "deinter": false,
-        "img_correction": false,
+        "img_correction": true,
         "get_cam_calibration_params": false,
         "undistort_recording": false,
-        "dlc": false,
+        "dlc": true,
         "params": true,
         "addtl_params": false
     },

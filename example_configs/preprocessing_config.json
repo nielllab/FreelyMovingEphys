@@ -11,7 +11,7 @@
     },
     "cams": {
         "WORLD": "",
-        "REYE": "E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams3-dylan-2021-02-02/config.yaml",
+        "REYE": "E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCamsSpot-dylan-2021-04-01/config.yaml",
         "TOP1": "E:/freely_moving_ephys/deeplabcut_projects/EphysTopDark-dylan-2021-02-13/config.yaml"
     },
     "calibration":{
@@ -34,8 +34,8 @@
     "has_ephys": false,
     "has_cricket_labeled": false,
     "has_tear_labeled": true,
-    "has_ir_spot_labeled": false,
-    "spot_subtract": false,
+    "has_ir_spot_labeled": true,
+    "spot_subtract": true,
     "pxl_thresh": 50,
     "ell_thresh": 0.85,
     "eye_dist_thresh_cm": 4.1,
@@ -47,7 +47,10 @@
     "use_BonsaiTS": true,
     "range_radius": 10,
     "world_interp_method": "linear",
-    "num_ellipse_pts_needed": 7,
+    "calib_ellipse_pts_needed": 8,
+    "num_ellipse_pts_needed": 5,
+    "num_ir_spot_pts_needed": 5,
+    "eye_fig_pts_dwnspl": 100,
     "dwnsmpl": 0.25,
     "ephys_sample_rate": 30000,
     "run_pupil_rotation": false,

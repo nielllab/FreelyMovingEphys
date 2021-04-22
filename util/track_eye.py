@@ -123,6 +123,11 @@ def fit_ellipse(x,y):
 
     return ellipse_dict
 
+# def spot_conv_mean(y, box_pts=3):
+#     filt = np.ones(box_pts)/box_pts
+#     y_conv = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='same'), axis=0, arr=y)
+#     return np.mean(y_conv, 1)
+
 def eye_tracking(eye_data, config, trial_name, eye_side):
     """
     get the ellipse parameters from DeepLabCut points and save into an xarray
@@ -139,6 +144,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # set up the pdf to be saved out with diagnostic figures
     if config['save_figs'] is True:
         pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
+
+    fig_dwnsmpl = config['eye_fig_pts_dwnspl']
 
     # if this is a hf recoridng, read in existing fm camera center, scale, etc.
     # it should run all fm recordings first, so it will be possible to read in fm camera calibration parameters for every hf recording
@@ -166,48 +173,59 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     pt_names = list(eye_data['point_loc'].values)
 
     x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['lik_thresh'])
-    likelihood = likeli_vals.values
+    likelihood_in = likeli_vals.values
 
     # subtract center of IR light reflection from all other pts
     if config['has_ir_spot_labeled'] and config['spot_subtract']:
+
         spot_xcent = np.mean(x_vals.iloc[:,-5:], 1)
         spot_ycent = np.mean(y_vals.iloc[:,-5:], 1)
+        
+        spot_likelihood = likelihood_in[:,-5:].copy()
+        likelihood = likelihood_in[:,:9]
+
         x_vals = x_vals.iloc[:,:-5].subtract(spot_xcent, axis=0)
         y_vals = y_vals.iloc[:,:-5].subtract(spot_ycent, axis=0)
 
     elif config['has_ir_spot_labeled'] is True and config['spot_subtract'] is False:
+        spot_xvals = x_vals.iloc[:,-5:]
+        spot_yvals = y_vals.iloc[:,-5:]
+        spot_likelihood = likelihood_in[:,-5:]
+
         x_vals = x_vals.iloc[:,:-5]
         y_vals = y_vals.iloc[:,:-5]
+        likelihood = likelihood_in[:,:-5]
 
     # drop tear/outer
     if config['has_tear_labeled'] is True:
         x_vals = x_vals.iloc[:,:-2]
         y_vals = y_vals.iloc[:,:-2]
-        likelihood = likelihood[:,:-2]
+        likelihood = likelihood_in[:,:-2]
 
     # get bools of when a frame is usable with the right number of points above threshold
-    usegood = np.sum(likelihood >= config['lik_thresh'], 1) >= config['num_ellipse_pts_needed']
+    if config['spot_subtract'] is True:
+        # if spot subtraction is being done, we should only include frames where all five pts marked around the ir spot are good (centroid would be off otherwise)
+        usegood_req5 = (np.sum(likelihood >= config['lik_thresh'], 1) >= config['num_ellipse_pts_needed']) & (np.sum(spot_likelihood >= config['lik_thresh'], 1) >= config['num_ir_spot_pts_needed'])
+        usegood_req8 = (np.sum(likelihood >= config['lik_thresh'], 1) >= config['calib_ellipse_pts_needed']) & (np.sum(spot_likelihood >= config['lik_thresh'], 1) >= config['num_ir_spot_pts_needed'])
+    else:
+        usegood_req5 = np.sum(likelihood >= config['lik_thresh'], 1) >= config['num_ellipse_pts_needed']
+        usegood_req8 = np.sum(likelihood >= config['lik_thresh'], 1) >= config['calib_ellipse_pts_needed']
 
     # plot all good timepoints
     if config['save_figs'] is True:
-        try:
-            plt.figure()
-            plt.plot(np.sum(likelihood >= config['lik_thresh'], 1)[0:-1:10])
-            plt.title(str(np.round(np.mean(usegood), 3)) + ' good; thresh= ' + str(config['lik_thresh']))
-            plt.ylabel('num good eye points'); plt.xlabel('every 10th frame')
-            pdf.savefig()
-            plt.close()
-        except:
-            print('figure error')
-        try:
-            plt.figure()
-            plt.hist(np.sum(likelihood >= config['lik_thresh'], 1),bins=9, range = (0,9))
-            plt.xlabel('num good eye points'); plt.ylabel('n frames')
-            pdf.savefig()
-            plt.close()
-        except:
-            print('figure error')
-            
+        plt.figure()
+        plt.plot(np.sum(likelihood >= config['lik_thresh'], 1)[0:-1:10])
+        plt.title(str(np.round(np.mean(usegood_req5), 3)) + ' good (req5); thresh= ' + str(config['lik_thresh']))
+        plt.ylabel('num good eye points'); plt.xlabel('every 10th frame')
+        pdf.savefig()
+        plt.close()
+    
+        plt.figure()
+        plt.hist(np.sum(likelihood >= config['lik_thresh'], 1),bins=9, range = (0,9))
+        plt.xlabel('num good eye points'); plt.ylabel('n frames')
+        pdf.savefig()
+        plt.close()
+
     # threshold out pts more than a given distance away from nanmean of that point
     std_thresh_x = np.empty(np.shape(x_vals))
     for point_loc in range(0,np.size(x_vals, 1)):
@@ -220,12 +238,12 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     x_vals[std_thresh_x > 0] = np.nan
     y_vals[std_thresh_y > 0] = np.nan
 
-    ellipse_params = np.empty([len(usegood), 14])
+    ellipse_params = np.empty([len(usegood_req5), 14])
     # step through each frame, fit an ellipse to points, and
     # add ellipse parameters to array with data for all frames together
     linalgerror = 0
-    for step in tqdm(range(0,len(usegood))):
-        if usegood[step] == True:
+    for step in tqdm(range(0,len(usegood_req5))):
+        if usegood_req5[step] == True:
             try:
                 e_t = fit_ellipse(x_vals.iloc[step].values, y_vals.iloc[step].values)
                 ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
@@ -239,7 +257,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
                 ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
                                     e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
                                     e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
-        elif usegood[step] == False:
+        elif usegood_req5[step] == False:
             e_t = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
                             'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
                             'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
@@ -250,14 +268,13 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # list of all places where the ellipse meets threshold
     R = np.linspace(0,2*np.pi, 100)
-    list1 = np.where((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh']) # short axis / long axis
-    list2 = np.where((usegood == True) & ((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh']))
+    usegood_ellipcalb = np.where((usegood_req8 == True) & ((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh'])) # short axis / long axis
 
     # this limits the number of frames used for the calibration
-    if np.size(list2,1) > 50000:
-        shortlist = sorted(np.random.choice(list2[0],size=50000, replace=False))
+    if np.size(usegood_ellipcalb,1) > 50000:
+        shortlist = sorted(np.random.choice(usegood_ellipcalb[0],size=50000, replace=False))
     else:
-        shortlist = list2
+        shortlist = usegood_ellipcalb
 
     # find camera center
     A = np.vstack([np.cos(ellipse_params[shortlist,7]),np.sin(ellipse_params[shortlist,7])])
@@ -328,8 +345,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
             
             # eye axes relative to center
             plt.figure()
-            for i in range(0,len(list2)):
-                plt.plot((ellipse_params[list2[i],11] + [-5*np.cos(w[list2[i]]), 5*np.cos(w[list2[i]])]), (ellipse_params[list2[i],12] + [-5*np.sin(w[list2[i]]), 5*np.sin(w[list2[i]])]))
+            for i in range(0,len(usegood_ellipcalb)):
+                plt.plot((ellipse_params[usegood_ellipcalb[i::fig_dwnsmpl],11] + [-5*np.cos(w[usegood_ellipcalb[i::fig_dwnsmpl]]), 5*np.cos(w[usegood_ellipcalb[i::fig_dwnsmpl]])]), (ellipse_params[usegood_ellipcalb[i::fig_dwnsmpl],12] + [-5*np.sin(w[usegood_ellipcalb[i::fig_dwnsmpl]]), 5*np.sin(w[usegood_ellipcalb[i::fig_dwnsmpl]])]))
             plt.plot(cam_cent[0],cam_cent[1],'r*')
             plt.title('eye axes relative to center')
             pdf.savefig()
@@ -339,8 +356,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
         # check calibration
         try:
-            xvals = np.linalg.norm(ellipse_params[usegood, 11:13].T - cam_cent, axis=0)
-            yvals = scale * np.sqrt(1-(ellipse_params[usegood,6]/ellipse_params[usegood,5])**2)
+            xvals = np.linalg.norm(ellipse_params[usegood_req8, 11:13].T - cam_cent, axis=0)
+            yvals = scale * np.sqrt(1-(ellipse_params[usegood_req8,6]/ellipse_params[usegood_req8,5])**2)
             slope, intercept, r_value, p_value, std_err = stats.linregress(xvals, yvals.T)
         except ValueError:
             print('no good frames that meet criteria... check DLC tracking!')
@@ -354,7 +371,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
         try:
             plt.figure()
-            plt.plot(xvals, yvals, '.', markersize=1)
+            plt.plot(xvals[::fig_dwnsmpl], yvals[::fig_dwnsmpl], '.', markersize=1)
             plt.plot(np.linspace(0,50),np.linspace(0,50),'r')
             plt.title('scale=' + str(np.round(scale, 1)) + ' r=' + str(np.round(r_value, 1)) + ' m=' + str(np.round(slope, 1)))
             plt.xlabel('pupil camera dist'); plt.ylabel('scale * ellipticity')
@@ -363,11 +380,13 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
             # calibration of camera center
             delta = (cam_cent - ellipse_params[:,11:13].T)
-            list3 = np.squeeze(list2)
+            short_usegood_req8 = usegood_req8[::fig_dwnsmpl]
+            sq_ellipcalib = np.squeeze(usegood_ellipcalb)
+            short_list3 = sq_ellipcalib[::fig_dwnsmpl]
 
             plt.figure()
-            plt.plot(np.linalg.norm(delta[:,usegood],2,axis=0), ((delta[0,usegood].T * np.cos(ellipse_params[usegood,7])) + (delta[1,usegood].T * np.sin(ellipse_params[usegood, 7]))) / np.linalg.norm(delta[:, usegood],2,axis=0).T, 'y.', markersize=1)
-            plt.plot(np.linalg.norm(delta[:,list3],2,axis=0), ((delta[0,list3].T * np.cos(ellipse_params[list3,7])) + (delta[1,list3].T * np.sin(ellipse_params[list3, 7]))) / np.linalg.norm(delta[:, list3],2,axis=0).T, 'r.', markersize=1)
+            plt.plot(np.linalg.norm(delta[:,short_usegood_req8],2,axis=0), ((delta[0,short_usegood_req8].T * np.cos(ellipse_params[short_usegood_req8,7])) + (delta[1,short_usegood_req8].T * np.sin(ellipse_params[short_usegood_req8, 7]))) / np.linalg.norm(delta[:, short_usegood_req8],2,axis=0).T, 'y.', markersize=1)
+            plt.plot(np.linalg.norm(delta[:,short_list3],2,axis=0), ((delta[0,short_list3].T * np.cos(ellipse_params[short_list3,7])) + (delta[1,short_list3].T * np.sin(ellipse_params[short_list3, 7]))) / np.linalg.norm(delta[:, list3],2,axis=0).T, 'r.', markersize=1)
             plt.title('camera center calibration')
             plt.ylabel('abs([PC-EC]).[cosw;sinw]')
             plt.xlabel('abs(PC-EC)')

@@ -30,11 +30,11 @@ from util.paths import find, check_path
 from util.time import open_time, merge_xr_by_timestamps
 from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
 from util.track_eye import plot_eye_vid, eye_tracking, find_pupil_rotation
-from util.track_world import adjust_world, track_LED
+from util.track_world import track_LED
 from util.ephys import format_spikes
 from util.track_ball import ball_tracking
 from util.track_side import side_angle, side_tracking
-from util.track_imu import read_8ch_imu, convert_acc_gyro
+from util.track_imu import read_8ch_imu
 from util.deinterlace import deinterlace_data
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
 from project_analysis.ephys.ephys_figures import *
@@ -177,7 +177,7 @@ def quick_whitenoise_analysis(wn_path):
         spike_corr = 1 #+ 0.125/1200  # correction factor for ephys timing drift, but it's now corrected in spikeT and doesn't need to be manually reset
 
         img_norm[img_norm<-2] = -2
-        movInterp = interp1d(worldT,img_norm,axis=0, fill_value="extrapolate") # added extrapolate for cases where x_new is below interpolation range
+        movInterp = interp1d(worldT,img_norm,axis=0, bounds_error=False) # added extrapolate for cases where x_new is below interpolation range
 
         plt.figure()
         plt.plot(np.diff(worldT)); plt.xlabel('frame'); plt.ylabel('deltaT'); plt.title('world cam')
