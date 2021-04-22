@@ -46,14 +46,13 @@ def read_8ch_imu(imupath, timepath, config):
     # downsample
     data = data.iloc[0:-1:config['imu_downsample'],:]
     samp_freq = config['imu_sample_rate'] / config['imu_downsample']
-    ### convert acc and gyro to g and deg/sec
-    dcopy = data
-    acc = pd.DataFrame.to_numpy((dcopy[['acc_x', 'acc_y', 'acc_z']]-2.5)*1.6)
-    gyro = pd.DataFrame.to_numpy((dcopy[['gyro_x', 'gyro_y', 'gyro_z']]-pd.DataFrame.mean(dcopy[['gyro_x', 'gyro_y', 'gyro_z']]))*400)
-    ### collect roll & pitch
+    # convert acc and gyro to g and deg/sec
+    acc = pd.DataFrame.to_numpy((data[['acc_x', 'acc_y', 'acc_z']]-2.5)*1.6)
+    gyro = pd.DataFrame.to_numpy((data[['gyro_x', 'gyro_y', 'gyro_z']]-pd.DataFrame.mean(data[['gyro_x', 'gyro_y', 'gyro_z']]))*400)
+    # collect roll & pitch
     roll_pitch = np.zeros([len(acc),2])
     for x in range(len(acc)):
-            roll_pitch[x,:] = IMU.process((acc[x,:],gyro[x,:]))
+        roll_pitch[x,:] = IMU.process((acc[x,:],gyro[x,:]))
     roll_pitch = pd.DataFrame(roll_pitch, columns=['roll','pitch'], index=data.index)
     # read in timestamps
     time = pd.DataFrame(open_time1(pd.read_csv(timepath).iloc[:,0]))
@@ -61,7 +60,7 @@ def read_8ch_imu(imupath, timepath, config):
     t0 = time.iloc[0,0]; num_samp = np.size(data,0)
     # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
     newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
-    ### collect the data together to return
+    # collect the data together to return
     all_data = pd.concat([data.copy(), roll_pitch], axis = 1)
     all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z','roll','pitch']
     imu_out = xr.DataArray(all_data, dims={'channel','sample'})
