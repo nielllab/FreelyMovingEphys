@@ -13,6 +13,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from scipy.signal import butter, lfilter, freqz
 from scipy.interpolate import interp1d
+import platform
 from tqdm import tqdm
 
 from util.paths import find
@@ -88,27 +89,24 @@ def read_ephys_bin(binpath, probe_name, do_remap=True):
         ephys: ephys data as a DataFrame
     """
     # get channel number
-    ch_num = [16 if 16 in config['probe'] else 64][0]
+    ch_num = int([16 if '16' in probe_name else 64][0])
     # find the file of default mappings
-    try:
-        mapping_json = '/'.join(os.path.abspath(__file__).split('\\')[:-3]) + '/matlab/channel_maps.json'
-    except FileNotFoundError:
+    if platform.system() == 'Linux':
         mapping_json = '/'.join(os.path.abspath(__file__).split('/')[:-3]) + '/matlab/channel_maps.json'
+    else:
+        mapping_json = '/'.join(os.path.abspath(__file__).split('\\')[:-3]) + '/matlab/channel_maps.json'
     # open file of default mappings
     with open(mapping_json, 'r') as fp:
         mappings = json.load(fp)
     # get the mapping for the probe name used in the current recording
     ch_remap = mappings[probe_name]
     # set up data types to read binary file into
-    if ch_num == 16:
-        dtypes = np.dtype([("ch"+str(i),np.uint16) for i in range(0,16)])
-    elif ch_num == 64:
-        dtypes = np.dtype([("ch"+str(i),np.uint16) for i in range(0,64)])
+    dtypes = np.dtype([("ch"+str(i),np.uint16) for i in range(0,ch_num)])
     # read in binary file
     ephys = pd.DataFrame(np.fromfile(binpath, dtypes, -1, ''))
     # remap with known order of channels
     if do_remap is True:
-        ephys = ephys.iloc[:,list(ch_remap)]
+        ephys = ephys.iloc[:,[i-1 for i in list(ch_remap)]]
     return ephys
 
 def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):

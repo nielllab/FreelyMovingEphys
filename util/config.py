@@ -15,18 +15,15 @@ def set_preprocessing_config_defaults(novel_config):
     OUTPUTS:
         novel_config: same config as input, with any missing values filled in with the defaults in /example_configs/
     """
-    try:
+    if platform.system() == 'Linux':
+        # on linux, the file path needs to be found differently
+        default_json_path = '/'.join(os.path.abspath(__file__).split('/')[:-2]) + '/example_configs/preprocessing_config.json'
+    else:
         # get the path of the default json config file in this repository, relative to util/config.py
         # this assumes windows filepaths
         default_json_path = '/'.join(os.path.abspath(__file__).split('\\')[:-2]) + '/example_configs/preprocessing_config.json'
-        # read in the json
-        with open(default_json_path, 'r') as fp:
-            default_config = json.load(fp)
-    except FileNotFoundError: 
-        # on linux, the file path needs to be found differently
-        default_json_path = '/'.join(os.path.abspath(__file__).split('/')[:-2]) + '/example_configs/preprocessing_config.json'
-        with open(default_json_path, 'r') as fp:
-            default_config = json.load(fp)
+    with open(default_json_path, 'r') as fp:
+        default_config = json.load(fp)
     # iterate through keys in the dictionary loaded in from json
     for default_key in default_config:
         # if a key does not exist, add the value in the default config file

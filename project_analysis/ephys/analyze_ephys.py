@@ -423,7 +423,7 @@ def run_ephys_analysis(file_dict):
         print('running revchecker analysis')
         print('loading ephys binary file and applying filters')
         # read in the binary file of ephys recording
-        lfp_ephys = read_ephys_bin(file_dict['ephys_bin'], int(file_dict['probe_name']), do_remap=True)
+        lfp_ephys = read_ephys_bin(file_dict['ephys_bin'], file_dict['probe_name'], do_remap=True)
         # subtract off average for each channel, then apply bandpass filter
         ephys_center_sub = lfp_ephys - np.mean(lfp_ephys,0)
         filt_ephys = butter_bandpass(ephys_center_sub, lowcut=1, highcut=300, fs=30000, order=6)
@@ -467,7 +467,8 @@ def run_ephys_analysis(file_dict):
         print('generating figures and csd')
         # plot traces over each other for two shanks
         colors = plt.cm.jet(np.linspace(0,1,32))
-        if int(file_dict['num_channels']) == 64:
+        num_channels = int([16 if '16' in file_dict['probe_name'] else 64][0])
+        if num_channels == 64:
             plt.subplots(1,2 ,figsize=(24,8))
             for ch_num in np.arange(0,64):
                 if ch_num<=31:
