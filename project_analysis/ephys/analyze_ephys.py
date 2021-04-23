@@ -511,6 +511,17 @@ def run_ephys_analysis(file_dict):
         plt.axvline(x=(0.1*samprate), color='k')
         plt.title('revchecker csd')
         detail_pdf.savefig(); plt.close()
+        print('getting lfp relative depth')
+        # assign the deepest deflection to lfp, the center of layer 4, to have depth 0
+        # channels above will have negative depth, channels below will have positive depth
+        # adding or subtracting "depth" with a step size of 1
+        if num_channels == 64:
+            shank0_layer4cent = np.argmin(np.min(rev_resp_mean, axis=1)[0:32])
+            shank1_layer4cent = np.argmin(np.min(rev_resp_mean, axis=1)[32:64])
+            lfp_depth = pd.Series([int(goodcells.loc[i,'ch'] - shank0_layer4cent) if goodcells.loc[i,'ch'] <32 else int((goodcells.loc[i,'ch']-32) - shank1_layer4cent) for i,row in goodcells.iterrows()])
+        elif num_channels == 16:
+            layer4cent = np.argmin(np.min(rev_resp_mean, axis=1))
+            lfp_depth = pd.Series([int(goodcells.loc[i,'ch'] - layer4cent) for i,row in goodcells.iterrows()])
 
     if file_dict['stim_type'] == 'grat':
         print('getting grating flow')
@@ -665,8 +676,10 @@ def run_ephys_analysis(file_dict):
     movInterp = interp1d(worldT,img_norm_sm,axis=0, bounds_error = False)
         
     print('getting spike-triggered average for lag=0.125')
+    ch_count = int([16 if '16' in file_dict['probe_name'] else 64][0])
+
     # calculate spike-triggered average
-    staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm_sm, goodcells, worldT, movInterp)
+    staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm_sm, goodcells, worldT, movInterp, ch_count)
     detail_pdf.savefig()
     plt.close()
     
@@ -983,7 +996,9 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_gz_tuning',
                                         'spike_rate_vs_gz_err',
                                         'trange',
-                                        'csd']]
+                                        'revchecker_mean_resp_per_ch'
+                                        'csd',
+                                        'lfp_rel_depth']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1003,7 +1018,10 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_gz_tuning[unit_num],
                                     spike_rate_vs_gz_err[unit_num],
                                     trange,
-                                    csd_interp]),dtype=object).T
+                                    rev_resp_mean,
+                                    csd_interp,
+                                    lfp_depth,
+                                    ]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
