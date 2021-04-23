@@ -44,6 +44,7 @@ def deinterlace_data(config, vid_list=None, time_list=None):
         csv_list = time_list.copy()
     # iterate through each video
     for this_avi in avi_list:
+        current_path = os.path.split(this_avi)[0]
         # make a save path that keeps the subdirectories
         # get out an key from the name of the video that will be shared with all other data of this trial
         vid_name = os.path.split(this_avi)[1]
@@ -62,13 +63,13 @@ def deinterlace_data(config, vid_list=None, time_list=None):
         frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT) # number of total frames
         fps = cap.get(cv2.CAP_PROP_FPS) # frame rate
         # make sure the save directory exists
-        if not os.path.exists(data_path):
-            os.makedirs(data_path)
+        if not os.path.exists(current_path):
+            os.makedirs(current_path)
         # files that will need to be deinterlaced will be read in with a frame rate of 30 frames/sec
         elif fps == 30:
             print('starting to deinterlace and interpolate on ' + key)
             # create save path
-            avi_out_path = os.path.join(data_path, (key + 'deinter.avi'))
+            avi_out_path = os.path.join(current_path, (key + 'deinter.avi'))
             # flip the eye video horizonally and vertically and deinterlace, if this is specified in the config
             if config['flip_eye_during_deinter'] is True and 'EYE' in this_avi:
                 subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip, hflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
@@ -84,7 +85,7 @@ def deinterlace_data(config, vid_list=None, time_list=None):
             frame_count_deinter = frame_count * 2
             if csv_present is True:
                 # get the save path for new timestamps
-                csv_out_path = os.path.join(data_path, (key + '_BonsaiTSformatted.csv'))
+                csv_out_path = os.path.join(current_path, (key + '_BonsaiTSformatted.csv'))
                 # read in the exiting timestamps, interpolate to match the new number of steps, and format as dataframe
                 csv_out = pd.DataFrame(open_time(this_csv, int(frame_count_deinter)))
                 # save new timestamps
