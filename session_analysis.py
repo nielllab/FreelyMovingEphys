@@ -31,8 +31,8 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def main(args):
-    config = open_config(args.config)
+def main(config_path, clear_dlc):
+    config = open_config(config_path)
 
     steps = config['steps_to_run']
     
@@ -45,7 +45,7 @@ def main(args):
     if steps['undistort_recording']:
         calibrate_new_world_vids(config)
     if steps['dlc']:
-        if args.clear_dlc:
+        if clear_dlc:
             h5_list = find('*DLC*.h5',config['data_path'])
             pickle_list = find('*DLC*.pickle',config['data_path'])
             file_list = h5_list + pickle_list
@@ -62,4 +62,4 @@ def main(args):
 
 if __name__ == '__main__':
     args = get_args()
-    main(args)
+    main(args.config, args.clear_dlc)
