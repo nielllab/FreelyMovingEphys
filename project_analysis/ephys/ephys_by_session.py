@@ -4,6 +4,7 @@ ephys_by_session.py
 analyze ephys for all recordings of a session
 """
 import os
+import traceback
 
 from util.paths import list_subdirs
 from project_analysis.ephys.analyze_ephys import find_files, run_ephys_analysis
@@ -17,6 +18,8 @@ def session_ephys_analysis(config):
     # get subdirectories (i.e. name of each recording for this session)
     dirnames = list_subdirs(data_path)
     recording_names = sorted([i for i in dirnames if 'hf' in i or 'fm' in i])
+    if config['specific_ephys_recs'] != []:
+        recording_names = [i for i in recording_names if i in config['specific_ephys_recs']]
     # iterate through each recording's name
     for recording_name in recording_names:
         try:
@@ -43,4 +46,4 @@ def session_ephys_analysis(config):
             file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4, probe_name)
             run_ephys_analysis(file_dict)
         except Exception as e:
-            print(e)
+            print(traceback.format_exc())

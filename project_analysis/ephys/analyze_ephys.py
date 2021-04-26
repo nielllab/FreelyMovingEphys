@@ -996,7 +996,7 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_gz_tuning',
                                         'spike_rate_vs_gz_err',
                                         'trange',
-                                        'revchecker_mean_resp_per_ch'
+                                        'revchecker_mean_resp_per_ch',
                                         'csd',
                                         'lfp_rel_depth']]
             unit_df = pd.DataFrame(pd.Series([crange,
@@ -1020,8 +1020,7 @@ def run_ephys_analysis(file_dict):
                                     trange,
                                     rev_resp_mean,
                                     csd_interp,
-                                    lfp_depth,
-                                    ]),dtype=object).T
+                                    lfp_depth]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name

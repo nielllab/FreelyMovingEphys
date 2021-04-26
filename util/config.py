@@ -132,6 +132,7 @@ def open_config(input_path):
             'unit2highlight': y['ephys_analysis']['unit_to_highlight'],
             'probe': y['ephys_analysis']['probe_type'],
             'write_ephys_vids': y['ephys_analysis']['write_videos'],
+            'specific_ephys_recs': y['ephys_analysis']['recording_list']
         }
 
     return config
