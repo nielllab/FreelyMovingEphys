@@ -37,9 +37,8 @@ def session_ephys_analysis(config):
             elif 'revchecker' in recording_name:
                 stim_type = 'revchecker'
             recording_path = os.path.join(data_path, recording_name)
-            full_recording_name = '_'.join(recording_path.split(os.sep)[-3:-1])+'_control_Rig2_'+recording_path.split(os.sep)[-1]
-            if 'spotsub' in full_recording_name:
-                full_recording_name = full_recording_name.replace('spotsub', '')
+            norm_recording_path = os.path.normpath(recording_path).replace('\\', '/')
+            full_recording_name = '_'.join(norm_recording_path.split('/')[-3:-1])+'_control_Rig2_'+os.path.split(norm_recording_path)[1].split('/')[-1]
             mp4 = False
             file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4, probe_name)
             run_ephys_analysis(file_dict)

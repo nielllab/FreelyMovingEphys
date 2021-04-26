@@ -143,7 +143,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     """
     # set up the pdf to be saved out with diagnostic figures
     if config['save_figs'] is True:
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['recording_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
 
     fig_dwnsmpl = config['eye_fig_pts_dwnspl']
 
@@ -365,7 +365,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         # save out camera center and scale as np array (but only if this is a freely moving recording)
         if 'fm' in trial_name:
             calib_props_dict = {'cam_cent_x':float(cam_cent[0]), 'cam_cent_y':float(cam_cent[1]), 'scale':float(scale), 'regression_r':float(r_value), 'regression_m':float(slope)}
-            calib_props_dict_savepath = os.path.join(config['trial_path'], str(trial_name+eye_side+'_fm_eyecameracalc_props.json'))
+            calib_props_dict_savepath = os.path.join(config['recording_path'], str(trial_name+eye_side+'_fm_eyecameracalc_props.json'))
             with open(calib_props_dict_savepath, 'w') as f:
                 json.dump(calib_props_dict, f)
 
@@ -418,7 +418,7 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     vidread = cv2.VideoCapture(vid_path)
     width = int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    savepath = os.path.join(config['trial_path'], (trial_name + '_' + eye_letter + 'EYE_plot.avi'))
+    savepath = os.path.join(config['recording_path'], (trial_name + '_' + eye_letter + 'EYE_plot.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
@@ -508,7 +508,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
     print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
 
     if config['save_figs'] is True:
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['trial_path'], (trial_name + '_' + side_letter + '_pupil_rotation_figs.pdf')))
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['recording_path'], (trial_name + '_' + side_letter + '_pupil_rotation_figs.pdf')))
 
     # set up range of degrees in radians
     rad_range = np.deg2rad(np.arange(360))
@@ -804,7 +804,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
 
     if config['save_avi_vids'] is True:
         eyevid = cv2.VideoCapture(eyevidpath)
-        vidsavepath = os.path.join(config['trial_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + side_letter + '.avi'))
+        vidsavepath = os.path.join(config['recording_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + side_letter + '.avi'))
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH))*2, int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
         
@@ -857,7 +857,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
 
     # temporary: save pupil rotation values to csv in case of error during xarray formatting
     shift_smooth_pd = pd.DataFrame(shift_smooth)
-    # shift_smooth_pd.to_csv(os.path.join(config['trial_path'], str(trial_name + '_shift_smooth.csv')), index=False)
+    # shift_smooth_pd.to_csv(os.path.join(config['recording_path'], str(trial_name + '_shift_smooth.csv')), index=False)
     shift = xr.DataArray(shift_smooth_pd, dims=['frame','shift'])
     print('key/value error count during sigmoid fit: ' + str(key_error_count))
 

@@ -42,8 +42,10 @@ def extract_params(config):
     recordings_dict = dict(zip(sorted_keys, [recordings_dict[k] for k in sorted_keys]))
 
     # go into each trial and get out the camera/ephys types according to what's listed in json file
-    for recording_name in recordings_dict:
-        config['recording_path'] = recordings_dict[recording_name]
+    for dir_name in recordings_dict:
+        config['recording_path'] = recordings_dict[dir_name]
+        recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', config['recording_path']) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze'])][0])[1])[0].split('_')[:-1])
+        
         trial_cam_h5 = find(('*.h5'), config['recording_path'])
         trial_cam_csv = find(('*BonsaiTS*.csv'), config['recording_path'])
         trial_cam_avi = find(('*.avi'), config['recording_path'])
@@ -286,7 +288,7 @@ def extract_params(config):
             imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config); imu_data.name = 'IMU_data'
             imu_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_imu.nc')))
 
-    print('done with ' + str(len(trial_units)) + ' queued trials')
+    print('done with ' + str(len(recordings_dict)) + ' queued recordings')
 
 if __name__ == '__main__':
     args = pars_args()

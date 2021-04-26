@@ -140,7 +140,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
         plt.xlabel('frame')
         plt.ylabel('pixels/sec')
         plt.title('mouse speed')
-        plt.savefig(os.path.join(config['trial_path'], (trial_name + '_' + top_view + '_props.png')), dpi=300)
+        plt.savefig(os.path.join(config['recording_path'], (trial_name + '_' + top_view + '_props.png')), dpi=300)
         plt.close()
 
         props_out = pd.DataFrame({'cricket_speed':list(cricket_speed), 'range':list(c_range)[:-1], 'azimuth':list(az)[:-1], 'd_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})
@@ -163,7 +163,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
         plt.xlabel('frame')
         plt.ylabel('pixels/sec')
         plt.title('mouse speed')
-        plt.savefig(os.path.join(config['trial_path'], (trial_name + '_' + top_view + '_props.png')), dpi=300)
+        plt.savefig(os.path.join(config['recording_path'], (trial_name + '_' + top_view + '_props.png')), dpi=300)
         plt.close()
 
     return props_out_xr
@@ -187,7 +187,7 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
     #     plt.plot(np.squeeze(nose_x_pts), np.squeeze(nose_y_pts))
     #     plt.plot((np.squeeze(nose_x_pts)[0]), (np.squeeze(nose_y_pts)[0]), 'go') # starting point
     #     plt.plot((np.squeeze(nose_x_pts)[-1]), (np.squeeze(nose_y_pts)[-1]), 'ro')  # ending point
-    #     plt.savefig(os.path.join(config['trial_path'], (trial_name + '_' + top_view + '_nose_trace.png')), dpi=300)
+    #     plt.savefig(os.path.join(config['recording_path'], (trial_name + '_' + top_view + '_nose_trace.png')), dpi=300)
     #     plt.close()
 
     # threshold points using the input paramater (thresh) to find all times when all points are good (only want high values)
@@ -251,7 +251,7 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     # setup the file to save out of this
-    savepath = os.path.join(config['trial_path'], (trial_name + '_' + top_view + '_plot.avi'))
+    savepath = os.path.join(config['recording_path'], (trial_name + '_' + top_view + '_plot.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
