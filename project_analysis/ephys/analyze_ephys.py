@@ -469,23 +469,21 @@ def run_ephys_analysis(file_dict):
         colors = plt.cm.jet(np.linspace(0,1,32))
         num_channels = int([16 if '16' in file_dict['probe_name'] else 64][0])
         if num_channels == 64:
-            plt.subplots(1,2 ,figsize=(24,8))
+            plt.subplots(1,2 ,figsize=(12,6))
             for ch_num in np.arange(0,64):
                 if ch_num<=31:
                     plt.subplot(1,2,1)
                     plt.plot(rev_resp_mean[ch_num], color=colors[ch_num], linewidth=1)
-                    plt.title('ch1:32')
-                    plt.axvline(x=(0.1*samprate))
-                    # plt.ylim([-1000,500])
+                    plt.title('ch1:32'); plt.axvline(x=(0.1*samprate))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                 if ch_num>31:
                     plt.subplot(1,2,2)
                     plt.plot(rev_resp_mean[ch_num], color=colors[ch_num-32], linewidth=1)
-                    plt.title('ch33:64')
-                    plt.axvline(x=(0.1*samprate))
-                    # plt.ylim([-1000,500])
+                    plt.title('ch33:64'); plt.axvline(x=(0.1*samprate))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
             detail_pdf.savefig(); plt.close()
         # channels arranged in columns
-        fig, axes = plt.subplots(int(np.size(rev_resp_mean,0)/2),2, figsize=(15,50),sharey=True)
+        fig, axes = plt.subplots(int(np.size(rev_resp_mean,0)/2),2, figsize=(7,20),sharey=True)
         ch_num = 0
         for ax in axes.T.flatten():
             ax.plot(rev_resp_mean[ch_num], linewidth=1)
