@@ -301,7 +301,7 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp, ch_coun
             shank = np.floor(ch/32); site = np.mod(ch,32)
         else:
             shank = 0; site = ch
-        plt.title(f'ind={ind!s} nsp={nsp!s} ch={ch!s} shank={shank!s} site={site!s}')
+        plt.title(f'ind={ind!s} nsp={nsp!s}\n ch={ch!s} shank={shank!s}\n site={site!s}')
         plt.axis('off')
         
         if nsp > 0:

@@ -514,8 +514,8 @@ def run_ephys_analysis(file_dict):
         # channels above will have negative depth, channels below will have positive depth
         # adding or subtracting "depth" with a step size of 1
         if num_channels == 64:
-            shank0_layer4cent = np.argmin(np.min(rev_resp_mean, axis=1)[0:32])
-            shank1_layer4cent = np.argmin(np.min(rev_resp_mean, axis=1)[32:64])
+            shank0_layer4cent = np.argmin(np.min(rev_resp_mean[:,samprate*0.1:samprate*0.3], axis=1)[0:32])
+            shank1_layer4cent = np.argmin(np.min(rev_resp_mean[:,samprate*0.1:samprate*0.3], axis=1)[32:64])
             lfp_depth = pd.Series([int(goodcells.loc[i,'ch'] - shank0_layer4cent) if goodcells.loc[i,'ch'] <32 else int((goodcells.loc[i,'ch']-32) - shank1_layer4cent) for i,row in goodcells.iterrows()])
         elif num_channels == 16:
             layer4cent = np.argmin(np.min(rev_resp_mean, axis=1))
