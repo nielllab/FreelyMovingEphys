@@ -62,14 +62,12 @@ def main(args):
         goodcells = ephys_data.loc[ephys_data['group']=='good']
         binned_rates = np.zeros([len(worldT), np.size(ephys_data, 0)])
         for ind, row in tqdm(ephys_data.iterrows()):
-            for frame in range(0,len(worldT)-1):
-                frame_start = t[frame]
-                frame_end = t[frame+1]
-                binned_rates[ind, frame] = len([x for x in goodcells.loc[ind, 'spikeT'] if (frame_start <= x and x<frame_end)])
+            for ind, row in tqdm(ephys_data.iterrows()):
+            binned_rates[:,ind] = pd.Series(len([x for x in ephys_data.loc[ind, 'spikeT'] if (t[frame] <= x and x<t[frame+1])]) for frame in range(0,len(worldT)-1))
         all_data = np.vstack([all_data, binned_rates])
-    # format the spike rate bins as a json file
-    savefile = os.path.join(root_dir, 'spike_rate_by_frame.json')
-    all_data.to_json(savefile)
+    # format the spike rate bins to file
+    savefile = os.path.join(root_dir, 'spike_rate_by_frame.npy')
+    np.to_json(file=savefile, arr=all_data)
 
 if __name__ == '__main__':
     args = get_args()
