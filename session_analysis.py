@@ -31,10 +31,13 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def main(config_path, clear_dlc):
+def main(config_path, clear_dlc=False, force_probe_name=None):
     config = open_config(config_path)
 
     steps = config['steps_to_run']
+
+    if force_probe_name is not None:
+        config['probe'] = force_probe_name
     
     if steps['deinter']:
         deinterlace_data(config)

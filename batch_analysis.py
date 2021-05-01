@@ -85,7 +85,7 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
             config['steps_to_run']['ephys'] = False
         # run session analysis using the yaml config file
         try:
-            analyze_session(config, clear_dlc=clear_dlc)
+            analyze_session(config, clear_dlc=clear_dlc, force_probe_name=row['probe_name'])
         except Exception as e:
             logf.log([row['Experiment date']+'_'+row['Animal name'], traceback.format_exc()],PRINT=False)
 
