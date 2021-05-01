@@ -1,7 +1,5 @@
 """
-unit_summary.py
-
-utilities for using ephys analysis outputs
+ephys_population.py
 """
 import pandas as pd
 import numpy as np
