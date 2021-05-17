@@ -206,8 +206,9 @@ def quick_whitenoise_analysis(wn_path):
         pdf.savefig()
         plt.close()
 
+        ch_count = int([16 if '16' in file_dict['probe_name'] else 64][0])
         # calculate spike-triggered average
-        staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
+        staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp,ch_count)
         pdf.savefig()
         plt.close()
 
