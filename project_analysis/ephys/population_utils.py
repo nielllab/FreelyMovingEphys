@@ -1,7 +1,5 @@
 """
-unit_summary.py
-
-utilities for using ephys analysis outputs
+ephys_population.py
 """
 import pandas as pd
 import numpy as np
@@ -223,7 +221,7 @@ def make_unit_summary(df, savepath):
             tuning = row[fmA+'_spike_rate_vs_gy_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_gy_err']
             unitfig_fm1srvgy.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_z')
+            unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_y')
             unitfig_fm1srvgy.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -303,6 +301,24 @@ def make_unit_summary(df, savepath):
             unitfig_grat_psth.set_title('gratings psth')
             unitfig_grat_psth.set_xlabel('time'); unitfig_grat_psth.set_ylabel('sp/sec')
             unitfig_grat_psth.set_ylim([0,np.nanmax(psth)*1.2])
+        except:
+            pass
+
+        try:
+            # LFP trace relative to center of layer 4
+            unitfig_lfp = unitfig.add_subplot(spec[7, 1])
+            if np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'], 0) == 64:
+                shank_channels = [c for c in range(np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'], 0)) if int(np.floor(c/32)) == int(np.floor(int(row['ch'])/32))]
+                whole_shank = row['hf4_revchecker_revchecker_mean_resp_per_ch'][shank_channels]
+                unitfig_lfp.plot(whole_shank.T, color='k', alpha=0.1, linewidth=1)
+            else:
+                unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'].T, color='k', alpha=0.1, linewidth=1)
+            unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], label='this channel', color='b')
+            unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][int([i for i, x in enumerate(row['hf4_revchecker_lfp_rel_depth']==0) if x][0])], label='layer 4 center', color='r')
+            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(row['hf4_revchecker_lfp_rel_depth'][df.index.get_loc(ind)]))
+            unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
+            unitfig_lfp.xticks(np.arange(0,18000,18000/5),np.arange(-100,500,600/5))
+            unitfig_lfp.xlabel('msec'); unitfig_lfp.ylabel('uvolts')
         except:
             pass
 

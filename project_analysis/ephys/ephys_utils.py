@@ -1,15 +1,33 @@
 """
 ephys_utils.py
 
-utilities for using ephys analysis outputs
+utilities for processing ephys data and using ephys analysis outputs
 """
 import pandas as pd
 import numpy as np
 import json
 import os
+from scipy.signal import sosfiltfilt
+import cv2
+import xarray as xr
+import matplotlib.pyplot as plt
+from scipy.signal import butter, lfilter, freqz
+from scipy.interpolate import interp1d
+import platform
+from tqdm import tqdm
+
 from util.paths import find
 
 def load_ephys(csv_filepath):
+    """
+    using a .csv file of metadata identical to the one used to run batch analysis, pool experiments marked for inclusion and orgainze properties
+    saved out from ephys analysis into .h5 files as columns and each unit as an index
+    also reads in the .json of calibration properties saved out from fm recording eyecam analysis so that filtering can be done based on how well the eye tracking worked
+    INPUTS
+        csv_filepath: path to csv file used for batch analysis
+    OUTPUTS
+        all_data: DataFrame of all units marked for pooled analysis, with each index representing a unit across all recordings of a session
+    """
     # open the csv file of metadata and pull out all of the desired data paths
     csv = pd.read_csv(csv_filepath)
     for_data_pool = csv.loc[csv['load_for_data_pool'] == True]
@@ -58,83 +76,53 @@ def load_ephys(csv_filepath):
         all_data = pd.concat([all_data,session_data],axis=0)
     return all_data
 
-# read in many .npy ephys files ending in '*ephys_props.npy' by searching one or more date subdirectories
-# format the data into an xarray dataset of all units, with metadata stored as attributes
-# then, user can search entire dataset including any number of mice, dates, and units, and make comparisons
-# using xr.filter_by_attrs function
-def ephys_to_dataset(path, dates):
-    # path should be something like T:/freely_moving_ephys/ephys_recordings/
-    # dates should be a list of dates to include, as str, in the format 010121 for Jan 1st 2021
+def read_ephys_bin(binpath, probe_name, do_remap=True):
+    """
+    read in ephys binary file and apply remapping using the name of the probe
+    where the binary dimensions and remaping vector are read in from relative
+    path within the FreelyMovingEphys directory (FreelyMovingEphys/matlab/channel_maps.json)
+    INPUTS
+        binpath: path to binary file
+        probe_name: name of probe, which should be a key in the dict stored in the .json of probe remapping vectors
+        do_remap: bool, whether or not to remap the drive
+    OUTPUTS
+        ephys: ephys data as a DataFrame
+    """
+    # get channel number
+    ch_num = int([16 if '16' in probe_name else 64][0])
+    # find the file of default mappings
+    if platform.system() == 'Linux':
+        mapping_json = '/'.join(os.path.abspath(__file__).split('/')[:-3]) + '/matlab/channel_maps.json'
+    else:
+        mapping_json = '/'.join(os.path.abspath(__file__).split('\\')[:-3]) + '/matlab/channel_maps.json'
+    # open file of default mappings
+    with open(mapping_json, 'r') as fp:
+        mappings = json.load(fp)
+    # get the mapping for the probe name used in the current recording
+    ch_remap = mappings[probe_name]
+    # set up data types to read binary file into
+    dtypes = np.dtype([("ch"+str(i),np.uint16) for i in range(0,ch_num)])
+    # read in binary file
+    ephys = pd.DataFrame(np.fromfile(binpath, dtypes, -1, ''))
+    # remap with known order of channels
+    if do_remap is True:
+        ephys = ephys.iloc[:,[i-1 for i in list(ch_remap)]]
+    return ephys
 
-    # search for .npy ephys files in subdirectories of date directory
-    # then, organize the returned filepaths into a list
-    ephys_filepaths = []
-    for day in dates:
-        day_npys = find('*ephys_props.npy',os.path.join(path, day))
-        for i in day_npys:
-            ephys_filepaths.append(i)
-
-    # read in the npys, get metadata, and append into dataset
-    processed_unit_count = 0
-    for filepath in ephys_filepaths:
-        ephys = np.load(filepath, allow_pickle=True) # open npy files
-        keys = ephys.item().keys() # get all the names of unit/cell entries
-        for key in keys:
-            # prepare some metadata from the unit key
-            split_key = key.split('_')
-            date = split_key[1]; mouse = split_key[0]; exp = split_key[2]; rig = split_key[3]; unit = split_key[-1]
-            for x in [date, mouse, exp, rig, unit]:
-                split_key.remove(x) # stim can have variable num of '_', so it's best to remove everything else and add
-                                    # the remaining items in the list to the 'stim' attribute
-            stim = '_'.join(split_key)
-            unit_data = ephys.item().get(key) # get the data for the current key
-            unit_keys = list(unit_data.keys()) # we'll need the keys for each property (e.g. downsacc_avg, etc.)
-            # put into an xarray with labeled coordinates and dims
-            unit_xr = xr.DataArray([unit_data.get(i) for i in unit_keys], dims=['ephys_params'], coords=[('ephys_params', unit_keys)])
-            # add metadata
-            unit_xr.attrs['date'] = date; unit_xr.attrs['mouse'] = mouse; unit_xr.attrs['exp'] = exp; unit_xr.attrs['rig'] = rig; unit_xr.attrs['unit'] = unit
-            unit_xr.attrs['stim'] = stim; unit_xr.name = key # also important to name so that each datavariable can be indexed once merged into dataset
-            # and append each unit into one big dataset
-            if processed_unit_count == 0:
-                all_units_xr = unit_xr.copy()
-            else:
-                all_units_xr = xr.merge([all_units_xr, unit_xr])
-            processed_unit_count = processed_unit_count + 1
-
-    return all_units_xr
-
-# read in many .json ephys files of spike data, etc. and save them into a dictionary
-# each entry in dictionary will have a key for the name of the recording
-def ephys_to_dataframe(path,dates,conditions):
-    # path and dates should be in the same format as func ephys_to_dataset
-    ephys_filepaths = []
-    for day in dates:
-        day_jsons = find('*ephys_merge.json',os.path.join(path, day)) # get the .json for all recordings
-        for rec in day_jsons:
-            ephys_filepaths.append(rec) # append into list
-    # build a dictionary with the filename as the key and the pandas df as a value
-    spike_data = {os.path.split(filepath)[1]: pd.read_json(filepath) for filepath in ephys_filepaths}
-    
-    # iterate through dictionary to add a column, 'doi', of whether or not it was a doi recording
-   
-    for key,data in spike_data.items():
-        data['date'] = key.split('_')[0]
-        data['mouse'] = key.split('_')[1]
-        data['rec'] = key.split('_')[4]
-        if any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']):
-            data['doi'] = 'none'
-        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_doi'):
-            data['doi'] = 'doi'
-        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']) and key.split('_')[0] in conditions.get('dates_saline'):
-            data['doi'] = 'saline'
-
-        if any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_')[0] in conditions.get('dates_predoi'):
-            data['pre/post'] = 'pre'
-        elif any(i in key.split('_')[4] for i in ['fm1','hf1','hf2','hf3','hf4']) and key.split('_')[0] in conditions.get('dates_postdoi'):
-            data['pre/post'] = 'post'
-        elif any(i in key.split('_')[4] for i in ['fm2','hf5','hf6','hf7','hf8']):
-            data['pre/post'] = 'none'
-
-    all_data = pd.concat([data for key,data in spike_data.items()], keys=[key for key,data in spike_data.items()])
-
-    return all_data
+def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):
+    """
+    apply bandpass filter to ephys lfp applied along axis=0
+    INPUTS
+        data: 2d array of multiple channels of ephys data as a numpy arrya or pandas dataframe
+        lowcut: low end of cut off for frequency
+        highcut: high end of cut off for frequency
+        fs: sample rate
+        order: order of filter
+    OUTPUTS
+        filtered data in the same type as input data
+    """
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    sos = butter(order, [low, high], btype='bandpass', output='sos')
+    return sosfiltfilt(sos, data, axis=0)

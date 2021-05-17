@@ -266,7 +266,7 @@ def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
     plt.tight_layout()
     return fig
 
-def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
+def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp, ch_count):
     print('get timing')
     model_dt = 0.025;
     model_t = np.arange(0,np.max(worldT),model_dt)
@@ -296,7 +296,12 @@ def plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp):
         nsp = np.sum(sp);
         
         plt.subplot(int(np.ceil(n_units/4)),4,c+1)
-        plt.title(f'ind={ind!s} nsp={nsp!s}')
+        ch = int(goodcells.at[ind,'ch'])
+        if ch_count == 64:
+            shank = np.floor(ch/32); site = np.mod(ch,32)
+        else:
+            shank = 0; site = ch
+        plt.title(f'ind={ind!s} nsp={nsp!s}\n ch={ch!s} shank={shank!s}\n site={site!s}')
         plt.axis('off')
         
         if nsp > 0:

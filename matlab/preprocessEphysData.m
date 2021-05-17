@@ -1,39 +1,16 @@
 %% Preprocess ephys data
 
-%%% The top section is for 64ch, bottom is for 16ch
-%%% Be sure to uncomment only the channel map for the probe you're using
-
-%% 64 ch version, runs applyCARtoDat_subset on data with user params
-
-nchan = 64;
 medfilt = 0;
-subset = 1:64;
 isuint16 = 1;
+% json_path should to .json file with mappings of each probe i.e. {'probe':[1,2,3]}
+json_path = 'C:/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys/matlab/channel_maps.json';
+% options for probe name are: [default16, NN_H16, default64, NN_H64-LP, DB_P64-3, DB_P64-8]
+% default16 and default64 are ordered sequences (i.e. no remaping done)
+% all remappings should be 1 (not 0) referenced
+probe = 'DB_P64_3';
 
-%%% default channel map
-%chanMap = 1:64;
-
-%%% NN H64-LP channel map
-% chanMap = 1 + [32 62 33 63 34 60 36 61 37 58 38 59 40 56 41 57 42 54 44 55 45 52 46 53 47 50 43 51 39 48 35 49 0 30 1 31 2 28 3 26 4 27 5 24 6 22 7 23 8 20 9 18 10 19 11 16 12 17 13 21 14 25 15 29];
-
-%%% DB P64-3 channel map
-chanMap = [1 3 5 7 9 11 13 15 16 14 12 10 8 6 4 2 17 19 21 23 25 27 29 31 32 30 28 26 24 22 20 18 48 46 44 42 40 38 36 34 33 35 37 39 41 43 45 47 64 62 60 58 56 54 52 50 49 51 53 55 57 59 61 63];
-
-%%% DB P64-8 channel map
-% chanMap = [12 1 10 3 8 5 6 7 4 9 2 11 17 13 19 15 21 16 23 14 25 27 29 31 32 30 28 26 24 22 20 18 37 48 39 46 41 44 43 42 45 40 47 38 64 36 62 34 60 33 58 35 56 54 52 50 49 51 53 55 57 59 61 63]
+% get required params for applyCARtoDat
+[chanMap, nchan, subset] = getProbeMap(probe, json_path);
 
 % merge datasets and output single bin file
 applyCARtoDat_subset_multi(nchan,medfilt,subset,isuint16,chanMap);
-
-
-%% 16-channel version
-
-% nchan = 32;
-% medfilt = 0;
-% subset = 9:24;
-% isuint16 = 1;
-% 
-%%%% NN H16 channel map
-% chanMap = [15 18 10 23 11 22 12 21 9 24 13 20 14 19 16 17] - 8;
-% 
-% applyCARtoDat_subset_multi(nchan,medfilt,subset,isuint16,chanMap);
