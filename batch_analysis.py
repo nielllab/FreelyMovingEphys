@@ -70,10 +70,10 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
         # read in the generic config for this batch analysis
         config = open_config(config_path)
         # update generic config path for the current index of batch file
-        config = {'data_path': data_path}
+        config['data_path'] = data_path
         # if step was switched off for this index in the batch file, overwrite what is in the config file
         # if the csv file has a step switched on, this will leave the config file as it is
-        if row['run_preprocessing'] == 'FALSE':
+        if row['run_preprocessing'] != 'TRUE':
             config['steps_to_run']['deinter'] = False
             config['steps_to_run']['img_correction'] = False
             config['steps_to_run']['get_cam_calibration_params'] = False
@@ -81,13 +81,13 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
             config['steps_to_run']['dlc'] = False
             config['steps_to_run']['params'] = False
             config['steps_to_run']['addtl_params'] = False
-        if row['run_ephys_analysis'] == 'FALSE':
+        if row['run_ephys_analysis'] != 'TRUE':
             config['steps_to_run']['ephys'] = False
         # run session analysis using the yaml config file
         try:
             analyze_session(config, clear_dlc=clear_dlc, force_probe_name=row['probe_name'])
         except Exception as e:
-            logf.log([row['Experiment date']+'_'+row['Animal name'], traceback.format_exc()],PRINT=False)
+            logf.log([row['experiment_date']+'_'+row['animal_name'], traceback.format_exc()],PRINT=False)
 
 if __name__ == '__main__':
     args = get_args()
