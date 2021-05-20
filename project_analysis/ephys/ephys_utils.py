@@ -30,13 +30,13 @@ def load_ephys(csv_filepath):
     """
     # open the csv file of metadata and pull out all of the desired data paths
     csv = pd.read_csv(csv_filepath)
-    for_data_pool = csv.loc[csv['load_for_data_pool'] == True]
+    for_data_pool = csv[csv['load_for_data_pool'] == any(['TRUE' or True or 'True'])]
     goodsessions = []
     # get all of the best freely moving recordings of a session into a dictionary
-    goodfmrecs = dict(zip(list(for_data_pool['Experiment date']+'_'+for_data_pool['Animal name']),['fm1' if np.isnan(i) else i for i in for_data_pool['best_fm_rec']]))
+    goodfmrecs = dict(zip(list(for_data_pool['experiment_date']+'_'+for_data_pool['animal_name']),['fm1' if np.isnan(i) else i for i in for_data_pool['best_fm_rec']]))
     # get all of the session data locations into a list
     for ind, row in for_data_pool.iterrows():
-        goodsessions.append(row['data_location'])
+        goodsessions.append(row['animal_dirpath'])
     # get the .h5 files from each day
     # this will be a list of lists, where each list inside of the main list has all the data of a single session
     sessions = [find('*_ephys_props.h5',session) for session in goodsessions]
