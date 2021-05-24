@@ -943,7 +943,9 @@ def run_ephys_analysis(file_dict):
                                         'drift_spont',
                                         'spont_rate',
                                         'grating_rate',
-                                        'trange']]
+                                        'trange',
+                                        'theta',
+                                        'phi']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -968,7 +970,9 @@ def run_ephys_analysis(file_dict):
                                     drift_spont[unit_num],
                                     spont_rate[unit_num],
                                     grating_rate[unit_num],
-                                    trange]),dtype=object).T
+                                    trange,
+                                    th,
+                                    phi]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -996,7 +1000,9 @@ def run_ephys_analysis(file_dict):
                                         'trange',
                                         'revchecker_mean_resp_per_ch',
                                         'csd',
-                                        'lfp_rel_depth']]
+                                        'lfp_rel_depth',
+                                        'theta',
+                                        'phi']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1018,7 +1024,9 @@ def run_ephys_analysis(file_dict):
                                     trange,
                                     rev_resp_mean,
                                     csd_interp,
-                                    lfp_depth]),dtype=object).T
+                                    lfp_depth,
+                                    th,
+                                    phi]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -1043,7 +1051,9 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_gz_cent',
                                         'spike_rate_vs_gz_tuning',
                                         'spike_rate_vs_gz_err',
-                                        'trange']]
+                                        'trange',
+                                        'theta',
+                                        'phi']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1062,7 +1072,9 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_gz_cent,
                                     spike_rate_vs_gz_tuning[unit_num],
                                     spike_rate_vs_gz_err[unit_num],
-                                    trange]),dtype=object).T
+                                    trange,
+                                    th,
+                                    phi]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -1101,7 +1113,13 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_gy_cent',
                                         'spike_rate_vs_gy_tuning',
                                         'spike_rate_vs_gy_err',
-                                        'trange']]
+                                        'trange',
+                                        'dHead',
+                                        'dEye',
+                                        'eyeT',
+                                        'theta',
+                                        'phi',
+                                        'gz']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1134,7 +1152,13 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_gy_cent,
                                     spike_rate_vs_gy_tuning[unit_num],
                                     spike_rate_vs_gy_err[unit_num],
-                                    trange]),dtype=object).T
+                                    trange,
+                                    dEye,
+                                    dhead,
+                                    eyeT,
+                                    th,
+                                    phi,
+                                    gz]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
