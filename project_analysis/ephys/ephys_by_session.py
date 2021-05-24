@@ -23,7 +23,7 @@ def session_ephys_analysis(config):
     # iterate through each recording's name
     for recording_name in recording_names:
         try:
-            print('starting ephys analysis for '+recording_name)
+            print('starting ephys analysis for',recording_name,'in path',data_path)
             if 'fm' in recording_name:
                 fm = True
             elif 'fm' not in recording_name:
