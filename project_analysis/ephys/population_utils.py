@@ -37,7 +37,9 @@ def make_unit_summary(df, savepath):
             tuning = row['hf1_wn_crf_tuning']
             tuning_err = row['hf1_wn_crf_err']
             unitfig_crf.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_crf.set_title('WN contrast response')
+            new_crf = tuning[~np.isnan(tuning)]
+            modind = np.round((new_crf[-1] - new_crf[0]) / (new_crf[-1] + new_crf[0]), 3)
+            unitfig_crf.set_title('WN contrast response; modulation index='+str(modind))
             unitfig_crf.set_xlabel('contrast a.u.'); unitfig_crf.set_ylabel('sp/sec')
             unitfig_crf.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
@@ -92,9 +94,12 @@ def make_unit_summary(df, savepath):
         try:
             # orientation tuning curve
             unitfig_ori_tuning = unitfig.add_subplot(spec[3, 0])
-            unitfig_ori_tuning.set_title('GRAT orientation tuning')
             ori_tuning = row['hf3_gratings_ori_tuning']
             drift_spont = row['hf3_gratings_drift_spont']
+            R_pref = (np.arange(8)*45)[np.argmax(ori_tuning, 0)]
+            R_ortho = R_pref + np.rad2deg(np.pi/2)
+            osi = (R_pref - R_ortho) / (R_pref + R_ortho)
+            unitfig_ori_tuning.set_title('orientation tuning; OSI low='+str(osi[0])+'mid='+str(osi[1])+'high='+str(osi[2]))
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,0],label = 'low sf')
             unitfig_ori_tuning.plot(np.arange(8)*45,ori_tuning[:,1],label = 'mid sf')
             unitfig_ori_tuning.plot(np.arange(8)*45,ori_tuning[:,2],label = 'hi sf')
@@ -315,7 +320,7 @@ def make_unit_summary(df, savepath):
                 unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'].T, color='k', alpha=0.1, linewidth=1)
             unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], label='this channel', color='b')
             unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][int([i for i, x in enumerate(row['hf4_revchecker_lfp_rel_depth']==0) if x][0])], label='layer 4 center', color='r')
-            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(row['hf4_revchecker_lfp_rel_depth'][df.index.get_loc(ind)]))
+            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(row['hf4_revchecker_lfp_rel_depth'][df.index.get_loc(index)]))
             unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
             unitfig_lfp.xticks(np.arange(0,18000,18000/5),np.arange(-100,500,600/5))
             unitfig_lfp.xlabel('msec'); unitfig_lfp.ylabel('uvolts')
