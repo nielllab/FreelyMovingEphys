@@ -116,7 +116,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1saccavg.set_title('FM1 upsacc/downsacc')
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            maxval = np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))
+            maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_fm1saccavg.ylim([0,maxval*1.2])
         except:
             pass
@@ -130,7 +130,7 @@ def make_unit_summary(df, savepath):
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_wnsaccavg.legend(['upsacc_avg','downsacc_avg'])
-            maxval = np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))
+            maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_wnsaccavg.ylim([0,maxval*1.2])
         except:
             pass
@@ -312,22 +312,103 @@ def make_unit_summary(df, savepath):
         try:
             # LFP trace relative to center of layer 4
             unitfig_lfp = unitfig.add_subplot(spec[7, 1])
-            if np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'], 0) == 64:
+            if np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'],0) == 64:
                 shank_channels = [c for c in range(np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'], 0)) if int(np.floor(c/32)) == int(np.floor(int(row['ch'])/32))]
                 whole_shank = row['hf4_revchecker_revchecker_mean_resp_per_ch'][shank_channels]
                 unitfig_lfp.plot(whole_shank.T, color='k', alpha=0.1, linewidth=1)
             else:
                 unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'].T, color='k', alpha=0.1, linewidth=1)
             unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], label='this channel', color='b')
-            unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][int([i for i, x in enumerate(row['hf4_revchecker_lfp_rel_depth']==0) if x][0])], label='layer 4 center', color='r')
-            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(row['hf4_revchecker_lfp_rel_depth'][df.index.get_loc(index)]))
+            if [True if 0 in row['hf4_revchecker_lfp_rel_depth'].values else False][0]:
+                unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][int([i for i, x in enumerate(row['hf4_revchecker_lfp_rel_depth']==0) if x][0])], label='layer 4 center', color='r')
+            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(np.mod(row['ch'],32)))
             unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
-            unitfig_lfp.xticks(np.arange(0,18000,18000/5),np.arange(-100,500,600/5))
-            unitfig_lfp.xlabel('msec'); unitfig_lfp.ylabel('uvolts')
+            unitfig_lfp.set_xticks(np.arange(0,18000,18000/8))
+            unitfig_lfp.set_xticklabels(np.arange(-100,500,75))
+            unitfig_lfp.set_xlabel('msec'); unitfig_lfp.set_ylabel('uvolts')
         except:
             pass
 
         pdf.savefig(unitfig)
+        plt.close()
+    print('saving pdf')
+    pdf.close()
+
+def make_session_summary(df, savepath):
+    pdf = PdfPages(os.path.join(savepath, 'session_summary.pdf'))
+    df['unit'] = df.index.values
+    df = df.set_index('session')
+
+    unique_inds = list(set(df.index.values))
+
+    for unique_ind in tqdm(unique_inds):
+        uniquedf = df.loc[unique_ind]
+        # set up subplots
+        plt.subplots(2,4,figsize=(25,10))
+        plt.suptitle(unique_ind+'eye fit: m='+str(uniquedf['best_ellipse_fit_m'].iloc[0])+' r='+str(uniquedf['best_ellipse_fit_r'].iloc[0]))
+        # eye position vs head position
+        try:
+            plt.subplot(2,4,1)
+            plt.title('dEye vs dHead')
+            dHead = uniquedf['fm1_dEye'].iloc[0]
+            dEye = uniquedf['fm1_dHead'].iloc[0]
+            eyeT = uniquedf['fm1_eyeT'].iloc[0]
+            if len(dEye[0:-1:10]) == len(dHead(eyeT[0:-1:10])):
+                plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10]),'.')
+            elif len(dEye[0:-1:10]) > len(dHead(eyeT[0:-1:10])):
+                len_diff = len(dEye[0:-1:10]) - len(dHead(eyeT[0:-1:10]))
+                plt.plot(dEye[0:-1:10][:-len_diff],dHead(eyeT[0:-1:10]),'.')
+            elif len(dEye[0:-1:10]) < len(dHead(eyeT[0:-1:10])):
+                len_diff = len(dHead(eyeT[0:-1:10])) - len(dEye[0:-1:10])
+                plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10])[:-len_diff],'.')
+            plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
+            plt.plot([-10,10],[10,-10], 'r')
+        except:
+            pass
+        # histogram of theta from -45 to 45deg (are eye movements in resonable range?)
+        plt.subplot(2,4,2)
+        plt.title('hist of FM theta')
+        plt.hist(uniquedf['fm1_theta'].iloc[0], range=[-45,45])
+        # histogram of phi from -45 to 45deg (are eye movements in resonable range?)
+        plt.subplot(2,4,3)
+        plt.title('hist of FM phi')
+        plt.hist(uniquedf['fm1_phi'].iloc[0], range=[-45,45])
+        # histogram of gyro z (resonable range?)
+        plt.subplot(2,4,4)
+        plt.title('hist of FM gyro z')
+        plt.hist(uniquedf['fm1_gz'].iloc[0], range=[2,4])
+        # plot of contrast response functions on same panel scaled to max 30sp/sec
+        plt.subplot(2,4,5)
+        plt.title('contrast response functions')
+        for ind, row in uniquedf.iterrows():
+            plt.errorbar(row['hf1_wn_crf_cent'],row['hf1_wn_crf_tuning'],yerr=row['hf1_wn_crf_err'])
+        plt.ylim(0,30)
+        # plot of average contrast reponse function across units
+        plt.subplot(2,4,6)
+        plt.title('average CRF')
+        plt.errorbar(uniquedf['hf1_wn_crf_cent'].iloc[0],np.mean(uniquedf['hf1_wn_crf_tuning'],axis=0),yerr=np.mean(uniquedf['hf1_wn_crf_err'],axis=0))
+        plt.ylim(0,30)
+        # spike raster
+        try:
+            plt.subplot(2,4,7)
+            plt.title('FM spike raster')
+            i = 0
+            for ind, row in uniquedf.iterrows():
+                plt.vlines(row['fm1_spikeT'],i-0.25,i+0.25)
+                plt.xlim(0, 10); plt.xlabel('secs'); plt.ylabel('unit #')
+                i = i+1
+            # depth from LFP
+            plt.subplot(2,4,8)
+            plt.title('lfp trace')
+            if np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0) == 64:
+                shank_channels = [c for c in range(np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0], 0)) if int(np.floor(c/32)) == int(np.floor(int(uniquedf['ch'].iloc[0])/32))]
+                whole_shank = uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][shank_channels]
+                plt.plot(whole_shank.T, color='k', alpha=0.1, linewidth=1)
+            else:
+                plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0].T, color='k', alpha=0.1, linewidth=1)
+        except:
+            pass
+        pdf.savefig()
         plt.close()
     print('saving pdf')
     pdf.close()

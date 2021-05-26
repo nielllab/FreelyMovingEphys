@@ -21,6 +21,10 @@ from scipy.interpolate import interp1d
 from numpy import nan
 from matplotlib.backends.backend_pdf import PdfPages
 import os
+import scipy.sparse as sparse
+import scipy.linalg as linalg
+from tqdm import tqdm
+from sklearn.linear_model import LinearRegression
 
 # calculate and plot psth relative to timepoints
 def plot_psth(goodcells,onsets,lower,upper,dt,drawfig):
@@ -58,7 +62,8 @@ def plot_spike_rasters(goodcells):
     fig, ax = plt.subplots()
     ax.fontsize = 20
     for i,ind in enumerate(goodcells.index):
-        plt.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25)
+        sp = np.array(goodcells.at[ind,'spikeT'])
+        plt.vlines(sp[sp<10],i-0.25,i+0.25)
         plt.xlim(0, 10); plt.xlabel('secs',fontsize = 20); plt.ylabel('unit #',fontsize=20)
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -255,6 +260,77 @@ def plot_saccade_and_fixate(eyeT, dEye, gInterp, th):
     plt.tight_layout()
     return fig
 
+def eye_shift_estimation(th,phi, eyeT, world_vid,worldT,max_frames):
+    
+    # get eye displacement for each worldcam frame
+    th_interp = interp1d(eyeT,th,bounds_error = False)
+    phi_interp = interp1d(eyeT, phi, bounds_error = False)
+    dth = np.diff(th_interp(worldT))
+    dphi = np.diff(phi_interp(worldT))
+    
+    # calculate x-y shift for each worldcam frame  
+    number_of_iterations = 5000
+    termination_eps = 1e-4
+    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
+    warp_mode = cv2.MOTION_TRANSLATION
+    cc = np.zeros(max_frames); xshift = np.zeros(max_frames); yshift = np.zeros(max_frames);
+    warp_all = np.zeros((6,max_frames))
+    # get shift between adjacent frames
+    for i in tqdm(range(max_frames)):
+        warp_matrix = np.eye(2, 3, dtype=np.float32)
+        try: 
+            (cc[i], warp_matrix) = cv2.findTransformECC (world_vid[i,:,:],world_vid[i+1,:,:],warp_matrix, warp_mode, criteria, inputMask = None, gaussFiltSize = 1)
+            xshift[i] = warp_matrix[0,2]; yshift[i] = warp_matrix[1,2]
+        except:
+            cc[i] = np.nan;
+            xshift[i]=np.nan; yshift[i] = np.nan;
+    
+    
+    # perform regression to predict frameshift based on eye shifts
+    
+    #set up models; eyeData (th,phi) = predictors; shift (x,y) = outputs
+    xmodel = LinearRegression()
+    ymodel = LinearRegression()
+    
+    eyeData = np.zeros((max_frames,2))
+    eyeData[:,0] = dth[0:max_frames];
+    eyeData[:,1] = dphi[0:max_frames];
+    
+    xshiftdata = xshift[0:max_frames];
+    yshiftdata = yshift[0:max_frames];
+    
+    # only use good data - not nans, good correlation between frames, small eye movements(not sacccades which are not compensatory)
+    usedata = ~np.isnan(eyeData[:,0]) & ~np.isnan(eyeData[:,1]) & (cc>0.95)  & (np.abs(eyeData[:,0])<2) & (np.abs(eyeData[:,1])<2) & (np.abs(xshiftdata)<5) & (np.abs(yshiftdata)<5)
+    
+    # fit xshift 
+    xmodel.fit(eyeData[usedata,:],xshiftdata[usedata])
+    xmap = xmodel.coef_;
+    xrscore = xmodel.score(eyeData[usedata,:],xshiftdata[usedata])
+    print(xmap, xrscore)
+
+    # fit yshift
+    ymodel.fit(eyeData[usedata,:],yshiftdata[usedata])
+    ymap = ymodel.coef_;
+    yrscore = ymodel.score(eyeData[usedata,:],yshiftdata[usedata])
+    print(ymap,yrscore)
+    
+   # diagnostic plots
+    
+    fig = plt.figure(figsize = (8,6))
+    plt.subplot(2,2,1)
+    plt.plot(dth[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-12,12); plt.ylim(-12,12); plt.xlabel('dtheta'); plt.ylabel('xshift')
+    plt.title('xmap = ' + str(xmap))
+    plt.subplot(2,2,2)
+    plt.plot(dth[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-12,12); plt.ylim(-12,12); plt.xlabel('dtheta'); plt.ylabel('yshift')
+    plt.title('ymap = ' + str(ymap))
+    plt.subplot(2,2,3)
+    plt.plot(dphi[0:max_frames],xshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-12,12); plt.ylim(-12,12); plt.xlabel('dphi'); plt.ylabel('xshift')
+    plt.subplot(2,2,4)
+    plt.plot(dphi[0:max_frames],yshift[0:max_frames],'.');plt.plot([-5, 5], [5, -5],'r'); plt.xlim(-12,12); plt.ylim(-12,12); plt.xlabel('dphi'); plt.ylabel('yshift')
+    plt.tight_layout()
+    
+    return(xmap,ymap,fig)
+
 def plot_ind_contrast_funcs(n_units, goodcells, crange, resp):
     fig = plt.figure(figsize = (6,np.ceil(n_units/2)))
     for i, ind in enumerate(goodcells.index):
@@ -378,6 +454,157 @@ def plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm):
     plt.tight_layout()
     plt.axis('off')
     return stv_all, fig
+
+def fit_glm_vid(model_vid,model_nsp,model_dt, use,nks):
+    ### calculate GLM spatial RF
+    ### just needs model_vid, model_nsp, use, nks
+    ### so easy to make into a function!
+
+    nT = np.shape(model_nsp)[1]
+    x = model_vid.copy();
+    nk  = nks[0]*nks[1] #image dimensions
+    n_units = np.shape(model_nsp)[0]
+
+    #subtract mean and renormalize - necessary? 
+    mn_img = np.mean(x[use,:],axis=0)
+    x = x-mn_img
+    x = x/np.std(x[use,:],axis =0)
+    x = np.append(x,np.ones((nT,1)), axis = 1) # append column of ones
+    x = x[use,:]
+
+    # set up prior matrix (regularizer)
+
+    #L2 prior
+    Imat = np.eye(nk);
+    Imat = linalg.block_diag(Imat,np.zeros((1,1)))
+    #smoothness prior
+    consecutive = np.ones((nk,1))
+    consecutive[nks[1]-1::nks[1]] = 0;
+    diff = np.zeros((1,2)); diff[0,0] = -1; diff[0,1]= 1;
+    Dxx = sparse.diags((consecutive @ diff).T, np.array([0, 1]), (nk-1,nk))
+    Dxy = sparse.diags((np.ones((nk,1))@ diff).T, np.array([0, nks[1]]), (nk - nks[1], nk))
+    Dx = Dxx.T @ Dxx + Dxy.T @ Dxy
+    D  = linalg.block_diag(Dx.toarray(),np.zeros((1,1)))      
+    #summed prior matrix
+    #Cinv = D + Imat;
+    Cinv = D + Imat
+
+
+    lag_list = [ -4, -2, 0 , 2, 4]
+    lambdas = 1024 * (2**np.arange(0,16))
+    nlam = len(lambdas)
+
+    sta_all = np.zeros((n_units, len(lag_list), nks[0],nks[1] ));
+    cc_all = np.zeros((n_units,len(lag_list)))
+
+    for celln in tqdm(range(n_units)):
+        for lag_ind, lag in enumerate(lag_list):
+
+
+            sps = np.roll(model_nsp[celln,:],-lag)
+            sps = sps[use];
+            nT = len(sps)
+
+            #split training and test data
+            test_frac = 0.3;
+            ntest = int(nT*test_frac)
+            x_train = x[ntest:,:] ; sps_train = sps[ntest:]
+            x_test = x[:ntest,:]; sps_test = sps[:ntest]
+
+            #calculate a few terms
+            sta = x_train.T@sps_train/np.sum(sps_train)
+            XXtr = x_train.T @ x_train;
+            XYtr = x_train.T @sps_train;
+
+            msetrain = np.zeros((nlam,1))
+            msetest = np.zeros((nlam,1))
+            w_ridge = np.zeros((nk+1,nlam))
+            w = sta; # initial guess
+
+            #plt.figure(figsize = (8,8))
+
+            for l in range(len(lambdas)):  # loop over regularization strength
+
+                # calculate MAP estimate               
+                w = np.linalg.solve(XXtr + lambdas[l]*Cinv, XYtr)  # equivalent of \ (left divide) in matlab
+                w_ridge[:,l] =w;
+
+                #calculate test and training rms error
+                msetrain[l] = np.mean((sps_train - x_train@w)**2)
+                msetest[l] = np.mean((sps_test - x_test@w)**2)
+
+    #             #plot MAP estimate for this lambda
+    #             plt.subplot(4,4,l+1)
+    #             crange = np.max(np.abs(w_ridge[:-1,l]))
+    #             plt.imshow(np.reshape(w_ridge[:-1,l],nks),vmin = -crange,vmax = crange,cmap = 'jet'); #plt.colorbar()
+
+            # select best cross-validated lambda for RF
+            best_lambda = np.argmin(msetest)
+            w = w_ridge[:,best_lambda]
+            ridge_rf = w_ridge[:,best_lambda]
+            sta_all[celln,lag_ind,:,:] = np.reshape(w[:-1],nks);
+
+
+
+            #plotting!!!
+
+            # training/test errors
+    #         plt.figure(figsize = (4,4))
+    #         plt.subplot(2,2,1)
+    #         plt.plot(msetrain);  plt.xlabel('lambda'); plt.ylabel('training mse'); plt.title('unit' + str(celln) + ' lag'+str(lag))
+    #         plt.subplot(2,2,3)
+    #         plt.plot(msetest); plt.xlabel('lambda'); plt.ylabel('testing mse'); plt.title('var=' + str(np.var(sps_test)))
+
+
+    #         #plot sta (for comparison)
+    #         plt.subplot(2,2,2)
+    #         crange = np.max(np.abs(sta[:-1]))
+    #         plt.imshow(np.reshape(sta[:-1],nks),vmin = -crange, vmax= crange, cmap = 'jet')                                      
+    #         plt.title('STA')
+
+    #         #best cross-validated RF
+    #         plt.subplot(2,2,4)
+    #         crange = np.max(np.abs(w[:-1]))
+    #         plt.imshow(np.reshape(w[:-1],nks),vmin = -crange, vmax= crange, cmap = 'jet')
+    #         plt.title('GLM fit')       
+    #         plt.tight_layout()
+
+
+            # plot predicted vs actual firing rate
+
+
+            # predicted firing rate
+            sp_pred = x_test@ridge_rf
+
+            # bin the firing rate to get smooth rate vs time
+            bin_length = 80;
+            sp_smooth = (np.convolve(sps_test,np.ones(bin_length),'same'))/(bin_length*model_dt)
+            pred_smooth = (np.convolve(sp_pred,np.ones(bin_length),'same'))/(bin_length*model_dt)
+
+            # a few diagnostics
+            err = np.mean((sp_smooth-pred_smooth)**2)
+            cc = np.corrcoef(sp_smooth, pred_smooth)
+            cc_all[celln,lag_ind] = cc[0,1];
+
+
+            #plot
+    #         plt.figure()
+    #         maxt = 3600;
+    #         plt.plot(model_t[0:maxt],sp_smooth[0:maxt],label = 'actual')
+    #         plt.plot(model_t[0:maxt],pred_smooth[0:maxt],label='predicted')
+    #         plt.xlabel('secs'); plt.ylabel('sp/sec'); plt.legend(); plt.xlim([0,90])
+    #         expvar =(np.var(sp_smooth) - err)/(np.var(sp_smooth) )
+    #         plt.title('exp var = '+str(expvar) + 'correlation = ' + str(cc[0,1]))  
+
+
+    fig = plt.figure(figsize = (12,2*n_units))
+    for celln in tqdm(range(n_units)):
+        for lag_ind, lag in enumerate(lag_list):
+            crange = np.max(np.abs(sta_all[celln,:,:,:]))
+            plt.subplot(n_units,6,(celln*6)+lag_ind + 1)  
+            plt.imshow(sta_all[celln,lag_ind,:,:],vmin = -crange,vmax = crange, cmap = 'jet')
+            plt.title('cc={:.2f}'.format (cc_all[celln,lag_ind]))
+    return(sta_all,cc_all,fig)
 
 def plot_saccade_locked(goodcells, upsacc,  downsacc, trange):
     #upsacc = upsacc[upsacc>5];     upsacc = upsacc[upsacc<np.max(t)-5]

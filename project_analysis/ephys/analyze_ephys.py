@@ -301,10 +301,36 @@ def run_ephys_analysis(file_dict):
     print('finding contrast of normalized worldcam')
     # normalize world movie and calculate contrast
     cam_gamma = 1
-    world_norm = (world_vid/255)**cam_gamma
-    std_im = np.std(world_norm,axis=0)
+    #world_norm = (world_vid/255)**cam_gamma
+    
+    display('preparing worldcam video')
+    if free_move:
+        
+        print('estimating eye-world calibration')
+        xmap, ymap,fig = eye_shift_estimation(th,phi, eyeT, world_vid,worldT,60*60)
+        
+        xcorrection = xmap.copy()
+        ycorrection = ymap.copy()
+        
+        #xcorrection = [0,0]; ycorrection= [0,0]
+        
+        display('applying gamma to camera')
+        cam_gamma = 1
+        #world_norm = (world_vid/255)#**cam_gamma
+        
+        thInterp =interp1d(eyeT,th, bounds_error = False)
+        phiInterp =interp1d(eyeT,phi, bounds_error = False)
+        
+        display('shifting worldcam for eyes')
+        thWorld = thInterp(worldT)
+        phiWorld = phiInterp(worldT)
+        for f in tqdm(range(np.shape(world_vid)[0])):
+            world_vid[f,:,:] = imshift(world_vid[f,:,:],(-np.int8(thInterp(worldT[f])*ycorrection[0] + phiInterp(worldT[f])*ycorrection[1]),-np.int8(thInterp(worldT[f])*xcorrection[0] + phiInterp(worldT[f])*xcorrection[1])))
+        
+        
+    std_im = np.std(world_vid,axis=0)
 
-    img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
+    img_norm = (world_vid-np.mean(world_vid,axis=0))/std_im
     std_im[std_im<20/255] = 0
     img_norm = img_norm * (std_im>0)
 
@@ -514,8 +540,8 @@ def run_ephys_analysis(file_dict):
         # channels above will have negative depth, channels below will have positive depth
         # adding or subtracting "depth" with a step size of 1
         if num_channels == 64:
-            shank0_layer4cent = np.argmin(np.min(rev_resp_mean[:,samprate*0.1:samprate*0.3], axis=1)[0:32])
-            shank1_layer4cent = np.argmin(np.min(rev_resp_mean[:,samprate*0.1:samprate*0.3], axis=1)[32:64])
+            shank0_layer4cent = np.argmin(np.min(rev_resp_mean[0:32,int(samprate*0.1):int(samprate*0.3)], axis=1))
+            shank1_layer4cent = np.argmin(np.min(rev_resp_mean[32:64,int(samprate*0.1):int(samprate*0.3)], axis=1))
             lfp_depth = pd.Series([int(goodcells.loc[i,'ch'] - shank0_layer4cent) if goodcells.loc[i,'ch'] <32 else int((goodcells.loc[i,'ch']-32) - shank1_layer4cent) for i,row in goodcells.iterrows()])
         elif num_channels == 16:
             layer4cent = np.argmin(np.min(rev_resp_mean, axis=1))
@@ -692,6 +718,63 @@ def run_ephys_analysis(file_dict):
     st_var, fig = plot_spike_triggered_variance(n_units, goodcells, t, movInterp, img_norm_sm)
     detail_pdf.savefig()
     plt.close()
+
+    print('doing GLM RF estimate')
+    if (free_move is True) | (file_dict['stim_type'] == 'revchecker'):
+        ### simplified setup for GLM
+        ### these are general parameters (spike rates, eye position)
+        n_units = len(goodcells)
+        print('get timing')
+        model_dt = 0.025;
+        model_t = np.arange(0,np.max(worldT),model_dt)
+        model_nsp = np.zeros((n_units,len(model_t)))
+        
+        # get spikes / rate
+        print('get spikes')
+        bins = np.append(model_t,model_t[-1]+model_dt)
+        for i,ind in enumerate(goodcells.index):
+            model_nsp[i,:],bins = np.histogram(goodcells.at[ind,'spikeT'],bins)
+        
+        #get eye position
+        print('get eye')
+        thInterp =interp1d(eyeT,th, bounds_error = False)
+        phiInterp =interp1d(eyeT,phi, bounds_error = False)
+        model_th = thInterp(model_t+model_dt/2)
+        model_phi = phiInterp(model_t+model_dt/2)
+        
+        # get active times
+        if free_move:
+            interp = interp1d(accT,(gz-np.mean(gz))*7.5,bounds_error=False)
+            model_gz = interp(model_t)
+            model_active = np.convolve(np.abs(model_gz),np.ones(np.int(1/model_dt)),'same')
+            use = np.where((np.abs(model_th)<10) & (np.abs(model_phi)<10)& (model_active>40) )[0]
+        else:
+            use = np.where((np.abs(model_th)<10) & (np.abs(model_phi)<10))[0]
+            
+         ### get video ready for GLM
+        downsamp = 0.25;
+        print('setting up video') 
+        movInterp = None; model_vid_sm = 0;
+        movInterp = interp1d(worldT,img_norm,'nearest',axis = 0,bounds_error = False) 
+        
+        testimg = movInterp(model_t[0]);
+        testimg = cv2.resize(testimg,(int(np.shape(testimg)[1]*downsamp), int(np.shape(testimg)[0]*downsamp)))
+        testimg = testimg[5:-5,5:-5]; #remove area affected by eye movement correction
+        model_vid_sm = np.zeros((len(model_t),np.int(np.shape(testimg)[0]*np.shape(testimg)[1])))
+        for i in tqdm(range(len(model_t))):
+            model_vid = movInterp(model_t[i] + model_dt/2)
+            smallvid = cv2.resize(model_vid,(np.int(np.shape(img_norm)[2]*downsamp),np.int(np.shape(img_norm)[1]*downsamp)),interpolation = cv2.INTER_AREA)
+            smallvid = smallvid[5:-5,5:-5];
+            #smallvid = smallvid - np.mean(smallvid)
+            model_vid_sm[i,:] = np.reshape(smallvid,np.shape(smallvid)[0]*np.shape(smallvid)[1])
+        
+        nks = np.shape(smallvid); nk = nks[0]*nks[1];    
+        model_vid_sm[np.isnan(model_vid_sm)]=0;  movInterp = None; # clear out large variable
+        
+        sta_all,cc_all, fig = fit_glm_vid(model_vid_sm,model_nsp,model_dt, use,nks)
+        detail_pdf.savefig()
+        plt.close()
+
 
     spikeraster_fig = plot_spike_rasters(goodcells)
     detail_pdf.savefig()
