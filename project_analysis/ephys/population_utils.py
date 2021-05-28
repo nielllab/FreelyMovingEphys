@@ -101,10 +101,11 @@ def make_unit_summary(df, savepath):
             osi = (R_pref - R_ortho) / (R_pref + R_ortho)
             unitfig_ori_tuning.set_title('orientation tuning; OSI low='+str(osi[0])+'mid='+str(osi[1])+'high='+str(osi[2]))
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,0],label = 'low sf')
-            unitfig_ori_tuning.plot(np.arange(8)*45,ori_tuning[:,1],label = 'mid sf')
-            unitfig_ori_tuning.plot(np.arange(8)*45,ori_tuning[:,2],label = 'hi sf')
+            unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,1],label = 'mid sf')
+            unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,2],label = 'hi sf')
             unitfig_ori_tuning.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
             unitfig_ori_tuning.legend()
+            unitfig_ori_tuning.set_ylim([0,np.max(ori_tuning)*1.2])
         except:
             pass
 
@@ -117,7 +118,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_fm1saccavg.ylim([0,maxval*1.2])
+            unitfig_fm1saccavg.set_ylim([0,maxval*1.2])
         except:
             pass
 
@@ -131,7 +132,7 @@ def make_unit_summary(df, savepath):
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_wnsaccavg.legend(['upsacc_avg','downsacc_avg'])
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_wnsaccavg.ylim([0,maxval*1.2])
+            unitfig_wnsaccavg.set_ylim([0,maxval*1.2])
         except:
             pass
 
@@ -321,7 +322,7 @@ def make_unit_summary(df, savepath):
             unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], label='this channel', color='b')
             if [True if 0 in row['hf4_revchecker_lfp_rel_depth'].values else False][0]:
                 unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][int([i for i, x in enumerate(row['hf4_revchecker_lfp_rel_depth']==0) if x][0])], label='layer 4 center', color='r')
-            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(np.mod(row['ch'],32)))
+            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(row['lfp_rel_depth']))
             unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
             unitfig_lfp.set_xticks(np.arange(0,18000,18000/8))
             unitfig_lfp.set_xticklabels(np.arange(-100,500,75))
@@ -378,36 +379,37 @@ def make_session_summary(df, savepath):
         plt.title('hist of FM gyro z')
         plt.hist(uniquedf['fm1_gz'].iloc[0], range=[2,4])
         # plot of contrast response functions on same panel scaled to max 30sp/sec
+        # plot of average contrast reponse function across units
         plt.subplot(2,4,5)
         plt.title('contrast response functions')
         for ind, row in uniquedf.iterrows():
             plt.errorbar(row['hf1_wn_crf_cent'],row['hf1_wn_crf_tuning'],yerr=row['hf1_wn_crf_err'])
         plt.ylim(0,30)
-        # plot of average contrast reponse function across units
-        plt.subplot(2,4,6)
-        plt.title('average CRF')
-        plt.errorbar(uniquedf['hf1_wn_crf_cent'].iloc[0],np.mean(uniquedf['hf1_wn_crf_tuning'],axis=0),yerr=np.mean(uniquedf['hf1_wn_crf_err'],axis=0))
-        plt.ylim(0,30)
-        # spike raster
-        try:
-            plt.subplot(2,4,7)
-            plt.title('FM spike raster')
-            i = 0
-            for ind, row in uniquedf.iterrows():
-                plt.vlines(row['fm1_spikeT'],i-0.25,i+0.25)
-                plt.xlim(0, 10); plt.xlabel('secs'); plt.ylabel('unit #')
-                i = i+1
-            # depth from LFP
-            plt.subplot(2,4,8)
-            plt.title('lfp trace')
-            if np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0) == 64:
-                shank_channels = [c for c in range(np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0], 0)) if int(np.floor(c/32)) == int(np.floor(int(uniquedf['ch'].iloc[0])/32))]
-                whole_shank = uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][shank_channels]
-                plt.plot(whole_shank.T, color='k', alpha=0.1, linewidth=1)
-            else:
-                plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0].T, color='k', alpha=0.1, linewidth=1)
-        except:
-            pass
+        plt.errorbar(uniquedf['hf1_wn_crf_cent'].iloc[0],np.mean(uniquedf['hf1_wn_crf_tuning'],axis=0),yerr=np.mean(uniquedf['hf1_wn_crf_err'],axis=0), color='k', linewidth=6)
+        # lfp traces as separate shanks
+        colors = plt.cm.jet(np.linspace(0,1,32))
+        num_channels = np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0)
+        if num_channels == 64:
+            plt.subplots(1,2 ,figsize=(12,6))
+            for ch_num in np.arange(0,64):
+                if ch_num<=31:
+                    plt.subplot(2,4,6)
+                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
+                    plt.title('lfp trace, shank1'); plt.axvline(x=(0.1*30000))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                if ch_num>31:
+                    plt.subplot(2,4,7)
+                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
+                    plt.title('lfp trace, shank2'); plt.axvline(x=(0.1*30000))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+        # fm spike raster
+        plt.subplot(2,4,8)
+        plt.title('FM spike raster')
+        i = 0
+        for ind, row in uniquedf.iterrows():
+            plt.vlines(row['fm1_spikeT'],i-0.25,i+0.25)
+            plt.xlim(0, 10); plt.xlabel('secs'); plt.ylabel('unit #')
+            i = i+1
         pdf.savefig()
         plt.close()
     print('saving pdf')
