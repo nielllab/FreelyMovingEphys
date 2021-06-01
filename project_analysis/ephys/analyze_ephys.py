@@ -301,9 +301,9 @@ def run_ephys_analysis(file_dict):
     print('finding contrast of normalized worldcam')
     # normalize world movie and calculate contrast
     cam_gamma = 1
-    #world_norm = (world_vid/255)**cam_gamma
+    # world_norm = (world_vid/255)**cam_gamma
     
-    display('preparing worldcam video')
+    print('preparing worldcam video')
     if free_move:
         
         print('estimating eye-world calibration')
@@ -314,14 +314,14 @@ def run_ephys_analysis(file_dict):
         
         #xcorrection = [0,0]; ycorrection= [0,0]
         
-        display('applying gamma to camera')
+        print('applying gamma to camera')
         cam_gamma = 1
-        #world_norm = (world_vid/255)#**cam_gamma
+        # world_norm = (world_vid/255)#**cam_gamma
         
         thInterp =interp1d(eyeT,th, bounds_error = False)
         phiInterp =interp1d(eyeT,phi, bounds_error = False)
         
-        display('shifting worldcam for eyes')
+        print('shifting worldcam for eyes')
         thWorld = thInterp(worldT)
         phiWorld = phiInterp(worldT)
         for f in tqdm(range(np.shape(world_vid)[0])):
@@ -459,8 +459,8 @@ def run_ephys_analysis(file_dict):
         print('kmeans clustering on revchecker worldcam')
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.85)
         k = 2
-        num_frames = np.size(world_norm,0); vid_width = np.size(world_norm,1); vid_height = np.size(world_norm,2)
-        kmeans_input = world_norm.reshape(num_frames,vid_width*vid_height)
+        num_frames = np.size(world_vid,0); vid_width = np.size(world_vid,1); vid_height = np.size(world_vid,2)
+        kmeans_input = world_vid.reshape(num_frames,vid_width*vid_height)
         compactness, labels, centers = cv2.kmeans(kmeans_input.astype(np.float32), k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         label_diff = np.diff(np.ndarray.flatten(labels))
         revind = list(abs(label_diff)) # need abs because reversing back will be -1
