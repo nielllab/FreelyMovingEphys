@@ -2,8 +2,6 @@
 initial_wn_analysis.py
 
 run minimal analysis needed to get receptive fields in the worldcam
-
-Jan. 21, 2021
 """
 
 # package imports
