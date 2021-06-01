@@ -98,7 +98,7 @@ def make_unit_summary(df, savepath):
             drift_spont = row['hf3_gratings_drift_spont']
             R_pref = (np.arange(8)*45)[np.argmax(ori_tuning, 0)]
             R_ortho = R_pref + np.rad2deg(np.pi/2)
-            osi = (R_pref - R_ortho) / (R_pref + R_ortho)
+            osi = np.round((R_pref - R_ortho) / (R_pref + R_ortho),3)
             unitfig_ori_tuning.set_title('orientation tuning; OSI low='+str(osi[0])+'mid='+str(osi[1])+'high='+str(osi[2]))
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,0],label = 'low sf')
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,1],label = 'mid sf')
@@ -387,21 +387,23 @@ def make_session_summary(df, savepath):
         plt.ylim(0,30)
         plt.errorbar(uniquedf['hf1_wn_crf_cent'].iloc[0],np.mean(uniquedf['hf1_wn_crf_tuning'],axis=0),yerr=np.mean(uniquedf['hf1_wn_crf_err'],axis=0), color='k', linewidth=6)
         # lfp traces as separate shanks
-        colors = plt.cm.jet(np.linspace(0,1,32))
-        num_channels = np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0)
-        if num_channels == 64:
-            plt.subplots(1,2 ,figsize=(12,6))
-            for ch_num in np.arange(0,64):
-                if ch_num<=31:
-                    plt.subplot(2,4,6)
-                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
-                    plt.title('lfp trace, shank1'); plt.axvline(x=(0.1*30000))
-                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
-                if ch_num>31:
-                    plt.subplot(2,4,7)
-                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
-                    plt.title('lfp trace, shank2'); plt.axvline(x=(0.1*30000))
-                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+        try:
+            colors = plt.cm.jet(np.linspace(0,1,32))
+            num_channels = np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0)
+            if num_channels == 64:
+                for ch_num in np.arange(0,64):
+                    if ch_num<=31:
+                        plt.subplot(2,4,6)
+                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
+                        plt.title('lfp trace, shank1'); plt.axvline(x=(0.1*30000))
+                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                    if ch_num>31:
+                        plt.subplot(2,4,7)
+                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
+                        plt.title('lfp trace, shank2'); plt.axvline(x=(0.1*30000))
+                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+        except:
+            pass
         # fm spike raster
         plt.subplot(2,4,8)
         plt.title('FM spike raster')
