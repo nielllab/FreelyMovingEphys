@@ -44,7 +44,7 @@ def quick_whitenoise_analysis(wn_path):
         'flip_eye_during_deinter': True,
         'flip_world_during_deinter': True,
         'calibration': {
-            'world_checker_npz': 'T:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz'
+            'world_checker_npz': 'E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz'
         },
         'save_nc_vids': True,
         'use_BonsaiTS': True,

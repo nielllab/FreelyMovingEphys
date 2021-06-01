@@ -29,6 +29,7 @@ ch_count1 = OptionMenu(main, ch_count, *ch_count_options)
 ch_count1.grid(column=0, row=0)
 def run_main():
     quick_revchecker_analysis(this_subject, ch_count.get())
+    root.destroy()
 run_button = Button(main, text="select", command=run_main)
 run_button.grid(column=1, row=0)
 window.mainloop()
