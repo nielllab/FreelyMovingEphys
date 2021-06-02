@@ -340,7 +340,7 @@ def make_session_summary(df, savepath):
     df['unit'] = df.index.values
     df = df.set_index('session')
 
-    unique_inds = list(set(df.index.values))
+    unique_inds = sorted(list(set(df.index.values)))
 
     for unique_ind in tqdm(unique_inds):
         uniquedf = df.loc[unique_ind]
@@ -387,23 +387,23 @@ def make_session_summary(df, savepath):
         plt.ylim(0,30)
         plt.errorbar(uniquedf['hf1_wn_crf_cent'].iloc[0],np.mean(uniquedf['hf1_wn_crf_tuning'],axis=0),yerr=np.mean(uniquedf['hf1_wn_crf_err'],axis=0), color='k', linewidth=6)
         # lfp traces as separate shanks
-        try:
-            colors = plt.cm.jet(np.linspace(0,1,32))
-            num_channels = np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0)
-            if num_channels == 64:
-                for ch_num in np.arange(0,64):
-                    if ch_num<=31:
-                        plt.subplot(2,4,6)
-                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
-                        plt.title('lfp trace, shank1'); plt.axvline(x=(0.1*30000))
-                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
-                    if ch_num>31:
-                        plt.subplot(2,4,7)
-                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
-                        plt.title('lfp trace, shank2'); plt.axvline(x=(0.1*30000))
-                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
-        except:
-            pass
+        colors = plt.cm.jet(np.linspace(0,1,32))
+        num_channels = np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0)
+        if num_channels == 64:
+            plt.subplots(1,2 ,figsize=(12,6))
+            for ch_num in np.arange(0,64):
+                if ch_num<=31:
+                    plt.subplot(2,4,6)
+                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
+                    plt.title('lfp trace, shank1'); plt.axvline(x=(0.1*30000))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                    plt.ylim([-1200,400])
+                if ch_num>31:
+                    plt.subplot(2,4,7)
+                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
+                    plt.title('lfp trace, shank2'); plt.axvline(x=(0.1*30000))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                    plt.ylim([-1200,400])
         # fm spike raster
         plt.subplot(2,4,8)
         plt.title('FM spike raster')
