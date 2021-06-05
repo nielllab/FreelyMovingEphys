@@ -1,12 +1,6 @@
 """
 track_world.py
-
-tracking world camera and finding pupil rotation
-
-Jan. 10, 2021
 """
-
-# package imports
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -30,7 +24,6 @@ import matplotlib as mpl
 from astropy.convolution import convolve
 from scipy.interpolate import interp1d
 
-# module imports
 from util.time import open_time
 from util.paths import find
 from util.aux_funcs import nanxcorr
@@ -43,20 +36,16 @@ def smooth_tracking(y, box_pts=3):
     return y_smooth
 
 def track_LED(config):
-    """
-    run preprocessing and figure-generating analysis on
-    """
     # DLC tracking
-    calib = config['calibration']
-    dlc_config_eye = calib['eye_LED_config']
-    dlc_config_world = calib['world_LED_config']
-    led_dir = os.path.join(config['data_path'], config['LED_dir_name'])
+    dlc_config_eye = config['ir_spot_in_space']['eye_LED_config']
+    dlc_config_world = config['ir_spot_in_space']['world_LED_config']
+    led_dir = os.path.join(config['animal_dir'], config['ir_spot_in_space']['ir_spot_in_space_dir_name'])
     led_dir_avi = find('*IR*.avi', led_dir)
     led_dir_csv = find('*IR*BonsaiTSformatted.csv', led_dir)
     if led_dir_avi == []:
-        led_dir_avi = find('*IR*.avi', config['data_path'])
-        led_dir_csv = find('*IR*BonsaiTSformatted.csv', config['data_path'])
-        led_dir_h5 = find('*IR*.h5', config['data_path'])
+        led_dir_avi = find('*IR*.avi', config['animal_dir'])
+        led_dir_csv = find('*IR*BonsaiTSformatted.csv', config['animal_dir'])
+        led_dir_h5 = find('*IR*.h5', config['animal_dir'])
     # get the trial name
     t_name = os.path.split('_'.join(led_dir_avi[0].split('_')[:-1]))[1]
     # find the correct eye anbd world video and time files
@@ -77,11 +66,11 @@ def track_LED(config):
     eyexr = h5_to_xr(eye_h5, eye_csv, 'REYE', config=config)
     worldxr = h5_to_xr(world_h5, world_csv, 'WORLD', config=config) # format in xarray
     # save out the paramters in nc files
-    eyexr.to_netcdf(os.path.join(config['data_path'], str('led_eye_positions.nc')))
-    worldxr.to_netcdf(os.path.join(config['data_path'], str('led_world_positions.nc')))
+    eyexr.to_netcdf(os.path.join(led_dir, str('led_eye_positions.nc')))
+    worldxr.to_netcdf(os.path.join(led_dir, str('led_world_positions.nc')))
     # then make some plots in a pdf
     if config['save_figs'] is True:
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['data_path'], (t_name + 'LED_tracking.pdf')))
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(led_dir, (t_name + 'LED_tracking.pdf')))
         
         eye_x = eyexr.sel(point_loc='light_x')
         plt.figure()
@@ -110,10 +99,10 @@ def track_LED(config):
 
         # threshold out frames with low likelihood
         # seems to work well for thresh=0.99
-        eye_x[eyexr.sel(point_loc='light_likelihood')<config['lik_thresh_strict']] = np.nan
-        eye_y[eyexr.sel(point_loc='light_likelihood')<config['lik_thresh_strict']] = np.nan
-        world_x[worldxr.sel(point_loc='light_likelihood')<config['lik_thresh_strict']] = np.nan
-        world_y[worldxr.sel(point_loc='light_likelihood')<config['lik_thresh_strict']] = np.nan
+        eye_x[eyexr.sel(point_loc='light_likelihood')<config['ir_spot_in_space']['lik_thresh_strict']] = np.nan
+        eye_y[eyexr.sel(point_loc='light_likelihood')<config['ir_spot_in_space']['lik_thresh_strict']] = np.nan
+        world_x[worldxr.sel(point_loc='light_likelihood')<config['ir_spot_in_space']['lik_thresh_strict']] = np.nan
+        world_y[worldxr.sel(point_loc='light_likelihood')<config['ir_spot_in_space']['lik_thresh_strict']] = np.nan
         # eliminate frames in which there is very little movementin the worldcam (movements should be large!)
         orig_world_x = world_x.copy(); orig_world_y = world_y.copy()
         world_x = world_x[:-1]; world_y = world_y[:-1]
@@ -209,7 +198,7 @@ def track_LED(config):
 
         pdf.close()
     
-        np.savez(os.path.join(config['data_path'], (t_name + 'LED_positions.npz')), eye_x=eye_x, eye_y=eye_y, world_x=world_x, world_y=world_y)
+        np.savez(os.path.join(led_dir, (t_name + 'LED_positions.npz')), eye_x=eye_x, eye_y=eye_y, world_x=world_x, world_y=world_y)
 
     if config['save_avi_vids'] is True:
         plot_IR_track(world_avi, worldxr, eye_avi, eyexr, t_name, config)
@@ -220,7 +209,8 @@ def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
     
     print('plotting avi of IR LED tracking')
 
-    savepath = os.path.join(config['data_path'], (trial_name + '_IR_LED_tracking.avi'))
+    led_dir = os.path.join(config['data_path'], config['ir_spot_in_space']['ir_spot_in_space_dir_name'])
+    savepath = os.path.join(led_dir, (trial_name + '_IR_LED_tracking.avi'))
     
     world_vid_read = cv2.VideoCapture(world_vid)
     w_width = int(world_vid_read.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -233,10 +223,10 @@ def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (e_width*2, e_height))
 
-    if config['num_save_frames'] > int(world_vid_read.get(cv2.CAP_PROP_FRAME_COUNT)):
+    if config['parameters']['outputs_and_visualization']['num_save_frames'] > int(world_vid_read.get(cv2.CAP_PROP_FRAME_COUNT)):
         num_save_frames = int(world_vid_read.get(cv2.CAP_PROP_FRAME_COUNT))
     else:
-        num_save_frames = config['num_save_frames']
+        num_save_frames = config['parameters']['outputs_and_visualization']['num_save_frames']
 
     for step in tqdm(range(0,num_save_frames)):
         w_ret, w_frame = world_vid_read.read()
@@ -249,9 +239,9 @@ def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
         try:
             e_pt = eye_dlc.sel(frame=step)
             eye_pt_cent = (int(e_pt.sel(point_loc='light_x').values), int(e_pt.sel(point_loc='light_y').values))
-            if e_pt.sel(point_loc='light_likelihood').values < config['lik_thresh_strict']: # bad points in red
+            if e_pt.sel(point_loc='light_likelihood').values < config['ir_spot_in_space']['lik_thresh_strict']: # bad points in red
                 e_frame = cv2.circle(e_frame, eye_pt_cent, 8, (0,0,255), 1)
-            elif e_pt.sel(point_loc='light_likelihood').values >= config['lik_thresh_strict']: # good points in green
+            elif e_pt.sel(point_loc='light_likelihood').values >= config['ir_spot_in_space']['lik_thresh_strict']: # good points in green
                 e_frame = cv2.circle(e_frame, eye_pt_cent, 8, (0,255,0), 1)
         except ValueError:
             pass
@@ -259,9 +249,9 @@ def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
         try:
             w_pt = world_dlc.sel(frame=step)
             world_pt_cent = (int(w_pt.sel(point_loc='light_x').values), int(w_pt.sel(point_loc='light_y').values))
-            if w_pt.sel(point_loc='light_likelihood').values < config['lik_thresh_strict']: # bad points in red
+            if w_pt.sel(point_loc='light_likelihood').values < config['ir_spot_in_space']['lik_thresh_strict']: # bad points in red
                 w_frame = cv2.circle(w_frame, world_pt_cent, 8, (0,0,255), 1)
-            elif w_pt.sel(point_loc='light_likelihood').values >= config['lik_thresh_strict']: # good points in green
+            elif w_pt.sel(point_loc='light_likelihood').values >= config['ir_spot_in_space']['lik_thresh_strict']: # good points in green
                 w_frame = cv2.circle(w_frame, world_pt_cent, 8, (0,255,0), 1)
         except ValueError:
             pass

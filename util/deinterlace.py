@@ -3,6 +3,7 @@ deinterlace.py
 
 deinterlace eye and world videos
 """
+
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
@@ -33,7 +34,7 @@ def deinterlace_data(config, vid_list=None, time_list=None):
         None
     """
     # get paths out of the config dictionary
-    data_path = config['data_path']
+    data_path = config['animal_dir']
     # find all the files assuming no specific files are listed
     if vid_list is None:
         avi_list = find('*.avi', data_path)
@@ -71,10 +72,10 @@ def deinterlace_data(config, vid_list=None, time_list=None):
             # create save path
             avi_out_path = os.path.join(current_path, (key + 'deinter.avi'))
             # flip the eye video horizonally and vertically and deinterlace, if this is specified in the config
-            if config['flip_eye_during_deinter'] is True and 'EYE' in this_avi:
+            if config['deinterlace']['flip_eye_during_deinter'] is True and 'EYE' in this_avi:
                 subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip, hflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
             # flip the world video horizontally and vertically and deinterlace, if this is specificed in the config
-            elif config['flip_world_during_deinter'] is True and 'WORLD' in this_avi:
+            elif config['deinterlace']['flip_world_during_deinter'] is True and 'WORLD' in this_avi:
                 subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip, hflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
             # or, deinterlace without flipping
             else:
@@ -94,13 +95,3 @@ def deinterlace_data(config, vid_list=None, time_list=None):
             print('frame rate not 30 or 60 for ' + key)
 
     print('done with ' + str(len(avi_list) + len(csv_list)) + ' items')
-
-if __name__ == '__main__':
-    args = pars_args()
-    
-    json_config_path = os.path.expanduser(args.json_config_path)
-    # open config file
-    with open(json_config_path, 'r') as fp:
-        config = json.load(fp)
-
-    deinterlace_data(config)

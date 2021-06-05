@@ -1,7 +1,5 @@
 """
 track_topdown.py
-
-topdown tracking utilities
 """
 import pandas as pd
 import numpy as np
@@ -82,7 +80,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
 
     filt = np.ones([3]) / np.sum(np.ones([3]))
 
-    if config['has_cricket_labeled'] is True:
+    if config['pose_estimation']['has_cricket_labeled'] is True:
         # cricket speed
         vx_c = np.diff(top_pts.sel(point_loc=cricketbodyX).values)
         vy_c = np.diff(top_pts.sel(point_loc=cricketbodyY).values)
@@ -112,7 +110,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
     vy_m = np.convolve(vy_m, filt, mode='same')
     mouse_speed = np.sqrt(vx_m**2, vy_m**2)
 
-    if config['has_cricket_labeled'] is True:
+    if config['pose_estimation']['has_cricket_labeled'] is True:
         # plot of the cricket and mouse properties
         plt.subplots(2,3)
         plt.subplot(231)
@@ -147,7 +145,7 @@ def body_props(top_pts, mouse_theta, config, trial_name, top_view):
         prop_names = ['cricket_speed', 'range', 'azimuth', 'd_theta', 'mouse_speed']
         props_out_xr = xr.DataArray(props_out, coords=[('frame',range(0,np.size(cricket_speed,0))), ('prop',prop_names)])
 
-    elif config['has_cricket_labeled'] is False:
+    elif config['pose_estimation']['has_cricket_labeled'] is False:
         props_out = pd.DataFrame({'d_theta':list(d_theta), 'mouse_speed':list(mouse_speed)})
         prop_names = ['d_theta', 'mouse_speed']
         props_out_xr = xr.DataArray(props_out, coords=[('frame',range(0,np.size(mouse_speed,0))), ('prop',prop_names)])
@@ -206,8 +204,8 @@ def topdown_tracking(topdown_data, config, trial_name, top_view):
             likeli_pt = topdown_interp.sel(point_loc=current_pt_loc)
 
             # set x/y coords to NaN where the likelihood is below threshold value
-            assoc_x_pt[likeli_pt < config['lik_thresh']] = np.nan
-            assoc_y_pt[likeli_pt < config['lik_thresh']] = np.nan
+            assoc_x_pt[likeli_pt < config['parameters']['lik_thresh']] = np.nan
+            assoc_y_pt[likeli_pt < config['parameters']['lik_thresh']] = np.nan
 
             likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='point_loc')
 
@@ -259,10 +257,10 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
     plot_color0 = (225, 255, 0)
     plot_color1 = (0, 255, 255)
 
-    if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
+    if config['parameters']['outputs_and_visualization']['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
         num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
     else:
-        num_save_frames = config['num_save_frames']
+        num_save_frames = config['parameters']['outputs_and_visualization']['num_save_frames']
 
     for frame_num in tqdm(range(0,num_save_frames)):
         # read the frame for this pass through while loop
@@ -276,7 +274,7 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
             try:
                 for k in range(0, len(dlc_data['point_loc']), 3):
                     topdownTS = dlc_data.isel(frame=frame_num)
-                    if config['run_top_angles'] is True:
+                    if config['parameters']['topdown']['get_top_thetas'] is True:
                         current_ang = head_ang.isel(frame=frame_num)
                     try:
                         td_pts_x = topdownTS.isel(point_loc=k).values
@@ -284,7 +282,7 @@ def plot_top_vid(vid_path, dlc_data, head_ang, config, trial_name, top_view):
                         center_xy = (int(td_pts_x), int(td_pts_y))
                         frame = cv2.circle(frame, center_xy, 6, plot_color0, -1)
 
-                        if config['run_top_angles'] is True:
+                        if config['parameters']['topdown']['get_top_thetas'] is True:
                             backX = topdownTS.sel(point_loc='base_implant_x').values
                             backY = topdownTS.sel(point_loc='base_implant_y').values
 
