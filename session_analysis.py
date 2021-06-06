@@ -23,18 +23,28 @@ from util.config import set_preprocessing_config_defaults, str_to_bool, open_con
 from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
 from util.img_processing import auto_contrast
 from project_analysis.ephys.ephys_by_session import session_ephys_analysis
+from util.paths import find
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='T:/freely_moving_ephys/ephys_recordings/031021/EE11P13LTRN/config.yaml')
+    parser.add_argument('--config', type=str)
     parser.add_argument('--clear_dlc', type=str_to_bool, nargs='?', const=True, default=False)
     args = parser.parse_args()
     return args
 
-def main(config_path, clear_dlc):
-    config = open_config(config_path)
+def main(config_path, clear_dlc=False, force_probe_name=None):
+    if type(config_path) == dict:
+        # if config options were provided instead of the expected path to a file
+        config = config_path
+    else:
+        config = open_config(config_path)
+
+    print('analyzing session with path',config['data_path'])
 
     steps = config['steps_to_run']
+
+    if force_probe_name is not None:
+        config['probe'] = force_probe_name
     
     if steps['deinter']:
         deinterlace_data(config)
