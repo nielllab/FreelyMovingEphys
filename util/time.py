@@ -28,7 +28,7 @@ def open_time(path, dlc_len=None, force_shift=False):
     """
     # read in the timestamps if they've come directly from cameras
     read_time = pd.read_csv(path, encoding='utf-8', engine='c', header=None).squeeze()
-    if read_time[0] == 0: # in case header == 0, which is true of some files, drop that header which will have been read in as the first entry
+    if read_time[0] == 0: # in case header == 0, which is true of some files, drop that header which will have been read in as the first entry  
         read_time = read_time[1:]
     time_in = []
     fmt = '%H:%M:%S.%f'

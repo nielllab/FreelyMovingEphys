@@ -26,7 +26,7 @@ from project_analysis.ephys.ephys_by_session import session_ephys_analysis
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str)
+    parser.add_argument('--config', type=str, default='T:/freely_moving_ephys/ephys_recordings/031021/EE11P13LTRN/config.yaml')
     parser.add_argument('--clear_dlc', type=str_to_bool, nargs='?', const=True, default=False)
     args = parser.parse_args()
     return args
