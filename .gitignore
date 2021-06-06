@@ -132,3 +132,4 @@ dmypy.json
 .vs/slnx.sqlite
 .vs/VSWorkspaceState.json
 .vscode/settings.json
+.vscode/launch.json
