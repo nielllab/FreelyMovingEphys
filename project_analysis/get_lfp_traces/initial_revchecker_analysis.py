@@ -28,27 +28,30 @@ from project_analysis.ephys.ephys_utils import *
 
 def quick_revchecker_analysis(rc_path, probe_type):
     temp_config = {
-        'data_path': rc_path,
-        'flip_eye_during_deinter': True,
-        'flip_world_during_deinter': True,
+        'animal_dir': rc_path,
+        'deinterlace':{'flip_eye_during_deinter': True,'flip_world_during_deinter': True},
         'calibration': {'world_checker_npz': 'E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz'},
-        'dwnsmpl': 0.25
+        'parameters':{'outputs_and_visualization':{'dwnsmpl': 0.25}}
     }
     # get lists of worldcam videos
     world_vids = glob(os.path.join(rc_path, '*WORLD.avi'))
     world_times = glob(os.path.join(rc_path, '*WORLD_BonsaiTS.csv'))
     # deinterlace worldcam videos
-    deinterlace_data(temp_config, world_vids, world_times)
+    
+    # deinterlace_data(temp_config, world_vids, world_times)
+
     # run calibration
     # it might be okay to not run this for this quick analysis
     # (i.e. warped image would still give good seperation in kmeans clustering)
-    calibrate_new_world_vids(temp_config)
+    
+    # calibrate_new_world_vids(temp_config)
+    
     # get the path to each recording directory
-    recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', temp_config['data_path']) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze'])][0])[1])[0].split('_')[:-1])
+    recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', temp_config['animal_dir']) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze'])][0])[1])[0].split('_')[:-1])
     print('opening pdf')
     pdf = PdfPages(os.path.join(rc_path, (recording_name + '_prelim_revchecker_figures.pdf')))
-    trial_cam_csv = find(('*BonsaiTS*.csv'), temp_config['data_path'])
-    trial_cam_avi = find(('*.avi'), temp_config['data_path'])
+    trial_cam_csv = find(('*BonsaiTS*.csv'), temp_config['animal_dir'])
+    trial_cam_avi = find(('*.avi'), temp_config['animal_dir'])
     trial_cam_csv = [x for x in trial_cam_csv if x != []]
     trial_cam_avi = [x for x in trial_cam_avi if x != []]
     # filter the list of files for the current trial to get the world view of this side
@@ -62,10 +65,10 @@ def quick_revchecker_analysis(rc_path, probe_type):
     # merge but make sure they're not off in lenght by one value, which happens occasionally
     print('saving nc file of world view...')
     trial_world_data = safe_xr_merge([worlddlc, xr_world_frames])
-    trial_world_data.to_netcdf(os.path.join(temp_config['data_path'], str(recording_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
+    trial_world_data.to_netcdf(os.path.join(temp_config['animal_dir'], str(recording_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
     print('running revchecker analysis')
     print('opening worldcam video and resizing')
-    world_data = xr.open_dataset(os.path.join(temp_config['data_path'], str(recording_name+'_world.nc')))
+    world_data = xr.open_dataset(os.path.join(temp_config['animal_dir'], str(recording_name+'_world.nc')))
     world_vid_raw = np.uint8(world_data['WORLD_video'])
     # resize worldcam to make more manageable
     sz = world_vid_raw.shape
