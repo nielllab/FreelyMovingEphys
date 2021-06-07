@@ -19,27 +19,37 @@ def pil_loader(path):
             return img.convert('RGB')
 
 class WorldcamDataset3D(Dataset):
-    def __init__(self, image_csv, history_size, spike_npy, root_dir, transform=None):
-        self.img_paths = pd.read_csv(image_csv)
+    def __init__(self, csv, history_size, root_dir, transform=None):
+        self.metadata = pd.read_csv(csv)
         self.root_dir = root_dir
-        self.spike_bins = np.load(spike_npy)
         self.transform = transform
         self.history_size = history_size
 
     def __len__(self):
-        return(len(self.img_paths))
+        return(len(self.metadata))
     
     def __getitem__(self,idx):
+        """
+        idx is a worldcam frame index
+        OUTPUTS
+            imgs: tensor of images, with the number of images used determined by the given history_size
+            spikes: number of spikes at each window for a given unit
+        """
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        sample = []
-        for n in range(self.history_size):
-            img_name = self.img_paths['N_{:02d}'.format(n)].iloc[idx]
-            img_path = os.path.join(self.root_dir,self.img_paths.iloc[idx,1],img_name)
+        imgs = []
+        spikes = []
+        history_win = list(range(-self.history_size,self.history_size))
+        for n in history_win:
+            img_name = self.metadata['F'+str(n)].iloc[idx]
+            img_path = os.path.join(str(os.path.join(self.root_dir,self.metadata.loc[idx,'filename'])),img_name)
             img = pil_loader(img_path)
             if self.transform:
                 img = self.transform(img)
-            sample.append(img)
-            
-        sample = torch.cat(sample,dim=0).unsqueeze(0)
-        return sample
+            imgs.append(img)
+            spike_list = self.metadata['SR'+str(n)].iloc[idx] # list of spike rates for all units
+            spikes.append(spike_list) # append list to list of spikes for entire history window
+
+        imgs = torch.cat(imgs,dim=0).unsqueeze(0)
+
+        return imgs, spikes

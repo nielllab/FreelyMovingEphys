@@ -2,11 +2,12 @@
 run.py
 """
 from tqdm import tqdm
-from base import CorePlusReadout2d
-from datasets import WorldcamDataset
+import argparse, os, json, sys
+sys.path.insert(0,'/home/niell_lab/Documents/github/FreelyMovingEphys/')
+from project_analysis.inception_loop.base import CorePlusReadout2d
+from project_analysis.inception_loop.datasets import WorldcamDataset3D
 from torch.utils.data import Dataset, DataLoader
-from core import Stacked2dCore
-import argparse, os, json
+from project_analysis.inception_loop.core import Stacked2dCore
 import torch.nn as nn
 import torch
 from torchvision import transforms
@@ -15,8 +16,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_csv', type=str, default='/home/niell_lab/data/freely_moving_ephys/inception_loop/inputs/WC_Train_Data.csv')
-    parser.add_argument('--test_csv', type=str, default='/home/niell_lab/data/freely_moving_ephys/inception_loop/inputs/WC_Val_Data.csv')
+    parser.add_argument('--train_csv', type=str, default='/home/niell_lab/data/freely_moving_ephys/inception_loop/inputs/train_history_dropnans.csv')
+    parser.add_argument('--test_csv', type=str, default='/home/niell_lab/data/freely_moving_ephys/inception_loop/inputs/val_history_data.csv')
     parser.add_argument('--root_dir', type=str, default='/home/niell_lab/data/freely_moving_ephys/inception_loop/inputs/')
     args = parser.parse_args()
     return args
@@ -25,20 +26,19 @@ def train_loop(dataloader, model, loss_fn, optimizer):
 
     size = len(dataloader.dataset)
 
-    for batch, X in enumerate(dataloader):
-
+    for batch, (X, y) in enumerate(dataloader):
         # compute prediction and loss
         pred = model(X.to(device))
-        # loss = loss_fn(pred, y)
+        loss = loss_fn(pred, y)
         print(pred.shape) # should be (64, 6, 128, 128)
         # backpropagation
-        # optimizer.zero_grad()
-        # loss.backward()
-        # optimizer.step()
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-        # if batch % 100 == 0:
-        #     loss, current = loss.item(), batch * len(X)
-        #     print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+        if batch % 100 == 0:
+            loss, current = loss.item(), batch * len(X)
+            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
 def test_loop(dataloader, model, loss_fn):
     
@@ -48,20 +48,22 @@ def test_loop(dataloader, model, loss_fn):
     with torch.no_grad():
         for X in dataloader:
             pred = model(X.to(device))
-            # test_loss += loss_fn(pred, y).item()
-            # correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+            test_loss += loss_fn(pred, y).item()
+            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
 
     test_loss /= size
-    # correct /= size
-    # print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    correct /= size
+    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
 def main(train_csv, test_csv, root_dir):
 
-    training_data = WorldcamDataset(train_csv, root_dir, transform=transforms.ToTensor())
-    testing_data = WorldcamDataset(test_csv, root_dir, transform=transforms.ToTensor())
+    history_size = 8
+
+    training_data = WorldcamDataset3D(train_csv, history_size, root_dir, transform=transforms.ToTensor())
+    # testing_data = WorldcamDataset3D(test_csv, history_size, root_dir, transform=transforms.ToTensor())
 
     train_dataloader = DataLoader(training_data, batch_size=64) # add num_workers
-    test_dataloader = DataLoader(testing_data, batch_size=64)
+    # test_dataloader = DataLoader(testing_data, batch_size=64)
 
     input_channels = 3
     hidden_channels = 2
@@ -85,4 +87,4 @@ def main(train_csv, test_csv, root_dir):
 
 if __name__ == '__main__':
     args = get_args()
-    main(args.train_csv, args.test_csv, args.root_dir, args.phy_unit)
+    main(args.train_csv, args.test_csv, args.root_dir)
