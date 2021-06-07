@@ -11,15 +11,15 @@ from project_analysis.ephys.analyze_ephys import find_files, run_ephys_analysis
 
 def session_ephys_analysis(config):
     # get options out
-    data_path = config['data_path']
-    unit = config['unit2highlight']
-    probe_name = config['probe']
-    mp4 = config['write_ephys_vids']
+    data_path = config['animal_dir']
+    unit = config['ephys_analysis']['unit_to_highlight']
+    probe_name = config['ephys_analysis']['probe_type']
+    mp4 = config['ephys_analysis']['write_videos']
     # get subdirectories (i.e. name of each recording for this session)
     dirnames = list_subdirs(data_path)
     recording_names = sorted([i for i in dirnames if 'hf' in i or 'fm' in i])
-    if config['specific_ephys_recs'] != []:
-        recording_names = [i for i in recording_names if i in config['specific_ephys_recs']]
+    if config['ephys_analysis']['recording_list'] != []:
+        recording_names = [i for i in recording_names if i in config['ephys_analysis']['recording_list']]
     # iterate through each recording's name
     for recording_name in recording_names:
         try:

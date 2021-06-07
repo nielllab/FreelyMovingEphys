@@ -1,7 +1,5 @@
 """
 log.py
-
-logger
 """
 
 class log:

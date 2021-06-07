@@ -12,9 +12,13 @@ from util.paths import find
 def auto_contrast(config):
     """
     read in eyecam videos and apply a gamma contrast correction
+    INPUTS
+        config: options dict
+    OUTPUTS
+        None
     """
-    if config['apply_auto_gamma'] is True:
-        input_list = find('*EYE.avi', config['data_path'])
+    if config['img_correction']['run_img_correction'] is True and config['img_correction']['apply_auto_gamma'] is True:
+        input_list = find('*EYE.avi', config['animal_dir'])
         # iterate through input videos
         for video in input_list:
             print('correcting gamma for '+video)

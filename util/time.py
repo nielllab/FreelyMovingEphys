@@ -1,7 +1,5 @@
 """
 time.py
-
-functions for reading in and manipulating time
 """
 import pandas as pd
 import numpy as np
@@ -19,12 +17,12 @@ import argparse
 def open_time(path, dlc_len=None, force_shift=False):
     """
     read in the timestamps for a camera and adjust to deinterlaced video length if needed
-    INPUTS:
-        path -- path to a timestamp .csv file
-        dlc_len -- int, number of frames in the DLC data (used to decide if interpolation is needed, but this can be left as None to ignore)
-        force_shift --  bool, whether or not to interpolate timestamps without checking
-    OUTPUTS:
-        time_out -- timestamps as numpy array
+    INPUTS
+        path: path to a timestamp .csv file
+        dlc_len: int, number of frames in the DLC data (used to decide if interpolation is needed, but this can be left as None to ignore)
+        force_shift:  bool, whether or not to interpolate timestamps without checking
+    OUTPUTS
+        time_out: timestamps as numpy array
     """
     # read in the timestamps if they've come directly from cameras
     read_time = pd.read_csv(path, encoding='utf-8', engine='c', header=None).squeeze()
@@ -81,10 +79,10 @@ def open_time1(read_time):
     read in the timestamps for a camera when they come from a csv file containing other data
     this does not read or open a file, it takes in a DataFrame column
     written to be used with ball rotation timestamps
-    INPUTS:
-        read_time -- column of a dataframe to read in and format
-    OUTPUTS:
-        time_in -- numpy array of timestamps
+    INPUTS
+        read_time: column of a dataframe to read in and format
+    OUTPUTS
+        time_in: numpy array of timestamps
     """
     time_in = []
     fmt = '%H:%M:%S.%f'

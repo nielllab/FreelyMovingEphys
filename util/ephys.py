@@ -1,7 +1,5 @@
 """
 ephys.py
-
-organize and combine ephys data
 """
 import pandas as pd
 import numpy as np
@@ -22,7 +20,7 @@ def format_spikes(spike_times_path, spike_clusters_path, cluster_group_path, eph
     """
     # open spike time data
     allSpikeT = np.load(spike_times_path)
-    allSpikeT = allSpikeT/config['ephys_sample_rate']  # should be a lookup table with timestamps
+    allSpikeT = allSpikeT/config['parameters']['ephys']['ephys_sample_rate']  # should be a lookup table with timestamps
     # length of the recording
     duration = np.max(allSpikeT)
     # read in cluster info
@@ -49,10 +47,11 @@ def format_spikes(spike_times_path, spike_clusters_path, cluster_group_path, eph
 def format_spikes_multi(merge_file, config):
     """
     format spikes as seperate json files from one shared .mat file
-    INPUTS:
-        merge_file -- .mat file, config should be preprocessing .json
-        config -- options dict
-    OUTPUTS: None
+    INPUTS
+        merge_file: .mat file, config should be preprocessing .json
+        config: options dict
+    OUTPUTS
+        None
     """
     # open 
     merge_info = loadmat(merge_file)
@@ -91,7 +90,7 @@ def format_spikes_multi(merge_file, config):
         ephys_data['spikeT'] = np.NaN
         ephys_data['spikeT'] = ephys_data['spikeT'].astype(object)
         for c in np.unique(clust):
-            ephys_data.at[c,'spikeT'] =(theseSpikes[theseClust==c].flatten() - boundaries[s])/config['ephys_sample_rate'] 
+            ephys_data.at[c,'spikeT'] =(theseSpikes[theseClust==c].flatten() - boundaries[s])/config['parameters']['ephys']['ephys_sample_rate']
         
         # get timestamp from csv for this recording
         fname = fileList[0,s][0].copy()
