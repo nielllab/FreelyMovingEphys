@@ -720,7 +720,7 @@ def run_ephys_analysis(file_dict):
     plt.close()
 
     print('doing GLM RF estimate')
-    if (free_move is True) | (file_dict['stim_type'] == 'revchecker'):
+    if (free_move is True) | (file_dict['stim_type'] == 'white_noise'):
         ### simplified setup for GLM
         ### these are general parameters (spike rates, eye position)
         n_units = len(goodcells)

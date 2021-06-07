@@ -68,7 +68,7 @@ def h5_to_xr(pt_path, time_path, view, config):
     # check that pt_path exists
     if pt_path is not None and pt_path != [] and time_path is not None:
         # open multianimal project with a different function than single animal h5 files
-        if 'TOP' in view and config['multianimal_TOP'] is True:
+        if 'TOP' in view and config['pose_estimation']['multianimal_top_project'] is True:
             # add a step to convert pickle files here?
             pts = open_ma_h5(pt_path)
         # otherwise, use regular h5 file read-in

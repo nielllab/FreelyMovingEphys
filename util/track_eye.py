@@ -206,7 +206,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         usegood_req8 = np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['calib_ellipse_pts_needed']
 
     # plot all good timepoints
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         plt.figure()
         plt.plot(np.sum(likelihood >= config['parameters']['lik_thresh'], 1)[0:-1:10])
         plt.title(str(np.round(np.mean(usegood_req5), 3)) + ' good (req5); thresh= ' + str(config['parameters']['lik_thresh']))
@@ -292,7 +292,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     theta = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
     phi = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
 
-    # if config['save_figs'] is True:
+    # if config['parameters']['outputs_and_visualization']['save_figs'] is True:
     #     plt.figure()
     #     plt.scatter(ellipse_params[:,7], phi)
     #     plt.title('angle_to_x vs phi')
@@ -504,7 +504,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
 
     print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
 
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['recording_path'], (trial_name + '_' + side_letter + '_pupil_rotation_figs.pdf')))
 
     # set up range of degrees in radians

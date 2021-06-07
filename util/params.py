@@ -58,7 +58,10 @@ def extract_params(config):
         trial_imu_bin = [x for x in trial_imu_bin if x != []]
 
         try:
-            top_views = [k for k in config['pose_estimation']['projects'].keys() if 'top' in k.lower()]
+            if config['pose_estimation']['projects'] != []:
+                top_views = [k for k in config['pose_estimation']['projects'].keys() if 'top' in k.lower()]
+            else:
+                top_views = []
             # iterate through found top views
             for top_view in top_views:
                 print('tracking '+top_view+ ' for ' + recording_name)
@@ -131,7 +134,10 @@ def extract_params(config):
 
         # analyze eye views
         try:
-            eye_sides = [k for k in config['pose_estimation']['projects'].keys() if 'eye' in k.lower()]
+            if config['pose_estimation']['projects'] != []:
+                eye_sides = [k for k in config['pose_estimation']['projects'].keys() if 'eye' in k.lower()]
+            else:
+                eye_sides = []
             for eye_side in eye_sides:
                 print('tracking ' + eye_side + 'for ' + recording_name)
                 # filter the list of files for the current trial to get the eye of this side
@@ -209,7 +215,6 @@ def extract_params(config):
             print('saving...')
             if config['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
                 trial_world_data = safe_xr_merge([worlddlc, xr_world_frames])
-
                 trial_world_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
             elif config['parameters']['outputs_and_visualization']['save_nc_vids'] is False:
                 worlddlc.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_world.nc')))
@@ -217,8 +222,11 @@ def extract_params(config):
             print('no WORLD trials found for ' + recording_name)
 
         # analyze side views
-        eye_sides = [k for k in config['pose_estimation']['projects'].keys() if 'side' in k.lower()]   
-        for side_side in eye_sides:
+        if config['pose_estimation']['projects'] != []:
+            side_sides = [k for k in config['pose_estimation']['projects'].keys() if 'side' in k.lower()]   
+        else:
+            side_sides = []
+        for side_side in side_sides:
             print('tracking '+ side_side +' for ' + recording_name)
             # filter the list of files for the current trial to get the world view of this side
             side_h5 = [i for i in trial_cam_h5 if side_side in i][0]

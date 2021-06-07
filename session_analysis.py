@@ -40,7 +40,7 @@ def main(config_path, clear_dlc=False, force_probe_name=None):
         with open(config_path, 'r') as infile:
             config = yaml.load(infile, Loader=yaml.FullLoader)
 
-    print('analyzing session with path',config['data_path'])
+    print('analyzing session with path',config['animal_dir'])
 
     if force_probe_name is not None:
         config['ephys_analysis']['probe_type'] = force_probe_name
@@ -55,8 +55,8 @@ def main(config_path, clear_dlc=False, force_probe_name=None):
         calibrate_new_world_vids(config)
     if config['pose_estimation']['run_dlc']:
         if clear_dlc:
-            h5_list = find('*DLC*.h5',config['data_path'])
-            pickle_list = find('*DLC*.pickle',config['data_path'])
+            h5_list = find('*DLC*.h5',config['animal_dir'])
+            pickle_list = find('*DLC*.pickle',config['animal_dir'])
             file_list = h5_list + pickle_list
             for item in file_list:
                 os.remove(item)
