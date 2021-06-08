@@ -138,10 +138,14 @@ def run_ephys_analysis(file_dict):
             gx = np.array(acc_chans.sel(channel='gyro_x'))
             gy = np.array(acc_chans.sel(channel='gyro_y'))
             gz = np.array(acc_chans.sel(channel='gyro_z'))
+            groll = np.array(acc_chans.sel(channel='roll'))
+            gpitch = np.array(acc_chans.sel(channel='pitch'))
         except:
             gx = np.array(acc_chans.sel(sample='gyro_x'))
             gy = np.array(acc_chans.sel(sample='gyro_y'))
             gz = np.array(acc_chans.sel(sample='gyro_z'))
+            groll = np.array(acc_chans.sel(sample='roll'))
+            gpitch = np.array(acc_chans.sel(sample='pitch'))
         plt.figure()
         plt.plot(gz[0:100*60])
         plt.title('gyro z')
@@ -869,7 +873,6 @@ def run_ephys_analysis(file_dict):
         downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
         upsacc_avg_comp_dHead, downsacc_avg_comp_dHead, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('comp dhead') ; detail_pdf.savefig() ;  plt.close()
-
         
     # rasters around positive saccades
     # raster_around_upsacc_fig = plot_rasters_around_saccades(n_units, goodcells, upsacc)
@@ -944,6 +947,32 @@ def run_ephys_analysis(file_dict):
         #spd_range = np.arange(0,1.1,0.1)
         spd_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
         spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
+        detail_pdf.savefig()
+        plt.close()
+
+    if free_move is True:
+        # roll vs spike rate
+        roll_range = np.arange(-100,100,10)
+        spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll, roll_range, goodcells, accT, t, 'roll')
+        detail_pdf.savefig()
+        plt.close()
+        # pitch vs spike rate
+        pitch_range = np.arange(-100,100,10)
+        spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch, pitch_range, goodcells, accT, t, 'pitch')
+        detail_pdf.savefig()
+        plt.close()
+        # pitch vs theta
+        gpitchi1d = interp1d(accT, gpitch, bounds_error=False)
+        pitch_intep = gpitchi1d(eyeT)
+        plt.figure()
+        plt.plot(pitch_intep, th); plt.xlabel('pitch'); plt.ylabel('theta')
+        detail_pdf.savefig()
+        plt.close()
+        # roll vs phi
+        grolli1d = interp1d(accT, groll, bounds_error=False)
+        roll_intep = grolli1d(eyeT)
+        plt.figure()
+        plt.plot(roll_intep, phi); plt.xlabel('roll'); plt.ylabel('phi')
         detail_pdf.savefig()
         plt.close()
 
@@ -1202,7 +1231,13 @@ def run_ephys_analysis(file_dict):
                                         'eyeT',
                                         'theta',
                                         'phi',
-                                        'gz']]
+                                        'gz',
+                                        'spike_rate_vs_roll_cent',
+                                        'spike_rate_vs_roll_tuning',
+                                        'spike_rate_vs_roll_err',
+                                        'spike_rate_vs_pitch_cent',
+                                        'spike_rate_vs_pitch_tuning',
+                                        'spike_rate_vs_pitch_err']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1241,7 +1276,13 @@ def run_ephys_analysis(file_dict):
                                     eyeT,
                                     th,
                                     phi,
-                                    gz]),dtype=object).T
+                                    gz,
+                                    spike_rate_vs_roll_cent,
+                                    spike_rate_vs_roll_tuning,
+                                    spike_rate_vs_roll_err,
+                                    spike_rate_vs_pitch_cent,
+                                    spike_rate_vs_pitch_tuning,
+                                    spike_rate_vs_pitch_err]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
