@@ -27,10 +27,11 @@ def train_loop(dataloader, model, loss_fn, optimizer):
     size = len(dataloader.dataset)
 
     for batch, (X, y) in enumerate(dataloader):
+        X = X.squeeze(dim=1)
         # compute prediction and loss
         pred = model(X.to(device))
-        loss = loss_fn(pred, y)
-        print(pred.shape) # should be (64, 6, 128, 128)
+        loss = loss_fn(pred, y.squeeze())
+        # print(pred.shape) # should be (64, 6, 128, 128)
         # backpropagation
         optimizer.zero_grad()
         loss.backward()
@@ -57,7 +58,7 @@ def test_loop(dataloader, model, loss_fn):
 
 def main(train_csv, test_csv, root_dir):
 
-    history_size = 8
+    history_size = 0
 
     training_data = WorldcamDataset3D(train_csv, history_size, root_dir, transform=transforms.ToTensor())
     # testing_data = WorldcamDataset3D(test_csv, history_size, root_dir, transform=transforms.ToTensor())
@@ -75,7 +76,7 @@ def main(train_csv, test_csv, root_dir):
     model = Stacked2dCore(input_channels, hidden_channels, input_kern, hidden_kern)
     model.to(device)
 
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.MSELoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
     epochs = 10

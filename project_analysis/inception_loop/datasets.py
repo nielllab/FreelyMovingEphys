@@ -39,7 +39,10 @@ class WorldcamDataset3D(Dataset):
             idx = idx.tolist()
         imgs = []
         spikes = []
-        history_win = list(range(-self.history_size,self.history_size))
+        if self.history_size == 0:
+            history_win = [0]
+        elif self.history_size != 0:
+            history_win = list(range(-self.history_size,self.history_size))
         for n in history_win:
             img_name = self.metadata['F'+str(n)].iloc[idx]
             img_path = os.path.join(str(os.path.join(self.root_dir,self.metadata.loc[idx,'filename'])),img_name)
@@ -48,8 +51,9 @@ class WorldcamDataset3D(Dataset):
                 img = self.transform(img)
             imgs.append(img)
             spike_list = self.metadata['SR'+str(n)].iloc[idx] # list of spike rates for all units
-            spikes.append(spike_list) # append list to list of spikes for entire history window
+            spikes.append(eval(spike_list)) # append list to list of spikes for entire history window
 
         imgs = torch.cat(imgs,dim=0).unsqueeze(0)
+        spikes = torch.FloatTensor(spikes)
 
         return imgs, spikes
