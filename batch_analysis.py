@@ -5,7 +5,7 @@ takes in a csv file path, yaml config file, and directory into which log should 
 might work with json config, but ephys analysis won't be possible, so yaml is best
 runs preprocessing and ephys analysis for each of the trials marked to be analyzed in csv file
 """
-import argparse, json, sys, os, subprocess, shutil
+import argparse, json, sys, os, subprocess, shutil, yaml
 import cv2
 import pandas as pd
 os.environ["DLClight"] = "True"
@@ -68,26 +68,27 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
         # get the provided data path
         data_path = row['animal_dirpath']
         # read in the generic config for this batch analysis
-        config = open_config(config_path)
+        with open(config_path, 'r') as infile:
+            config = yaml.load(infile, Loader=yaml.FullLoader)
         # update generic config path for the current index of batch file
-        config = {'data_path': data_path}
+        config['data_path'] = data_path
         # if step was switched off for this index in the batch file, overwrite what is in the config file
         # if the csv file has a step switched on, this will leave the config file as it is
-        if row['run_preprocessing'] == 'FALSE':
-            config['steps_to_run']['deinter'] = False
-            config['steps_to_run']['img_correction'] = False
-            config['steps_to_run']['get_cam_calibration_params'] = False
-            config['steps_to_run']['undistort_recording'] = False
-            config['steps_to_run']['dlc'] = False
-            config['steps_to_run']['params'] = False
-            config['steps_to_run']['addtl_params'] = False
-        if row['run_ephys_analysis'] == 'FALSE':
-            config['steps_to_run']['ephys'] = False
+        if row['run_preprocessing'] != 'TRUE':
+            config['deinterlace']['run_deinter'] = False
+            config['img_correction']['run_img_correction'] = False
+            config['calibration']['run_cam_calibration'] = False
+            config['calibration']['undistort_recordings'] = False
+            config['pose_estimation']['run_dlc'] = False
+            config['parameters']['run_params'] = False
+            config['ir_spot_in_space']['run_is_spot_in_space'] = False
+        if row['run_ephys_analysis'] != 'TRUE':
+            config['ephys_analysis']['run_ephys_analysis'] = False
         # run session analysis using the yaml config file
         try:
-            analyze_session(config, clear_dlc=clear_dlc)
+            analyze_session(config, clear_dlc=clear_dlc, force_probe_name=row['probe_name'])
         except Exception as e:
-            logf.log([row['Experiment date']+'_'+row['Animal name'], traceback.format_exc()],PRINT=False)
+            logf.log([row['experiment_date']+'_'+row['animal_name'], traceback.format_exc()],PRINT=False)
 
 if __name__ == '__main__':
     args = get_args()

@@ -1,7 +1,5 @@
 """
-unit_summary.py
-
-utilities for using ephys analysis outputs
+ephys_population.py
 """
 import pandas as pd
 import numpy as np
@@ -39,7 +37,9 @@ def make_unit_summary(df, savepath):
             tuning = row['hf1_wn_crf_tuning']
             tuning_err = row['hf1_wn_crf_err']
             unitfig_crf.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_crf.set_title('WN contrast response')
+            new_crf = tuning[~np.isnan(tuning)]
+            modind = np.round((new_crf[-1] - new_crf[0]) / (new_crf[-1] + new_crf[0]), 3)
+            unitfig_crf.set_title('WN contrast response; modulation index='+str(modind))
             unitfig_crf.set_xlabel('contrast a.u.'); unitfig_crf.set_ylabel('sp/sec')
             unitfig_crf.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
@@ -94,14 +94,18 @@ def make_unit_summary(df, savepath):
         try:
             # orientation tuning curve
             unitfig_ori_tuning = unitfig.add_subplot(spec[3, 0])
-            unitfig_ori_tuning.set_title('GRAT orientation tuning')
             ori_tuning = row['hf3_gratings_ori_tuning']
             drift_spont = row['hf3_gratings_drift_spont']
+            R_pref = (np.arange(8)*45)[np.argmax(ori_tuning, 0)]
+            R_ortho = R_pref + np.rad2deg(np.pi/2)
+            osi = np.round((R_pref - R_ortho) / (R_pref + R_ortho),3)
+            unitfig_ori_tuning.set_title('orientation tuning; OSI low='+str(osi[0])+'mid='+str(osi[1])+'high='+str(osi[2]))
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,0],label = 'low sf')
-            unitfig_ori_tuning.plot(np.arange(8)*45,ori_tuning[:,1],label = 'mid sf')
-            unitfig_ori_tuning.plot(np.arange(8)*45,ori_tuning[:,2],label = 'hi sf')
+            unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,1],label = 'mid sf')
+            unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,2],label = 'hi sf')
             unitfig_ori_tuning.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
             unitfig_ori_tuning.legend()
+            unitfig_ori_tuning.set_ylim([0,np.max(ori_tuning)*1.2])
         except:
             pass
 
@@ -113,8 +117,8 @@ def make_unit_summary(df, savepath):
             unitfig_fm1saccavg.set_title('FM1 upsacc/downsacc')
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            maxval = np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))
-            unitfig_fm1saccavg.ylim([0,maxval*1.2])
+            maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
+            unitfig_fm1saccavg.set_ylim([0,maxval*1.2])
         except:
             pass
 
@@ -127,8 +131,8 @@ def make_unit_summary(df, savepath):
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_wnsaccavg.legend(['upsacc_avg','downsacc_avg'])
-            maxval = np.max(np.maximum(upsacc_avg[i,:],downsacc_avg[i,:]))
-            unitfig_wnsaccavg.ylim([0,maxval*1.2])
+            maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
+            unitfig_wnsaccavg.set_ylim([0,maxval*1.2])
         except:
             pass
 
@@ -309,17 +313,106 @@ def make_unit_summary(df, savepath):
         try:
             # LFP trace relative to center of layer 4
             unitfig_lfp = unitfig.add_subplot(spec[7, 1])
-            unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'].T, color='k', alpha=0.1, linewidth=1)
+            if np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'],0) == 64:
+                shank_channels = [c for c in range(np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'], 0)) if int(np.floor(c/32)) == int(np.floor(int(row['ch'])/32))]
+                whole_shank = row['hf4_revchecker_revchecker_mean_resp_per_ch'][shank_channels]
+                unitfig_lfp.plot(whole_shank.T, color='k', alpha=0.1, linewidth=1)
+            else:
+                unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'].T, color='k', alpha=0.1, linewidth=1)
             unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], label='this channel', color='b')
-            unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][int([i for i, x in enumerate(row['hf4_revchecker_lfp_rel_depth']==0) if x][0])], label='layer 4 center', color='r')
-            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(row['hf4_revchecker_lfp_rel_depth'][df.index.get_loc(ind)]))
+            if [True if 0 in row['hf4_revchecker_lfp_rel_depth'].values else False][0]:
+                unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][int([i for i, x in enumerate(row['hf4_revchecker_lfp_rel_depth']==0) if x][0])], label='layer 4 center', color='r')
+            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(row['lfp_rel_depth']))
             unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
-            unitfig_lfp.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
-            unitfig_lfp.xlabel('msec'); unitfig_lfp.ylabel('uvolts')
+            unitfig_lfp.set_xticks(np.arange(0,18000,18000/8))
+            unitfig_lfp.set_xticklabels(np.arange(-100,500,75))
+            unitfig_lfp.set_xlabel('msec'); unitfig_lfp.set_ylabel('uvolts')
         except:
             pass
 
         pdf.savefig(unitfig)
+        plt.close()
+    print('saving pdf')
+    pdf.close()
+
+def make_session_summary(df, savepath):
+    pdf = PdfPages(os.path.join(savepath, 'session_summary.pdf'))
+    df['unit'] = df.index.values
+    df = df.set_index('session')
+
+    unique_inds = sorted(list(set(df.index.values)))
+
+    for unique_ind in tqdm(unique_inds):
+        uniquedf = df.loc[unique_ind]
+        # set up subplots
+        plt.subplots(2,4,figsize=(25,10))
+        plt.suptitle(unique_ind+'eye fit: m='+str(uniquedf['best_ellipse_fit_m'].iloc[0])+' r='+str(uniquedf['best_ellipse_fit_r'].iloc[0]))
+        # eye position vs head position
+        try:
+            plt.subplot(2,4,1)
+            plt.title('dEye vs dHead')
+            dHead = uniquedf['fm1_dEye'].iloc[0]
+            dEye = uniquedf['fm1_dHead'].iloc[0]
+            eyeT = uniquedf['fm1_eyeT'].iloc[0]
+            if len(dEye[0:-1:10]) == len(dHead(eyeT[0:-1:10])):
+                plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10]),'.')
+            elif len(dEye[0:-1:10]) > len(dHead(eyeT[0:-1:10])):
+                len_diff = len(dEye[0:-1:10]) - len(dHead(eyeT[0:-1:10]))
+                plt.plot(dEye[0:-1:10][:-len_diff],dHead(eyeT[0:-1:10]),'.')
+            elif len(dEye[0:-1:10]) < len(dHead(eyeT[0:-1:10])):
+                len_diff = len(dHead(eyeT[0:-1:10])) - len(dEye[0:-1:10])
+                plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10])[:-len_diff],'.')
+            plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
+            plt.plot([-10,10],[10,-10], 'r')
+        except:
+            pass
+        # histogram of theta from -45 to 45deg (are eye movements in resonable range?)
+        plt.subplot(2,4,2)
+        plt.title('hist of FM theta')
+        plt.hist(uniquedf['fm1_theta'].iloc[0], range=[-45,45])
+        # histogram of phi from -45 to 45deg (are eye movements in resonable range?)
+        plt.subplot(2,4,3)
+        plt.title('hist of FM phi')
+        plt.hist(uniquedf['fm1_phi'].iloc[0], range=[-45,45])
+        # histogram of gyro z (resonable range?)
+        plt.subplot(2,4,4)
+        plt.title('hist of FM gyro z')
+        plt.hist(uniquedf['fm1_gz'].iloc[0], range=[2,4])
+        # plot of contrast response functions on same panel scaled to max 30sp/sec
+        # plot of average contrast reponse function across units
+        plt.subplot(2,4,5)
+        plt.title('contrast response functions')
+        for ind, row in uniquedf.iterrows():
+            plt.errorbar(row['hf1_wn_crf_cent'],row['hf1_wn_crf_tuning'],yerr=row['hf1_wn_crf_err'])
+        plt.ylim(0,30)
+        plt.errorbar(uniquedf['hf1_wn_crf_cent'].iloc[0],np.mean(uniquedf['hf1_wn_crf_tuning'],axis=0),yerr=np.mean(uniquedf['hf1_wn_crf_err'],axis=0), color='k', linewidth=6)
+        # lfp traces as separate shanks
+        colors = plt.cm.jet(np.linspace(0,1,32))
+        num_channels = np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0)
+        if num_channels == 64:
+            plt.subplots(1,2 ,figsize=(12,6))
+            for ch_num in np.arange(0,64):
+                if ch_num<=31:
+                    plt.subplot(2,4,6)
+                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
+                    plt.title('lfp trace, shank1'); plt.axvline(x=(0.1*30000))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                    plt.ylim([-1200,400])
+                if ch_num>31:
+                    plt.subplot(2,4,7)
+                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
+                    plt.title('lfp trace, shank2'); plt.axvline(x=(0.1*30000))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                    plt.ylim([-1200,400])
+        # fm spike raster
+        plt.subplot(2,4,8)
+        plt.title('FM spike raster')
+        i = 0
+        for ind, row in uniquedf.iterrows():
+            plt.vlines(row['fm1_spikeT'],i-0.25,i+0.25)
+            plt.xlim(0, 10); plt.xlabel('secs'); plt.ylabel('unit #')
+            i = i+1
+        pdf.savefig()
         plt.close()
     print('saving pdf')
     pdf.close()

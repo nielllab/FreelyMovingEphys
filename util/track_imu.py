@@ -154,8 +154,8 @@ def read_8ch_imu(imupath, timepath, config):
     # convert to -5V to 5V
     data = 10 * (binary_in.astype(float)/(2**16) - 0.5)
     # downsample
-    data = data.iloc[0:-1:config['imu_downsample'],:]
-    samp_freq = config['imu_sample_rate'] / config['imu_downsample']
+    data = data.iloc[0:-1:config['parameters']['imu']['imu_downsample'],:]
+    samp_freq = config['parameters']['imu']['imu_sample_rate'] / config['parameters']['imu']['imu_downsample']
     # read in timestamps
     time = pd.DataFrame(open_time1(pd.read_csv(timepath).iloc[:,0]))
     # get first/last timepoint, num_samples
@@ -184,8 +184,9 @@ def read_8ch_imu(imupath, timepath, config):
     all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z','roll','pitch']
     imu_out = xr.DataArray(all_data, dims={'channel','sample'})
     imu_out = imu_out.assign_coords(timestamps=('sample',list(newtime.iloc[:,0])))
+    
     return imu_out
-
+  
 if __name__ == '__main__':
     config_path = 'T:/freely_moving_ephys/ephys_recordings/031021/EE11P13LTRN/config.yaml'
     if type(config_path) == dict:

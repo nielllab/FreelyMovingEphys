@@ -2,8 +2,6 @@
 initial_wn_analysis.py
 
 run minimal analysis needed to get receptive fields in the worldcam
-
-Jan. 21, 2021
 """
 
 # package imports
@@ -46,7 +44,7 @@ def quick_whitenoise_analysis(wn_path):
         'flip_eye_during_deinter': True,
         'flip_world_during_deinter': True,
         'calibration': {
-            'world_checker_npz': 'T:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz'
+            'world_checker_npz': 'E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz'
         },
         'save_nc_vids': True,
         'use_BonsaiTS': True,
@@ -206,8 +204,10 @@ def quick_whitenoise_analysis(wn_path):
         pdf.savefig()
         plt.close()
 
+        #ch_count = int([16 if '16' in file_dict['probe_name'] else 64][0])  # fails since there's no file_dict
+        ch_count = int(64)  # hack for absence of file_dict ; i think this should still work for 16ch, but we don't really use it anymore anyways; cmn
         # calculate spike-triggered average
-        staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
+        staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp,ch_count)
         pdf.savefig()
         plt.close()
 
