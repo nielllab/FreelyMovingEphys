@@ -6,7 +6,7 @@ read imu from binary
 import xarray as xr
 import pandas as pd
 import numpy as np
-import os
+import os, yaml
 from time import time
 from tqdm import trange, tqdm
 from scipy.signal import medfilt
@@ -188,12 +188,13 @@ def read_8ch_imu(imupath, timepath, config):
     return imu_out
   
 if __name__ == '__main__':
-    config_path = 'T:/freely_moving_ephys/ephys_recordings/031021/EE11P13LTRN/config.yaml'
+    config_path = 'T:/freely_moving_ephys/ephys_recordings/041521/EE11P13LTRN/config.yaml'
     if type(config_path) == dict:
         # if config options were provided instead of the expected path to a file
         config = config_path
     else:
-        config = open_config(config_path)
+        with open(config_path, 'r') as infile:
+            config = yaml.load(infile, Loader=yaml.FullLoader)
     recording_names = [i for i in list_subdirs(config['data_path']) if 'hf' in i or 'fm' in i]
     recording_paths = [os.path.join(config['data_path'], recording_name) for recording_name in recording_names]
     recordings_dict = dict(zip(recording_names, recording_paths))
