@@ -963,16 +963,22 @@ def run_ephys_analysis(file_dict):
         plt.close()
         # pitch vs theta
         gpitchi1d = interp1d(accT, gpitch, bounds_error=False)
-        pitch_intep = gpitchi1d(eyeT)
+        pitch_interp = gpitchi1d(eyeT)
         plt.figure()
-        plt.plot(pitch_intep, th); plt.xlabel('pitch'); plt.ylabel('theta')
+        plt.plot(pitch_interp, th); plt.xlabel('pitch'); plt.ylabel('theta')
         detail_pdf.savefig()
         plt.close()
         # roll vs phi
         grolli1d = interp1d(accT, groll, bounds_error=False)
-        roll_intep = grolli1d(eyeT)
+        roll_interp = grolli1d(eyeT)
+        # roll vs theta
         plt.figure()
-        plt.plot(roll_intep, phi); plt.xlabel('roll'); plt.ylabel('phi')
+        plt.plot(roll_interp, th); plt.xlabel('roll'); plt.ylabel('theta')
+        detail_pdf.savefig()
+        plt.close()
+        # pitch vs phi
+        plt.figure()
+        plt.plot(pitch_interp, phi); plt.xlabel('roll'); plt.ylabel('theta')
         detail_pdf.savefig()
         plt.close()
 
