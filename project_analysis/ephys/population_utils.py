@@ -353,8 +353,8 @@ def make_session_summary(df, savepath):
         try:
             plt.subplot(2,4,1)
             plt.title('dEye vs dHead')
-            dHead = uniquedf['fm1_dEye'].iloc[0]
-            dEye = uniquedf['fm1_dHead'].iloc[0]
+            dEye = uniquedf['fm1_dEye'].iloc[0]
+            dHead = uniquedf['fm1_dHead'].iloc[0]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
             if len(dEye[0:-1:10]) == len(dHead(eyeT[0:-1:10])):
                 plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10]),'.')
