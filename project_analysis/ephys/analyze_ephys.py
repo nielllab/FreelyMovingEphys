@@ -131,7 +131,7 @@ def run_ephys_analysis(file_dict):
     # load IMU data
     if file_dict['imu'] is not None:
         imu_data = xr.open_dataset(file_dict['imu'])
-        accT = imu_data.timestamps
+        accT = imu_data.IMU_data.sample
         acc_chans = imu_data.IMU_data
         # coords of imu xarray are occassionally flipped
         try:
@@ -219,7 +219,7 @@ def run_ephys_analysis(file_dict):
     if worldT[0]<-600:
         worldT = worldT + 8*60*60
     if free_move is True and has_imu is True:
-        accTraw = imu_data.timestamps-ephysT0
+        accTraw = imu_data.IMU_data.sample-ephysT0
     if free_move is False and has_mouse is True:
         speedT = spd_tstamps-ephysT0
 
@@ -311,7 +311,7 @@ def run_ephys_analysis(file_dict):
     if free_move:
         
         print('estimating eye-world calibration')
-        xmap, ymap,fig = eye_shift_estimation(th,phi, eyeT, world_vid,worldT,60*60)
+        xmap, ymap,fig = eye_shift_estimation(th, phi, eyeT, world_vid,worldT,60*60)
         
         xcorrection = xmap.copy()
         ycorrection = ymap.copy()
@@ -961,24 +961,45 @@ def run_ephys_analysis(file_dict):
         spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch, pitch_range, goodcells, accT, t, 'pitch')
         detail_pdf.savefig()
         plt.close()
+        # subtract mean from roll and pitch to center around zero
+        pitch = gpitch - np.mean(gpitch)
+        roll = groll - np.mean(groll)
         # pitch vs theta
-        gpitchi1d = interp1d(accT, gpitch, bounds_error=False)
-        pitch_interp = gpitchi1d(eyeT)
+        pitchi1d = interp1d(accT, pitch, bounds_error=False)
+        pitch_interp = pitchi1d(eyeT)
         plt.figure()
-        plt.plot(pitch_interp, th); plt.xlabel('pitch'); plt.ylabel('theta')
+        plt.plot(pitch_interp[::100], th[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
+        plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
         detail_pdf.savefig()
         plt.close()
         # roll vs phi
-        grolli1d = interp1d(accT, groll, bounds_error=False)
-        roll_interp = grolli1d(eyeT)
+        rolli1d = interp1d(accT, roll, bounds_error=False)
+        roll_interp = rolli1d(eyeT)
+        plt.figure()
+        plt.plot(roll_interp[::100], phi[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
+        plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
+        detail_pdf.savefig()
+        plt.close()
         # roll vs theta
         plt.figure()
-        plt.plot(roll_interp, th); plt.xlabel('roll'); plt.ylabel('theta')
+        plt.plot(roll_interp[::100], th[::100], '.'); plt.xlabel('roll'); plt.ylabel('theta')
+        plt.ylim([-60,60]); plt.xlim([-60,60])
         detail_pdf.savefig()
         plt.close()
         # pitch vs phi
         plt.figure()
-        plt.plot(pitch_interp, phi); plt.xlabel('roll'); plt.ylabel('theta')
+        plt.plot(pitch_interp[::100], phi[::100], '.'); plt.xlabel('pitch'); plt.ylabel('phi')
+        plt.ylim([-60,60]); plt.xlim([-60,60])
+        detail_pdf.savefig()
+        plt.close()
+        # histogram of pitch values
+        plt.figure()
+        plt.hist(pitch); plt.xlabel('pitch'); plt.xlim([-30,30])
+        detail_pdf.savefig()
+        plt.close()
+        # histogram of pitch values
+        plt.figure()
+        plt.hist(roll); plt.xlabel('roll'); plt.xlim([-30,30])
         detail_pdf.savefig()
         plt.close()
 

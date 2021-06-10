@@ -182,21 +182,21 @@ def read_8ch_imu(imupath, timepath, config):
     # collect the data together to return
     all_data = pd.concat([data.copy(), roll_pitch], axis = 1)
     all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z','roll','pitch']
-    imu_out = xr.DataArray(all_data, dims={'channel','sample'})
-    imu_out = imu_out.assign_coords(timestamps=('sample',list(newtime.iloc[:,0])))
+    imu_out = xr.DataArray(all_data, dims=['sample','channel'])
+    imu_out = imu_out.assign_coords({'sample':list(newtime.iloc[:,0])})
     
     return imu_out
   
 if __name__ == '__main__':
-    config_path = 'T:/freely_moving_ephys/ephys_recordings/041521/EE11P13LTRN/config.yaml'
+    config_path = 'T:/freely_moving_ephys/ephys_recordings/042121/J539LT/config.yaml'
     if type(config_path) == dict:
         # if config options were provided instead of the expected path to a file
         config = config_path
     else:
         with open(config_path, 'r') as infile:
             config = yaml.load(infile, Loader=yaml.FullLoader)
-    recording_names = [i for i in list_subdirs(config['data_path']) if 'hf' in i or 'fm' in i]
-    recording_paths = [os.path.join(config['data_path'], recording_name) for recording_name in recording_names]
+    recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i]
+    recording_paths = [os.path.join(config['animal_dir'], recording_name) for recording_name in recording_names]
     recordings_dict = dict(zip(recording_names, recording_paths))
 
     config['recording_path'] = recordings_dict['fm1']
