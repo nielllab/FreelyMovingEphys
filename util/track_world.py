@@ -37,8 +37,8 @@ def smooth_tracking(y, box_pts=3):
 
 def track_LED(config):
     # DLC tracking
-    dlc_config_eye = config['ir_spot_in_space']['eye_LED_config']
-    dlc_config_world = config['ir_spot_in_space']['world_LED_config']
+    dlc_config_eye = config['ir_spot_in_space']['LED_eye_view_config']
+    dlc_config_world = config['ir_spot_in_space']['LED_world_view_config']
     led_dir = os.path.join(config['animal_dir'], config['ir_spot_in_space']['ir_spot_in_space_dir_name'])
     led_dir_avi = find('*IR*.avi', led_dir)
     led_dir_csv = find('*IR*BonsaiTSformatted.csv', led_dir)
@@ -54,12 +54,12 @@ def track_LED(config):
     world_csv = [i for i in led_dir_csv if 'WORLD' in i and 'formatted' in i][0]
     world_avi = [i for i in led_dir_avi if 'WORLD' in i and 'calib' in i][0]
     # generate .h5 files
-    run_DLC_on_LED(dlc_config_world, world_avi)
-    run_DLC_on_LED(dlc_config_eye, eye_avi)
+    # run_DLC_on_LED(dlc_config_world, world_avi)
+    # run_DLC_on_LED(dlc_config_eye, eye_avi)
     # then, get the h5 files for this trial that were just written to file
     led_dir_h5 = find('*IR*.h5', led_dir)
     if led_dir_h5 == []:
-        led_dir_h5 = find('*IR*.h5',config['data_path'])
+        led_dir_h5 = find('*IR*.h5',config['animal_dir'])
     world_h5 = [i for i in led_dir_h5 if 'WORLD' in i and 'calib' in i][0]
     eye_h5 = [i for i in led_dir_h5 if 'REYE' in i and 'deinter' in i][0]
     # format everything into an xarray
@@ -69,7 +69,7 @@ def track_LED(config):
     eyexr.to_netcdf(os.path.join(led_dir, str('led_eye_positions.nc')))
     worldxr.to_netcdf(os.path.join(led_dir, str('led_world_positions.nc')))
     # then make some plots in a pdf
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(led_dir, (t_name + 'LED_tracking.pdf')))
         
         eye_x = eyexr.sel(point_loc='light_x')
@@ -156,14 +156,18 @@ def track_LED(config):
         plt.close()
 
         # plot eye vs world for x and y
-        diff_in_len = len(world_x) - len(eye_x)
+        if len(eye_x) > len(world_x):
+            diff_in_len = len(world_x) - len(eye_x)
+        elif len(eye_x) < len(world_x):
+            diff_in_len = len(eye_x) - len(world_x)
+        print(diff_in_len)
         plt.subplots(1,2)
         plt.subplot(121)
-        plt.plot(eye_x,world_x[:-diff_in_len], '.')
+        plt.plot(eye_x[:diff_in_len],world_x, '.')
         plt.ylabel('world x'); plt.xlabel('eye x')
         plt.title('x in eye vs world')
         plt.subplot(122)
-        plt.plot(eye_y, world_y[:-diff_in_len], '.')
+        plt.plot(eye_y[:diff_in_len], world_y, '.')
         plt.ylabel('world y'); plt.xlabel('eye y')
         plt.title('y in eye vs world')
         plt.tight_layout()
@@ -185,11 +189,11 @@ def track_LED(config):
 
         plt.subplots(1,2)
         plt.subplot(121)
-        plt.plot(eye_x,world_y[:-diff_in_len],'.')
+        plt.plot(eye_x[:diff_in_len],world_y,'.')
         plt.ylabel('world y'); plt.xlabel('eye x')
         plt.title('eye x vs world y')
         plt.subplot(122)
-        plt.plot(eye_y, world_x[:-diff_in_len],'.')
+        plt.plot(eye_y[:diff_in_len], world_x,'.')
         plt.ylabel('world x'); plt.xlabel('eye y')
         plt.title('eye y vs world x')
         plt.tight_layout()
@@ -200,7 +204,7 @@ def track_LED(config):
     
         np.savez(os.path.join(led_dir, (t_name + 'LED_positions.npz')), eye_x=eye_x, eye_y=eye_y, world_x=world_x, world_y=world_y)
 
-    if config['save_avi_vids'] is True:
+    if config['parameters']['outputs_and_visualization']['save_avi_vids'] is True:
         plot_IR_track(world_avi, worldxr, eye_avi, eyexr, t_name, config)
     
     print('done preprocessing IR LED calibration videos')
@@ -209,7 +213,7 @@ def plot_IR_track(world_vid, world_dlc, eye_vid, eye_dlc, trial_name, config):
     
     print('plotting avi of IR LED tracking')
 
-    led_dir = os.path.join(config['data_path'], config['ir_spot_in_space']['ir_spot_in_space_dir_name'])
+    led_dir = os.path.join(config['animal_dir'], config['ir_spot_in_space']['ir_spot_in_space_dir_name'])
     savepath = os.path.join(led_dir, (trial_name + '_IR_LED_tracking.avi'))
     
     world_vid_read = cv2.VideoCapture(world_vid)
