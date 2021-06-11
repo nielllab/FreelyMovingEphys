@@ -994,12 +994,12 @@ def run_ephys_analysis(file_dict):
         plt.close()
         # histogram of pitch values
         plt.figure()
-        plt.hist(pitch); plt.xlabel('pitch'); plt.xlim([-30,30])
+        plt.hist(pitch, bins=50); plt.xlabel('pitch'); plt.xlim([-30,30])
         detail_pdf.savefig()
         plt.close()
         # histogram of pitch values
         plt.figure()
-        plt.hist(roll); plt.xlabel('roll'); plt.xlim([-30,30])
+        plt.hist(roll, bins=50); plt.xlabel('roll'); plt.xlim([-30,30])
         detail_pdf.savefig()
         plt.close()
 
