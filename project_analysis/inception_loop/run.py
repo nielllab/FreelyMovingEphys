@@ -30,7 +30,7 @@ def train_loop(dataloader, model, loss_fn, optimizer):
         X = X.squeeze(dim=1)
         # compute prediction and loss
         pred = model(X.to(device))
-        loss = loss_fn(pred, y.squeeze())
+        loss = loss_fn(pred, y.squeeze().to(device))
         # print(pred.shape) # should be (64, 6, 128, 128)
         # backpropagation
         optimizer.zero_grad()
@@ -63,7 +63,7 @@ def main(train_csv, test_csv, root_dir):
     training_data = WorldcamDataset3D(train_csv, history_size, root_dir, transform=transforms.ToTensor())
     # testing_data = WorldcamDataset3D(test_csv, history_size, root_dir, transform=transforms.ToTensor())
 
-    train_dataloader = DataLoader(training_data, batch_size=64) # add num_workers
+    train_dataloader = DataLoader(training_data, batch_size=64*38) # add num_workers
     # test_dataloader = DataLoader(testing_data, batch_size=64)
 
     input_channels = 3
@@ -71,7 +71,7 @@ def main(train_csv, test_csv, root_dir):
     input_kern = 7
     hidden_kern = 27
 
-    learning_rate = 1e-3
+    learning_rate = 1e-5
 
     model = Stacked2dCore(input_channels, hidden_channels, input_kern, hidden_kern)
     model.to(device)
