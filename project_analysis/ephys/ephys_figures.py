@@ -206,7 +206,7 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
             writer.grab_frame()
             ln.remove()
 
-    return fig, vidfile
+    return vidfile
 
 def make_sound(file_dict, ephys_data, units, this_unit):
     tr = [0, 30]
@@ -228,6 +228,76 @@ def make_sound(file_dict, ephys_data, units, this_unit):
     wavio.write(audfile, x, datarate, sampwidth=1)
 
     return audfile
+
+def plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], accT=None, gz=None, speedT=None, spd=None):
+    fig = plt.figure(figsize = (8,12))
+    gs = fig.add_gridspec(9,4)
+    axEye = fig.add_subplot(gs[0:2,0:2])
+    axWorld = fig.add_subplot(gs[0:2,2:4])
+
+    axRad = fig.add_subplot(gs[2,:])
+    axTheta = fig.add_subplot(gs[3,:])
+    axdTheta = fig.add_subplot(gs[4,:])
+    axGyro = fig.add_subplot(gs[5,:])
+    axContrast = fig.add_subplot(gs[6,:])
+    axR = fig.add_subplot(gs[7:9,:])
+    #axRad = fig.add_subplot(gs[3,:])
+
+    #timerange and center frame (only)
+    fr = np.mean(tr) # time for frame
+    eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
+    worldFr = np.abs(worldT-fr).argmin(dim = "frame")
+
+    axEye.cla(); axEye.axis('off'); 
+    axEye.imshow(eye_vid[eyeFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+
+    axWorld.cla();  axWorld.axis('off'); 
+    axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+
+    # plot contrast
+    axContrast.plot(worldT,contrast)
+    axContrast.set_xlim(tr[0],tr[1]); axContrast.set_ylim(0,2)
+    axContrast.set_ylabel('image contrast')
+
+    #plot radius
+    axRad.cla()
+    axRad.plot(eyeT,eye_params.sel(ellipse_params = 'longaxis'))
+    axRad.set_xlim(tr[0],tr[1]); 
+    axRad.set_ylabel('pupil radius'); axRad.set_xlabel('frame #'); axRad.set_ylim(0,50)
+
+    #plot eye position
+    axTheta.cla()
+    axTheta.plot(eyeT,(eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
+    axTheta.set_xlim(tr[0],tr[1])
+    axTheta.set_ylabel('theta (deg)'); axTheta.set_ylim(-30,30)
+
+    # plot eye velocity
+    axdTheta.cla()
+    axdTheta.plot(topT,top_speed); axdTheta.set_ylabel('topdown speed')
+    axdTheta.set_xlim(tr[0],tr[1])
+
+    # plot gyro
+    if file_dict['imu'] is not None:
+        axGyro.plot(accT,gz)
+        axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(0,5)
+        axGyro.set_ylabel('gyro z velocity')
+
+    if file_dict['speed'] is not None:
+        axGyro.plot(speedT,spd)
+        axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(0,20)
+        axGyro.set_ylabel('ball speed cm/sec')   
+        
+    # plot spikes
+    axR.fontsize = 20
+    for i,ind in enumerate(goodcells.index):
+        axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5)
+    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5)
+    n_units = len(goodcells)
+    axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , n_units); axR.set_xlabel('secs'); axR.set_ylabel('unit #')
+    axR.spines['right'].set_visible(False)
+    axR.spines['top'].set_visible(False)
+
+    return fig
 
 def plot_acc_eyetime_alignment(eyeT, t1, offset, ccmax):
     fig = plt.subplot(1,2,1)
