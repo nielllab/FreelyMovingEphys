@@ -327,7 +327,6 @@ def run_ephys_analysis(file_dict):
         for f in tqdm(range(np.shape(world_vid)[0])):
             world_vid[f,:,:] = imshift(world_vid[f,:,:],(-np.int8(thInterp(worldT[f])*ycorrection[0] + phiInterp(worldT[f])*ycorrection[1]),-np.int8(thInterp(worldT[f])*xcorrection[0] + phiInterp(worldT[f])*xcorrection[1])))
         
-        
     std_im = np.std(world_vid,axis=0)
 
     img_norm = (world_vid-np.mean(world_vid,axis=0))/std_im
@@ -353,23 +352,24 @@ def run_ephys_analysis(file_dict):
     print('making video figure')
     this_unit = file_dict['cell']
 
-    if file_dict['mp4']:
     # set up interpolators for eye and world videos
-        eyeInterp = interp1d(eyeT,eye_vid,axis=0, bounds_error = False)
-        worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
-        
-        if file_dict['imu'] is not None:
-            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
-        elif file_dict['speed'] is not None:
-            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
+    eyeInterp = interp1d(eyeT,eye_vid,axis=0, bounds_error = False)
+    worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
+    
+    if file_dict['imu'] is not None:
+        fig, vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
+        detail_pdf.savefig()
+        plt.close()
+    elif file_dict['speed'] is not None:
+        fig, vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
+        detail_pdf.savefig()
+        plt.close()
 
+    if file_dict['mp4']:
         print('making audio figure')
         audfile = make_sound(file_dict, ephys_data, units, this_unit)
-        
-        # merge video and audio
-        merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
-
         print('merging movie with sound')
+        merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
         subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
 
     if free_move is True and file_dict['imu'] is not None:

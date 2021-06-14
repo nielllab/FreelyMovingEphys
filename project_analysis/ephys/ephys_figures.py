@@ -206,7 +206,7 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
             writer.grab_frame()
             ln.remove()
 
-    return vidfile
+    return fig, vidfile
 
 def make_sound(file_dict, ephys_data, units, this_unit):
     tr = [0, 30]
