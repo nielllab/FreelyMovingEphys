@@ -131,7 +131,10 @@ def run_ephys_analysis(file_dict):
     # load IMU data
     if file_dict['imu'] is not None:
         imu_data = xr.open_dataset(file_dict['imu'])
-        accT = imu_data.timestamps
+        try:
+            accT = imu_data.timestamps
+        except AttributeError:
+            accT = imu_data.IMU_data.sample
         acc_chans = imu_data.IMU_data
         # coords of imu xarray are occassionally flipped
         try:
@@ -215,9 +218,12 @@ def run_ephys_analysis(file_dict):
     if worldT[0]<-600:
         worldT = worldT + 8*60*60
     if free_move is True and has_imu is True:
-        accTraw = imu_data.timestamps-ephysT0
+        try:
+            accTraw = imu_data.timestamps - ephysT0
+        except AttributeError:
+            accTraw = imu_data.IMU_data.sample - ephysT0
     if free_move is False and has_mouse is True:
-        speedT = spd_tstamps-ephysT0
+        speedT = spd_tstamps - ephysT0
 
     # check that deinterlacing worked correctly
     # plot theta and theta switch
