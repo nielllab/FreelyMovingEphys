@@ -10,6 +10,7 @@ from scipy.io import loadmat
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
+from project_analysis.ephys.ephys_utils import modulation_index, saccade_modulation_index
 
 def make_unit_summary(df, savepath):
     pdf = PdfPages(os.path.join(savepath, 'unit_summary.pdf'))
@@ -114,7 +115,8 @@ def make_unit_summary(df, savepath):
             unitfig_fm1saccavg = unitfig.add_subplot(spec[2, 2])
             trange = row[fmA+'_trange']
             upsacc_avg = row[fmA+'_upsacc_avg']; downsacc_avg = row[fmA+'_downsacc_avg']
-            unitfig_fm1saccavg.set_title('FM1 upsacc/downsacc')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1saccavg.set_title('FM1 left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
@@ -127,10 +129,11 @@ def make_unit_summary(df, savepath):
             unitfig_wnsaccavg = unitfig.add_subplot(spec[2, 1])
             trange = row['hf1_wn_trange']
             upsacc_avg = row['hf1_wn_upsacc_avg']; downsacc_avg = row['hf1_wn_downsacc_avg']
-            unitfig_wnsaccavg.set_title('WN upsacc/downsacc')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_wnsaccavg.set_title('WN left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            unitfig_wnsaccavg.legend(['upsacc_avg','downsacc_avg'])
+            unitfig_wnsaccavg.legend(['right','left'])
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_wnsaccavg.set_ylim([0,maxval*1.2])
         except:
@@ -142,8 +145,9 @@ def make_unit_summary(df, savepath):
             var_cent = row['hf1_wn_spike_rate_vs_pupil_radius_cent']
             tuning = row['hf1_wn_spike_rate_vs_pupil_radius_tuning']
             tuning_err = row['hf1_wn_spike_rate_vs_pupil_radius_err']
+            modind = modulation_index(tuning)
             unitfig_wnsrpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_wnsrpupilrad.set_title('WN spike rate vs pupil radius')
+            unitfig_wnsrpupilrad.set_title('WN spike rate vs pupil radius, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_wnsrpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -154,8 +158,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_pupil_radius_cent']
             tuning = row[fmA+'_spike_rate_vs_pupil_radius_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_pupil_radius_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srpupilrad.set_title('FM1 spike rate vs pupil radius')
+            unitfig_fm1srpupilrad.set_title('FM1 spike rate vs pupil radius, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -166,8 +171,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_theta_cent']
             tuning = row[fmA+'_spike_rate_vs_theta_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_theta_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srth.set_title('FM1 spike rate vs theta')
+            unitfig_fm1srth.set_title('FM1 spike rate vs theta, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -178,8 +184,9 @@ def make_unit_summary(df, savepath):
             var_cent = row['hf1_wn_spike_rate_vs_theta_cent']
             tuning = row['hf1_wn_spike_rate_vs_theta_tuning']
             tuning_err = row['hf1_wn_spike_rate_vs_theta_err']
+            modind = modulation_index(tuning)
             unitfig_wnsrth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_wnsrth.set_title('WN spike rate vs theta')
+            unitfig_wnsrth.set_title('WN spike rate vs theta, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_wnsrth.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -190,8 +197,9 @@ def make_unit_summary(df, savepath):
             var_cent = row['hf1_wn_spike_rate_vs_gz_cent']
             tuning = row['hf1_wn_spike_rate_vs_gz_tuning']
             tuning_err = row['hf1_wn_spike_rate_vs_gz_err']
+            modind = modulation_index(tuning)
             unitfig_wnsrvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_wnsrvgz.set_title('WN spike rate vs running speed')
+            unitfig_wnsrvgz.set_title('WN spike rate vs running speed, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_wnsrvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -202,8 +210,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_gz_cent']
             tuning = row[fmA+'_spike_rate_vs_gz_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_gz_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srvgz.set_title('FM1 spike rate vs gyro_z')
+            unitfig_fm1srvgz.set_title('FM1 spike rate vs gyro_z, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -214,8 +223,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_gx_cent']
             tuning = row[fmA+'_spike_rate_vs_gx_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_gx_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srvgx.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srvgx.set_title('FM1 spike rate vs gyro_x')
+            unitfig_fm1srvgx.set_title('FM1 spike rate vs gyro_x, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srvgx.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -226,8 +236,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_gy_cent']
             tuning = row[fmA+'_spike_rate_vs_gy_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_gy_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srvgy.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_y')
+            unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_y, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srvgy.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -240,7 +251,8 @@ def make_unit_summary(df, savepath):
             downsacc_avg = row[fmA+'_downsacc_avg_gaze_shift_dEye']
             trange = row[fmA+'_trange']
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_fm1upsacc_gazedEye.set_title('FM1 gaze shift dEye')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1upsacc_gazedEye.set_title('FM1 gaze shift dEye left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_fm1upsacc_gazedEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
@@ -256,7 +268,8 @@ def make_unit_summary(df, savepath):
             downsacc_avg = row[fmA+'_downsacc_avg_comp_dEye']
             trange = row[fmA+'_trange']
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_fm1upsacc_compdEye.set_title('FM1 comp dEye')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1upsacc_compdEye.set_title('FM1 comp dEye left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_fm1upsacc_compdEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
@@ -272,7 +285,8 @@ def make_unit_summary(df, savepath):
             downsacc_avg = row[fmA+'_downsacc_avg_gaze_shift_dHead']
             trange = row[fmA+'_trange']
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_fm1upsacc_gazedHead.set_title('FM1 gaze shift dHead')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1upsacc_gazedHead.set_title('FM1 gaze shift dHead left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_fm1upsacc_gazedHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
@@ -288,7 +302,8 @@ def make_unit_summary(df, savepath):
             downsacc_avg = row[fmA+'_downsacc_avg_comp_dHead']
             trange = row[fmA+'_trange']
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_fm1upsacc_compdHead.set_title('FM1 comp dHead')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1upsacc_compdHead.set_title('FM1 comp dHead left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_fm1upsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')

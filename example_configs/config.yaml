@@ -91,3 +91,8 @@ ephys_analysis:
   probe_type: default16                  # probe remapping to read from /matlab/channel_maps.json (options=[default16, NN_H16, default64, NN_H64-LP, DB_P64-3, DB_P64-8])
   write_videos: true                     # write mp4 videos
   recording_list: []                     # list of ephys recording names to analyze (e.g [fm1, hf1_wn]), or empty list (i.e. []) if it should run all found subdirectories
+
+population:                              ### pool data from all 'good' recordings listed in csv file
+  pool_h5_files: true                    # pool data
+  metadata_csv_path: T:/freely_moving_ephys/population_summaries/completed_experiment_pool.csv
+  save_path: T:/freely_moving_ephys/population_summaries/
