@@ -133,19 +133,11 @@ def run_ephys_analysis(file_dict):
         imu_data = xr.open_dataset(file_dict['imu'])
         accT = imu_data.IMU_data.sample
         acc_chans = imu_data.IMU_data
-        # coords of imu xarray are occassionally flipped
-        try:
-            gx = np.array(acc_chans.sel(channel='gyro_x'))
-            gy = np.array(acc_chans.sel(channel='gyro_y'))
-            gz = np.array(acc_chans.sel(channel='gyro_z'))
-            groll = np.array(acc_chans.sel(channel='roll'))
-            gpitch = np.array(acc_chans.sel(channel='pitch'))
-        except:
-            gx = np.array(acc_chans.sel(sample='gyro_x'))
-            gy = np.array(acc_chans.sel(sample='gyro_y'))
-            gz = np.array(acc_chans.sel(sample='gyro_z'))
-            groll = np.array(acc_chans.sel(sample='roll'))
-            gpitch = np.array(acc_chans.sel(sample='pitch'))
+        gx = np.array(acc_chans.sel(channel='gyro_x'))
+        gy = np.array(acc_chans.sel(channel='gyro_y'))
+        gz = np.array(acc_chans.sel(channel='gyro_z'))
+        groll = np.array(acc_chans.sel(channel='roll'))
+        gpitch = np.array(acc_chans.sel(channel='pitch'))
         plt.figure()
         plt.plot(gz[0:100*60])
         plt.title('gyro z')
