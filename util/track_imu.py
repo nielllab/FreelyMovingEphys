@@ -157,38 +157,38 @@ def read_8ch_imu(imupath, timepath, config):
     data = data.iloc[::config['parameters']['imu']['imu_downsample']]
     samp_freq = config['parameters']['imu']['imu_sample_rate'] / config['parameters']['imu']['imu_downsample']
     # read in timestamps
-    time = pd.DataFrame(open_time1(pd.read_csv(timepath).iloc[:,0]))
+    time = pd.DataFrame(open_time1(pd.read_csv(timepath).squeeze()))
     # get first/last timepoint, num_samples
     t0 = time.iloc[0,0]; num_samp = np.size(data,0)
     # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
-    newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
-    # collect the data together to return
-    all_data = data.copy()
-    all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
+    newtime = list(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
     IMU = IMU_Orientation()
-    acc = pd.DataFrame.to_numpy((data[['acc_x', 'acc_y', 'acc_z']]-2.5)*1.6) # in g
-    gyro = pd.DataFrame.to_numpy((data[['gyro_x', 'gyro_y', 'gyro_z']]-pd.DataFrame.mean(data[['gyro_x', 'gyro_y', 'gyro_z']]))*400) # in deg
+    # convert accelerometer to g
+    zero_reading = 2.9; sensitivity = 1.6
+    acc = pd.DataFrame.to_numpy((data[['acc_x', 'acc_y', 'acc_z']]-zero_reading)*sensitivity)
+    # convert gyro to deg/sec
+    gyro = pd.DataFrame.to_numpy((data[['gyro_x', 'gyro_y', 'gyro_z']]-pd.DataFrame.mean(data[['gyro_x', 'gyro_y', 'gyro_z']]))*400)
     # collect roll & pitch
     roll_pitch = np.zeros([len(acc),2])
     for x in trange(len(acc)):
-        roll_pitch[x,:] = IMU.process((acc[x],gyro[x])) ### update by row
+        roll_pitch[x,:] = IMU.process((acc[x],gyro[x])) # update by row
     roll_pitch = pd.DataFrame(roll_pitch, columns=['roll','pitch'])
     # collect the data together to return
-    all_data = pd.concat([data, pd.DataFrame(acc), pd.DataFrame(gyro), roll_pitch], axis=1)
+    all_data = pd.concat([data.reset_index(), pd.DataFrame(acc).reset_index(), pd.DataFrame(gyro).reset_index(), roll_pitch], axis=1).drop(labels='index',axis=1)
     all_data.columns = ['acc_x_raw', 'acc_y_raw', 'acc_z_raw', 'gyro_x_raw', 'gyro_y_raw', 'gyro_z_raw','acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z','roll','pitch']
     imu_out = xr.DataArray(all_data, dims=['sample','channel'])
-    imu_out = imu_out.assign_coords({'sample':list(np.squeeze(newtime))})
+    imu_out = imu_out.assign_coords({'sample':newtime})
     
     return imu_out
   
 if __name__ == '__main__':
-    config_path = 'T:/freely_moving_ephys/ephys_recordings/061521/test_imu/config.yaml'
+    config_path = 'T:/freely_moving_ephys/ephys_recordings/050621/J540LT/config.yaml'
     with open(config_path, 'r') as infile:
         config = yaml.load(infile, Loader=yaml.FullLoader)
     recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i or 'test_imu' in i]
     recording_paths = [os.path.join(config['animal_dir'], recording_name) for recording_name in recording_names]
     recordings_dict = dict(zip(recording_names, recording_paths))
-    config['recording_path'] = recordings_dict['test_imu']
+    config['recording_path'] = recordings_dict['fm1']
     recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', config['recording_path']) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze'])][0])[1])[0].split('_')[:-1])
     trial_imu_csv = os.path.join(config['recording_path'],recording_name+'_Ephys_BonsaiBoardTS.csv') # use ephys timestamps
     trial_imu_bin = find(('*IMU.bin'), config['recording_path'])
