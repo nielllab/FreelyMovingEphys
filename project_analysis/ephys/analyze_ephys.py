@@ -128,12 +128,13 @@ def run_ephys_analysis(file_dict):
     diagnostic_pdf.savefig()
     plt.close()
 
-    print('opening top data')
-    top_data = xr.open_dataset(file_dict['top'])
-    topx = top_data.TOP1_pts.sel(point_loc='tailbase_x').values; topy = top_data.TOP1_pts.sel(point_loc='tailbase_y').values
-    topdX = np.diff(topx); topdY = np.diff(topy)
-    top_speed = np.sqrt(topdX**2, topdY**2)
-    topT = top_data.timestamps.copy()
+    if free_move is True:
+        print('opening top data')
+        top_data = xr.open_dataset(file_dict['top'])
+        topx = top_data.TOP1_pts.sel(point_loc='tailbase_x').values; topy = top_data.TOP1_pts.sel(point_loc='tailbase_y').values
+        topdX = np.diff(topx); topdY = np.diff(topy)
+        top_speed = np.sqrt(topdX**2, topdY**2)
+        topT = top_data.timestamps.copy()
     
     print('opening imu data')
     # load IMU data
@@ -141,9 +142,12 @@ def run_ephys_analysis(file_dict):
         imu_data = xr.open_dataset(file_dict['imu'])
         accT = imu_data.IMU_data.sample
         acc_chans = imu_data.IMU_data
-        gx = np.array(acc_chans.sel(channel='gyro_x'))
-        gy = np.array(acc_chans.sel(channel='gyro_y'))
-        gz = np.array(acc_chans.sel(channel='gyro_z'))
+        gx = np.array(acc_chans.sel(channel='gyro_x_raw'))
+        gy = np.array(acc_chans.sel(channel='gyro_y_raw'))
+        gz = np.array(acc_chans.sel(channel='gyro_z_raw'))
+        gx_deg = np.array(acc_chans.sel(channel='gyro_x'))
+        gy_deg = np.array(acc_chans.sel(channel='gyro_y'))
+        gz_deg = np.array(acc_chans.sel(channel='gyro_z'))
         groll = np.array(acc_chans.sel(channel='roll'))
         gpitch = np.array(acc_chans.sel(channel='pitch'))
         plt.figure()
@@ -222,7 +226,8 @@ def run_ephys_analysis(file_dict):
         accTraw = imu_data.IMU_data.sample - ephysT0
     if free_move is False and has_mouse is True:
         speedT = spd_tstamps - ephysT0
-    topT = topT - ephysT0
+    if free_move is True:
+        topT = topT - ephysT0
 
     # check that deinterlacing worked correctly
     # plot theta and theta switch
@@ -361,11 +366,11 @@ def run_ephys_analysis(file_dict):
     eyeInterp = interp1d(eyeT,eye_vid,axis=0, bounds_error = False)
     worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
     
-    if file_dict['imu'] is not None:
+    if file_dict['imu'] is not None and free_move is True:
         trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], accT=accT, gz=gz)
         detail_pdf.savefig()
         plt.close()
-    elif file_dict['speed'] is not None:
+    elif file_dict['speed'] is not None and free_move is True:
         trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], speedT=speedT, spd=spd)
         detail_pdf.savefig()
         plt.close()

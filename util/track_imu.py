@@ -166,16 +166,16 @@ def read_8ch_imu(imupath, timepath, config):
     all_data = data.copy()
     all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
     IMU = IMU_Orientation()
-    acc = pd.DataFrame.to_numpy((data[['acc_x', 'acc_y', 'acc_z']]-2.5)*1.6)
-    gyro = pd.DataFrame.to_numpy((data[['gyro_x', 'gyro_y', 'gyro_z']]-pd.DataFrame.mean(data[['gyro_x', 'gyro_y', 'gyro_z']]))*400)
+    acc = pd.DataFrame.to_numpy((data[['acc_x', 'acc_y', 'acc_z']]-2.5)*1.6) # in g
+    gyro = pd.DataFrame.to_numpy((data[['gyro_x', 'gyro_y', 'gyro_z']]-pd.DataFrame.mean(data[['gyro_x', 'gyro_y', 'gyro_z']]))*400) # in deg
     # collect roll & pitch
     roll_pitch = np.zeros([len(acc),2])
     for x in trange(len(acc)):
         roll_pitch[x,:] = IMU.process((acc[x],gyro[x])) ### update by row
     roll_pitch = pd.DataFrame(roll_pitch, columns=['roll','pitch'])
     # collect the data together to return
-    all_data = pd.concat([pd.DataFrame(acc), pd.DataFrame(gyro), roll_pitch], axis=1)
-    all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z','roll','pitch']
+    all_data = pd.concat([data, pd.DataFrame(acc), pd.DataFrame(gyro), roll_pitch], axis=1)
+    all_data.columns = ['acc_x_raw', 'acc_y_raw', 'acc_z_raw', 'gyro_x_raw', 'gyro_y_raw', 'gyro_z_raw','acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z','roll','pitch']
     imu_out = xr.DataArray(all_data, dims=['sample','channel'])
     imu_out = imu_out.assign_coords({'sample':list(np.squeeze(newtime))})
     
