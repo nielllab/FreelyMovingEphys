@@ -139,20 +139,13 @@ def run_ephys_analysis(file_dict):
     # load IMU data
     if file_dict['imu'] is not None:
         imu_data = xr.open_dataset(file_dict['imu'])
-        try:
-            accT = imu_data.timestamps
-        except AttributeError:
-            accT = imu_data.IMU_data.sample
+        accT = imu_data.IMU_data.sample
         acc_chans = imu_data.IMU_data
-        # coords of imu xarray are occassionally flipped
-        try:
-            gx = np.array(acc_chans.sel(channel='gyro_x'))
-            gy = np.array(acc_chans.sel(channel='gyro_y'))
-            gz = np.array(acc_chans.sel(channel='gyro_z'))
-        except:
-            gx = np.array(acc_chans.sel(sample='gyro_x'))
-            gy = np.array(acc_chans.sel(sample='gyro_y'))
-            gz = np.array(acc_chans.sel(sample='gyro_z'))
+        gx = np.array(acc_chans.sel(channel='gyro_x'))
+        gy = np.array(acc_chans.sel(channel='gyro_y'))
+        gz = np.array(acc_chans.sel(channel='gyro_z'))
+        groll = np.array(acc_chans.sel(channel='roll'))
+        gpitch = np.array(acc_chans.sel(channel='pitch'))
         plt.figure()
         plt.plot(gz[0:100*60])
         plt.title('gyro z')
@@ -226,12 +219,9 @@ def run_ephys_analysis(file_dict):
     if worldT[0]<-600:
         worldT = worldT + 8*60*60
     if free_move is True and has_imu is True:
-        try:
-            accTraw = imu_data.timestamps - ephysT0
-        except AttributeError:
-            accTraw = imu_data.IMU_data.sample - ephysT0
+        accTraw = imu_data.IMU_data.sample - ephysT0
     if free_move is False and has_mouse is True:
-        speedT = spd_tstamps-ephysT0
+        speedT = spd_tstamps - ephysT0
     topT = topT - ephysT0
 
     # check that deinterlacing worked correctly
@@ -322,7 +312,7 @@ def run_ephys_analysis(file_dict):
     if free_move:
         
         print('estimating eye-world calibration')
-        xmap, ymap,fig = eye_shift_estimation(th,phi, eyeT, world_vid,worldT,60*60)
+        xmap, ymap,fig = eye_shift_estimation(th, phi, eyeT, world_vid,worldT,60*60)
         
         xcorrection = xmap.copy()
         ycorrection = ymap.copy()
@@ -888,7 +878,6 @@ def run_ephys_analysis(file_dict):
         downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
         upsacc_avg_comp_dHead, downsacc_avg_comp_dHead, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('comp dhead') ; detail_pdf.savefig() ;  plt.close()
-
         
     # rasters around positive saccades
     # raster_around_upsacc_fig = plot_rasters_around_saccades(n_units, goodcells, upsacc)
@@ -963,6 +952,59 @@ def run_ephys_analysis(file_dict):
         #spd_range = np.arange(0,1.1,0.1)
         spd_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
         spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
+        detail_pdf.savefig()
+        plt.close()
+
+    if free_move is True:
+        # roll vs spike rate
+        roll_range = np.arange(-100,100,10)
+        spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll, roll_range, goodcells, accT, t, 'roll')
+        detail_pdf.savefig()
+        plt.close()
+        # pitch vs spike rate
+        pitch_range = np.arange(-100,100,10)
+        spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch, pitch_range, goodcells, accT, t, 'pitch')
+        detail_pdf.savefig()
+        plt.close()
+        # subtract mean from roll and pitch to center around zero
+        pitch = gpitch - np.mean(gpitch)
+        roll = groll - np.mean(groll)
+        # pitch vs theta
+        pitchi1d = interp1d(accT, pitch, bounds_error=False)
+        pitch_interp = pitchi1d(eyeT)
+        plt.figure()
+        plt.plot(pitch_interp[::100], th[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
+        plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
+        detail_pdf.savefig()
+        plt.close()
+        # roll vs phi
+        rolli1d = interp1d(accT, roll, bounds_error=False)
+        roll_interp = rolli1d(eyeT)
+        plt.figure()
+        plt.plot(roll_interp[::100], phi[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
+        plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
+        detail_pdf.savefig()
+        plt.close()
+        # roll vs theta
+        plt.figure()
+        plt.plot(roll_interp[::100], th[::100], '.'); plt.xlabel('roll'); plt.ylabel('theta')
+        plt.ylim([-60,60]); plt.xlim([-60,60])
+        detail_pdf.savefig()
+        plt.close()
+        # pitch vs phi
+        plt.figure()
+        plt.plot(pitch_interp[::100], phi[::100], '.'); plt.xlabel('pitch'); plt.ylabel('phi')
+        plt.ylim([-60,60]); plt.xlim([-60,60])
+        detail_pdf.savefig()
+        plt.close()
+        # histogram of pitch values
+        plt.figure()
+        plt.hist(pitch, bins=50); plt.xlabel('pitch'); plt.xlim([-30,30])
+        detail_pdf.savefig()
+        plt.close()
+        # histogram of pitch values
+        plt.figure()
+        plt.hist(roll, bins=50); plt.xlabel('roll'); plt.xlim([-30,30])
         detail_pdf.savefig()
         plt.close()
 
@@ -1221,7 +1263,13 @@ def run_ephys_analysis(file_dict):
                                         'eyeT',
                                         'theta',
                                         'phi',
-                                        'gz']]
+                                        'gz',
+                                        'spike_rate_vs_roll_cent',
+                                        'spike_rate_vs_roll_tuning',
+                                        'spike_rate_vs_roll_err',
+                                        'spike_rate_vs_pitch_cent',
+                                        'spike_rate_vs_pitch_tuning',
+                                        'spike_rate_vs_pitch_err']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1260,7 +1308,13 @@ def run_ephys_analysis(file_dict):
                                     eyeT,
                                     th,
                                     phi,
-                                    gz]),dtype=object).T
+                                    gz,
+                                    spike_rate_vs_roll_cent,
+                                    spike_rate_vs_roll_tuning,
+                                    spike_rate_vs_roll_err,
+                                    spike_rate_vs_pitch_cent,
+                                    spike_rate_vs_pitch_tuning,
+                                    spike_rate_vs_pitch_err]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
