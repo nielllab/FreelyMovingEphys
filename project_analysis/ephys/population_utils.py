@@ -4,12 +4,13 @@ ephys_population.py
 import pandas as pd
 import numpy as np
 import xarray as xr
-import os
+import os, sys
 from tqdm import tqdm
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
+from project_analysis.ephys.ephys_utils import *
 
 def make_unit_summary(df, savepath):
     pdf = PdfPages(os.path.join(savepath, 'unit_summary.pdf'))
@@ -29,7 +30,7 @@ def make_unit_summary(df, savepath):
         unitfig_wv = unitfig.add_subplot(spec[0, 0])
         wv = row['waveform']
         unitfig_wv.plot(np.arange(len(wv))*1000/samprate,wv)
-        unitfig_wv.set_title(str(row['session'])+'_unit'+str(index)+' '+row['KSLabel']+' cont='+str(row['ContamPct']))
+        unitfig_wv.set_title(str(row['session'])+'_unit'+str(index)+' '+row['KSLabel']+' cont='+str(np.round(row['ContamPct'],4)))
 
         try:
             unitfig_crf = unitfig.add_subplot(spec[1, 0])
@@ -114,7 +115,8 @@ def make_unit_summary(df, savepath):
             unitfig_fm1saccavg = unitfig.add_subplot(spec[2, 2])
             trange = row[fmA+'_trange']
             upsacc_avg = row[fmA+'_upsacc_avg']; downsacc_avg = row[fmA+'_downsacc_avg']
-            unitfig_fm1saccavg.set_title('FM1 upsacc/downsacc')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1saccavg.set_title('FM1 left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
@@ -127,10 +129,11 @@ def make_unit_summary(df, savepath):
             unitfig_wnsaccavg = unitfig.add_subplot(spec[2, 1])
             trange = row['hf1_wn_trange']
             upsacc_avg = row['hf1_wn_upsacc_avg']; downsacc_avg = row['hf1_wn_downsacc_avg']
-            unitfig_wnsaccavg.set_title('WN upsacc/downsacc')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_wnsaccavg.set_title('WN left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            unitfig_wnsaccavg.legend(['upsacc_avg','downsacc_avg'])
+            unitfig_wnsaccavg.legend(['right','left'])
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_wnsaccavg.set_ylim([0,maxval*1.2])
         except:
@@ -142,8 +145,9 @@ def make_unit_summary(df, savepath):
             var_cent = row['hf1_wn_spike_rate_vs_pupil_radius_cent']
             tuning = row['hf1_wn_spike_rate_vs_pupil_radius_tuning']
             tuning_err = row['hf1_wn_spike_rate_vs_pupil_radius_err']
+            modind = modulation_index(tuning)
             unitfig_wnsrpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_wnsrpupilrad.set_title('WN spike rate vs pupil radius')
+            unitfig_wnsrpupilrad.set_title('WN spike rate vs pupil radius, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_wnsrpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -154,8 +158,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_pupil_radius_cent']
             tuning = row[fmA+'_spike_rate_vs_pupil_radius_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_pupil_radius_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srpupilrad.set_title('FM1 spike rate vs pupil radius')
+            unitfig_fm1srpupilrad.set_title('FM1 spike rate vs pupil radius, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -166,8 +171,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_theta_cent']
             tuning = row[fmA+'_spike_rate_vs_theta_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_theta_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srth.set_title('FM1 spike rate vs theta')
+            unitfig_fm1srth.set_title('FM1 spike rate vs theta, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -178,8 +184,9 @@ def make_unit_summary(df, savepath):
             var_cent = row['hf1_wn_spike_rate_vs_theta_cent']
             tuning = row['hf1_wn_spike_rate_vs_theta_tuning']
             tuning_err = row['hf1_wn_spike_rate_vs_theta_err']
+            modind = modulation_index(tuning)
             unitfig_wnsrth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_wnsrth.set_title('WN spike rate vs theta')
+            unitfig_wnsrth.set_title('WN spike rate vs theta, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_wnsrth.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -190,8 +197,9 @@ def make_unit_summary(df, savepath):
             var_cent = row['hf1_wn_spike_rate_vs_gz_cent']
             tuning = row['hf1_wn_spike_rate_vs_gz_tuning']
             tuning_err = row['hf1_wn_spike_rate_vs_gz_err']
+            modind = modulation_index(tuning)
             unitfig_wnsrvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_wnsrvgz.set_title('WN spike rate vs running speed')
+            unitfig_wnsrvgz.set_title('WN spike rate vs running speed, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_wnsrvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -202,8 +210,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_gz_cent']
             tuning = row[fmA+'_spike_rate_vs_gz_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_gz_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srvgz.set_title('FM1 spike rate vs gyro_z')
+            unitfig_fm1srvgz.set_title('FM1 spike rate vs gyro_z, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -214,8 +223,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_gx_cent']
             tuning = row[fmA+'_spike_rate_vs_gx_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_gx_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srvgx.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srvgx.set_title('FM1 spike rate vs gyro_x')
+            unitfig_fm1srvgx.set_title('FM1 spike rate vs gyro_x, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srvgx.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -226,8 +236,9 @@ def make_unit_summary(df, savepath):
             var_cent = row[fmA+'_spike_rate_vs_gy_cent']
             tuning = row[fmA+'_spike_rate_vs_gy_tuning']
             tuning_err = row[fmA+'_spike_rate_vs_gy_err']
+            modind = modulation_index(tuning)
             unitfig_fm1srvgy.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
-            unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_y')
+            unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_y, mod.ind.='+str(modind[0])+'/'+str(modind[1]))
             unitfig_fm1srvgy.set_ylim(0,np.nanmax(tuning[:]*1.2))
         except:
             pass
@@ -240,7 +251,8 @@ def make_unit_summary(df, savepath):
             downsacc_avg = row[fmA+'_downsacc_avg_gaze_shift_dEye']
             trange = row[fmA+'_trange']
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_fm1upsacc_gazedEye.set_title('FM1 gaze shift dEye')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1upsacc_gazedEye.set_title('FM1 gaze shift dEye left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_fm1upsacc_gazedEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
@@ -256,7 +268,8 @@ def make_unit_summary(df, savepath):
             downsacc_avg = row[fmA+'_downsacc_avg_comp_dEye']
             trange = row[fmA+'_trange']
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_fm1upsacc_compdEye.set_title('FM1 comp dEye')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1upsacc_compdEye.set_title('FM1 comp dEye left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_fm1upsacc_compdEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
@@ -272,7 +285,8 @@ def make_unit_summary(df, savepath):
             downsacc_avg = row[fmA+'_downsacc_avg_gaze_shift_dHead']
             trange = row[fmA+'_trange']
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_fm1upsacc_gazedHead.set_title('FM1 gaze shift dHead')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1upsacc_gazedHead.set_title('FM1 gaze shift dHead left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_fm1upsacc_gazedHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
@@ -288,7 +302,8 @@ def make_unit_summary(df, savepath):
             downsacc_avg = row[fmA+'_downsacc_avg_comp_dHead']
             trange = row[fmA+'_trange']
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
-            unitfig_fm1upsacc_compdHead.set_title('FM1 comp dHead')
+            modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
+            unitfig_fm1upsacc_compdHead.set_title('FM1 comp dHead left/right saccades, mod.ind.='+str(modind_right)+'(left)/'+str(modind_left)+'(right)')
             unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
             unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
             unitfig_fm1upsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
@@ -310,19 +325,21 @@ def make_unit_summary(df, savepath):
         except:
             pass
 
+        # LFP trace relative to center of layer 4
         try:
-            # LFP trace relative to center of layer 4
             unitfig_lfp = unitfig.add_subplot(spec[7, 1])
             if np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'],0) == 64:
                 shank_channels = [c for c in range(np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'], 0)) if int(np.floor(c/32)) == int(np.floor(int(row['ch'])/32))]
                 whole_shank = row['hf4_revchecker_revchecker_mean_resp_per_ch'][shank_channels]
                 unitfig_lfp.plot(whole_shank.T, color='k', alpha=0.1, linewidth=1)
+                unitfig_lfp.plot(whole_shank[np.argmin(np.min(whole_shank, axis=1)),:], label='layer4', color='r')
             else:
                 unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'].T, color='k', alpha=0.1, linewidth=1)
             unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], label='this channel', color='b')
-            if [True if 0 in row['hf4_revchecker_lfp_rel_depth'].values else False][0]:
-                unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][int([i for i, x in enumerate(row['hf4_revchecker_lfp_rel_depth']==0) if x][0])], label='layer 4 center', color='r')
-            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(row['lfp_rel_depth']))
+            session_inds = [i for i,r in df.iterrows() if r['session'] == row['session']]
+            indrange = list(range(len(session_inds))); label_dict = dict(zip(session_inds, indrange))
+            plain_ind = label_dict[row['ch']]
+            unitfig_lfp.set_title('ch='+str(row['ch'])+'pos='+str(row['hf4_revchecker_lfp_rel_depth'][plain_ind]))
             unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
             unitfig_lfp.set_xticks(np.arange(0,18000,18000/8))
             unitfig_lfp.set_xticklabels(np.arange(-100,500,75))
@@ -351,8 +368,8 @@ def make_session_summary(df, savepath):
         try:
             plt.subplot(2,4,1)
             plt.title('dEye vs dHead')
-            dHead = uniquedf['fm1_dEye'].iloc[0]
-            dEye = uniquedf['fm1_dHead'].iloc[0]
+            dEye = uniquedf['fm1_dEye'].iloc[0]
+            dHead = uniquedf['fm1_dHead'].iloc[0]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
             if len(dEye[0:-1:10]) == len(dHead(eyeT[0:-1:10])):
                 plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10]),'.')
@@ -366,52 +383,54 @@ def make_session_summary(df, savepath):
             plt.plot([-10,10],[10,-10], 'r')
         except:
             pass
-        # histogram of theta from -45 to 45deg (are eye movements in resonable range?)
-        plt.subplot(2,4,2)
-        plt.title('hist of FM theta')
-        plt.hist(uniquedf['fm1_theta'].iloc[0], range=[-45,45])
-        # histogram of phi from -45 to 45deg (are eye movements in resonable range?)
-        plt.subplot(2,4,3)
-        plt.title('hist of FM phi')
-        plt.hist(uniquedf['fm1_phi'].iloc[0], range=[-45,45])
-        # histogram of gyro z (resonable range?)
-        plt.subplot(2,4,4)
-        plt.title('hist of FM gyro z')
-        plt.hist(uniquedf['fm1_gz'].iloc[0], range=[2,4])
-        # plot of contrast response functions on same panel scaled to max 30sp/sec
-        # plot of average contrast reponse function across units
-        plt.subplot(2,4,5)
-        plt.title('contrast response functions')
-        for ind, row in uniquedf.iterrows():
-            plt.errorbar(row['hf1_wn_crf_cent'],row['hf1_wn_crf_tuning'],yerr=row['hf1_wn_crf_err'])
-        plt.ylim(0,30)
-        plt.errorbar(uniquedf['hf1_wn_crf_cent'].iloc[0],np.mean(uniquedf['hf1_wn_crf_tuning'],axis=0),yerr=np.mean(uniquedf['hf1_wn_crf_err'],axis=0), color='k', linewidth=6)
-        # lfp traces as separate shanks
-        colors = plt.cm.jet(np.linspace(0,1,32))
-        num_channels = np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0)
-        if num_channels == 64:
-            plt.subplots(1,2 ,figsize=(12,6))
-            for ch_num in np.arange(0,64):
-                if ch_num<=31:
-                    plt.subplot(2,4,6)
-                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
-                    plt.title('lfp trace, shank1'); plt.axvline(x=(0.1*30000))
-                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
-                    plt.ylim([-1200,400])
-                if ch_num>31:
-                    plt.subplot(2,4,7)
-                    plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
-                    plt.title('lfp trace, shank2'); plt.axvline(x=(0.1*30000))
-                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
-                    plt.ylim([-1200,400])
-        # fm spike raster
-        plt.subplot(2,4,8)
-        plt.title('FM spike raster')
-        i = 0
-        for ind, row in uniquedf.iterrows():
-            plt.vlines(row['fm1_spikeT'],i-0.25,i+0.25)
-            plt.xlim(0, 10); plt.xlabel('secs'); plt.ylabel('unit #')
-            i = i+1
+        try:
+            # histogram of theta from -45 to 45deg (are eye movements in resonable range?)
+            plt.subplot(2,4,2)
+            plt.title('hist of FM theta')
+            plt.hist(uniquedf['fm1_theta'].iloc[0], range=[-45,45])
+            # histogram of phi from -45 to 45deg (are eye movements in resonable range?)
+            plt.subplot(2,4,3)
+            plt.title('hist of FM phi')
+            plt.hist(uniquedf['fm1_phi'].iloc[0], range=[-45,45])
+            # histogram of gyro z (resonable range?)
+            plt.subplot(2,4,4)
+            plt.title('hist of FM gyro z')
+            plt.hist(uniquedf['fm1_gz'].iloc[0], range=[2,4])
+            # plot of contrast response functions on same panel scaled to max 30sp/sec
+            # plot of average contrast reponse function across units
+            plt.subplot(2,4,5)
+            plt.title('contrast response functions')
+            for ind, row in uniquedf.iterrows():
+                plt.errorbar(row['hf1_wn_crf_cent'],row['hf1_wn_crf_tuning'],yerr=row['hf1_wn_crf_err'])
+            plt.ylim(0,30)
+            plt.errorbar(uniquedf['hf1_wn_crf_cent'].iloc[0],np.mean(uniquedf['hf1_wn_crf_tuning'],axis=0),yerr=np.mean(uniquedf['hf1_wn_crf_err'],axis=0), color='k', linewidth=6)
+            # lfp traces as separate shanks
+            colors = plt.cm.jet(np.linspace(0,1,32))
+            num_channels = np.size(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0],0)
+            if num_channels == 64:
+                for ch_num in np.arange(0,64):
+                    if ch_num<=31:
+                        plt.subplot(2,4,6)
+                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
+                        plt.title('lfp trace, shank1'); plt.axvline(x=(0.1*30000))
+                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                        plt.ylim([-1200,400])
+                    if ch_num>31:
+                        plt.subplot(2,4,7)
+                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
+                        plt.title('lfp trace, shank2'); plt.axvline(x=(0.1*30000))
+                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                        plt.ylim([-1200,400])
+            # fm spike raster
+            plt.subplot(2,4,8)
+            plt.title('FM spike raster')
+            i = 0
+            for ind, row in uniquedf.iterrows():
+                plt.vlines(row['fm1_spikeT'],i-0.25,i+0.25)
+                plt.xlim(0, 10); plt.xlabel('secs'); plt.ylabel('unit #')
+                i = i+1
+        except:
+            pass
         pdf.savefig()
         plt.close()
     print('saving pdf')

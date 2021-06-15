@@ -82,4 +82,4 @@ def run_DLC_Analysis(config):
             print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
 
 def run_DLC_on_LED(dlc_config,vids2run):
-    runDLCbatch(vids2run, dlc_config, {'pose_estimation':{'crop_for_dlc':False}})
+    runDLCbatch(vids2run, dlc_config, {'pose_estimation':{'crop_for_dlc':False, 'filter_dlc_predictions':False}})

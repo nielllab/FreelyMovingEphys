@@ -54,6 +54,7 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, probe_name):
     # get the files names in the provided path
     eye_file = os.path.join(rec_path, rec_name + '_Reye.nc')
     world_file = os.path.join(rec_path, rec_name + '_world.nc')
+    top_file = os.path.join(rec_path, rec_name + '_TOP1.nc')
     ephys_file = os.path.join(rec_path, rec_name + '_ephys_merge.json')
     imu_file = os.path.join(rec_path, rec_name + '_imu.nc')
     speed_file = os.path.join(rec_path, rec_name + '_speed.nc')
@@ -64,7 +65,7 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, probe_name):
         stim_type = 'grat'
     # assemble dict
     if free_move is True:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name}
+        dict_out = {'cell':cell,'top':top_file,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name}
     elif free_move is False:
         dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name}
 
@@ -126,6 +127,13 @@ def run_ephys_analysis(file_dict):
     plt.imshow(np.mean(world_vid,axis=0)); plt.title('mean world image')
     diagnostic_pdf.savefig()
     plt.close()
+
+    print('opening top data')
+    top_data = xr.open_dataset(file_dict['top'])
+    topx = top_data.TOP1_pts.sel(point_loc='tailbase_x').values; topy = top_data.TOP1_pts.sel(point_loc='tailbase_y').values
+    topdX = np.diff(topx); topdY = np.diff(topy)
+    top_speed = np.sqrt(topdX**2, topdY**2)
+    topT = top_data.timestamps.copy()
     
     print('opening imu data')
     # load IMU data
@@ -211,9 +219,10 @@ def run_ephys_analysis(file_dict):
     if worldT[0]<-600:
         worldT = worldT + 8*60*60
     if free_move is True and has_imu is True:
-        accTraw = imu_data.IMU_data.sample-ephysT0
+        accTraw = imu_data.IMU_data.sample - ephysT0
     if free_move is False and has_mouse is True:
-        speedT = spd_tstamps-ephysT0
+        speedT = spd_tstamps - ephysT0
+    topT = topT - ephysT0
 
     # check that deinterlacing worked correctly
     # plot theta and theta switch
@@ -323,7 +332,6 @@ def run_ephys_analysis(file_dict):
         for f in tqdm(range(np.shape(world_vid)[0])):
             world_vid[f,:,:] = imshift(world_vid[f,:,:],(-np.int8(thInterp(worldT[f])*ycorrection[0] + phiInterp(worldT[f])*ycorrection[1]),-np.int8(thInterp(worldT[f])*xcorrection[0] + phiInterp(worldT[f])*xcorrection[1])))
         
-        
     std_im = np.std(world_vid,axis=0)
 
     img_norm = (world_vid-np.mean(world_vid,axis=0))/std_im
@@ -349,23 +357,28 @@ def run_ephys_analysis(file_dict):
     print('making video figure')
     this_unit = file_dict['cell']
 
-    if file_dict['mp4']:
     # set up interpolators for eye and world videos
-        eyeInterp = interp1d(eyeT,eye_vid,axis=0, bounds_error = False)
-        worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
-        
+    eyeInterp = interp1d(eyeT,eye_vid,axis=0, bounds_error = False)
+    worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
+    
+    if file_dict['imu'] is not None:
+        trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], accT=accT, gz=gz)
+        detail_pdf.savefig()
+        plt.close()
+    elif file_dict['speed'] is not None:
+        trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], speedT=speedT, spd=spd)
+        detail_pdf.savefig()
+        plt.close()
+
+    if file_dict['mp4']:
         if file_dict['imu'] is not None:
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
         elif file_dict['speed'] is not None:
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
-
         print('making audio figure')
         audfile = make_sound(file_dict, ephys_data, units, this_unit)
-        
-        # merge video and audio
-        merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
-
         print('merging movie with sound')
+        merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
         subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
 
     if free_move is True and file_dict['imu'] is not None:

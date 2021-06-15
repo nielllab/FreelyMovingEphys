@@ -180,7 +180,7 @@ def read_8ch_imu(imupath, timepath, config):
     # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
     newtime = pd.DataFrame(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
     # collect the data together to return
-    all_data = pd.concat([data.copy(), roll_pitch], axis = 1)
+    all_data = pd.concat([acc, gyro, roll_pitch], axis = 1)
     all_data.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z','roll','pitch']
     imu_out = xr.DataArray(all_data, dims=['sample','channel'])
     imu_out = imu_out.assign_coords({'sample':list(newtime.iloc[:,0])})

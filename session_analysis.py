@@ -24,6 +24,7 @@ from util.calibration import get_calibration_params, calibrate_new_world_vids, c
 from util.img_processing import auto_contrast
 from project_analysis.ephys.ephys_by_session import session_ephys_analysis
 from util.paths import find
+from project_analysis.ephys.ephys_utils import population_analysis
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -68,6 +69,8 @@ def main(config_path, clear_dlc=False, force_probe_name=None):
         track_LED(config)
     if config['ephys_analysis']['run_ephys_analysis']:
         session_ephys_analysis(config)
+    if config['population']['pool_h5_files']:
+        population_analysis(config)
 
 if __name__ == '__main__':
     args = get_args()
