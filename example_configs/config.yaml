@@ -43,6 +43,7 @@ pose_estimation:
 parameters:
   run_params: true                       ### get parameters?
   lik_thresh: 0.99                       # points below this value will be dropped, should be between 0 and 1 (default=0.99)
+  ignore_avis: false                     # switch off analysis for all video inputs, only run analysis on addtl inputs like imu, ball rotation, etc.
   ephys:
     ephys_sample_rate: 30000             # sample rate of ephys probe (default=30000)
   eyes:

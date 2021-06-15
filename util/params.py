@@ -58,7 +58,7 @@ def extract_params(config):
         trial_imu_bin = [x for x in trial_imu_bin if x != []]
 
         try:
-            if config['pose_estimation']['projects'] != []:
+            if config['pose_estimation']['projects'] != [] and config['parameters']['ignore_avis'] is False:
                 top_views = [k for k in config['pose_estimation']['projects'].keys() if 'top' in k.lower()]
             else:
                 top_views = []
@@ -134,7 +134,7 @@ def extract_params(config):
 
         # analyze eye views
         try:
-            if config['pose_estimation']['projects'] != []:
+            if config['pose_estimation']['projects'] != [] and config['parameters']['ignore_avis'] is False:
                 eye_sides = [k for k in config['pose_estimation']['projects'].keys() if 'eye' in k.lower()]
             else:
                 eye_sides = []
@@ -196,33 +196,34 @@ def extract_params(config):
             print('no EYE trials found for ' + recording_name)
 
         try:
-            # analyze world views
-            print('tracking WORLD for ' + recording_name)
-            # filter the list of files for the current trial to get the world view of this side
-            if config['parameters']['follow_strict_naming'] is True:
-                world_csv = [i for i in trial_cam_csv if 'WORLD' in i and 'formatted' in i][0]
-                world_avi = [i for i in trial_cam_avi if 'WORLD' in i and 'calib' in i][0]
-            elif config['parameters']['follow_strict_naming'] is False:
-                world_csv = [i for i in trial_cam_csv if 'WORLD' in i][0]
-                world_avi = [i for i in trial_cam_avi if 'WORLD' in i][0]
-            # make an xarray of timestamps without dlc points, since there aren't any for world camera
-            worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=config)
-            worlddlc.name = 'WORLD_times'
-            # make xarray of video frames
-            if config['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
-                xr_world_frames = format_frames(world_avi, config); xr_world_frames.name = 'WORLD_video'
-            # merge but make sure they're not off in lenght by one value, which happens occasionally
-            print('saving...')
-            if config['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
-                trial_world_data = safe_xr_merge([worlddlc, xr_world_frames])
-                trial_world_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
-            elif config['parameters']['outputs_and_visualization']['save_nc_vids'] is False:
-                worlddlc.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_world.nc')))
+            if config['parameters']['ignore_avis'] is False:
+                # analyze world views
+                print('tracking WORLD for ' + recording_name)
+                # filter the list of files for the current trial to get the world view of this side
+                if config['parameters']['follow_strict_naming'] is True:
+                    world_csv = [i for i in trial_cam_csv if 'WORLD' in i and 'formatted' in i][0]
+                    world_avi = [i for i in trial_cam_avi if 'WORLD' in i and 'calib' in i][0]
+                elif config['parameters']['follow_strict_naming'] is False:
+                    world_csv = [i for i in trial_cam_csv if 'WORLD' in i][0]
+                    world_avi = [i for i in trial_cam_avi if 'WORLD' in i][0]
+                # make an xarray of timestamps without dlc points, since there aren't any for world camera
+                worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=config)
+                worlddlc.name = 'WORLD_times'
+                # make xarray of video frames
+                if config['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
+                    xr_world_frames = format_frames(world_avi, config); xr_world_frames.name = 'WORLD_video'
+                # merge but make sure they're not off in lenght by one value, which happens occasionally
+                print('saving...')
+                if config['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
+                    trial_world_data = safe_xr_merge([worlddlc, xr_world_frames])
+                    trial_world_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
+                elif config['parameters']['outputs_and_visualization']['save_nc_vids'] is False:
+                    worlddlc.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_world.nc')))
         except IndexError:
             print('no WORLD trials found for ' + recording_name)
 
         # analyze side views
-        if config['pose_estimation']['projects'] != []:
+        if config['pose_estimation']['projects'] != [] and config['parameters']['ignore_avis'] is False:
             side_sides = [k for k in config['pose_estimation']['projects'].keys() if 'side' in k.lower()]   
         else:
             side_sides = []
