@@ -372,17 +372,19 @@ def run_ephys_analysis(file_dict):
     worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
     
     if file_dict['imu'] is not None:
-        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
         trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], accT=accT, gz=gz)
         detail_pdf.savefig()
         plt.close()
     elif file_dict['speed'] is not None:
-        vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
         trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], speedT=speedT, spd=spd)
         detail_pdf.savefig()
         plt.close()
 
     if file_dict['mp4']:
+        if file_dict['imu'] is not None:
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
+        elif file_dict['speed'] is not None:
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
         print('making audio figure')
         audfile = make_sound(file_dict, ephys_data, units, this_unit)
         print('merging movie with sound')

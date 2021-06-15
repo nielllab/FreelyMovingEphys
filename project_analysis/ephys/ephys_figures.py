@@ -257,13 +257,13 @@ def plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, ey
     # plot contrast
     axContrast.plot(worldT,contrast)
     axContrast.set_xlim(tr[0],tr[1]); axContrast.set_ylim(0,2)
-    axContrast.set_ylabel('image contrast')
+    axContrast.set_ylabel('img contrast')
 
     #plot radius
     axRad.cla()
     axRad.plot(eyeT,eye_params.sel(ellipse_params = 'longaxis'))
     axRad.set_xlim(tr[0],tr[1]); 
-    axRad.set_ylabel('pupil radius'); axRad.set_xlabel('frame #'); axRad.set_ylim(0,50)
+    axRad.set_ylabel('pupil radius'); axRad.set_xlabel('frame #'); axRad.set_ylim(0,65)
 
     #plot eye position
     axTheta.cla()
@@ -271,21 +271,27 @@ def plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, ey
     axTheta.set_xlim(tr[0],tr[1])
     axTheta.set_ylabel('theta (deg)'); axTheta.set_ylim(-30,30)
 
-    # plot eye velocity
+    # plot topdown speed
     axdTheta.cla()
+    if len(topT) > len(top_speed):
+        len_diff = len(topT) - len(top_speed)
+        topT = topT[:-len_diff]
+    elif len(topT) < len(top_speed):
+        len_diff = len(top_speed) - len(topT)
+        top_speed = top_speed[:-len_diff]
     axdTheta.plot(topT,top_speed); axdTheta.set_ylabel('topdown speed')
-    axdTheta.set_xlim(tr[0],tr[1])
+    axdTheta.set_xlim(tr[0],tr[1]); axdTheta.set_ylim(0,20)
 
     # plot gyro
     if file_dict['imu'] is not None:
         axGyro.plot(accT,gz)
-        axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(0,5)
-        axGyro.set_ylabel('gyro z velocity')
+        axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(-200,200)
+        axGyro.set_ylabel('gyro z vel')
 
     if file_dict['speed'] is not None:
         axGyro.plot(speedT,spd)
         axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(0,20)
-        axGyro.set_ylabel('ball speed cm/sec')   
+        axGyro.set_ylabel('speed cm/sec')   
         
     # plot spikes
     axR.fontsize = 20

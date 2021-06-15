@@ -4,13 +4,13 @@ ephys_population.py
 import pandas as pd
 import numpy as np
 import xarray as xr
-import os
+import os, sys
 from tqdm import tqdm
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
-from project_analysis.ephys.ephys_utils import modulation_index, saccade_modulation_index
+from project_analysis.ephys.ephys_utils import *
 
 def make_unit_summary(df, savepath):
     pdf = PdfPages(os.path.join(savepath, 'unit_summary.pdf'))
