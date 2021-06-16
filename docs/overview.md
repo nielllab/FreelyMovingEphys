@@ -7,7 +7,7 @@
 4. Split ephys recordings
 5. Write yaml config or batch csv
 6. Run either session or batch analysis
-7. Run additional proejct-specific analysis
+7. Run additional project-specific analysis
 
 ## Required Data, Naming, File Structures
 ### Required Data and Formatting
