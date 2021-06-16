@@ -83,15 +83,15 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="vid:VideoCaptureDevice">
-                <vid:Index>1</vid:Index>
+                <vid:Index>0</vid:Index>
                 <vid:CaptureProperties />
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="cv:VideoWriter">
-                <cv:FileName>T:\freely_moving_ephys\ephys_recordings\120220\G6H27P8LT\hf2_sparsenoiseflash\120220_G6H27P8LT_control_Rig2_hf2_sparsenoiseflash_WORLD.avi</cv:FileName>
+                <cv:FileName>T:\freely_moving_ephys\ephys_recordings\040721\EE14P2TT\hf3_gratings\040721_EE14P2TT_control_Rig2_hf3_gratings_WORLD.avi</cv:FileName>
                 <cv:Suffix>None</cv:Suffix>
-                <cv:Buffered>true</cv:Buffered>
+                <cv:Buffered>false</cv:Buffered>
                 <cv:Overwrite>false</cv:Overwrite>
                 <cv:FourCC>FMP4</cv:FourCC>
                 <cv:FrameRate>30</cv:FrameRate>
@@ -109,7 +109,7 @@
               <Selector>Timestamp.TimeOfDay</Selector>
             </Expression>
             <Expression xsi:type="io:CsvWriter">
-              <io:FileName>T:\freely_moving_ephys\ephys_recordings\120220\G6H27P8LT\hf2_sparsenoiseflash\120220_G6H27P8LT_control_Rig2_hf2_sparsenoiseflash_WORLD_BonsaiTS.csv</io:FileName>
+              <io:FileName>T:\freely_moving_ephys\ephys_recordings\040721\EE14P2TT\hf3_gratings\040721_EE14P2TT_control_Rig2_hf3_gratings_WORLD_BonsaiTS.csv</io:FileName>
               <io:Append>false</io:Append>
               <io:Overwrite>false</io:Overwrite>
               <io:Suffix>None</io:Suffix>
@@ -183,7 +183,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="vid:VideoCaptureDevice">
-                <vid:Index>0</vid:Index>
+                <vid:Index>1</vid:Index>
                 <vid:CaptureProperties />
               </Combinator>
             </Expression>
@@ -211,9 +211,9 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="cv:VideoWriter">
-                <cv:FileName>T:\freely_moving_ephys\ephys_recordings\120220\G6H27P8LT\hf2_sparsenoiseflash\120220_G6H27P8LT_control_Rig2_hf2_sparsenoiseflash_REYE.avi</cv:FileName>
+                <cv:FileName>T:\freely_moving_ephys\ephys_recordings\040721\EE14P2TT\hf3_gratings\040721_EE14P2TT_control_Rig2_hf3_gratings_REYE.avi</cv:FileName>
                 <cv:Suffix>None</cv:Suffix>
-                <cv:Buffered>true</cv:Buffered>
+                <cv:Buffered>false</cv:Buffered>
                 <cv:Overwrite>false</cv:Overwrite>
                 <cv:FourCC>FMP4</cv:FourCC>
                 <cv:FrameRate>30</cv:FrameRate>
@@ -241,7 +241,7 @@
               </PropertyMappings>
             </Expression>
             <Expression xsi:type="io:CsvWriter">
-              <io:FileName>T:\freely_moving_ephys\ephys_recordings\120220\G6H27P8LT\hf2_sparsenoiseflash\120220_G6H27P8LT_control_Rig2_hf2_sparsenoiseflash_REYE_BonsaiTS.csv</io:FileName>
+              <io:FileName>T:\freely_moving_ephys\ephys_recordings\040721\EE14P2TT\hf3_gratings\040721_EE14P2TT_control_Rig2_hf3_gratings_REYE_BonsaiTS.csv</io:FileName>
               <io:Append>false</io:Append>
               <io:Overwrite>false</io:Overwrite>
               <io:Suffix>None</io:Suffix>
@@ -321,24 +321,37 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="dsp:MatrixWriter">
-                <dsp:Path>T:\freely_moving_ephys\ephys_recordings\120220\G6H27P8LT\hf2_sparsenoiseflash\120220_G6H27P8LT_control_Rig2_hf2_sparsenoiseflash_Ephys.bin</dsp:Path>
+                <dsp:Path>T:\freely_moving_ephys\ephys_recordings\040721\EE14P2TT\hf3_gratings\040721_EE14P2TT_control_Rig2_hf3_gratings_Ephys.bin</dsp:Path>
                 <dsp:Suffix>None</dsp:Suffix>
                 <dsp:Overwrite>false</dsp:Overwrite>
                 <dsp:Layout>ColumnMajor</dsp:Layout>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="eph:AdcScale">
-                <eph:AdcType>Electrode</eph:AdcType>
+              <Combinator xsi:type="dsp:SelectChannels">
+                <dsp:Channels>
+                  <dsp:int>8</dsp:int>
+                  <dsp:int>9</dsp:int>
+                  <dsp:int>10</dsp:int>
+                  <dsp:int>11</dsp:int>
+                  <dsp:int>12</dsp:int>
+                  <dsp:int>13</dsp:int>
+                  <dsp:int>14</dsp:int>
+                  <dsp:int>15</dsp:int>
+                  <dsp:int>16</dsp:int>
+                  <dsp:int>17</dsp:int>
+                  <dsp:int>18</dsp:int>
+                  <dsp:int>19</dsp:int>
+                  <dsp:int>20</dsp:int>
+                  <dsp:int>21</dsp:int>
+                  <dsp:int>22</dsp:int>
+                  <dsp:int>23</dsp:int>
+                </dsp:Channels>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dsp:SelectChannels">
-                <dsp:Channels>
-                  <dsp:int>35</dsp:int>
-                  <dsp:int>40</dsp:int>
-                  <dsp:int>45</dsp:int>
-                </dsp:Channels>
+              <Combinator xsi:type="eph:AdcScale">
+                <eph:AdcType>Electrode</eph:AdcType>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -349,54 +362,6 @@
                 <dsp:KernelLength>60</dsp:KernelLength>
                 <dsp:FilterType>HighPass</dsp:FilterType>
               </Combinator>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dsp:DetectSpikes">
-                <dsp:Delay>20</dsp:Delay>
-                <dsp:Length>60</dsp:Length>
-                <dsp:Threshold>
-                  <dsp:double>-100</dsp:double>
-                </dsp:Threshold>
-                <dsp:WaveformRefinement>AlignPeaks</dsp:WaveformRefinement>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Timestamp" />
-            </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>Timestamp.TimeOfDay</Selector>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="StringProperty">
-                <Value>_BonsaiTS</Value>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>CSV file</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>Ephys</Name>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Zip" />
-            </Expression>
-            <Expression xsi:type="Add" />
-            <Expression xsi:type="Format" />
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="io:GetFullPath" />
-            </Expression>
-            <Expression xsi:type="PropertyMapping">
-              <PropertyMappings>
-                <Property Name="FileName" />
-              </PropertyMappings>
-            </Expression>
-            <Expression xsi:type="io:CsvWriter">
-              <io:FileName>T:\freely_moving_ephys\ephys_recordings\120220\G6H27P8LT\hf2_sparsenoiseflash\120220_G6H27P8LT_control_Rig2_hf2_sparsenoiseflash_Ephys_BonsaiTS.csv</io:FileName>
-              <io:Append>false</io:Append>
-              <io:Overwrite>false</io:Overwrite>
-              <io:Suffix>None</io:Suffix>
-              <io:IncludeHeader>false</io:IncludeHeader>
-              <io:CompatibilityMode>true</io:CompatibilityMode>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Timestamp" />
@@ -429,44 +394,7 @@
               </PropertyMappings>
             </Expression>
             <Expression xsi:type="io:CsvWriter">
-              <io:FileName>T:\freely_moving_ephys\ephys_recordings\120220\G6H27P8LT\hf2_sparsenoiseflash\120220_G6H27P8LT_control_Rig2_hf2_sparsenoiseflash_Ephys_BonsaiBoardTS.csv</io:FileName>
-              <io:Append>false</io:Append>
-              <io:Overwrite>false</io:Overwrite>
-              <io:Suffix>None</io:Suffix>
-              <io:IncludeHeader>false</io:IncludeHeader>
-            </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>Timestamp</Selector>
-            </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>Data</Selector>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="StringProperty">
-                <Value>_DirectBoardTS</Value>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>CSV file</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>Ephys</Name>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Zip" />
-            </Expression>
-            <Expression xsi:type="Add" />
-            <Expression xsi:type="Format" />
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="io:GetFullPath" />
-            </Expression>
-            <Expression xsi:type="PropertyMapping">
-              <PropertyMappings>
-                <Property Name="FileName" />
-              </PropertyMappings>
-            </Expression>
-            <Expression xsi:type="io:CsvWriter">
-              <io:FileName>T:\freely_moving_ephys\ephys_recordings\120220\G6H27P8LT\hf2_sparsenoiseflash\120220_G6H27P8LT_control_Rig2_hf2_sparsenoiseflash_Ephys_DirectBoardTS.csv</io:FileName>
+              <io:FileName>T:\freely_moving_ephys\ephys_recordings\040721\EE14P2TT\hf3_gratings\040721_EE14P2TT_control_Rig2_hf3_gratings_Ephys_BonsaiBoardTS.csv</io:FileName>
               <io:Append>false</io:Append>
               <io:Overwrite>false</io:Overwrite>
               <io:Suffix>None</io:Suffix>
@@ -513,7 +441,7 @@
             <Expression xsi:type="Disable">
               <Builder xsi:type="Combinator">
                 <Combinator xsi:type="dsp:MatrixWriter">
-                  <dsp:Path>T:\freely_moving_ephys\ephys_recordings\113020\G6H27P8LT\hf1_wn\113020_G6H27P8LT_control_Rig2_hf1_wn_IMU.bin</dsp:Path>
+                  <dsp:Path>T:\freely_moving_ephys\ephys_recordings\120720\G6H27P8LT\fm1\120720_G6H27P8LT_control_Rig2_fm1_IMU.bin</dsp:Path>
                   <dsp:Suffix>None</dsp:Suffix>
                   <dsp:Overwrite>false</dsp:Overwrite>
                   <dsp:Layout>ColumnMajor</dsp:Layout>
@@ -522,69 +450,23 @@
             </Expression>
             <Expression xsi:type="Disable">
               <Builder xsi:type="Combinator">
+                <Combinator xsi:type="dsp:SelectChannels">
+                  <dsp:Channels>
+                    <dsp:int>0</dsp:int>
+                    <dsp:int>1</dsp:int>
+                    <dsp:int>2</dsp:int>
+                    <dsp:int>4</dsp:int>
+                    <dsp:int>5</dsp:int>
+                    <dsp:int>6</dsp:int>
+                  </dsp:Channels>
+                </Combinator>
+              </Builder>
+            </Expression>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="Combinator">
                 <Combinator xsi:type="eph:AdcScale">
-                  <eph:AdcType>BoardAdc</eph:AdcType>
+                  <eph:AdcType>Electrode</eph:AdcType>
                 </Combinator>
-              </Builder>
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="Combinator">
-                <Combinator xsi:type="rx:Timestamp" />
-              </Builder>
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="MemberSelector">
-                <Selector>Timestamp.TimeOfDay</Selector>
-              </Builder>
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="Combinator">
-                <Combinator xsi:type="StringProperty">
-                  <Value>_BonsaiTS</Value>
-                </Combinator>
-              </Builder>
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="SubscribeSubject">
-                <Name>CSV file</Name>
-              </Builder>
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="SubscribeSubject">
-                <Name>IMU</Name>
-              </Builder>
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="Combinator">
-                <Combinator xsi:type="rx:Zip" />
-              </Builder>
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="Add" />
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="Format" />
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="Combinator">
-                <Combinator xsi:type="io:GetFullPath" />
-              </Builder>
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="PropertyMapping">
-                <PropertyMappings>
-                  <Property Name="FileName" />
-                </PropertyMappings>
-              </Builder>
-            </Expression>
-            <Expression xsi:type="Disable">
-              <Builder xsi:type="io:CsvWriter">
-                <io:FileName>T:\freely_moving_ephys\ephys_recordings\113020\G6H27P8LT\hf1_wn\113020_G6H27P8LT_control_Rig2_hf1_wn_IMU_BonsaiTS.csv</io:FileName>
-                <io:Append>false</io:Append>
-                <io:Overwrite>false</io:Overwrite>
-                <io:Suffix>None</io:Suffix>
-                <io:IncludeHeader>false</io:IncludeHeader>
-                <io:CompatibilityMode>true</io:CompatibilityMode>
               </Builder>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
@@ -607,32 +489,45 @@
               <Name>Ephys</Name>
               <BufferSize xsi:nil="true" />
             </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>File nameing info</Name>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="SubscribeSubject">
+                <Name>File nameing info</Name>
+              </Builder>
             </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>Path</Name>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="SubscribeSubject">
+                <Name>Path</Name>
+              </Builder>
             </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="StringProperty">
-                <Value>_IMU</Value>
-              </Combinator>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="Combinator">
+                <Combinator xsi:type="StringProperty">
+                  <Value>_IMU</Value>
+                </Combinator>
+              </Builder>
             </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Zip" />
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="Combinator">
+                <Combinator xsi:type="rx:Zip" />
+              </Builder>
             </Expression>
-            <Expression xsi:type="Add" />
-            <Expression xsi:type="Format" />
-            <Expression xsi:type="ReplaySubject">
-              <Name>IMU</Name>
-              <BufferSize xsi:nil="true" />
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="Add" />
+            </Expression>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="Format" />
+            </Expression>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="ReplaySubject">
+                <Name>IMU</Name>
+                <BufferSize xsi:nil="true" />
+              </Builder>
             </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
-            <Edge From="0" To="25" Label="Source1" />
-            <Edge From="0" To="36" Label="Source1" />
-            <Edge From="0" To="47" Label="Source1" />
+            <Edge From="0" To="13" Label="Source1" />
+            <Edge From="0" To="24" Label="Source1" />
             <Edge From="1" To="9" Label="Source1" />
             <Edge From="2" To="4" Label="Source1" />
             <Edge From="3" To="4" Label="Source2" />
@@ -642,72 +537,40 @@
             <Edge From="7" To="8" Label="Source1" />
             <Edge From="8" To="9" Label="Source2" />
             <Edge From="9" To="10" Label="Source1" />
-            <Edge From="9" To="14" Label="Source1" />
             <Edge From="10" To="11" Label="Source1" />
             <Edge From="11" To="12" Label="Source1" />
-            <Edge From="12" To="13" Label="Source1" />
-            <Edge From="14" To="15" Label="Source1" />
-            <Edge From="15" To="24" Label="Source1" />
-            <Edge From="16" To="19" Label="Source2" />
-            <Edge From="17" To="19" Label="Source3" />
+            <Edge From="13" To="14" Label="Source1" />
+            <Edge From="14" To="23" Label="Source1" />
+            <Edge From="15" To="18" Label="Source2" />
+            <Edge From="16" To="18" Label="Source3" />
+            <Edge From="17" To="18" Label="Source1" />
             <Edge From="18" To="19" Label="Source1" />
             <Edge From="19" To="20" Label="Source1" />
             <Edge From="20" To="21" Label="Source1" />
             <Edge From="21" To="22" Label="Source1" />
-            <Edge From="22" To="23" Label="Source1" />
-            <Edge From="23" To="24" Label="Source2" />
-            <Edge From="25" To="26" Label="Source1" />
-            <Edge From="26" To="35" Label="Source1" />
-            <Edge From="27" To="30" Label="Source2" />
-            <Edge From="28" To="30" Label="Source3" />
+            <Edge From="22" To="23" Label="Source2" />
+            <Edge From="24" To="32" Label="Source1" />
+            <Edge From="25" To="27" Label="Source2" />
+            <Edge From="26" To="27" Label="Source1" />
+            <Edge From="27" To="28" Label="Source1" />
+            <Edge From="28" To="29" Label="Source1" />
             <Edge From="29" To="30" Label="Source1" />
             <Edge From="30" To="31" Label="Source1" />
-            <Edge From="31" To="32" Label="Source1" />
+            <Edge From="31" To="32" Label="Source2" />
             <Edge From="32" To="33" Label="Source1" />
             <Edge From="33" To="34" Label="Source1" />
-            <Edge From="34" To="35" Label="Source2" />
-            <Edge From="36" To="37" Label="Source1" />
-            <Edge From="37" To="46" Label="Source1" />
-            <Edge From="38" To="41" Label="Source2" />
-            <Edge From="39" To="41" Label="Source3" />
+            <Edge From="35" To="38" Label="Source2" />
+            <Edge From="36" To="38" Label="Source1" />
+            <Edge From="37" To="38" Label="Source3" />
+            <Edge From="38" To="39" Label="Source1" />
+            <Edge From="39" To="40" Label="Source1" />
             <Edge From="40" To="41" Label="Source1" />
-            <Edge From="41" To="42" Label="Source1" />
-            <Edge From="42" To="43" Label="Source1" />
-            <Edge From="43" To="44" Label="Source1" />
-            <Edge From="44" To="45" Label="Source1" />
-            <Edge From="45" To="46" Label="Source2" />
-            <Edge From="47" To="55" Label="Source1" />
-            <Edge From="48" To="50" Label="Source2" />
-            <Edge From="49" To="50" Label="Source1" />
-            <Edge From="50" To="51" Label="Source1" />
-            <Edge From="51" To="52" Label="Source1" />
-            <Edge From="52" To="53" Label="Source1" />
-            <Edge From="53" To="54" Label="Source1" />
-            <Edge From="54" To="55" Label="Source2" />
-            <Edge From="55" To="56" Label="Source1" />
-            <Edge From="55" To="57" Label="Source1" />
-            <Edge From="57" To="58" Label="Source1" />
-            <Edge From="58" To="67" Label="Source1" />
-            <Edge From="59" To="62" Label="Source2" />
-            <Edge From="60" To="62" Label="Source3" />
-            <Edge From="61" To="62" Label="Source1" />
-            <Edge From="62" To="63" Label="Source1" />
-            <Edge From="63" To="64" Label="Source1" />
-            <Edge From="64" To="65" Label="Source1" />
-            <Edge From="65" To="66" Label="Source1" />
-            <Edge From="66" To="67" Label="Source2" />
-            <Edge From="68" To="71" Label="Source2" />
-            <Edge From="69" To="71" Label="Source1" />
-            <Edge From="70" To="71" Label="Source3" />
-            <Edge From="71" To="72" Label="Source1" />
-            <Edge From="72" To="73" Label="Source1" />
-            <Edge From="73" To="74" Label="Source1" />
-            <Edge From="75" To="78" Label="Source2" />
-            <Edge From="76" To="78" Label="Source1" />
-            <Edge From="77" To="78" Label="Source3" />
-            <Edge From="78" To="79" Label="Source1" />
-            <Edge From="79" To="80" Label="Source1" />
-            <Edge From="80" To="81" Label="Source1" />
+            <Edge From="42" To="45" Label="Source2" />
+            <Edge From="43" To="45" Label="Source1" />
+            <Edge From="44" To="45" Label="Source3" />
+            <Edge From="45" To="46" Label="Source1" />
+            <Edge From="46" To="47" Label="Source1" />
+            <Edge From="47" To="48" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -746,7 +609,7 @@
               </PropertyMappings>
             </Expression>
             <Expression xsi:type="io:CsvWriter">
-              <io:FileName>T:\freely_moving_ephys\ephys_recordings\120220\G6H27P8LT\hf2_sparsenoiseflash\120220_G6H27P8LT_control_Rig2_hf2_sparsenoiseflash_BALLMOUSE_BonsaiTS_X_Y.csv</io:FileName>
+              <io:FileName>T:\freely_moving_ephys\ephys_recordings\040721\EE14P2TT\hf3_gratings\040721_EE14P2TT_control_Rig2_hf3_gratings_BALLMOUSE_BonsaiTS_X_Y.csv</io:FileName>
               <io:Append>false</io:Append>
               <io:Overwrite>false</io:Overwrite>
               <io:Suffix>None</io:Suffix>
@@ -877,7 +740,7 @@
               </Expression>
               <Expression xsi:type="Combinator">
                 <Combinator xsi:type="cv:VideoWriter">
-                  <cv:FileName>T:\freely_moving_ephys\ephys_recordings\112920\G6H27P8LT\fm1\112920_G6H27P8LT_control_Rig2_fm1_TOP1.avi</cv:FileName>
+                  <cv:FileName>T:\freely_moving_ephys\ephys_recordings\012621\G6H30P3TT\hf1_wn\012621_G6H30P3TT_control_Rig2_hf1_wn_TOP1.avi</cv:FileName>
                   <cv:Suffix>None</cv:Suffix>
                   <cv:Buffered>true</cv:Buffered>
                   <cv:Overwrite>false</cv:Overwrite>
@@ -913,7 +776,7 @@
                 </PropertyMappings>
               </Expression>
               <Expression xsi:type="io:CsvWriter">
-                <io:FileName>T:\freely_moving_ephys\ephys_recordings\112920\G6H27P8LT\fm1\112920_G6H27P8LT_control_Rig2_fm1_TOP1_BonsaiTS.csv</io:FileName>
+                <io:FileName>T:\freely_moving_ephys\ephys_recordings\012621\G6H30P3TT\hf1_wn\012621_G6H30P3TT_control_Rig2_hf1_wn_TOP1_BonsaiTS.csv</io:FileName>
                 <io:Append>false</io:Append>
                 <io:Overwrite>false</io:Overwrite>
                 <io:Suffix>None</io:Suffix>
@@ -1085,7 +948,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="StringProperty">
-                <Value>120220</Value>
+                <Value>040721</Value>
               </Combinator>
             </Expression>
             <Expression xsi:type="ReplaySubject">
@@ -1097,7 +960,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="StringProperty">
-                <Value>G6H27P8LT</Value>
+                <Value>EE14P2TT</Value>
               </Combinator>
             </Expression>
             <Expression xsi:type="ReplaySubject">
@@ -1109,7 +972,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="StringProperty">
-                <Value>hf3_gratings</Value>
+                <Value>hf4_revchecker</Value>
               </Combinator>
             </Expression>
             <Expression xsi:type="ReplaySubject">
