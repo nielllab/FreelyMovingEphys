@@ -18,28 +18,42 @@ def pil_loader(path):
         with Image.open(f) as img:
             return img.convert('RGB')
 
-class WorldcamDataset(Dataset):
-    def __init__(self, img_csv, spike_json, root_dir, history_size, transform=None):
-        self.img_data = pd.read_csv(img_csv)
-        with open(spike_json, 'r') as fp:
-            self.spike_data = json.load(fp)
+class WorldcamDataset3D(Dataset):
+    def __init__(self, csv, history_size, root_dir, transform=None):
+        self.metadata = pd.read_csv(csv)
         self.root_dir = root_dir
         self.transform = transform
         self.history_size = history_size
 
     def __len__(self):
-        return(len(self.img_data))
+        return(len(self.metadata))
     
     def __getitem__(self,idx):
-        # images with history
-        for n in range(self.history_size):
-            img_name = self.img_data['N_{:02d}'.format(n)].iloc[idx]
-            spike_arr = self.spike_data
-            img_path = os.path.join(self.root_dir,self.img_data.iloc[idx,1],img_name)
+        """
+        idx is a worldcam frame index
+        OUTPUTS
+            imgs: tensor of images, with the number of images used determined by the given history_size
+            spikes: number of spikes at each window for a given unit
+        """
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        imgs = []
+        spikes = []
+        if self.history_size == 0:
+            history_win = [0]
+        elif self.history_size != 0:
+            history_win = list(range(-self.history_size,self.history_size))
+        for n in history_win:
+            img_name = self.metadata['F'+str(n)].iloc[idx]
+            img_path = os.path.join(str(os.path.join(self.root_dir,self.metadata.loc[idx,'filename'])),img_name)
             img = pil_loader(img_path)
             if self.transform:
                 img = self.transform(img)
-            sample.append(img)
-        img_sample = torch.cat(sample,dim=0).unsqueeze(0)
+            imgs.append(img)
+            spike_list = self.metadata['SR'+str(n)].iloc[idx] # list of spike rates for all units
+            spikes.append(eval(spike_list)) # append list to list of spikes for entire history window
 
-        return img_sample, spike_sample
+        imgs = torch.cat(imgs,dim=0).unsqueeze(0)
+        spikes = torch.FloatTensor(spikes)
+
+        return imgs, spikes

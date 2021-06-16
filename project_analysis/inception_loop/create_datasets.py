@@ -11,8 +11,7 @@ import subprocess
 
 # get user arguments
 parser = argparse.ArgumentParser(description='Create Dataset for WC Data')
-parser.add_argument('--rootdir',  '-r',
-                    help =  'RootDir',
+parser.add_argument('--rootdir',  '-r', help =  'RootDir',
                     default='/home/niell_lab/data/freely_moving_ephys/inception_loop/inputs/')
 
 args = parser.parse_args()
@@ -86,9 +85,54 @@ def create_train_val_csv(TrainSet,ValSet):
     print('Total Validation Size: ', len(df_val))
     return df_train, df_val
 
+def create_train_val_csv_3d(TrainSet,ValSet,save_dir,N_fm=16):
+    ExpDir = []
+    DNum = []
+    for exp in TrainSet:
+        DataPaths = sorted(glob.glob(join(exp,'*.png')))
+        print('{}: '.format(exp),len(DataPaths))
+        for n in range(len(DataPaths)):
+            if n < N_fm: 
+                DNum_temp = [DataPaths[0].split('/')[-1] for t in range(N_fm-n)]
+                DNum_temp = sorted(DNum_temp + [DataPaths[n-t].split('/')[-1] for t in range(N_fm - len(DNum_temp))])
+                DNum.append(DNum_temp)
+            else:
+                DNum.append([DataPaths[n+t-N_fm+1].split('/')[-1] for t in range(N_fm)])
+            ExpDir.append(DataPaths[n].split('/')[-2])
+        df_val = pd.DataFrame(DNum)
+        colNames =  ['N_{:02d}'.format(n) for n in range(N_fm)]
+        df_train.columns = colNames
+        df_train.insert(0, 'BasePath', ExpDir)
+        df_train.to_csv(os.path.join(save_dir,'WC3d_Train_Data.csv'))
+
+    print('Total Training Size: ', len(df_train))
+
+    ExpDir = []
+    DNum = []
+    for exp in ValSet:
+        DataPaths = sorted(glob.glob(join(exp,'*.png')))
+        print('{}: '.format(exp),len(DataPaths))
+        for n in range(len(DataPaths)):
+            if n < N_fm: 
+                DNum_temp = [DataPaths[0].split('/')[-1] for t in range(N_fm-n)]
+                DNum_temp = sorted(DNum_temp + [DataPaths[n-t].split('/')[-1] for t in range(N_fm - len(DNum_temp))])
+                DNum.append(DNum_temp)
+            else:
+                DNum.append([DataPaths[n+t-N_fm+1].split('/')[-1] for t in range(N_fm)])
+            ExpDir.append(DataPaths[n].split('/')[-2])
+
+        df_val = pd.DataFrame(DNum)
+        colNames =  ['N_{:02d}'.format(n) for n in range(N_fm)]
+        df_val.columns = colNames
+        df_val.insert(0, 'BasePath', ExpDir)
+        df_val.to_csv(os.path.join(save_dir,'WC3d_Val_Data.csv'))
+
+    print('Total Validation Size: ', len(df_val))
+    return df_train, df_val
+
 if __name__ == '__main__':
     
-    csv_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'Completed_experiment_pool.csv')
+    csv_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'/metadata/exp_pool.csv')
 
     extract_frames_from_csv(csv_path)
     TrainSet = sorted([os.path.basename(x) for x in glob.glob(join('*WORLD'))])
@@ -96,4 +140,4 @@ if __name__ == '__main__':
     ValSet = [TrainSet[valnum]]
     TrainSet.pop(valnum)
     
-    df_train,df_val = create_train_val_csv(TrainSet,ValSet)
+    df_train, df_val = create_train_val_csv_3d(TrainSet,ValSet,rootdir)
