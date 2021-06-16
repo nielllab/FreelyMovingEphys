@@ -6,14 +6,14 @@ read imu from binary
 import xarray as xr
 import pandas as pd
 import numpy as np
-import os, yaml
+import os, yaml, sys, platform
 from time import time
 from tqdm import trange, tqdm
 from scipy.signal import medfilt
-
-import sys
-sys.path.insert(0, os.path.join('C:\\Users\\Niell Lab\\Documents\\GitHub\\FreelyMovingEphys\\'))
-
+if platform.system() == 'Linux':
+    sys.path.insert(0, '/home/niell_lab/Documents/github/FreelyMovingEphys/')
+else:
+    sys.path.insert(0, os.path.join('C:\\Users\\Niell Lab\\Documents\\GitHub\\FreelyMovingEphys\\'))
 from util.paths import find, check_path, list_subdirs
 from util.config import open_config
 from util.time import open_time1
@@ -182,13 +182,13 @@ def read_8ch_imu(imupath, timepath, config):
     return imu_out
   
 if __name__ == '__main__':
-    config_path = 'T:/freely_moving_ephys/ephys_recordings/050621/J540LT/config.yaml'
+    config_path = '/home/niell_lab/data/freely_moving_ephys/ephys_recordings/061621/dylan/config.yaml'
     with open(config_path, 'r') as infile:
         config = yaml.load(infile, Loader=yaml.FullLoader)
-    recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i or 'test_imu' in i]
+    recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i or 'imu_test' in i]
     recording_paths = [os.path.join(config['animal_dir'], recording_name) for recording_name in recording_names]
     recordings_dict = dict(zip(recording_names, recording_paths))
-    config['recording_path'] = recordings_dict['fm1']
+    config['recording_path'] = recordings_dict['imu_test']
     recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', config['recording_path']) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze'])][0])[1])[0].split('_')[:-1])
     trial_imu_csv = os.path.join(config['recording_path'],recording_name+'_Ephys_BonsaiBoardTS.csv') # use ephys timestamps
     trial_imu_bin = find(('*IMU.bin'), config['recording_path'])
