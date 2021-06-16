@@ -33,7 +33,7 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def main(config_path, clear_dlc=False, force_probe_name=None):
+def main(config_path, clear_dlc=False, force_probe_name=None, batch=False):
     if type(config_path) == dict:
         # if config options were provided instead of the expected path to a file
         config = config_path
@@ -69,7 +69,7 @@ def main(config_path, clear_dlc=False, force_probe_name=None):
         track_LED(config)
     if config['ephys_analysis']['run_ephys_analysis']:
         session_ephys_analysis(config)
-    if config['population']['pool_h5_files']:
+    if config['population']['pool_h5_files'] and batch==False:
         population_analysis(config)
 
 if __name__ == '__main__':

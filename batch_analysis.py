@@ -29,6 +29,7 @@ from project_analysis.ephys.analyze_ephys import find_files, run_ephys_analysis
 from util.log import log
 from util.paths import find
 from session_analysis import main as analyze_session
+from project_analysis.ephys.ephys_utils import population_analysis
 
 # get user arguments
 def get_args():
@@ -49,10 +50,6 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
     print('opening csv file')
     csv = pd.read_csv(csv_filepath)
 
-    # filter out rows of the csv that are marked to be analyzed with preprocessing and ephys analysis (these should be seperate columns in the df)
-    run_preproc = csv.loc[csv['run_preprocessing'] == 'TRUE']
-    run_ephys = csv.loc[csv['run_ephys_analysis'] == 'TRUE']
-
     # delete existing DLC .h5 files so that there will be only one in the directory
     # needed in case a different DLC network is being used
     if clear_dlc is True:
@@ -65,30 +62,34 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
                 os.remove(item)
 
     for ind, row in csv.iterrows():
-        # get the provided data path
-        data_path = row['animal_dirpath']
-        # read in the generic config for this batch analysis
-        with open(config_path, 'r') as infile:
-            config = yaml.load(infile, Loader=yaml.FullLoader)
-        # update generic config path for the current index of batch file
-        config['data_path'] = data_path
-        # if step was switched off for this index in the batch file, overwrite what is in the config file
-        # if the csv file has a step switched on, this will leave the config file as it is
-        if row['run_preprocessing'] != 'TRUE':
-            config['deinterlace']['run_deinter'] = False
-            config['img_correction']['run_img_correction'] = False
-            config['calibration']['run_cam_calibration'] = False
-            config['calibration']['undistort_recordings'] = False
-            config['pose_estimation']['run_dlc'] = False
-            config['parameters']['run_params'] = False
-            config['ir_spot_in_space']['run_is_spot_in_space'] = False
-        if row['run_ephys_analysis'] != 'TRUE':
-            config['ephys_analysis']['run_ephys_analysis'] = False
-        # run session analysis using the yaml config file
-        try:
-            analyze_session(config, clear_dlc=clear_dlc, force_probe_name=row['probe_name'])
-        except Exception as e:
-            logf.log([row['experiment_date']+'_'+row['animal_name'], traceback.format_exc()],PRINT=False)
+        if row['run_preprocessing'] == any(['TRUE', True]) or row['run_ephys_analysis'] == any(['TRUE', True]):
+            # read in the generic config for this batch analysis
+            with open(config_path, 'r') as infile:
+                config = yaml.load(infile, Loader=yaml.FullLoader)
+            # get the provided data path
+            # update generic config path for the current index of batch file
+            config['animal_dir'] = row['animal_dirpath']
+            # if step was switched off for this index in the batch file, overwrite what is in the config file
+            # if the csv file has a step switched on, this will leave the config file as it is
+            if row['run_preprocessing'] != any(['TRUE', True]):
+                config['deinterlace']['run_deinter'] = False
+                config['img_correction']['run_img_correction'] = False
+                config['calibration']['run_cam_calibration'] = False
+                config['calibration']['undistort_recordings'] = False
+                config['pose_estimation']['run_dlc'] = False
+                config['parameters']['run_params'] = False
+                config['ir_spot_in_space']['run_is_spot_in_space'] = False
+            if row['run_ephys_analysis'] != any(['TRUE', True]):
+                config['ephys_analysis']['run_ephys_analysis'] = False
+            # run session analysis using the yaml config file
+            try:
+                analyze_session(config, clear_dlc=clear_dlc, force_probe_name=row['probe_name'], batch=True)
+            except Exception as e:
+                logf.log([row['experiment_date']+'_'+row['animal_name'], traceback.format_exc()],PRINT=False)
+    with open(config_path, 'r') as infile:
+        config = yaml.load(infile, Loader=yaml.FullLoader)
+    if config['population']['pool_h5_files']:
+        population_analysis(config)
 
 if __name__ == '__main__':
     args = get_args()
