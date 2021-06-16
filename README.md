@@ -1,5 +1,5 @@
 # FreelyMovingEphys
-Preprocessing and analysis for ephys experiements in freely moving mice.
+Preprocessing and analysis for electrophysiology experiments in freely moving mice.
 
 ## Installation
 Full instructions can be found in this repository [here](/docs/installation.md).
