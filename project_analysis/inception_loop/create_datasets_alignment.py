@@ -41,10 +41,12 @@ def main(args):
     # get all the timestamp files, and then filter out the unformatted ones
     wc_timestamps = [find('*'+wc_name+'*.csv', search_path) for wc_name in wc_names for search_path in wc_read_paths]
     timestamp_files = [i for i in [item for items in wc_timestamps for item in items] if i != [] and 'BonsaiTSformatted' in i]
+    # open train + validation files
+    train_file = pd.read_csv(os.path.join(root_dir, 'WC_Train_Data.csv'))
+    val_file = pd.read_csv(os.path.join(root_dir, 'WC_Val_Data.csv'))
     # now, read the worldcam timestamps in for each video
-    all_data = np.array([])
     for timestamp in timestamp_files:
-        print('writing numpy file for '+timestamp)
+        print('writing file for '+timestamp)
         # find the ephys file, which should be in the same dir as timestamps
         ephys_file = find('*ephys_merge.json', os.path.split(timestamp)[0])[0]
         # then read in the worldcam timestamps
@@ -57,19 +59,42 @@ def main(args):
             worldT = worldT + 8*60*60
         # get number of spikes between worldcam timestamps
         print('binning spike rates by worldcam frame')
-        dt = 0.025
-        t = np.arange(0, np.nanmax(worldT),dt)
+        hist_dt = 1/60
+        hist_t = np.arange(0, np.nanmax(worldT),hist_dt)
         goodcells = ephys_data.loc[ephys_data['group']=='good']
-        binned_rates = np.zeros([len(worldT), np.size(ephys_data, 0)])
-        for ind, row in tqdm(ephys_data.iterrows()):
-            for frame in range(0,len(worldT)-1):
-                frame_start = t[frame]
-                frame_end = t[frame+1]
-                binned_rates[ind, frame] = len([x for x in goodcells.loc[ind, 'spikeT'] if (frame_start <= x and x<frame_end)])
-        all_data = np.vstack([all_data, binned_rates])
-    # format the spike rate bins as a json file
-    savefile = os.path.join(root_dir, 'spike_rate_by_frame.json')
-    all_data.to_json(savefile)
+        for unit, unit_row in enumerate(goodcells.index):
+            rate, bins = np.histogram(ephys_data.at[unit,'spikeT'],hist_t)
+            # add the calculated spike rate to the input .csv as a new column for each frame bin
+            # get the base name of the current file
+            actual_base_name = os.path.split(timestamp)[1].replace('_BonsaiTSformatted.csv','')
+            print(actual_base_name)
+            print('populating training file with spike rates')
+            for ind, file_row in tqdm(train_file.iterrows()):
+                frame_num = int(file_row['FileName'].split('.')[0].split('_')[1].strip('0'))
+                row_base_name = file_row['BasePath']
+                # if the row is for the current file
+                if row_base_name == actual_base_name:
+                    # find the bin in histogram bins that matches this row's frame_num
+                    # add as column to train file
+                    try:
+                        train_file.loc[ind, 'unit'+str(unit)+'_spikerate'] = rate[frame_num]
+                    except IndexError:
+                        train_file.loc[ind, 'unit'+str(unit)+'_spikerate'] = 0
+            print('populating validation file with spike rates')
+            for ind, row in tqdm(val_file.iterrows()):
+                frame_num = int(file_row['FileName'].split('.')[0].split('_')[1].strip('0'))
+                row_base_name = file_row['BasePath']
+                # if the row is for the current file
+                if row_base_name == actual_base_name:
+                    # find the bin in histogram bins that matches this row's frame_num
+                    # add as column to val file
+                    try:
+                        val_file.loc[ind, 'unit'+str(unit)+'_spikerate'] = rate[frame_num]
+                    except IndexError:
+                        val_file.loc[ind, 'unit'+str(unit)+'_spikerate'] = 0
+    print('writing new csv files')
+    train_file.to_csv(os.path.join(root_dir, 'WC_Train_Data_spikes.csv'), index=False)
+    val_file.to_csv(os.path.join(root_dir, 'WC_Val_Data_spikes.csv'), index=False)
 
 if __name__ == '__main__':
     args = get_args()

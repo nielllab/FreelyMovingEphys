@@ -55,6 +55,7 @@ class Stacked2dCore(Core2d, nn.Module):
         self.hidden_channels = hidden_channels
 
         self.features = nn.Sequential()
+
         # first layer
         layer = OrderedDict()
         layer['conv'] = \
@@ -79,11 +80,16 @@ class Stacked2dCore(Core2d, nn.Module):
                 layer['nonlin'] = nn.ELU(inplace=True)
             self.features.add_module('layer{}'.format(l), nn.Sequential(layer))
 
+        self.features.add_module('layerfc', nn.Linear(2*128*128,12)) # fully connected layer
+
         self.apply(self.init_conv)
 
     def forward(self, input_):
         ret = []
-        for l, feat in enumerate(self.features):
+        for name, feat in self.features.named_children():
+            if name == 'layerfc':
+                input_ = input_.flatten(start_dim=1)
             input_ = feat(input_)
-            ret.append(input_)
-        return torch.cat(ret, dim=1)
+            # ret.append(input_)
+        # return torch.cat(ret, dim=1)
+        return input_
