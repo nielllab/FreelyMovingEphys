@@ -4,6 +4,7 @@ config.py
 config and user input utilities
 """
 import os, json, yaml
+import platform
 
 def set_preprocessing_config_defaults(novel_config):
     """

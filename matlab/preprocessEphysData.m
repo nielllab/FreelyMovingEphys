@@ -1,6 +1,6 @@
 %% Preprocess ephys data
 
-medfilt = 0;
+medfilt = 1;
 isuint16 = 1;
 % json_path should to .json file with mappings of each probe i.e. {'probe':[1,2,3]}
 json_path = 'C:/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys/matlab/channel_maps.json';

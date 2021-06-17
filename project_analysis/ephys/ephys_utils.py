@@ -15,8 +15,10 @@ from scipy.signal import butter, lfilter, freqz
 from scipy.interpolate import interp1d
 import platform
 from tqdm import tqdm
+from datetime import datetime
 
 from util.paths import find
+from project_analysis.ephys.population_utils import make_session_summary, make_unit_summary
 
 def load_ephys(csv_filepath):
     """
@@ -126,3 +128,33 @@ def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):
     high = highcut / nyq
     sos = butter(order, [low, high], btype='bandpass', output='sos')
     return sosfiltfilt(sos, data, axis=0)
+
+def population_analysis(config):
+    print('pooling ephys data')
+    df = load_ephys(config['population']['metadata_csv_path'])
+    print('saving pooled ephys data to '+config['population']['save_path'])
+    h5path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.h5')
+    df.to_hdf(h5path, 'w')
+    print('writing session summary')
+    make_session_summary(df, config['population']['save_path'])
+    print('writing unit summary')
+    make_unit_summary(df, config['population']['save_path'])
+    print('done with population analysis')
+
+def modulation_index(tuning, zerocent=True):
+    tuning = tuning[~np.isnan(tuning)]
+    if zerocent is False:
+        return np.round((tuning[-1] - tuning[0]) / (tuning[-1] + tuning[0]), 3)
+    elif zerocent is True:
+        r0 = np.mean(tuning[4:6])
+        modind_neg = np.round((tuning[0] - r0) / (tuning[0] + r0), 3)
+        modind_pos = np.round((tuning[-1] - r0) / (tuning[-1] + r0), 3)
+        return modind_neg, modind_pos
+
+def saccade_modulation_index(trange, saccavg):
+    t0ind = (np.abs(trange - 0)).argmin()
+    t100ind = int((np.abs(trange - 0)).argmin()+(len(trange) * (1/10)))
+    baseline = np.mean(saccavg[0:int(t100ind-((1/4)*t100ind))])
+    r0 = np.round((saccavg[t0ind] - baseline) / (saccavg[t0ind] + baseline), 3)
+    r100 = np.round((saccavg[t100ind] - baseline) / (saccavg[t100ind] + baseline), 3)
+    return r0, r100

@@ -1,7 +1,5 @@
 """
 format_data.py
-
-functions for manipulating the format of data
 """
 import pandas as pd
 import numpy as np
@@ -22,19 +20,19 @@ from util.time import open_time
 def format_frames(vid_path, config):
     """
     add videos to xarray
-    INPUTS:
-        vid_path -- path to an avi
-        config -- options dict
-    OUTPUTS:
-        formatted_frames -- xarray DataArray of video as b/w int8
+    INPUTS
+        vid_path:path to an avi
+        config:options dict
+    OUTPUTS
+        formatted_frames:xarray DataArray of video as b/w int8
     """
     # open the .avi file
     vidread = cv2.VideoCapture(vid_path)
     # empty array that is the target shape
     # should be number of frames x downsampled height x downsampled width
     all_frames = np.empty([int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)),
-                        int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*config['dwnsmpl']),
-                        int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*config['dwnsmpl'])], dtype=np.uint8)
+                        int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*config['parameters']['outputs_and_visualization']['dwnsmpl']),
+                        int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*config['parameters']['outputs_and_visualization']['dwnsmpl'])], dtype=np.uint8)
     # iterate through each frame
     for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # read the frame in and make sure it is read in correctly
@@ -44,7 +42,7 @@ def format_frames(vid_path, config):
         # convert to grayyscale
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         # downsample the frame by an amount specified in the config file
-        sframe = cv2.resize(frame, (0,0), fx=config['dwnsmpl'], fy=config['dwnsmpl'], interpolation=cv2.INTER_NEAREST)
+        sframe = cv2.resize(frame, (0,0), fx=config['parameters']['outputs_and_visualization']['dwnsmpl'], fy=config['parameters']['outputs_and_visualization']['dwnsmpl'], interpolation=cv2.INTER_NEAREST)
         # add the downsampled frame to all_frames as int8
         all_frames[frame_num,:,:] = sframe.astype(np.int8)
     # store the combined video frames in an xarray
@@ -60,17 +58,17 @@ def h5_to_xr(pt_path, time_path, view, config):
     """
     build an xarray DataArray of the a single camera's dlc point .h5 files and .csv timestamp
     works for any camera type
-    INPUTS:
-        pt_path -- filepath to the .h5
-        time_path -- filepath to a .csv
-        view -- str of camera name (i.e. REYE)
-    OUTPUTS:
-        xrpts -- pose estimate xarray
+    INPUTS
+        pt_path:filepath to the .h5
+        time_path:filepath to a .csv
+        view:str of camera name (i.e. REYE)
+    OUTPUTS
+        xrpts:pose estimate xarray
     """
     # check that pt_path exists
     if pt_path is not None and pt_path != [] and time_path is not None:
         # open multianimal project with a different function than single animal h5 files
-        if 'TOP' in view and config['multianimal_TOP'] is True:
+        if 'TOP' in view and config['pose_estimation']['multianimal_top_project'] is True:
             # add a step to convert pickle files here?
             pts = open_ma_h5(pt_path)
         # otherwise, use regular h5 file read-in
@@ -120,7 +118,7 @@ def h5_to_xr(pt_path, time_path, view, config):
     # if timestamps are missing, still read in and format as xarray
     elif pt_path is not None and pt_path != [] and time_path is None:
         # open multianimal project with a different function than single animal h5 files
-        if 'TOP' in view and config['multianimal_TOP'] is True:
+        if 'TOP' in view and config['pose_estimation']['multianimal_top_project'] is True:
             # add a step to convert pickle files here?
             pts = open_ma_h5(pt_path)
         # otherwise, use regular h5 file read-in
@@ -136,14 +134,14 @@ def h5_to_xr(pt_path, time_path, view, config):
 def split_xyl(names, data, thresh):
     """
     convert xarray DataArray of DLC x and y positions and likelihood values into separate pandas data structures
-    INPUTS:
-        names -- list of names of points
-        data -- xarray DataArray of data
-        thresh -- likelihood threshold
-    OUTPUTS:
-        x_vals -- pandas dataframe of x positions
-        y_vals -- pandas dataframe of y positions
-        likeli_pts -- pandas dataframe of likelihoods
+    INPUTS
+        names: list of names of points
+        data: xarray DataArray of data
+        thresh: likelihood threshold
+    OUTPUTS
+        x_vals: pandas dataframe of x positions
+        y_vals: pandas dataframe of y positions
+        likeli_pts: pandas dataframe of likelihoods
     """
     x_locs = []
     y_locs = []
@@ -194,11 +192,11 @@ def split_xyl(names, data, thresh):
 def safe_xr_merge(obj_list, dim_name='frame'):
     """
     safely merge list of xarray dataarrays, even when their lengths do not match
-    INPUTS:
-        obj_list -- xarray DataArrays to merge as a list (objects should all have a shared dim)
-        dim_name -- name of xr dimension to merge along, default='frame'
-    OUTPUTS:
-        merge_objs -- merged xarray of all objects in input list, even if lengths do not match
+    INPUTS
+        obj_list: xarray DataArrays to merge as a list (objects should all have a shared dim)
+        dim_name: name of xr dimension to merge along, default='frame'
+    OUTPUTS
+        merge_objs: merged xarray of all objects in input list, even if lengths do not match
     this is only a good idea if expected length differences will be minimal
     """
     max_lens = []

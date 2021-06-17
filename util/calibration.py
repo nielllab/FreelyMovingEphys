@@ -20,7 +20,7 @@ def get_checkerboard_calib(checker_vid_path, savepath):
     INPUTS
         checkerboard_vid_path: file path (not a directory)
         savepath: specific file path, including the file name, that the data will be saved to
-    OUTPUTS:
+    OUTPUTS
         None
     camera properties will be saved to file as a .npz using the provided savepath
     """
@@ -99,14 +99,13 @@ def get_calibration_params(config):
     OUTPUTS
         None
     """
-    calib_config = config['calibration']
-    W_savepath = calib_config['world_checker_npz']
-    T_savepath = calib_config['top_checker_npz']
+    W_savepath = config['calibration']['world_checker_npz']
+    T_savepath = config['calibration']['top_checker_npz']
     # world
-    world_vid_path = calib_config['world_checker_vid']
+    world_vid_path = config['calibration']['world_checker_vid']
     get_checkerboard_calib(world_vid_path, W_savepath)
     # top
-    top_vid_path = calib_config['top_checker_vid']
+    top_vid_path = config['calibration']['top_checker_vid']
     get_checkerboard_calib(top_vid_path, T_savepath)
 
 def calibrate_new_world_vids(config):
@@ -118,12 +117,11 @@ def calibrate_new_world_vids(config):
         None
     """
     # load the parameters
-    calib_config = config['calibration']
-    checker_in = np.load(calib_config['world_checker_npz'])
+    checker_in = np.load(config['calibration']['world_checker_npz'])
     # unpack camera properties
     mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
     # iterate through eye videos and save out a copy which has had distortions removed
-    world_list = find('*WORLDdeinter*.avi', config['data_path'])
+    world_list = find('*WORLDdeinter*.avi', config['animal_dir'])
     for world_vid in world_list:
         if 'plot' not in world_vid:
             savepath = '_'.join(world_vid.split('_')[:-1])+'_WORLDcalib.avi'
@@ -138,11 +136,10 @@ def calibrate_new_top_vids(config):
         None
     """
     # load the parameters
-    calib_config = config['calibration']
-    checker_in = np.load(calib_config['top_checker_npz'])
+    checker_in = np.load(config['calibration']['top_checker_npz'])
     # unpack camera properties
     mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
-    top_list = find('*TOP1*.avi', config['data_path'])
+    top_list = find('*TOP1*.avi', config['animal_dir'])
     for top_vid in top_list:
         if 'plot' not in top_vid:
             savepath = '_'.join(top_vid.split('_')[:-1])+'_TOP1calib.avi'

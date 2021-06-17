@@ -54,6 +54,7 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, probe_name):
     # get the files names in the provided path
     eye_file = os.path.join(rec_path, rec_name + '_Reye.nc')
     world_file = os.path.join(rec_path, rec_name + '_world.nc')
+    top_file = os.path.join(rec_path, rec_name + '_TOP1.nc')
     ephys_file = os.path.join(rec_path, rec_name + '_ephys_merge.json')
     imu_file = os.path.join(rec_path, rec_name + '_imu.nc')
     speed_file = os.path.join(rec_path, rec_name + '_speed.nc')
@@ -64,7 +65,7 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, probe_name):
         stim_type = 'grat'
     # assemble dict
     if free_move is True:
-        dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name}
+        dict_out = {'cell':cell,'top':top_file,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name}
     elif free_move is False:
         dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name}
 
@@ -126,22 +127,29 @@ def run_ephys_analysis(file_dict):
     plt.imshow(np.mean(world_vid,axis=0)); plt.title('mean world image')
     diagnostic_pdf.savefig()
     plt.close()
+
+    if free_move is True:
+        print('opening top data')
+        top_data = xr.open_dataset(file_dict['top'])
+        topx = top_data.TOP1_pts.sel(point_loc='tailbase_x').values; topy = top_data.TOP1_pts.sel(point_loc='tailbase_y').values
+        topdX = np.diff(topx); topdY = np.diff(topy)
+        top_speed = np.sqrt(topdX**2, topdY**2)
+        topT = top_data.timestamps.copy()
     
     print('opening imu data')
     # load IMU data
     if file_dict['imu'] is not None:
         imu_data = xr.open_dataset(file_dict['imu'])
-        accT = imu_data.timestamps
+        accT = imu_data.IMU_data.sample
         acc_chans = imu_data.IMU_data
-        # coords of imu xarray are occassionally flipped
-        try:
-            gx = np.array(acc_chans.sel(channel='gyro_x'))
-            gy = np.array(acc_chans.sel(channel='gyro_y'))
-            gz = np.array(acc_chans.sel(channel='gyro_z'))
-        except:
-            gx = np.array(acc_chans.sel(sample='gyro_x'))
-            gy = np.array(acc_chans.sel(sample='gyro_y'))
-            gz = np.array(acc_chans.sel(sample='gyro_z'))
+        gx = np.array(acc_chans.sel(channel='gyro_x_raw'))
+        gy = np.array(acc_chans.sel(channel='gyro_y_raw'))
+        gz = np.array(acc_chans.sel(channel='gyro_z_raw'))
+        gx_deg = np.array(acc_chans.sel(channel='gyro_x'))
+        gy_deg = np.array(acc_chans.sel(channel='gyro_y'))
+        gz_deg = np.array(acc_chans.sel(channel='gyro_z'))
+        groll = np.array(acc_chans.sel(channel='roll'))
+        gpitch = np.array(acc_chans.sel(channel='pitch'))
         plt.figure()
         plt.plot(gz[0:100*60])
         plt.title('gyro z')
@@ -215,9 +223,11 @@ def run_ephys_analysis(file_dict):
     if worldT[0]<-600:
         worldT = worldT + 8*60*60
     if free_move is True and has_imu is True:
-        accTraw = imu_data.timestamps-ephysT0
+        accTraw = imu_data.IMU_data.sample - ephysT0
     if free_move is False and has_mouse is True:
-        speedT = spd_tstamps-ephysT0
+        speedT = spd_tstamps - ephysT0
+    if free_move is True:
+        topT = topT - ephysT0
 
     # check that deinterlacing worked correctly
     # plot theta and theta switch
@@ -301,32 +311,31 @@ def run_ephys_analysis(file_dict):
     print('finding contrast of normalized worldcam')
     # normalize world movie and calculate contrast
     cam_gamma = 1
-    #world_norm = (world_vid/255)**cam_gamma
+    # world_norm = (world_vid/255)**cam_gamma
     
-    display('preparing worldcam video')
+    print('preparing worldcam video')
     if free_move:
         
         print('estimating eye-world calibration')
-        xmap, ymap,fig = eye_shift_estimation(th,phi, eyeT, world_vid,worldT,60*60)
+        xmap, ymap,fig = eye_shift_estimation(th, phi, eyeT, world_vid,worldT,60*60)
         
         xcorrection = xmap.copy()
         ycorrection = ymap.copy()
         
         #xcorrection = [0,0]; ycorrection= [0,0]
         
-        display('applying gamma to camera')
+        print('applying gamma to camera')
         cam_gamma = 1
-        #world_norm = (world_vid/255)#**cam_gamma
+        # world_norm = (world_vid/255)#**cam_gamma
         
         thInterp =interp1d(eyeT,th, bounds_error = False)
         phiInterp =interp1d(eyeT,phi, bounds_error = False)
         
-        display('shifting worldcam for eyes')
+        print('shifting worldcam for eyes')
         thWorld = thInterp(worldT)
         phiWorld = phiInterp(worldT)
         for f in tqdm(range(np.shape(world_vid)[0])):
             world_vid[f,:,:] = imshift(world_vid[f,:,:],(-np.int8(thInterp(worldT[f])*ycorrection[0] + phiInterp(worldT[f])*ycorrection[1]),-np.int8(thInterp(worldT[f])*xcorrection[0] + phiInterp(worldT[f])*xcorrection[1])))
-        
         
     std_im = np.std(world_vid,axis=0)
 
@@ -353,23 +362,28 @@ def run_ephys_analysis(file_dict):
     print('making video figure')
     this_unit = file_dict['cell']
 
-    if file_dict['mp4']:
     # set up interpolators for eye and world videos
-        eyeInterp = interp1d(eyeT,eye_vid,axis=0, bounds_error = False)
-        worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
-        
+    eyeInterp = interp1d(eyeT,eye_vid,axis=0, bounds_error = False)
+    worldInterp = interp1d(worldT,world_vid,axis=0, bounds_error = False)
+    
+    if file_dict['imu'] is not None and free_move is True:
+        trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], accT=accT, gz=gz)
+        detail_pdf.savefig()
+        plt.close()
+    elif file_dict['speed'] is not None and free_move is True:
+        trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], speedT=speedT, spd=spd)
+        detail_pdf.savefig()
+        plt.close()
+
+    if file_dict['mp4']:
         if file_dict['imu'] is not None:
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
         elif file_dict['speed'] is not None:
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
-
         print('making audio figure')
         audfile = make_sound(file_dict, ephys_data, units, this_unit)
-        
-        # merge video and audio
-        merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
-
         print('merging movie with sound')
+        merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
         subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
 
     if free_move is True and file_dict['imu'] is not None:
@@ -459,8 +473,8 @@ def run_ephys_analysis(file_dict):
         print('kmeans clustering on revchecker worldcam')
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.85)
         k = 2
-        num_frames = np.size(world_norm,0); vid_width = np.size(world_norm,1); vid_height = np.size(world_norm,2)
-        kmeans_input = world_norm.reshape(num_frames,vid_width*vid_height)
+        num_frames = np.size(world_vid,0); vid_width = np.size(world_vid,1); vid_height = np.size(world_vid,2)
+        kmeans_input = world_vid.reshape(num_frames,vid_width*vid_height)
         compactness, labels, centers = cv2.kmeans(kmeans_input.astype(np.float32), k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         label_diff = np.diff(np.ndarray.flatten(labels))
         revind = list(abs(label_diff)) # need abs because reversing back will be -1
@@ -720,7 +734,7 @@ def run_ephys_analysis(file_dict):
     plt.close()
 
     print('doing GLM RF estimate')
-    if (free_move is True) | (file_dict['stim_type'] == 'revchecker'):
+    if (free_move is True) | (file_dict['stim_type'] == 'white_noise'):
         ### simplified setup for GLM
         ### these are general parameters (spike rates, eye position)
         n_units = len(goodcells)
@@ -869,7 +883,6 @@ def run_ephys_analysis(file_dict):
         downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
         upsacc_avg_comp_dHead, downsacc_avg_comp_dHead, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('comp dhead') ; detail_pdf.savefig() ;  plt.close()
-
         
     # rasters around positive saccades
     # raster_around_upsacc_fig = plot_rasters_around_saccades(n_units, goodcells, upsacc)
@@ -944,6 +957,61 @@ def run_ephys_analysis(file_dict):
         #spd_range = np.arange(0,1.1,0.1)
         spd_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
         spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
+        detail_pdf.savefig()
+        plt.close()
+
+    if free_move is True:
+        # roll vs spike rate
+        roll_range = np.arange(-100,100,10)
+        spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll, roll_range, goodcells, accT, t, 'roll')
+        plt.xlim([-20,20])
+        detail_pdf.savefig()
+        plt.close()
+        # pitch vs spike rate
+        pitch_range = np.arange(-100,100,10)
+        spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch, pitch_range, goodcells, accT, t, 'pitch')
+        plt.xlim([-20,20])
+        detail_pdf.savefig()
+        plt.close()
+        # subtract mean from roll and pitch to center around zero
+        pitch = gpitch - np.mean(gpitch)
+        roll = groll - np.mean(groll)
+        # pitch vs theta
+        pitchi1d = interp1d(accT, pitch, bounds_error=False)
+        pitch_interp = pitchi1d(eyeT)
+        plt.figure()
+        plt.plot(pitch_interp[::100], th[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
+        plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
+        detail_pdf.savefig()
+        plt.close()
+        # roll vs phi
+        rolli1d = interp1d(accT, roll, bounds_error=False)
+        roll_interp = rolli1d(eyeT)
+        plt.figure()
+        plt.plot(roll_interp[::100], phi[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
+        plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
+        detail_pdf.savefig()
+        plt.close()
+        # roll vs theta
+        plt.figure()
+        plt.plot(roll_interp[::100], th[::100], '.'); plt.xlabel('roll'); plt.ylabel('theta')
+        plt.ylim([-60,60]); plt.xlim([-60,60])
+        detail_pdf.savefig()
+        plt.close()
+        # pitch vs phi
+        plt.figure()
+        plt.plot(pitch_interp[::100], phi[::100], '.'); plt.xlabel('pitch'); plt.ylabel('phi')
+        plt.ylim([-60,60]); plt.xlim([-60,60])
+        detail_pdf.savefig()
+        plt.close()
+        # histogram of pitch values
+        plt.figure()
+        plt.hist(pitch, bins=50); plt.xlabel('pitch'); plt.xlim([-30,30])
+        detail_pdf.savefig()
+        plt.close()
+        # histogram of pitch values
+        plt.figure()
+        plt.hist(roll, bins=50); plt.xlabel('roll'); plt.xlim([-30,30])
         detail_pdf.savefig()
         plt.close()
 
@@ -1202,7 +1270,13 @@ def run_ephys_analysis(file_dict):
                                         'eyeT',
                                         'theta',
                                         'phi',
-                                        'gz']]
+                                        'gz',
+                                        'spike_rate_vs_roll_cent',
+                                        'spike_rate_vs_roll_tuning',
+                                        'spike_rate_vs_roll_err',
+                                        'spike_rate_vs_pitch_cent',
+                                        'spike_rate_vs_pitch_tuning',
+                                        'spike_rate_vs_pitch_err']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1241,7 +1315,13 @@ def run_ephys_analysis(file_dict):
                                     eyeT,
                                     th,
                                     phi,
-                                    gz]),dtype=object).T
+                                    gz,
+                                    spike_rate_vs_roll_cent,
+                                    spike_rate_vs_roll_tuning,
+                                    spike_rate_vs_roll_err,
+                                    spike_rate_vs_pitch_cent,
+                                    spike_rate_vs_pitch_tuning,
+                                    spike_rate_vs_pitch_err]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
