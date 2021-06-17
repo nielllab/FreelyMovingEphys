@@ -3,7 +3,7 @@ config.py
 
 config and user input utilities
 """
-import os, json, yaml
+import os, json, yaml, platform
 
 def set_preprocessing_config_defaults(novel_config):
     """
@@ -90,6 +90,7 @@ def open_config(input_path):
                 'top_checker_vid': y['calibration']['top_checker_vid'],
                 'top_checker_npz': y['calibration']['top_checker_npz']
             },
+            'preycapture': y['preycapture_analysis']['preycapture'],
             'LED_dir_name': y['ir_spot_in_space']['ir_spot_in_space_dir_name'],
             'flip_eye_during_deinter': y['deinterlace']['flip_eye_during_deinter'],
             'flip_world_during_deinter': y['deinterlace']['flip_world_during_deinter'],

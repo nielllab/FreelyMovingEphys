@@ -47,7 +47,7 @@ def deinterlace_data(config, vid_list=None, time_list=None):
         current_path = os.path.split(this_avi)[0]
         # make a save path that keeps the subdirectories
         # get out an key from the name of the video that will be shared with all other data of this trial
-        vid_name = os.path.split(this_avi)[1]
+        vid_name = os.path.basename(this_avi)
         key_pieces = vid_name.split('.')[:-1]
         key = '.'.join(key_pieces)
         print('running on ' + key)

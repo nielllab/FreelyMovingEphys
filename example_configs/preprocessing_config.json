@@ -22,6 +22,7 @@
         "top_checker_vid":"E:/freely_moving_ephys/camera_calibration_params/122920_camera_calibration_control_Rig2_checkerboard_TOP1.avi",
         "top_checker_npz": "E:/freely_moving_ephys/camera_calibration_params/top_checkerboard_calib.npz"
     },
+    "preycapture": false,
     "LED_dir_name": "IRspot",
     "flip_eye_during_deinter": true,
     "flip_world_during_deinter": true,

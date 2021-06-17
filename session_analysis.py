@@ -31,8 +31,14 @@ def get_args():
     args = parser.parse_args()
     return args
 
+<<<<<<< Updated upstream
 def main(config_path, clear_dlc):
     config = open_config(config_path)
+=======
+def main(config, clear_dlc=False, force_probe_name=None):
+    if type(config)==str:
+        config = open_config(config)
+>>>>>>> Stashed changes
 
     steps = config['steps_to_run']
     

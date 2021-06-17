@@ -33,9 +33,9 @@ from session_analysis import main as analyze_session
 # get user arguments
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--csv_filepath', type=str, help='read path for metadata .csv')
-    parser.add_argument('--config', type=str, help='yaml config file')
-    parser.add_argument('--log_dir', type=str, help='save path for logger .csv')
+    parser.add_argument('--csv_filepath', type=str, help='read path for metadata .csv', default='T:/OptoPreyCapture/Optogentics_PreyCapture2021_v2.csv')
+    parser.add_argument('--config', type=str, help='yaml config file', default='C:/Users/Niell lab/Documents/GitHub/FreelyMovingEphys/project_analysis/prey_capture/config.yaml')
+    parser.add_argument('--log_dir', type=str, help='save path for logger .csv',default='T:/OptoPreyCapture/')
     parser.add_argument('--clear_dlc', type=str_to_bool, nargs='?', const=True, default=False, help='delete existing DLC .h5 files?')
     args = parser.parse_args()
 
@@ -43,12 +43,13 @@ def get_args():
 
 def main(csv_filepath, config_path, log_dir, clear_dlc):
     # initialize logger
-    logf = log(os.path.join(log_dir,'batch_log.csv'),name=['recording'])
+    logf = log(os.path.join(log_dir,'batch_log.txt'),name=['recording'])
 
     # read in the csv batch file
     print('opening csv file')
     csv = pd.read_csv(csv_filepath)
-
+    csv['experiment_date'] = pd.to_datetime(csv['experiment_date'],infer_datetime_format=True,format='%m%d%Y').dt.strftime('%m%d%y')
+    csv = csv.loc[(csv['run_preprocessing'] == True)|(csv['run_ephys_analysis'] == True)]
     # filter out rows of the csv that are marked to be analyzed with preprocessing and ephys analysis (these should be seperate columns in the df)
     run_preproc = csv.loc[csv['run_preprocessing'] == 'TRUE']
     run_ephys = csv.loc[csv['run_ephys_analysis'] == 'TRUE']
@@ -66,14 +67,18 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
 
     for ind, row in csv.iterrows():
         # get the provided data path
-        data_path = row['animal_dirpath']
+        if os.path.exists(str(row['animal_dirpath'])):
+            data_path = row['animal_dirpath']
+        else: 
+            data_path = os.path.normpath(os.path.join(row['drive']+':/','OptoPreyCapture',row['experiment_date'],row['animal_name']))
+
         # read in the generic config for this batch analysis
         config = open_config(config_path)
         # update generic config path for the current index of batch file
-        config = {'data_path': data_path}
+        config['data_path'] = data_path
         # if step was switched off for this index in the batch file, overwrite what is in the config file
         # if the csv file has a step switched on, this will leave the config file as it is
-        if row['run_preprocessing'] == 'FALSE':
+        if row['run_preprocessing'] == False:
             config['steps_to_run']['deinter'] = False
             config['steps_to_run']['img_correction'] = False
             config['steps_to_run']['get_cam_calibration_params'] = False
@@ -81,14 +86,21 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
             config['steps_to_run']['dlc'] = False
             config['steps_to_run']['params'] = False
             config['steps_to_run']['addtl_params'] = False
-        if row['run_ephys_analysis'] == 'FALSE':
+        if row['run_ephys_analysis'] == False:
             config['steps_to_run']['ephys'] = False
         # run session analysis using the yaml config file
         try:
+<<<<<<< Updated upstream
             analyze_session(config, clear_dlc=clear_dlc)
+=======
+            if (row['run_ephys_analysis']==True) & (row['run_preprocessing']==True):
+                analyze_session(config, clear_dlc=clear_dlc, force_probe_name=row['probe_name'])
+            elif (row['run_ephys_analysis']==False) & (row['run_preprocessing']==True):
+                analyze_session(config, clear_dlc=clear_dlc, force_probe_name=None)
+>>>>>>> Stashed changes
         except Exception as e:
-            logf.log([row['Experiment date']+'_'+row['Animal name'], traceback.format_exc()],PRINT=False)
+            logf.log([row['experiment_date']+'_'+row['animal_name'], traceback.format_exc()],PRINT=False)
 
 if __name__ == '__main__':
     args = get_args()
-    main(args.csv_filepath, args.config, args.log_dir, args.clear_dlc)
+    main(os.path.normpath(args.csv_filepath), os.path.normpath(args.config), os.path.normpath(args.log_dir), args.clear_dlc)
