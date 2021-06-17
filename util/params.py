@@ -175,19 +175,19 @@ def extract_params(config):
                 if config['parameters']['outputs_and_visualization']['save_nc_vids'] is True and config['parameters']['eyes']['get_eye_omega'] is True:
                     print('saving...')
                     trial_eye_data = safe_xr_merge([eyedlc, eyeparams, xr_eye_frames, rfit, rfit_conv, shift])
-                    trial_eye_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'_video':{"zlib": True, "complevel": 4}})
+                    trial_eye_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_'+eye_side+'.nc')), engine='netcdf4', encoding={eye_side+'_video':{"zlib": True, "complevel": 4}})
                 elif config['parameters']['outputs_and_visualization']['save_nc_vids'] is False and config['parameters']['eyes']['get_eye_omega'] is True:
                     print('saving...')
                     trial_eye_data = safe_xr_merge([eyedlc, eyeparams, rfit, rfit_conv, shift])
-                    trial_eye_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+eye_side+'eye.nc')))
+                    trial_eye_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+eye_side+'.nc')))
                 elif config['parameters']['outputs_and_visualization']['save_nc_vids'] is True and config['parameters']['eyes']['get_eye_omega'] is False:
                     print('saving...')
                     trial_eye_data = safe_xr_merge([eyedlc, eyeparams, xr_eye_frames])
-                    trial_eye_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_'+eye_side+'eye.nc')), engine='netcdf4', encoding={eye_side+'_video':{"zlib": True, "complevel": 4}})
+                    trial_eye_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_'+eye_side+'.nc')), engine='netcdf4', encoding={eye_side+'_video':{"zlib": True, "complevel": 4}})
                 elif config['parameters']['outputs_and_visualization']['save_nc_vids'] is False and config['parameters']['eyes']['get_eye_omega'] is False:
                     print('saving...')
                     trial_eye_data = safe_xr_merge([eyedlc, eyeparams])
-                    trial_eye_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+eye_side+'eye.nc')))
+                    trial_eye_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+eye_side+'.nc')))
         except IndexError as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
