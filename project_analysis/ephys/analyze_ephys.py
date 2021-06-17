@@ -340,7 +340,7 @@ def run_ephys_analysis(file_dict):
     std_im = np.std(world_vid,axis=0)
 
     img_norm = (world_vid-np.mean(world_vid,axis=0))/std_im
-    std_im[std_im<20/255] = 0
+    std_im[std_im<20] = 0
     img_norm = img_norm * (std_im>0)
 
     contrast = np.empty(worldT.size)
