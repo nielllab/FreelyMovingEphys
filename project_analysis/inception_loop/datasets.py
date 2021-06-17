@@ -42,7 +42,7 @@ class WorldcamDataset3D(Dataset):
         if self.history_size == 0:
             history_win = [0]
         elif self.history_size != 0:
-            history_win = list(range(-self.history_size,self.history_size))
+            history_win = list(range(-self.history_size+1,1)) # 7 to 0
         for n in history_win:
             img_name = self.metadata['F'+str(n)].iloc[idx]
             img_path = os.path.join(str(os.path.join(self.root_dir,self.metadata.loc[idx,'filename'])),img_name)
