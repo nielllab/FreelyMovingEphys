@@ -52,7 +52,9 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, probe_name):
     """
     print('finding ephys files')
     # get the files names in the provided path
-    eye_file = os.path.join(rec_path, rec_name + '_Reye.nc')
+    eye_file = os.path.join(rec_path, rec_name + '_REYE.nc')
+    if not os.path.isfile(eye_file):
+        eye_file = os.path.join(rec_path, rec_name + '_Reye.nc')
     world_file = os.path.join(rec_path, rec_name + '_world.nc')
     top_file = os.path.join(rec_path, rec_name + '_TOP1.nc')
     ephys_file = os.path.join(rec_path, rec_name + '_ephys_merge.json')
@@ -556,10 +558,14 @@ def run_ephys_analysis(file_dict):
         if num_channels == 64:
             shank0_layer4cent = np.argmin(np.min(rev_resp_mean[0:32,int(samprate*0.1):int(samprate*0.3)], axis=1))
             shank1_layer4cent = np.argmin(np.min(rev_resp_mean[32:64,int(samprate*0.1):int(samprate*0.3)], axis=1))
-            lfp_depth = pd.Series([int(goodcells.loc[i,'ch'] - shank0_layer4cent) if goodcells.loc[i,'ch'] <32 else int((goodcells.loc[i,'ch']-32) - shank1_layer4cent) for i,row in goodcells.iterrows()])
+            shank0_ch_positions = list(range(32)) - shank0_layer4cent; shank1_ch_positions = list(range(32)) - shank1_layer4cent
+            lfp_depth = [shank0_ch_positions, shank1_ch_positions]
+            layer4_out = [shank0_layer4cent, shank1_layer4cent]
         elif num_channels == 16:
             layer4cent = np.argmin(np.min(rev_resp_mean, axis=1))
-            lfp_depth = pd.Series([int(goodcells.loc[i,'ch'] - layer4cent) for i,row in goodcells.iterrows()])
+            lfp_depth = [list(range(16)) - layer4cent]
+            layer4_out = [layer4cent]
+        
 
     if file_dict['stim_type'] == 'grat':
         print('getting grating flow')
@@ -785,10 +791,9 @@ def run_ephys_analysis(file_dict):
         nks = np.shape(smallvid); nk = nks[0]*nks[1];    
         model_vid_sm[np.isnan(model_vid_sm)]=0;  movInterp = None; # clear out large variable
         
-        sta_all,cc_all, fig = fit_glm_vid(model_vid_sm,model_nsp,model_dt, use,nks)
+        glm_receptive_field, glm_cc, fig = fit_glm_vid(model_vid_sm,model_nsp,model_dt, use,nks)
         detail_pdf.savefig()
         plt.close()
-
 
     spikeraster_fig = plot_spike_rasters(goodcells)
     detail_pdf.savefig()
@@ -855,14 +860,14 @@ def run_ephys_analysis(file_dict):
 
 
     if free_move is True:
-    #plot gaze shifting eye movements
+        # plot gaze shifting eye movements
         sthresh = 3
         upsacc = eyeT[ (np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
         downsacc = eyeT[ (np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
         upsacc_avg_gaze_shift_dEye, downsacc_avg_gaze_shift_dEye, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('gaze shift dEye');  detail_pdf.savefig() ;  plt.close()
         
-    #plot compensatory eye movements    
+        # plot compensatory eye movements    
         sthresh = 3
         upsacc = eyeT[ (np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
         downsacc = eyeT[ (np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
@@ -870,14 +875,14 @@ def run_ephys_analysis(file_dict):
         plt.title('comp dEye'); detail_pdf.savefig() ;  plt.close()
         
     
-    #plot gaze shifting head movements
+        # plot gaze shifting head movements
         sthresh = 3
         upsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)>sthresh)]
         downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
         upsacc_avg_gaze_shift_dHead, downsacc_avg_gaze_shift_dHead, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('gaze shift dhead') ; detail_pdf.savefig() ;  plt.close()
         
-    #plot compensatory eye movements    
+        # plot compensatory eye movements    
         sthresh = 3
         upsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
         downsacc = eyeT[ (np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
@@ -923,7 +928,7 @@ def run_ephys_analysis(file_dict):
     eyePhi = eye_params.sel(ellipse_params = 'phi').copy()
     phiNorm = (eyePhi - np.mean(eyePhi))/np.std(eyePhi)
     
-    print('plotting spike rate vs theta')
+    print('plotting spike rate vs theta/phi')
     # plot rate vs theta
     th_range = np.arange(-2,2.5,0.5)
     spike_rate_vs_theta_cent, spike_rate_vs_theta_tuning, spike_rate_vs_theta_err, spike_rate_vs_theta_fig = plot_spike_rate_vs_var(thetaNorm, th_range, goodcells, eyeT, t, 'eye theta')
@@ -936,27 +941,31 @@ def run_ephys_analysis(file_dict):
     plt.close()
     
     if free_move is True:
+        active_interp = interp1d(model_t, model_active, bounds_error=False)
+        active_accT = active_interp(accT.values)
+        use = np.where(active_accT > 40)
+
         gx_range = np.arange(-5,5,1)
-        spike_rate_vs_gx_cent, spike_rate_vs_gx_tuning, spike_rate_vs_gx_err, spike_rate_vs_gx_fig = plot_spike_rate_vs_var((gx-np.mean(gx))*7.5, gx_range, goodcells, accT, t, 'gyro x')
+        active_gx = ((gx-np.mean(gx))*7.5)[use]
+        spike_rate_vs_gx_cent, spike_rate_vs_gx_tuning, spike_rate_vs_gx_err, spike_rate_vs_gx_fig = plot_spike_rate_vs_var(active_gx, gx_range, goodcells, accT[use], t, 'gyro x')
         detail_pdf.savefig()
         plt.close()
         
-    if free_move is True:
         gy_range = np.arange(-5,5,1)
-        spike_rate_vs_gy_cent, spike_rate_vs_gy_tuning, spike_rate_vs_gy_err, spike_rate_vs_gy_fig = plot_spike_rate_vs_var((gy-np.mean(gy))*7.5, gy_range, goodcells, accT, t, 'gyro y')
+        active_gy = ((gy-np.mean(gy))*7.5)[use]
+        spike_rate_vs_gy_cent, spike_rate_vs_gy_tuning, spike_rate_vs_gy_err, spike_rate_vs_gy_fig = plot_spike_rate_vs_var(active_gy, gy_range, goodcells, accT[use], t, 'gyro y')
         detail_pdf.savefig()
         plt.close()
 
-    if free_move is True:
         gz_range = np.arange(-10,10,1)
-        spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var((gz-np.mean(gz))*7.5, gz_range, goodcells, accT, t, 'gyro z')
+        active_gz = ((gz-np.mean(gz))*7.5)[use]
+        spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var(active_gz, gz_range, goodcells, accT[use], t, 'gyro z')
         detail_pdf.savefig()
         plt.close()
 
     if free_move is False and has_mouse is True:
-        #spd_range = np.arange(0,1.1,0.1)
         spd_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
-        spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
+        spike_rate_vs_spd_cent, spike_rate_vs_spd_tuning, spike_rate_vs_spd_err, spike_rate_vs_spd_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
         detail_pdf.savefig()
         plt.close()
 
@@ -1085,9 +1094,6 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_theta_cent',
                                         'spike_rate_vs_theta_tuning',
                                         'spike_rate_vs_theta_err',
-                                        'spike_rate_vs_gz_cent',
-                                        'spike_rate_vs_gz_tuning',
-                                        'spike_rate_vs_gz_err',
                                         'grating_psth',
                                         'grating_ori',
                                         'ori_tuning',
@@ -1096,7 +1102,13 @@ def run_ephys_analysis(file_dict):
                                         'grating_rate',
                                         'trange',
                                         'theta',
-                                        'phi']]
+                                        'phi',
+                                        'spike_rate_vs_spd_cent',
+                                        'spike_rate_vs_spd_tuning',
+                                        'spike_rate_vs_spd_err',
+                                        'spike_rate_vs_phi_cent',
+                                        'spike_rate_vs_phi_tuning',
+                                        'spike_rate_vs_phi_err']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1112,9 +1124,6 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_theta_cent,
                                     spike_rate_vs_theta_tuning[unit_num],
                                     spike_rate_vs_theta_err[unit_num],
-                                    spike_rate_vs_gz_cent,
-                                    spike_rate_vs_gz_tuning[unit_num],
-                                    spike_rate_vs_gz_err[unit_num],
                                     grating_psth[unit_num],
                                     grating_ori[unit_num],
                                     ori_tuning[unit_num],
@@ -1123,7 +1132,13 @@ def run_ephys_analysis(file_dict):
                                     grating_rate[unit_num],
                                     trange,
                                     th,
-                                    phi]),dtype=object).T
+                                    phi,
+                                    spike_rate_vs_spd_cent,
+                                    spike_rate_vs_spd_tuning[unit_num],
+                                    spike_rate_vs_spd_err[unit_num],
+                                    spike_rate_vs_phi_cent,
+                                    spike_rate_vs_phi_tuning[unit_num],
+                                    spike_rate_vs_phi_err[unit_num]]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -1145,15 +1160,19 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_theta_cent',
                                         'spike_rate_vs_theta_tuning',
                                         'spike_rate_vs_theta_err',
-                                        'spike_rate_vs_gz_cent',
-                                        'spike_rate_vs_gz_tuning',
-                                        'spike_rate_vs_gz_err',
                                         'trange',
                                         'revchecker_mean_resp_per_ch',
                                         'csd',
                                         'lfp_rel_depth',
                                         'theta',
-                                        'phi']]
+                                        'phi',
+                                        'spike_rate_vs_spd_cent',
+                                        'spike_rate_vs_spd_tuning',
+                                        'spike_rate_vs_spd_err',
+                                        'spike_rate_vs_phi_cent',
+                                        'spike_rate_vs_phi_tuning',
+                                        'spike_rate_vs_phi_err',
+                                        'layer4center']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1169,20 +1188,24 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_theta_cent,
                                     spike_rate_vs_theta_tuning[unit_num],
                                     spike_rate_vs_theta_err[unit_num],
-                                    spike_rate_vs_gz_cent,
-                                    spike_rate_vs_gz_tuning[unit_num],
-                                    spike_rate_vs_gz_err[unit_num],
                                     trange,
                                     rev_resp_mean,
                                     csd_interp,
                                     lfp_depth,
                                     th,
-                                    phi]),dtype=object).T
+                                    phi,
+                                    spike_rate_vs_spd_cent,
+                                    spike_rate_vs_spd_tuning[unit_num],
+                                    spike_rate_vs_spd_err[unit_num],
+                                    spike_rate_vs_phi_cent,
+                                    spike_rate_vs_phi_tuning[unit_num],
+                                    spike_rate_vs_phi_err[unit_num],
+                                    layer4_out]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
             unit_data = pd.concat([unit_data, unit_df], axis=0)
-    elif file_dict['stim_type'] != 'grat' and file_dict['stim_type'] != 'revchecker' and free_move is False:
+    elif file_dict['stim_type'] != 'grat' and file_dict['stim_type'] != 'revchecker' and free_move is False and file_dict['stim_type'] != 'white_noise':
         for unit_num, ind in enumerate(goodcells.index):
             cols = [stim+'_'+i for i in ['c_range',
                                         'crf_cent',
@@ -1199,12 +1222,15 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_theta_cent',
                                         'spike_rate_vs_theta_tuning',
                                         'spike_rate_vs_theta_err',
-                                        'spike_rate_vs_gz_cent',
-                                        'spike_rate_vs_gz_tuning',
-                                        'spike_rate_vs_gz_err',
                                         'trange',
                                         'theta',
-                                        'phi']]
+                                        'phi',
+                                        'spike_rate_vs_spd_cent',
+                                        'spike_rate_vs_spd_tuning',
+                                        'spike_rate_vs_spd_err',
+                                        'spike_rate_vs_phi_cent',
+                                        'spike_rate_vs_phi_tuning',
+                                        'spike_rate_vs_phi_err']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1220,12 +1246,73 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_theta_cent,
                                     spike_rate_vs_theta_tuning[unit_num],
                                     spike_rate_vs_theta_err[unit_num],
-                                    spike_rate_vs_gz_cent,
-                                    spike_rate_vs_gz_tuning[unit_num],
-                                    spike_rate_vs_gz_err[unit_num],
                                     trange,
                                     th,
-                                    phi]),dtype=object).T
+                                    phi,
+                                    spike_rate_vs_spd_cent,
+                                    spike_rate_vs_spd_tuning[unit_num],
+                                    spike_rate_vs_spd_err[unit_num],
+                                    spike_rate_vs_phi_cent,
+                                    spike_rate_vs_phi_tuning[unit_num],
+                                    spike_rate_vs_phi_err[unit_num]]),dtype=object).T
+            unit_df.columns = cols
+            unit_df.index = [ind]
+            unit_df['session'] = session_name
+            unit_data = pd.concat([unit_data, unit_df], axis=0)
+    elif file_dict['stim_type'] == 'white_noise':
+        for unit_num, ind in enumerate(goodcells.index):
+            cols = [stim+'_'+i for i in ['c_range',
+                                        'crf_cent',
+                                        'crf_tuning',
+                                        'crf_err',
+                                        'spike_triggered_average',
+                                        'sta_shape',
+                                        'spike_triggered_variance',
+                                        'upsacc_avg',
+                                        'downsacc_avg',
+                                        'spike_rate_vs_pupil_radius_cent',
+                                        'spike_rate_vs_pupil_radius_tuning',
+                                        'spike_rate_vs_pupil_radius_err',
+                                        'spike_rate_vs_theta_cent',
+                                        'spike_rate_vs_theta_tuning',
+                                        'spike_rate_vs_theta_err',
+                                        'trange',
+                                        'theta',
+                                        'phi',
+                                        'glm_receptive_field',
+                                        'glm_cc',
+                                        'spike_rate_vs_spd_cent',
+                                        'spike_rate_vs_spd_tuning',
+                                        'spike_rate_vs_spd_err',
+                                        'spike_rate_vs_phi_cent',
+                                        'spike_rate_vs_phi_tuning',
+                                        'spike_rate_vs_phi_err']]
+            unit_df = pd.DataFrame(pd.Series([crange,
+                                    crf_cent,
+                                    crf_tuning[unit_num],
+                                    crf_err[unit_num],
+                                    np.ndarray.flatten(staAll[unit_num]),
+                                    np.shape(staAll[unit_num]),
+                                    np.ndarray.flatten(st_var[unit_num]),
+                                    upsacc_avg[unit_num],
+                                    downsacc_avg[unit_num],
+                                    spike_rate_vs_pupil_radius_cent,
+                                    spike_rate_vs_pupil_radius_tuning[unit_num],
+                                    spike_rate_vs_pupil_radius_err[unit_num],
+                                    spike_rate_vs_theta_cent,
+                                    spike_rate_vs_theta_tuning[unit_num],
+                                    spike_rate_vs_theta_err[unit_num],
+                                    trange,
+                                    th,
+                                    phi,
+                                    glm_receptive_field[unit_num],
+                                    glm_cc[unit_num],
+                                    spike_rate_vs_spd_cent,
+                                    spike_rate_vs_spd_tuning[unit_num],
+                                    spike_rate_vs_spd_err[unit_num],
+                                    spike_rate_vs_phi_cent,
+                                    spike_rate_vs_phi_tuning[unit_num],
+                                    spike_rate_vs_phi_err[unit_num]]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -1276,7 +1363,12 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_roll_err',
                                         'spike_rate_vs_pitch_cent',
                                         'spike_rate_vs_pitch_tuning',
-                                        'spike_rate_vs_pitch_err']]
+                                        'spike_rate_vs_pitch_err',
+                                        'glm_receptive_field',
+                                        'glm_cc',
+                                        'spike_rate_vs_phi_cent',
+                                        'spike_rate_vs_phi_tuning',
+                                        'spike_rate_vs_phi_err']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1317,11 +1409,16 @@ def run_ephys_analysis(file_dict):
                                     phi,
                                     gz,
                                     spike_rate_vs_roll_cent,
-                                    spike_rate_vs_roll_tuning,
-                                    spike_rate_vs_roll_err,
+                                    spike_rate_vs_roll_tuning[unit_num],
+                                    spike_rate_vs_roll_err[unit_num],
                                     spike_rate_vs_pitch_cent,
-                                    spike_rate_vs_pitch_tuning,
-                                    spike_rate_vs_pitch_err]),dtype=object).T
+                                    spike_rate_vs_pitch_tuning[unit_num],
+                                    spike_rate_vs_pitch_err[unit_num],
+                                    glm_receptive_field[unit_num],
+                                    glm_cc[unit_num],
+                                    spike_rate_vs_phi_cent,
+                                    spike_rate_vs_phi_tuning[unit_num],
+                                    spike_rate_vs_phi_err[unit_num]]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name

@@ -285,7 +285,7 @@ def plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, ey
     # plot gyro
     if file_dict['imu'] is not None:
         axGyro.plot(accT,gz)
-        axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(-200,200)
+        axGyro.set_xlim(tr[0],tr[1])#; axGyro.set_ylim(-5,5)
         axGyro.set_ylabel('gyro z vel')
 
     if file_dict['speed'] is not None:

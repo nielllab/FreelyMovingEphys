@@ -5,7 +5,7 @@ utilities for processing ephys data and using ephys analysis outputs
 """
 import pandas as pd
 import numpy as np
-import json
+import json, platform
 import os
 from scipy.signal import sosfiltfilt
 import cv2
@@ -37,6 +37,13 @@ def load_ephys(csv_filepath):
     # get all of the best freely moving recordings of a session into a dictionary
     goodfmrecs = dict(zip(list(for_data_pool['experiment_date']+'_'+for_data_pool['animal_name']),['fm1' if np.isnan(i) else i for i in for_data_pool['best_fm_rec']]))
     # get all of the session data locations into a list
+    # if platform.system() == 'Linux':
+    #     for ind, row in for_data_pool.iterrows():
+    #         if row['animal_dirpath'][:2] == '//':
+    #             split_name = list(filter(None, row['animal_dirpath'].split('/')))
+    #             computer = row['computer']; drive = row['drive']
+    #             new_path = '/home/niell_lab/'+computer+'/'+drive+'/'+'/'.join(split_name[2:])
+    # else:
     for ind, row in for_data_pool.iterrows():
         goodsessions.append(row['animal_dirpath'])
     # get the .h5 files from each day
@@ -140,21 +147,3 @@ def population_analysis(config):
     print('writing unit summary')
     make_unit_summary(df, config['population']['save_path'])
     print('done with population analysis')
-
-def modulation_index(tuning, zerocent=True):
-    tuning = tuning[~np.isnan(tuning)]
-    if zerocent is False:
-        return np.round((tuning[-1] - tuning[0]) / (tuning[-1] + tuning[0]), 3)
-    elif zerocent is True:
-        r0 = np.mean(tuning[4:6])
-        modind_neg = np.round((tuning[0] - r0) / (tuning[0] + r0), 3)
-        modind_pos = np.round((tuning[-1] - r0) / (tuning[-1] + r0), 3)
-        return modind_neg, modind_pos
-
-def saccade_modulation_index(trange, saccavg):
-    t0ind = (np.abs(trange - 0)).argmin()
-    t100ind = int((np.abs(trange - 0)).argmin()+(len(trange) * (1/10)))
-    baseline = np.mean(saccavg[0:int(t100ind-((1/4)*t100ind))])
-    r0 = np.round((saccavg[t0ind] - baseline) / (saccavg[t0ind] + baseline), 3)
-    r100 = np.round((saccavg[t100ind] - baseline) / (saccavg[t100ind] + baseline), 3)
-    return r0, r100
