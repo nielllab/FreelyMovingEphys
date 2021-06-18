@@ -945,19 +945,19 @@ def run_ephys_analysis(file_dict):
         active_accT = active_interp(accT.values)
         use = np.where(active_accT > 40)
 
-        gx_range = np.arange(-5,5,1)
+        gx_range = np.arange(-5,6,1)
         active_gx = ((gx-np.mean(gx))*7.5)[use]
         spike_rate_vs_gx_cent, spike_rate_vs_gx_tuning, spike_rate_vs_gx_err, spike_rate_vs_gx_fig = plot_spike_rate_vs_var(active_gx, gx_range, goodcells, accT[use], t, 'gyro x')
         detail_pdf.savefig()
         plt.close()
         
-        gy_range = np.arange(-5,5,1)
+        gy_range = np.arange(-5,6,1)
         active_gy = ((gy-np.mean(gy))*7.5)[use]
         spike_rate_vs_gy_cent, spike_rate_vs_gy_tuning, spike_rate_vs_gy_err, spike_rate_vs_gy_fig = plot_spike_rate_vs_var(active_gy, gy_range, goodcells, accT[use], t, 'gyro y')
         detail_pdf.savefig()
         plt.close()
 
-        gz_range = np.arange(-10,10,1)
+        gz_range = np.arange(-7,8,1)
         active_gz = ((gz-np.mean(gz))*7.5)[use]
         spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var(active_gz, gz_range, goodcells, accT[use], t, 'gyro z')
         detail_pdf.savefig()
@@ -972,14 +972,12 @@ def run_ephys_analysis(file_dict):
     if free_move is True:
         # roll vs spike rate
         roll_range = np.arange(-100,100,10)
-        spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll, roll_range, goodcells, accT, t, 'roll')
-        plt.xlim([-20,20])
+        spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll, roll_range, goodcells, accT, t, 'roll', xlims=[-30,31])
         detail_pdf.savefig()
         plt.close()
         # pitch vs spike rate
         pitch_range = np.arange(-100,100,10)
-        spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch, pitch_range, goodcells, accT, t, 'pitch')
-        plt.xlim([-20,20])
+        spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch, pitch_range, goodcells, accT, t, 'pitch', xlims=[-30,31])
         detail_pdf.savefig()
         plt.close()
         # subtract mean from roll and pitch to center around zero
