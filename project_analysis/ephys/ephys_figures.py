@@ -746,7 +746,7 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_name):
             plt.ylim(0,np.nanmax(tuning[i,:]*1.2))
         except ValueError:
             plt.ylim(0,1)
-        plt.xlim([var_range[0], var_range[-1]]);  plt.title(ind)
+        plt.xlim([var_range[0], var_range[-1]]); plt.title(ind)
     plt.xlabel(var_name); plt. ylabel('sp/sec')
     plt.tight_layout()
     return var_cent, tuning, tuning_err, fig
