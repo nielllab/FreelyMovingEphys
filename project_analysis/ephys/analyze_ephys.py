@@ -971,13 +971,13 @@ def run_ephys_analysis(file_dict):
 
     if free_move is True:
         # roll vs spike rate
-        roll_range = np.arange(-100,100,10)
-        spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll, roll_range, goodcells, accT, t, 'roll', xlims=[-30,31])
+        roll_range = np.arange(-30,30,3)
+        spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll[use], roll_range, goodcells, accT[use], t, 'roll')
         detail_pdf.savefig()
         plt.close()
         # pitch vs spike rate
-        pitch_range = np.arange(-100,100,10)
-        spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch, pitch_range, goodcells, accT, t, 'pitch', xlims=[-30,31])
+        pitch_range = np.arange(-30,30,3)
+        spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch[use], pitch_range, goodcells, accT[use], t, 'pitch')
         detail_pdf.savefig()
         plt.close()
         # subtract mean from roll and pitch to center around zero

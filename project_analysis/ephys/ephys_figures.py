@@ -723,8 +723,7 @@ def plot_rasters_around_saccades(n_units, goodcells, sacc):
         plt.xlim(-1,1)
     return fig
 
-def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_name, xlims=None):
-    # xlims should be [start, end] for plotting range
+def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_name):
     n_units = len(goodcells)
     scatter = np.zeros((n_units,len(use)))
     tuning = np.zeros((n_units,len(var_range)-1))
@@ -747,11 +746,7 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_name, xlims=N
             plt.ylim(0,np.nanmax(tuning[i,:]*1.2))
         except ValueError:
             plt.ylim(0,1)
-        if xlims == None:
-            plt.xlim([var_range[0], var_range[-1]])
-        else:
-            plt.xlim(xlims)
-        plt.title(ind)
+        plt.xlim([var_range[0], var_range[-1]]); plt.title(ind)
     plt.xlabel(var_name); plt. ylabel('sp/sec')
     plt.tight_layout()
     return var_cent, tuning, tuning_err, fig
