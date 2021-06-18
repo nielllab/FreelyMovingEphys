@@ -5,19 +5,8 @@ takes in a csv file path, yaml config file, and directory into which log should 
 might work with json config, but ephys analysis won't be possible, so yaml is best
 runs preprocessing and ephys analysis for each of the trials marked to be analyzed in csv file
 """
-import argparse, json, sys, os, subprocess, shutil, yaml
-import cv2
+import argparse, traceback, yaml, os
 import pandas as pd
-os.environ["DLClight"] = "True"
-import deeplabcut
-import numpy as np
-import xarray as xr
-import warnings
-import tkinter as tk
-from tkinter import filedialog
-from glob import glob
-from multiprocessing import freeze_support
-import traceback
 
 from util.params import extract_params
 from util.dlc import run_DLC_Analysis
@@ -53,6 +42,7 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
     # delete existing DLC .h5 files so that there will be only one in the directory
     # needed in case a different DLC network is being used
     if clear_dlc is True:
+        run_preproc = csv.loc[csv['run_preprocessing'] == any('TRUE', True)]
         for ind, row in run_preproc.iterrows():
             del_path = row['animal_dirpath']
             h5_list = find('*DLC_resnet50*.h5',del_path)

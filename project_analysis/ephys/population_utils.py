@@ -1,24 +1,23 @@
 """
 ephys_population.py
 """
-import pandas as pd
 import numpy as np
-import xarray as xr
-import os, sys
+import os
 from tqdm import tqdm
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
+from scipy.interpolate import interp1d
 
-def modulation_index(tuning, zerocent=True):
+def modulation_index(tuning, zerocent=True, lbound=0, ubound=-1):
     tuning = tuning[~np.isnan(tuning)]
     if zerocent is False:
-        return np.round((tuning[-1] - tuning[0]) / (tuning[-1] + tuning[0]), 3)
+        return np.round((tuning[ubound] - tuning[lbound]) / (tuning[ubound] + tuning[lbound]), 3)
     elif zerocent is True:
         r0 = np.nanmean(tuning[4:6])
-        modind_neg = np.round((tuning[0] - r0) / (tuning[0] + r0), 3)
-        modind_pos = np.round((tuning[-1] - r0) / (tuning[-1] + r0), 3)
+        modind_neg = np.round((tuning[lbound] - r0) / (tuning[lbound] + r0), 3)
+        modind_pos = np.round((tuning[ubound] - r0) / (tuning[ubound] + r0), 3)
         return [modind_neg, modind_pos]
 
 def saccade_modulation_index(trange, saccavg):
@@ -190,25 +189,25 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srphi.set_title('FM1 spike rate vs phi\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_fm1srphi.set_ylim(0,np.nanmax(tuning[:]*1.2))
 
-        # fm1 spike rate vs phi
+        # fm1 spike rate vs roll
         unitfig_fm1srroll = unitfig.add_subplot(spec[4, 2])
         var_cent = row[fmA+'_spike_rate_vs_roll_cent']
         tuning = row[fmA+'_spike_rate_vs_roll_tuning']
         tuning_err = row[fmA+'_spike_rate_vs_roll_err']
-        modind = modulation_index(tuning)
+        modind = modulation_index(tuning, lbound=5, ubound=-6)
         unitfig_fm1srroll.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srroll.set_title('FM1 spike rate vs roll\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
-        unitfig_fm1srroll.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        unitfig_fm1srroll.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srroll.set_xlim(-30,30)
 
-        # fm1 spike rate vs phi
+        # fm1 spike rate vs pitch
         unitfig_fm1srpitch = unitfig.add_subplot(spec[4, 3])
         var_cent = row[fmA+'_spike_rate_vs_pitch_cent']
         tuning = row[fmA+'_spike_rate_vs_pitch_tuning']
         tuning_err = row[fmA+'_spike_rate_vs_pitch_err']
-        modind = modulation_index(tuning)
+        modind = modulation_index(tuning, lbound=5, ubound=-6)
         unitfig_fm1srpitch.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srpitch.set_title('FM1 spike rate vs pitch\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
-        unitfig_fm1srpitch.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        unitfig_fm1srpitch.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srpitch.set_xlim(-30,30)
 
         # wn spike rate vs gx
         unitfig_wnsrvgz = unitfig.add_subplot(spec[3, 3])
@@ -342,7 +341,7 @@ def make_unit_summary(df, savepath):
 
         pdf.savefig(unitfig)
         plt.close()
-    print('saving pdf')
+    print('saving unit summary pdf')
     pdf.close()
 
 def make_session_summary(df, savepath):
@@ -355,11 +354,11 @@ def make_session_summary(df, savepath):
     for unique_ind in tqdm(unique_inds):
         uniquedf = df.loc[unique_ind]
         # set up subplots
-        plt.subplots(2,4,figsize=(25,10))
+        plt.subplots(3,4,figsize=(15,15))
         plt.suptitle(unique_ind+'eye fit: m='+str(uniquedf['best_ellipse_fit_m'].iloc[0])+' r='+str(uniquedf['best_ellipse_fit_r'].iloc[0]))
         # eye position vs head position
         try:
-            plt.subplot(2,4,1)
+            plt.subplot(3,4,1)
             plt.title('dEye vs dHead')
             dEye = uniquedf['fm1_dEye'].iloc[0]
             dHead = uniquedf['fm1_dHead'].iloc[0]
@@ -377,21 +376,35 @@ def make_session_summary(df, savepath):
         except:
             pass
         try:
+            accT = uniquedf['fm1_accT'].iloc[0]
+            roll_interp = uniquedf['fm1_roll_interp'].iloc[0]
+            pitch_interp = uniquedf['fm1_pitch_interp'].iloc[0]
+            th = uniquedf['fm1_theta'].iloc[0]
+            phi = uniquedf['fm1_phi'].iloc[0]
+            plt.subplot(3,4,2)
+            plt.plot(pitch_interp[::100], th[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
+            plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
+            plt.subplot(3,4,3)
+            plt.plot(roll_interp[::100], phi[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
+            plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
+        except:
+            pass
+        try:
             # histogram of theta from -45 to 45deg (are eye movements in resonable range?)
-            plt.subplot(2,4,2)
+            plt.subplot(3,4,4)
             plt.title('hist of FM theta')
             plt.hist(uniquedf['fm1_theta'].iloc[0], range=[-45,45])
             # histogram of phi from -45 to 45deg (are eye movements in resonable range?)
-            plt.subplot(2,4,3)
+            plt.subplot(3,4,5)
             plt.title('hist of FM phi')
             plt.hist(uniquedf['fm1_phi'].iloc[0], range=[-45,45])
             # histogram of gyro z (resonable range?)
-            plt.subplot(2,4,4)
+            plt.subplot(3,4,6)
             plt.title('hist of FM gyro z')
             plt.hist(uniquedf['fm1_gz'].iloc[0], range=[2,4])
             # plot of contrast response functions on same panel scaled to max 30sp/sec
             # plot of average contrast reponse function across units
-            plt.subplot(2,4,5)
+            plt.subplot(3,4,7)
             plt.title('contrast response functions')
             for ind, row in uniquedf.iterrows():
                 plt.errorbar(row['hf1_wn_crf_cent'],row['hf1_wn_crf_tuning'],yerr=row['hf1_wn_crf_err'])
@@ -415,7 +428,7 @@ def make_session_summary(df, savepath):
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                         plt.ylim([-1200,400])
             # fm spike raster
-            plt.subplot(2,4,8)
+            plt.subplot(3,4,8)
             plt.title('FM spike raster')
             i = 0
             for ind, row in uniquedf.iterrows():
@@ -426,5 +439,5 @@ def make_session_summary(df, savepath):
             pass
         pdf.savefig()
         plt.close()
-    print('saving pdf')
+    print('saving session summary pdf')
     pdf.close()

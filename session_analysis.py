@@ -1,19 +1,7 @@
 """
 session_analysis.py
 """
-import argparse, json, sys, os, subprocess, shutil, yaml
-import cv2
-import pandas as pd
-os.environ["DLClight"] = "True"
-import deeplabcut
-import numpy as np
-import xarray as xr
-import warnings
-import tkinter as tk
-from tkinter import filedialog
-from glob import glob
-from multiprocessing import freeze_support
-import timeit
+import argparse, yaml, os
 
 from util.params import extract_params
 from util.dlc import run_DLC_Analysis

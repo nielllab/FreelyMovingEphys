@@ -1015,12 +1015,12 @@ def run_ephys_analysis(file_dict):
         plt.close()
         # histogram of pitch values
         plt.figure()
-        plt.hist(pitch, bins=50); plt.xlabel('pitch'); plt.xlim([-30,30])
+        plt.hist(pitch, bins=50); plt.xlabel('pitch')
         detail_pdf.savefig()
         plt.close()
         # histogram of pitch values
         plt.figure()
-        plt.hist(roll, bins=50); plt.xlabel('roll'); plt.xlim([-30,30])
+        plt.hist(roll, bins=50); plt.xlabel('roll')
         detail_pdf.savefig()
         plt.close()
 
@@ -1368,7 +1368,12 @@ def run_ephys_analysis(file_dict):
                                         'glm_cc',
                                         'spike_rate_vs_phi_cent',
                                         'spike_rate_vs_phi_tuning',
-                                        'spike_rate_vs_phi_err']]
+                                        'spike_rate_vs_phi_err',
+                                        'accT',
+                                        'roll',
+                                        'pitch',
+                                        'roll_interp',
+                                        'pitch_interp']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -1418,7 +1423,12 @@ def run_ephys_analysis(file_dict):
                                     glm_cc[unit_num],
                                     spike_rate_vs_phi_cent,
                                     spike_rate_vs_phi_tuning[unit_num],
-                                    spike_rate_vs_phi_err[unit_num]]),dtype=object).T
+                                    spike_rate_vs_phi_err[unit_num],
+                                    accT,
+                                    roll,
+                                    pitch,
+                                    roll_interp,
+                                    pitch_interp]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
