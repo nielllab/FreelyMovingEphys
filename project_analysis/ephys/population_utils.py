@@ -42,6 +42,9 @@ def make_unit_summary(df, savepath):
         unitfig = plt.figure(constrained_layout=True, figsize=(30,22))
         spec = gridspec.GridSpec(ncols=5, nrows=6, figure=unitfig)
 
+        # set up new h5 file to save out including new metrics
+        newdf = df.copy()
+
         # waveform
         unitfig_wv = unitfig.add_subplot(spec[0, 0])
         wv = row['waveform']
@@ -59,6 +62,7 @@ def make_unit_summary(df, savepath):
         unitfig_crf.set_title('WN contrast response\nmodulation index='+str(modind))
         unitfig_crf.set_xlabel('contrast a.u.'); unitfig_crf.set_ylabel('sp/sec')
         unitfig_crf.set_ylim(0,np.nanmax(tuning[:]*1.2))#; unitfig_crf.set_xlim([0,1])
+        newdf['hf1_wn_crf_modind'].iloc[index] = modind
 
         # wn sta
         unitfig_wnsta = unitfig.add_subplot(spec[0, 1])
@@ -125,6 +129,7 @@ def make_unit_summary(df, savepath):
         unitfig_ori_tuning.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
         unitfig_ori_tuning.legend()
         unitfig_ori_tuning.set_ylim([0,np.nanmax(ori_tuning)*1.2])
+        newdf['hf3_gratings_osi'].iloc[index] = osi
 
         # fm1 eye movements
         unitfig_fm1saccavg = unitfig.add_subplot(spec[0, 4])
@@ -136,6 +141,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
         maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
         unitfig_fm1saccavg.set_ylim([0,maxval*1.2])
+        newdf['hf3_gratings_right_modind'].iloc[index] = osi
 
         # wn eye movements
         unitfig_wnsaccavg = unitfig.add_subplot(spec[1, 4])
@@ -148,6 +154,7 @@ def make_unit_summary(df, savepath):
         unitfig_wnsaccavg.legend(['right','left'])
         maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
         unitfig_wnsaccavg.set_ylim([0,maxval*1.2])
+        newdf['hf1_wn_upsacc_modind'].iloc[index] = modind_right; newdf['hf1_wn_downsacc_modind'].iloc[index] = modind_left
 
         # wn spike rate vs pupil radius
         unitfig_wnsrpupilrad = unitfig.add_subplot(spec[4, 4])
@@ -158,6 +165,7 @@ def make_unit_summary(df, savepath):
         unitfig_wnsrpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_wnsrpupilrad.set_title('WN spike rate vs pupil radius\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_wnsrpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        newdf['hf1_wn_spike_rate_vs_pupil_radius_modind'].iloc[index] = modind
 
         # fm1 spike rate vs pupil radius
         unitfig_fm1srpupilrad = unitfig.add_subplot(spec[3, 4])
@@ -168,6 +176,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srpupilrad.set_title('FM1 spike rate vs pupil radius\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_fm1srpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        newdf['hf1_wn_spike_rate_vs_pupil_radius_modind'].iloc[index] = modind
 
         # fm1 spike rate vs theta
         unitfig_fm1srth = unitfig.add_subplot(spec[4, 0])
@@ -178,6 +187,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srth.set_title('FM1 spike rate vs theta\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_fm1srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        newdf['fm1_wn_spike_rate_vs_theta_modind'].iloc[index] = modind
 
         # fm1 spike rate vs phi
         unitfig_fm1srphi = unitfig.add_subplot(spec[4, 1])
@@ -188,6 +198,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srphi.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srphi.set_title('FM1 spike rate vs phi\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_fm1srphi.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        newdf['fm1_wn_spike_rate_vs_phi_modind'].iloc[index] = modind
 
         # fm1 spike rate vs roll
         unitfig_fm1srroll = unitfig.add_subplot(spec[4, 2])
@@ -198,6 +209,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srroll.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srroll.set_title('FM1 spike rate vs roll\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_fm1srroll.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srroll.set_xlim(-30,30)
+        newdf['fm1_wn_spike_rate_vs_roll_modind'].iloc[index] = modind
 
         # fm1 spike rate vs pitch
         unitfig_fm1srpitch = unitfig.add_subplot(spec[4, 3])
@@ -208,6 +220,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srpitch.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srpitch.set_title('FM1 spike rate vs pitch\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_fm1srpitch.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srpitch.set_xlim(-30,30)
+        newdf['fm1_wn_spike_rate_vs_pitch_modind'].iloc[index] = modind
 
         # wn spike rate vs gx
         unitfig_wnsrvgz = unitfig.add_subplot(spec[3, 3])
@@ -218,6 +231,7 @@ def make_unit_summary(df, savepath):
         unitfig_wnsrvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_wnsrvgz.set_title('WN spike rate vs running speed\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_wnsrvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        newdf['fm1_wn_spike_rate_vs_spd_modind'].iloc[index] = modind
 
         # fm1 spike rate vs gz
         unitfig_fm1srvgz = unitfig.add_subplot(spec[3, 2])
@@ -228,6 +242,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srvgz.set_title('FM1 spike rate vs gyro_z\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_fm1srvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        newdf['fm1_wn_spike_rate_vs_gz_modind'].iloc[index] = modind
 
         # fm1 spike rate vs gx
         unitfig_fm1srvgx = unitfig.add_subplot(spec[3, 0])
@@ -238,6 +253,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srvgx.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srvgx.set_title('FM1 spike rate vs gyro_x\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_fm1srvgx.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        newdf['fm1_wn_spike_rate_vs_gx_modind'].iloc[index] = modind
 
         # fm1 spike rate vs gy
         unitfig_fm1srvgy = unitfig.add_subplot(spec[3, 1])
@@ -248,6 +264,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1srvgy.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
         unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_y\nmod.ind.='+str(modind[0])+'/'+str(modind[1]))
         unitfig_fm1srvgy.set_ylim(0,np.nanmax(tuning[:]*1.2))
+        newdf['fm1_wn_spike_rate_vs_gy_modind'].iloc[index] = modind
 
         # gaze shift dEye
         unitfig_fm1upsacc_gazedEye = unitfig.add_subplot(spec[5, 0])
@@ -262,6 +279,8 @@ def make_unit_summary(df, savepath):
         unitfig_fm1upsacc_gazedEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
         unitfig_fm1upsacc_gazedEye.set_ylim([0,maxval*1.2])
         unitfig_fm1upsacc_gazedEye.set_ylabel('sp/sec')
+        newdf['fm1_upsacc_avg_gaze_shift_dEye_modind'].iloc[index] = modind_right; newdf['fm1_downsacc_avg_gaze_shift_dEye_modind'].iloc[index] = modind_left
+
 
         # comp dEye
         unitfig_fm1upsacc_compdEye = unitfig.add_subplot(spec[5, 1])
@@ -276,6 +295,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1upsacc_compdEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
         unitfig_fm1upsacc_compdEye.set_ylim([0,maxval*1.2])
         unitfig_fm1upsacc_compdEye.set_ylabel('sp/sec')
+        newdf['fm1_upsacc_avg_comp_dEye_modind'].iloc[index] = modind_right; newdf['fm1_downsacc_avg_comp_dEye_modind'].iloc[index] = modind_left
 
         # gaze shift dHead
         unitfig_fm1upsacc_gazedHead = unitfig.add_subplot(spec[5, 2])
@@ -290,6 +310,7 @@ def make_unit_summary(df, savepath):
         unitfig_fm1upsacc_gazedHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
         unitfig_fm1upsacc_gazedHead.set_ylim([0,maxval*1.2])
         unitfig_fm1upsacc_gazedHead.set_ylabel('sp/sec')
+        newdf['fm1_upsacc_avg_gaze_shift_dHead_modind'].iloc[index] = modind_right; newdf['fm1_downsacc_avg_gaze_shift_dHead_modind'].iloc[index] = modind_left
 
         # gaze shift comp dHead
         unitfig_fm1upsacc_compdHead = unitfig.add_subplot(spec[5, 3])
@@ -304,6 +325,8 @@ def make_unit_summary(df, savepath):
         unitfig_fm1upsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
         unitfig_fm1upsacc_compdHead.set_ylim([0,maxval*1.2])
         unitfig_fm1upsacc_compdHead.set_ylabel('sp/sec')
+        newdf['fm1_upsacc_comp_dHead_modind'].iloc[index] = modind_right; newdf['fm1_downsacc_comp_dHead_modind'].iloc[index] = modind_left
+
 
         # psth gratings
         unitfig_grat_psth = unitfig.add_subplot(spec[1, 3])
@@ -325,11 +348,9 @@ def make_unit_summary(df, savepath):
         else:
             unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'].T, color='k', alpha=0.1, linewidth=1)
         unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], label='this channel', color='b')
-        # units_in_session = [i for i,r in df.iterrows() if r['session'] == row['session']]
-        # ch_dict = dict(zip(units_in_session, [r['ch'] for i,r in df.iterrows() if i in units_in_session]))
-        # index_of_ch = ch_dict[row['unit']]
         try:
-            unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(row['hf4_revchecker_lfp_rel_depth'][(row['ch']%32)]))
+            unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(row['hf4_revchecker_lfp_rel_depth'][(row['ch'])]))
+            newdf['hf4_revchecker_ch_lfp_relative_depth'].iloc[index] = row['hf4_revchecker_lfp_rel_depth'][(row['ch'])]
         except KeyError:
             unitfig_lfp.set_title('ch='+str(row['ch']))
         unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
@@ -341,8 +362,12 @@ def make_unit_summary(df, savepath):
 
         pdf.savefig(unitfig)
         plt.close()
+
     print('saving unit summary pdf')
     pdf.close()
+
+    print('saving an updated h5 ephys file')
+    newdf.to_hdf(os.path.join(savepath, 'updated_ephys_props.h5'), 'w')
 
 def make_session_summary(df, savepath):
     pdf = PdfPages(os.path.join(savepath, 'session_summary.pdf'))
@@ -437,6 +462,17 @@ def make_session_summary(df, savepath):
                 i = i+1
         except:
             pass
+        # all psth plots in a single panel, with avg plotted over the top
+        plt.subplot(3,4,9)
+        lower = -0.5; upper = 1.5; dt = 0.1
+        bins = np.arange(lower,upper+dt,dt)
+        for ind, row in uniquedf.iterrows():
+            plt.plot(bins[0:-1]+dt/2,row['hf3_gratings_grating_psth'])
+        avg_psth = np.mean(uniquedf['hf3_gratings_grating_psth'], axis=1)
+        plt.plot(bins[0:-1]+dt/2,avg_psth)
+        plt.set_title('gratings psth'); plt.set_xlabel('time'); plt.set_ylabel('sp/sec')
+        plt.set_ylim([0,np.nanmax(avg_psth)*1.5])
+        
         pdf.savefig()
         plt.close()
     print('saving session summary pdf')
