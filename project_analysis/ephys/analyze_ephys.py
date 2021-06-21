@@ -930,17 +930,18 @@ def run_ephys_analysis(file_dict):
     
     print('plotting spike rate vs theta/phi')
     # plot rate vs theta
-    th_range = np.arange(-5,6,1)
+    th_range = np.arange(-30,31,1)
     spike_rate_vs_theta_cent, spike_rate_vs_theta_tuning, spike_rate_vs_theta_err, spike_rate_vs_theta_fig = plot_spike_rate_vs_var(th, th_range, goodcells, eyeT, t, 'eye theta')
     detail_pdf.savefig()
     plt.close()
 
-    phi_range = np.arange(-5,6,1)
+    phi_range = np.arange(-30,31,1)
     spike_rate_vs_phi_cent, spike_rate_vs_phi_tuning, spike_rate_vs_phi_err, spike_rate_vs_phi_fig = plot_spike_rate_vs_var(phi, phi_range, goodcells, eyeT, t, 'eye phi')
     detail_pdf.savefig()
     plt.close()
     
     if free_move is True:
+        print('plotting spike rate vs gyro and speed')
         active_interp = interp1d(model_t, model_active, bounds_error=False)
         active_accT = active_interp(accT.values)
         use = np.where(active_accT > 40)
@@ -964,12 +965,14 @@ def run_ephys_analysis(file_dict):
         plt.close()
 
     if free_move is False and has_mouse is True:
+        print('plotting spike rate vs speed')
         spd_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
         spike_rate_vs_spd_cent, spike_rate_vs_spd_tuning, spike_rate_vs_spd_err, spike_rate_vs_spd_fig = plot_spike_rate_vs_var(spd, spd_range, goodcells, speedT, t, 'speed')
         detail_pdf.savefig()
         plt.close()
 
     if free_move is True:
+        print('plotting spike rate vs pitch/roll')
         # roll vs spike rate
         roll_range = np.arange(-30,31,10)
         spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll[use], roll_range, goodcells, accT[use], t, 'roll')
