@@ -60,6 +60,7 @@ parameters:
     orientation: true                    # get roll/pitch orientation from imu (default=true)
     imu_downsample: 100                  # factor by which to downsample the imu data (default=100)
     imu_sample_rate: 30000               # sample rate of the imu (default=30000)
+    flip_gx_gy: false                    # this should be false unless the imu was accidently mounted at a 90deg rotation
   outputs_and_visualization:
     dwnsmpl: 0.25                        # factor by which to downsample videos before packing into .nc (default=0.25)
     num_save_frames: 3600                # number of frames to write to dianostic .avi (default=3600 (one minute))
