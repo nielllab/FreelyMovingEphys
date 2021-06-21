@@ -930,13 +930,13 @@ def run_ephys_analysis(file_dict):
     
     print('plotting spike rate vs theta/phi')
     # plot rate vs theta
-    th_range = np.arange(-2,2.5,0.5)
-    spike_rate_vs_theta_cent, spike_rate_vs_theta_tuning, spike_rate_vs_theta_err, spike_rate_vs_theta_fig = plot_spike_rate_vs_var(thetaNorm, th_range, goodcells, eyeT, t, 'eye theta')
+    th_range = np.arange(-5,6,1)
+    spike_rate_vs_theta_cent, spike_rate_vs_theta_tuning, spike_rate_vs_theta_err, spike_rate_vs_theta_fig = plot_spike_rate_vs_var(th, th_range, goodcells, eyeT, t, 'eye theta')
     detail_pdf.savefig()
     plt.close()
 
-    phi_range = np.arange(-2,2.5,0.5)
-    spike_rate_vs_phi_cent, spike_rate_vs_phi_tuning, spike_rate_vs_phi_err, spike_rate_vs_phi_fig = plot_spike_rate_vs_var(phiNorm, phi_range, goodcells, eyeT, t, 'eye phi')
+    phi_range = np.arange(-5,6,1)
+    spike_rate_vs_phi_cent, spike_rate_vs_phi_tuning, spike_rate_vs_phi_err, spike_rate_vs_phi_fig = plot_spike_rate_vs_var(phi, phi_range, goodcells, eyeT, t, 'eye phi')
     detail_pdf.savefig()
     plt.close()
     
@@ -971,12 +971,12 @@ def run_ephys_analysis(file_dict):
 
     if free_move is True:
         # roll vs spike rate
-        roll_range = np.arange(-30,30,3)
+        roll_range = np.arange(-30,31,10)
         spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll[use], roll_range, goodcells, accT[use], t, 'roll')
         detail_pdf.savefig()
         plt.close()
         # pitch vs spike rate
-        pitch_range = np.arange(-30,30,3)
+        pitch_range = np.arange(-30,31,10)
         spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch[use], pitch_range, goodcells, accT[use], t, 'pitch')
         detail_pdf.savefig()
         plt.close()
@@ -989,7 +989,7 @@ def run_ephys_analysis(file_dict):
         plt.figure()
         plt.plot(pitch_interp[::100], th[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
         plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
-        detail_pdf.savefig()
+        diagnostic_pdf.savefig()
         plt.close()
         # roll vs phi
         rolli1d = interp1d(accT, roll, bounds_error=False)
@@ -997,29 +997,39 @@ def run_ephys_analysis(file_dict):
         plt.figure()
         plt.plot(roll_interp[::100], phi[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
         plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
-        detail_pdf.savefig()
+        diagnostic_pdf.savefig()
         plt.close()
         # roll vs theta
         plt.figure()
         plt.plot(roll_interp[::100], th[::100], '.'); plt.xlabel('roll'); plt.ylabel('theta')
         plt.ylim([-60,60]); plt.xlim([-60,60])
-        detail_pdf.savefig()
+        diagnostic_pdf.savefig()
         plt.close()
         # pitch vs phi
         plt.figure()
         plt.plot(pitch_interp[::100], phi[::100], '.'); plt.xlabel('pitch'); plt.ylabel('phi')
         plt.ylim([-60,60]); plt.xlim([-60,60])
-        detail_pdf.savefig()
+        diagnostic_pdf.savefig()
         plt.close()
         # histogram of pitch values
         plt.figure()
         plt.hist(pitch, bins=50); plt.xlabel('pitch')
-        detail_pdf.savefig()
+        diagnostic_pdf.savefig()
         plt.close()
         # histogram of pitch values
         plt.figure()
         plt.hist(roll, bins=50); plt.xlabel('roll')
-        detail_pdf.savefig()
+        diagnostic_pdf.savefig()
+        plt.close()
+        # histogram of th values
+        plt.figure()
+        plt.hist(th, bins=50); plt.xlabel('theta')
+        diagnostic_pdf.savefig()
+        plt.close()
+        # histogram of pitch values
+        plt.figure()
+        plt.hist(phi, bins=50); plt.xlabel('phi')
+        diagnostic_pdf.savefig()
         plt.close()
 
     print('generating summary plot')
