@@ -139,6 +139,17 @@ def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):
 def population_analysis(config):
     print('pooling ephys data')
     df = load_ephys(config['population']['metadata_csv_path'])
+    # clean up h5 file
+    cols = df.columns.values
+    shcols = [c for c in cols if 'gratingssh' in c]
+    for c in shcols:
+        new_col = str(c.replace('gratingssh', 'gratings'))
+        df = df.rename(columns={str(c): new_col})
+    badcols = []
+    for c in cols:
+        if any(s in c for s in ['fm2','hf5','hf6','hf7','hf8']):
+            badcols.append(c)
+    df = df.drop(labels=badcols, axis=1)
     print('saving pooled ephys data to '+config['population']['save_path'])
     h5path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.h5')
     df.to_hdf(h5path, 'w')

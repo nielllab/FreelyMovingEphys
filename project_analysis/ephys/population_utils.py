@@ -1,10 +1,11 @@
 """
-ephys_population.py
+population_utils.py
 """
 import numpy as np
 import pandas as pd
 import os
 from tqdm import tqdm
+import scipy.stats
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -395,23 +396,23 @@ def make_session_summary(df, savepath):
     for unique_ind in tqdm(unique_inds):
         uniquedf = df.loc[unique_ind]
         # set up subplots
-        plt.subplots(6,2,figsize=(20,10))
-        plt.suptitle(unique_ind+'eye fit: m='+str(uniquedf['best_ellipse_fit_m'].iloc[0])+' r='+str(uniquedf['best_ellipse_fit_r'].iloc[0]))
+        plt.subplots(4,3,figsize=(20,25))
+        plt.suptitle(unique_ind+' eye fit: m='+str(uniquedf['best_ellipse_fit_m'].iloc[0])+' r='+str(uniquedf['best_ellipse_fit_r'].iloc[0]))
         # eye position vs head position
         try:
-            plt.subplot(6,2,1)
+            plt.subplot(4,3,1)
             plt.title('dEye vs dHead')
-            dEye = uniquedf['fm1_dEye'].iloc[0]
-            dHead = uniquedf['fm1_dHead'].iloc[0]
+            if type(uniquedf['fm1_dEye'][0]) == scipy.interpolate.interpolate.interp1d:
+                dEye = uniquedf['fm1_dHead'].iloc[0]
+                dHead = uniquedf['fm1_dEye'].iloc[0]
+            elif type(uniquedf['fm1_dEye'][0]) == list:
+                dEye = uniquedf['fm1_dEye'].iloc[0]
+                dHead = uniquedf['fm1_dHead'].iloc[0]
+            elif type(uniquedf['fm1_dEye'][0]) == float:
+                dEye = uniquedf['fm1_dHead'].iloc[0]
+                dHead = uniquedf['fm1_dEye'].iloc[0]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
-            if len(dEye[0:-1:10]) == len(dHead(eyeT[0:-1:10])):
-                plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10]),'.')
-            elif len(dEye[0:-1:10]) > len(dHead(eyeT[0:-1:10])):
-                len_diff = len(dEye[0:-1:10]) - len(dHead(eyeT[0:-1:10]))
-                plt.plot(dEye[0:-1:10][:-len_diff],dHead(eyeT[0:-1:10]),'.')
-            elif len(dEye[0:-1:10]) < len(dHead(eyeT[0:-1:10])):
-                len_diff = len(dHead(eyeT[0:-1:10])) - len(dEye[0:-1:10])
-                plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10])[:-len_diff],'.')
+            plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10]),'.')
             plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
             plt.plot([-10,10],[10,-10], 'r')
         except:
@@ -422,30 +423,30 @@ def make_session_summary(df, savepath):
             pitch_interp = uniquedf['fm1_pitch_interp'].iloc[0]
             th = uniquedf['fm1_theta'].iloc[0]
             phi = uniquedf['fm1_phi'].iloc[0]
-            plt.subplot(6,2,2)
+            plt.subplot(4,3,2)
             plt.plot(pitch_interp[::100], th[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
-            plt.subplot(6,2,3)
+            plt.subplot(4,3,3)
             plt.plot(roll_interp[::100], phi[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
         except:
             pass
         try:
             # histogram of theta from -45 to 45deg (are eye movements in resonable range?)
-            plt.subplot(6,2,4)
+            plt.subplot(4,3,4)
             plt.title('hist of FM theta')
             plt.hist(uniquedf['fm1_theta'].iloc[0], range=[-45,45])
             # histogram of phi from -45 to 45deg (are eye movements in resonable range?)
-            plt.subplot(6,2,5)
+            plt.subplot(4,3,5)
             plt.title('hist of FM phi')
             plt.hist(uniquedf['fm1_phi'].iloc[0], range=[-45,45])
             # histogram of gyro z (resonable range?)
-            plt.subplot(6,2,6)
+            plt.subplot(4,3,6)
             plt.title('hist of FM gyro z')
             plt.hist(uniquedf['fm1_gz'].iloc[0], range=[2,4])
             # plot of contrast response functions on same panel scaled to max 30sp/sec
             # plot of average contrast reponse function across units
-            plt.subplot(6,2,7)
+            plt.subplot(4,3,7)
             plt.title('contrast response functions')
             for ind, row in uniquedf.iterrows():
                 plt.errorbar(row['hf1_wn_crf_cent'],row['hf1_wn_crf_tuning'],yerr=row['hf1_wn_crf_err'])
@@ -457,19 +458,19 @@ def make_session_summary(df, savepath):
             if num_channels == 64:
                 for ch_num in np.arange(0,64):
                     if ch_num<=31:
-                        plt.subplot(6,2,8)
+                        plt.subplot(4,3,8)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
                         plt.title('lfp trace, shank1'); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                         plt.ylim([-1200,400])
                     if ch_num>31:
-                        plt.subplot(6,2,9)
+                        plt.subplot(4,3,9)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
                         plt.title('lfp trace, shank2'); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                         plt.ylim([-1200,400])
             # fm spike raster
-            plt.subplot(6,2,10)
+            plt.subplot(4,3,10)
             plt.title('FM spike raster')
             i = 0
             for ind, row in uniquedf.iterrows():
@@ -479,7 +480,7 @@ def make_session_summary(df, savepath):
         except:
             pass
         # all psth plots in a single panel, with avg plotted over the top
-        plt.subplot(6,2,11)
+        plt.subplot(4,3,11)
         lower = -0.5; upper = 1.5; dt = 0.1
         bins = np.arange(lower,upper+dt,dt)
         psth_list = []
@@ -496,6 +497,9 @@ def make_session_summary(df, savepath):
             plt.ylim([0,np.nanmax(avg_psth)*1.5])
         except:
             pass
+        plt.subplot(4,3,12)
+        plt.axis('off')
+        plt.tight_layout()
         pdf.savefig()
         plt.close()
     print('saving session summary pdf')
