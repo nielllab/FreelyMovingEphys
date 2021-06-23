@@ -150,6 +150,7 @@ def population_analysis(config):
         if any(s in c for s in ['fm2','hf5','hf6','hf7','hf8']):
             badcols.append(c)
     df = df.drop(labels=badcols, axis=1)
+    df = df.groupby(lambda x:x, axis=1); df = df.agg(np.nansum) # combine identical column names
     print('saving pooled ephys data to '+config['population']['save_path'])
     h5path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.h5')
     df.to_hdf(h5path, 'w')
