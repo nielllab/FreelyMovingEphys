@@ -110,10 +110,7 @@ def run_ephys_analysis(file_dict):
             world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
     else:
         # if the worldcam has already been resized when the nc file was written in preprocessing, don't resize
-        world_vid = world_vid_raw
-
-    del world_vid_raw
-    gc.collect()
+        world_vid = world_vid_raw.copy()
 
     worldT = world_data.timestamps.copy()
 
@@ -367,29 +364,29 @@ def run_ephys_analysis(file_dict):
 
     # set up interpolators for eye and world videos
     eyeInterp = interp1d(eyeT, eye_vid, axis=0, bounds_error=False)
-    worldInterp = interp1d(worldT, world_vid, axis=0, bounds_error=False)
+    worldInterp = interp1d(worldT, world_vid_raw, axis=0, bounds_error=False)
     if free_move:
         topInterp = interp1d(topT, top_vid, axis=0,bounds_error=False)
     
     if file_dict['imu'] is not None and free_move is True:
-        trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], accT=accT, gz=gz)
+        trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], accT=accT, gz=gz)
         detail_pdf.savefig()
         plt.close()
     elif file_dict['speed'] is not None and free_move is True:
-        trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], speedT=speedT, spd=spd)
+        trace_summary_fig = plot_trace_summary(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_speed, topT, tr = [15,45], speedT=speedT, spd=spd)
         detail_pdf.savefig()
         plt.close()
 
     if file_dict['mp4']:
         if file_dict['imu'] is not None:
             print('making video figure')
-            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
             print('making a reduced version of the video figure')
-            vidfile1 = make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, accT=accT, gz=gz)
+            vidfile1 = make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, accT=accT, gz=gz)
         elif file_dict['speed'] is not None:
             print('making video figure')
-            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
-            vidfile2 = make_movie2(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
+            vidfile2 = make_movie2(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
         print('making audio figure')
         audfile = make_sound(file_dict, ephys_data, units, this_unit)
         print('merging videos with sound')

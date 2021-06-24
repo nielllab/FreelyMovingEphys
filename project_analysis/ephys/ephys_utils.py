@@ -1,7 +1,5 @@
 """
 ephys_utils.py
-
-utilities for processing ephys data and using ephys analysis outputs
 """
 import pandas as pd
 import numpy as np
