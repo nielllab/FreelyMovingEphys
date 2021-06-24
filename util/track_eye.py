@@ -199,14 +199,23 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # get bools of when a frame is usable with the right number of points above threshold
     if config['parameters']['eyes']['spot_subtract'] is True:
         # if spot subtraction is being done, we should only include frames where all five pts marked around the ir spot are good (centroid would be off otherwise)
-        usegood_req5 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ellipse_pts_needed']) & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
-        usegood_req8 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['calib_ellipse_pts_needed']) & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+        usegood_req5 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ellipse_pts_needed'])# & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+        usegood_req8 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['calib_ellipse_pts_needed'])# & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+        spot_usegood = (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
     else:
         usegood_req5 = np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ellipse_pts_needed']
         usegood_req8 = np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['calib_ellipse_pts_needed']
 
     # plot all good timepoints
     if config['parameters']['outputs_and_visualization']['save_figs'] is True:
+        if config['parameters']['eyes']['spot_subtract'] is True:
+            plt.figure()
+            plt.plot(np.sum(spot_likelihood >= config['parameters']['eye']['num_ir_spot_pts_needed'], 1)[0:-1:10])
+            plt.title(str(np.round(np.mean(spot_usegood), 3)) + ' good (req5) for IR spot; thresh= ' + str(config['parameters']['lik_thresh']))
+            plt.ylabel('num good IR spot points'); plt.xlabel('every 10th frame')
+            pdf.savefig()
+            plt.close()
+
         plt.figure()
         plt.plot(np.sum(likelihood >= config['parameters']['lik_thresh'], 1)[0:-1:10])
         plt.title(str(np.round(np.mean(usegood_req5), 3)) + ' good (req5); thresh= ' + str(config['parameters']['lik_thresh']))

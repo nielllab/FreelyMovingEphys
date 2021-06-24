@@ -21,7 +21,7 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def main(config_path, clear_dlc=False, force_probe_name=None, batch=False):
+def main(config_path, clear_dlc=False, force_probe_name=None, force_flip_gx_gy=False, batch=False):
     if type(config_path) == dict:
         # if config options were provided instead of the expected path to a file
         config = config_path
@@ -31,8 +31,13 @@ def main(config_path, clear_dlc=False, force_probe_name=None, batch=False):
 
     print('analyzing session with path',config['animal_dir'])
 
+    # overwrite config probe name with arg
+    # used by batch analysis
     if force_probe_name is not None:
         config['ephys_analysis']['probe_type'] = force_probe_name
+    # force gyro x and y to flip labels for sessions which have the imu rotated 90deg
+    # default is false, batch analysis can overwrite to true
+    config['parameters']['imu']['flip_gx_gy'] = force_flip_gx_gy
     
     if config['deinterlace']['run_deinter']:
         deinterlace_data(config)

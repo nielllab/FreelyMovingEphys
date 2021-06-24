@@ -1,7 +1,5 @@
 """
 ephys_utils.py
-
-utilities for processing ephys data and using ephys analysis outputs
 """
 import pandas as pd
 import numpy as np
@@ -36,14 +34,11 @@ def load_ephys(csv_filepath):
     goodsessions = []
     # get all of the best freely moving recordings of a session into a dictionary
     goodfmrecs = dict(zip(list(for_data_pool['experiment_date']+'_'+for_data_pool['animal_name']),['fm1' if np.isnan(i) else i for i in for_data_pool['best_fm_rec']]))
-    # get all of the session data locations into a list
-    # if platform.system() == 'Linux':
-    #     for ind, row in for_data_pool.iterrows():
-    #         if row['animal_dirpath'][:2] == '//':
-    #             split_name = list(filter(None, row['animal_dirpath'].split('/')))
-    #             computer = row['computer']; drive = row['drive']
-    #             new_path = '/home/niell_lab/'+computer+'/'+drive+'/'+'/'.join(split_name[2:])
-    # else:
+    # change paths to work with linux
+    if platform.system() == 'Linux':
+        for ind, row in for_data_pool.iterrows():
+            drive = [row['drive'] if row['drive'] == 'nlab-nas' else row['drive'].capitalize()][0]
+            for_data_pool.loc[ind,'animal_dirpath'] = os.path.expanduser('~/'+('/'.join([row['computer'].title(), drive] + list(filter(None, row['animal_dirpath'].replace('\\','/').split('/')))[2:])))
     for ind, row in for_data_pool.iterrows():
         goodsessions.append(row['animal_dirpath'])
     # get the .h5 files from each day
@@ -139,6 +134,18 @@ def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):
 def population_analysis(config):
     print('pooling ephys data')
     df = load_ephys(config['population']['metadata_csv_path'])
+    # clean up h5 file
+    cols = df.columns.values
+    shcols = [c for c in cols if 'gratingssh' in c]
+    for c in shcols:
+        new_col = str(c.replace('gratingssh', 'gratings'))
+        df = df.rename(columns={str(c): new_col})
+    badcols = []
+    for c in cols:
+        if any(s in c for s in ['fm2','hf5','hf6','hf7','hf8']):
+            badcols.append(c)
+    df = df.drop(labels=badcols, axis=1)
+    df = df.groupby(lambda x:x, axis=1); df = df.agg(np.nansum) # combine identical column names
     print('saving pooled ephys data to '+config['population']['save_path'])
     h5path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.h5')
     df.to_hdf(h5path, 'w')
