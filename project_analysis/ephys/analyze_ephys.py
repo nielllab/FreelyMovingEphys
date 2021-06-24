@@ -605,9 +605,11 @@ def run_ephys_analysis(file_dict):
             u = flow_norm[f,:,:,0]; v = -flow_norm[f,:,:,1]  # negative to fix sign for y axis in images
             sx = cv2.Sobel(frm,cv2.CV_64F,1,0,ksize=11)
             sy = -cv2.Sobel(frm,cv2.CV_64F,0,1,ksize=11)# negative to fix sign for y axis in images
-            sx[std_im<0.05]=0; sy[std_im<0.05]=0; # get rid of values outside of monitor
+            sx[std_im<20]=0; sy[std_im<20]=0; # get rid of values outside of monitor
             sy[sx<0] = -sy[sx<0]  #make vectors point in positive x direction (so opposite sides of grating don't cancel)
             sx[sx<0] = -sx[sx<0]
+            #sy[np.abs(sx)<500000] = np.abs(sy[np.abs(sx)<500000]) # deals with horitzontal cases - flips them right side up
+            sy[np.abs(sx/sy)<0.15] = np.abs(sy[np.abs(sx/sy)<0.15])
             #ax.quiver(x[::nx,::nx],y[::nx,::nx],sx[::nx,::nx],sy[::nx,::nx], scale = 100000 )
             #u_mn[f]= np.mean(u); v_mn[f]= np.mean(v); sx_mn[f] = np.mean(sx); sy_mn[f] = np.mean(sy)
             u_mn[f]= np.mean(u[ycent-yrg:ycent+yrg, xcent-xrg:xcent+xrg]); v_mn[f]= np.mean(v[ycent-yrg:ycent+yrg, xcent-xrg:xcent+xrg]); 
@@ -651,7 +653,7 @@ def run_ephys_analysis(file_dict):
         grating_ori = grating_ori - np.min(grating_ori)
         np.unique(grating_ori)
 
-        ori_cat = np.floor((grating_ori+np.pi/8)/(np.pi/4))
+        ori_cat = np.floor((grating_ori+np.pi/16)/(np.pi/4))
 
         km = KMeans(n_clusters=3).fit(np.reshape(grating_mag,(-1,1)))
         sf_cat = km.labels_
@@ -676,7 +678,7 @@ def run_ephys_analysis(file_dict):
         diagnostic_pdf.savefig()
         plt.close()
         
-        print('plotting grading orientation and tuning curves')
+        print('plotting grating orientation and tuning curves')
         edge_win = 0.025
         grating_rate = np.zeros((len(goodcells),len(stim_start)))
         spont_rate = np.zeros((len(goodcells),len(stim_start)))
