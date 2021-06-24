@@ -86,7 +86,7 @@ def launch_ephys_gui():
     ch_count_label = Label(entry, text="probe mapping?")
     ch_count_label.grid(column=0, row=6)
     ch_count = StringVar()
-    ch_count.set(hf_stim_options[0])
+    ch_count.set(ch_count_options[0])
     ch_count1 = OptionMenu(entry, ch_count, *ch_count_options)
     ch_count1.grid(column=1, row=6)
 

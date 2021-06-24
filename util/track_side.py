@@ -1,7 +1,5 @@
 """
 track_side.py
-
-side camera tracking utilities
 """
 import xarray as xr
 import pandas as pd
@@ -36,8 +34,8 @@ def side_tracking(sidedlc, config):
             likeli_pt = sidedlc.sel(point_loc=current_pt_loc)
 
             # set x/y coords to NaN where the likelihood is below threshold value
-            assoc_x_pt[likeli_pt < config['lik_thresh']] = np.nan
-            assoc_y_pt[likeli_pt < config['lik_thresh']] = np.nan
+            assoc_x_pt[likeli_pt < config['parameters']['lik_thresh']] = np.nan
+            assoc_y_pt[likeli_pt < config['parameters']['lik_thresh']] = np.nan
 
             likeli_thresh_1loc = xr.concat([assoc_x_pt, assoc_y_pt, likeli_pt], dim='point_loc')
 

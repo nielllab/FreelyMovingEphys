@@ -1,8 +1,7 @@
 """
 track_eye.py
-
-utilities for tracking the pupil of the mouse and fitting an ellipse to the DeepLabCut points
 """
+
 from skimage import measure
 from itertools import product
 from numpy import *
@@ -42,11 +41,11 @@ from util.aux_funcs import nanxcorr
 def fit_ellipse(x,y):
     """
     finds the best fit to an ellipse for the given set of points in a single frame
-    INPUTS:
-        x -- x values of points around pupil as two numpy arrays
-        y -- y values of points around pupil as two numpy arrays
-    RETURNS:
-        ellipse_dict -- dictionary of ellipse parameters for a single frame
+    INPUTS
+        x: x values of points around pupil as two numpy arrays
+        y: y values of points around pupil as two numpy arrays
+    RETURNS
+        ellipse_dict: dictionary of ellipse parameters for a single frame
     adapted from /niell-lab-analysis/freely moving/fit_ellipse2.m
     """
     orientation_tolerance = 1*np.exp(-3)
@@ -123,34 +122,29 @@ def fit_ellipse(x,y):
 
     return ellipse_dict
 
-# def spot_conv_mean(y, box_pts=3):
-#     filt = np.ones(box_pts)/box_pts
-#     y_conv = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='same'), axis=0, arr=y)
-#     return np.mean(y_conv, 1)
-
 def eye_tracking(eye_data, config, trial_name, eye_side):
     """
     get the ellipse parameters from DeepLabCut points and save into an xarray
-    INPUTS:
-        eye_data -- xarray of eye point positions and likelihood
-        config -- dictionary of options
-        trial_name -- str, e.g. '010121_subject_...'
-        eye_side -- str, e.g. 'REYE'
-    OUTPUTS:
-        ellipse_out -- xarray DataArray of ellipse parameters
+    INPUTS
+        eye_data: xarray of eye point positions and likelihood
+        config: dictionary of options
+        trial_name: str, e.g. '010121_subject_...'
+        eye_side: str, e.g. 'REYE'
+    OUTPUTS
+        ellipse_out: xarray DataArray of ellipse parameters
     also saves to file a pdf of diagnostic figures
     adapted from /niell-lab-analysis/freely moving/EyeCameraCalc1.m
     """
     # set up the pdf to be saved out with diagnostic figures
-    if config['save_figs'] is True:
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['recording_path'], (trial_name + '_' + eye_side + 'EYE_tracking_figs.pdf')))
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
+        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['recording_path'], (trial_name + '_' + eye_side + '_tracking_figs.pdf')))
 
-    fig_dwnsmpl = config['eye_fig_pts_dwnspl']
+    fig_dwnsmpl = config['parameters']['outputs_and_visualization']['eye_fig_pts_dwnspl']
 
     # if this is a hf recoridng, read in existing fm camera center, scale, etc.
     # it should run all fm recordings first, so it will be possible to read in fm camera calibration parameters for every hf recording
     if 'hf' in trial_name:
-        path_to_existing_props = sorted(find('*fm_eyecameracalc_props.json', config['data_path'])) # should always go for fm1 before fm2
+        path_to_existing_props = sorted(find('*fm_eyecameracalc_props.json', config['animal_dir'])) # should always go for fm1 before fm2
         if len(path_to_existing_props) == 0:
             print('found no existing camera calibration properties from freely moving recording')
             path_to_existing_props = None
@@ -172,11 +166,11 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # names of the different points
     pt_names = list(eye_data['point_loc'].values)
 
-    x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['lik_thresh'])
+    x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['parameters']['lik_thresh'])
     likelihood_in = likeli_vals.values
 
     # subtract center of IR light reflection from all other pts
-    if config['has_ir_spot_labeled'] and config['spot_subtract']:
+    if config['pose_estimation']['has_ir_spot_labeled'] and config['parameters']['eyes']['spot_subtract']:
 
         spot_xcent = np.mean(x_vals.iloc[:,-5:], 1)
         spot_ycent = np.mean(y_vals.iloc[:,-5:], 1)
@@ -187,7 +181,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         x_vals = x_vals.iloc[:,:-5].subtract(spot_xcent, axis=0)
         y_vals = y_vals.iloc[:,:-5].subtract(spot_ycent, axis=0)
 
-    elif config['has_ir_spot_labeled'] is True and config['spot_subtract'] is False:
+    elif config['pose_estimation']['has_ir_spot_labeled'] is True and config['parameters']['eyes']['spot_subtract'] is False:
         spot_xvals = x_vals.iloc[:,-5:]
         spot_yvals = y_vals.iloc[:,-5:]
         spot_likelihood = likelihood_in[:,-5:]
@@ -197,31 +191,40 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         likelihood = likelihood_in[:,:-5]
 
     # drop tear/outer
-    if config['has_tear_labeled'] is True:
+    if config['pose_estimation']['has_ir_spot_labeled'] is True:
         x_vals = x_vals.iloc[:,:-2]
         y_vals = y_vals.iloc[:,:-2]
         likelihood = likelihood_in[:,:-2]
 
     # get bools of when a frame is usable with the right number of points above threshold
-    if config['spot_subtract'] is True:
+    if config['parameters']['eyes']['spot_subtract'] is True:
         # if spot subtraction is being done, we should only include frames where all five pts marked around the ir spot are good (centroid would be off otherwise)
-        usegood_req5 = (np.sum(likelihood >= config['lik_thresh'], 1) >= config['num_ellipse_pts_needed']) & (np.sum(spot_likelihood >= config['lik_thresh'], 1) >= config['num_ir_spot_pts_needed'])
-        usegood_req8 = (np.sum(likelihood >= config['lik_thresh'], 1) >= config['calib_ellipse_pts_needed']) & (np.sum(spot_likelihood >= config['lik_thresh'], 1) >= config['num_ir_spot_pts_needed'])
+        usegood_req5 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ellipse_pts_needed'])# & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+        usegood_req8 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['calib_ellipse_pts_needed'])# & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+        spot_usegood = (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
     else:
-        usegood_req5 = np.sum(likelihood >= config['lik_thresh'], 1) >= config['num_ellipse_pts_needed']
-        usegood_req8 = np.sum(likelihood >= config['lik_thresh'], 1) >= config['calib_ellipse_pts_needed']
+        usegood_req5 = np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ellipse_pts_needed']
+        usegood_req8 = np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['calib_ellipse_pts_needed']
 
     # plot all good timepoints
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
+        if config['parameters']['eyes']['spot_subtract'] is True:
+            plt.figure()
+            plt.plot(np.sum(spot_likelihood >= config['parameters']['eye']['num_ir_spot_pts_needed'], 1)[0:-1:10])
+            plt.title(str(np.round(np.mean(spot_usegood), 3)) + ' good (req5) for IR spot; thresh= ' + str(config['parameters']['lik_thresh']))
+            plt.ylabel('num good IR spot points'); plt.xlabel('every 10th frame')
+            pdf.savefig()
+            plt.close()
+
         plt.figure()
-        plt.plot(np.sum(likelihood >= config['lik_thresh'], 1)[0:-1:10])
-        plt.title(str(np.round(np.mean(usegood_req5), 3)) + ' good (req5); thresh= ' + str(config['lik_thresh']))
+        plt.plot(np.sum(likelihood >= config['parameters']['lik_thresh'], 1)[0:-1:10])
+        plt.title(str(np.round(np.mean(usegood_req5), 3)) + ' good (req5); thresh= ' + str(config['parameters']['lik_thresh']))
         plt.ylabel('num good eye points'); plt.xlabel('every 10th frame')
         pdf.savefig()
         plt.close()
     
         plt.figure()
-        plt.hist(np.sum(likelihood >= config['lik_thresh'], 1),bins=9, range = (0,9))
+        plt.hist(np.sum(likelihood >= config['parameters']['lik_thresh'], 1),bins=9, range = (0,9))
         plt.xlabel('num good eye points'); plt.ylabel('n frames')
         pdf.savefig()
         plt.close()
@@ -229,10 +232,10 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # threshold out pts more than a given distance away from nanmean of that point
     std_thresh_x = np.empty(np.shape(x_vals))
     for point_loc in range(0,np.size(x_vals, 1)):
-        std_thresh_x[:,point_loc] = (np.absolute(np.nanmean(x_vals.iloc[:,point_loc]) - x_vals.iloc[:,point_loc]) / config['eyecam_pxl_per_cm']) > config['eye_dist_thresh_cm']
+        std_thresh_x[:,point_loc] = (np.absolute(np.nanmean(x_vals.iloc[:,point_loc]) - x_vals.iloc[:,point_loc]) / config['parameters']['eyes']['eyecam_pxl_per_cm']) > config['parameters']['eyes']['eye_dist_thresh_cm']
     std_thresh_y = np.empty(np.shape(y_vals))
     for point_loc in range(0,np.size(x_vals, 1)):
-        std_thresh_y[:,point_loc] = (np.absolute(np.nanmean(y_vals.iloc[:,point_loc]) - y_vals.iloc[:,point_loc]) / config['eyecam_pxl_per_cm']) > config['eye_dist_thresh_cm']
+        std_thresh_y[:,point_loc] = (np.absolute(np.nanmean(y_vals.iloc[:,point_loc]) - y_vals.iloc[:,point_loc]) / config['parameters']['eyes']['eyecam_pxl_per_cm']) > config['parameters']['eyes']['eye_dist_thresh_cm']
     std_thresh_x = np.nanmean(std_thresh_x, 1)
     std_thresh_y = np.nanmean(std_thresh_y, 1)
     x_vals[std_thresh_x > 0] = np.nan
@@ -268,7 +271,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
     # list of all places where the ellipse meets threshold
     R = np.linspace(0,2*np.pi, 100)
-    usegood_ellipcalb = np.where((usegood_req8 == True) & ((ellipse_params[:,6] / ellipse_params[:,5]) < config['ell_thresh'])) # short axis / long axis
+    usegood_ellipcalb = np.where((usegood_req8 == True) & ((ellipse_params[:,6] / ellipse_params[:,5]) < config['parameters']['eyes']['ell_thresh'])) # short axis / long axis
 
     # this limits the number of frames used for the calibration
     if np.size(usegood_ellipcalb,1) > 50000:
@@ -298,14 +301,14 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     theta = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
     phi = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
 
-    # if config['save_figs'] is True:
+    # if config['parameters']['outputs_and_visualization']['save_figs'] is True:
     #     plt.figure()
     #     plt.scatter(ellipse_params[:,7], phi)
     #     plt.title('angle_to_x vs phi')
     #     pdf.savefig()
     #     plt.close()
 
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         try:
             plt.figure()
             plt.plot(np.rad2deg(phi)[0:-1:10])
@@ -332,11 +335,11 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     ellipse_out.attrs['cam_center_y'] = cam_cent[1,0]
 
     # ellipticity histogram
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         try:
             plt.figure()
             plt.hist(ellipticity)
-            plt.title('ellipticity; thresh= ' + str(config['ell_thresh']))
+            plt.title('ellipticity; thresh= ' + str(config['parameters']['eyes']['ell_thresh']))
             plt.ylabel('num good eye points'); plt.xlabel('frame')
             pdf.savefig()
             plt.close()
@@ -358,7 +361,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         try:
             xvals = np.linalg.norm(ellipse_params[usegood_req8, 11:13].T - cam_cent, axis=0)
             yvals = scale * np.sqrt(1-(ellipse_params[usegood_req8,6]/ellipse_params[usegood_req8,5])**2)
-            slope, intercept, r_value, p_value, std_err = stats.linregress(xvals, yvals.T)
+            calib_mask = ~np.isnan(xvals) & ~np.isnan(yvals)
+            slope, intercept, r_value, p_value, std_err = stats.linregress(xvals[calib_mask], yvals[calib_mask].T)
         except ValueError:
             print('no good frames that meet criteria... check DLC tracking!')
 
@@ -386,7 +390,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
 
             plt.figure()
             plt.plot(np.linalg.norm(delta[:,short_usegood_req8],2,axis=0), ((delta[0,short_usegood_req8].T * np.cos(ellipse_params[short_usegood_req8,7])) + (delta[1,short_usegood_req8].T * np.sin(ellipse_params[short_usegood_req8, 7]))) / np.linalg.norm(delta[:, short_usegood_req8],2,axis=0).T, 'y.', markersize=1)
-            plt.plot(np.linalg.norm(delta[:,short_list3],2,axis=0), ((delta[0,short_list3].T * np.cos(ellipse_params[short_list3,7])) + (delta[1,short_list3].T * np.sin(ellipse_params[short_list3, 7]))) / np.linalg.norm(delta[:, list3],2,axis=0).T, 'r.', markersize=1)
+            plt.plot(np.linalg.norm(delta[:,short_list3],2,axis=0), ((delta[0,short_list3].T * np.cos(ellipse_params[short_list3,7])) + (delta[1,short_list3].T * np.sin(ellipse_params[short_list3, 7]))) / np.linalg.norm(delta[:, short_list3],2,axis=0).T, 'r.', markersize=1)
             plt.title('camera center calibration')
             plt.ylabel('abs([PC-EC]).[cosw;sinw]')
             plt.xlabel('abs(PC-EC)')
@@ -404,29 +408,30 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     """
     plot the ellipse and dlc points on the video frames
     then, save the video out as an .avi file
-    INPUTS:
-        vid_path -- file path of existing .avi video (should be deinterlaced and calibrated, i.e. what ran through DeepLabCut)
-        dlc_data -- xarray of dlc data (this should be before pts and ell params are merged into one)
-        ell_data -- ellipse fit xarray
-        config -- dict of options
-        trial_name -- str, e.g. '010121_subject_...'
-        eye_letter -- str, e.g. 'R'
-    OUTPUTS: None
+    INPUTS
+        vid_path: file path of existing .avi video (should be deinterlaced and calibrated, i.e. what ran through DeepLabCut)
+        dlc_data: xarray of dlc data (this should be before pts and ell params are merged into one)
+        ell_data: ellipse fit xarray
+        config: dict of options
+        trial_name: str, e.g. '010121_subject_...'
+        eye_letter: str, e.g. 'R'
+    OUTPUTS
+        None
     """
     # read in video
     # setup the file to save out
     vidread = cv2.VideoCapture(vid_path)
     width = int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    savepath = os.path.join(config['recording_path'], (trial_name + '_' + eye_letter + 'EYE_plot.avi'))
+    savepath = os.path.join(config['recording_path'], (trial_name + '_' + eye_letter + '_plot.avi'))
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
 
     # only do the first number of frames (limit of frames to use should be set in config dict)
-    if config['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
+    if config['parameters']['outputs_and_visualization']['num_save_frames'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
         num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
     else:
-        num_save_frames = config['num_save_frames']
+        num_save_frames = config['parameters']['outputs_and_visualization']['num_save_frames']
 
     # iterate through frames
     for frame_num in tqdm(range(0,num_save_frames)):
@@ -458,9 +463,9 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
                     # get the point center of each point num, k
                     pt_cent = (int(pts.isel(point_loc=k).values), int(pts.isel(point_loc=k+1).values))
                     # compare to threshold set in config and plot
-                    if pts.isel(point_loc=k+2).values < config['lik_thresh']: # bad points in red
+                    if pts.isel(point_loc=k+2).values < config['parameters']['lik_thresh']: # bad points in red
                         frame = cv2.circle(frame, pt_cent, 3, (0,0,255), -1)
-                    elif pts.isel(point_loc=k+2).values >= config['lik_thresh']: # good points in green
+                    elif pts.isel(point_loc=k+2).values >= config['parameters']['lik_thresh']: # good points in green
                         frame = cv2.circle(frame, pt_cent, 3, (0,255,0), -1)
             except (ValueError, KeyError):
                 pass
@@ -491,23 +496,24 @@ def sigm_fit_mp(d):
 def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
     """
     find the cyclotorsion (pupil rotation) using eye videos
-    INPUTS:
-        eye_ell_params -- eye theta, phi, etc. xarray
-        config -- options dict
-        trial_name -- str, e.g. '010121_subject_...'
-        side_letter -- str, poorly named, actually the side name, default = 'REYE'
-    OUTPUTS:
-        rfit_xr -- pupil radius as xarray (at each of 360deg)
-        rfit_conv_xr -- convolved radius of pupil as xarray (at each of 360deg)
-        shift -- shift in pxls needed to get best correlation with template 
+    INPUTS
+        eye_ell_params: eye theta, phi, etc. xarray
+        config: options dict
+        trial_name: str, e.g. '010121_subject_...'
+        side_letter: str, side name, default = 'REYE'
+    OUTPUTS
+        rfit_xr: pupil radius as xarray (at each of 360deg)
+        rfit_conv_xr: convolved radius of pupil as xarray (at each of 360deg)
+        shift: shift in pxls needed to get best correlation with template 
     """
-    eyevidpath = find((trial_name + '*' + side_letter + 'deinter.avi'), config['data_path'])[0]
-    eyetimepath = find((trial_name + '*' + side_letter + '_BonsaiTSformatted.csv'), config['data_path'])[0]
-    save_path = config['save_path']; world_interp_method = config['world_interp_method']; ranger = config['range_radius']
+
+    eyevidpath = find((trial_name + '*' + side_letter + 'deinter.avi'), config['recording_path'])[0]
+    eyetimepath = find((trial_name + '*' + side_letter + '_BonsaiTSformatted.csv'), config['recording_path'])[0]
+    save_path = config['recording_path']; world_interp_method = 'linear'; ranger = 10
 
     print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
 
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['recording_path'], (trial_name + '_' + side_letter + '_pupil_rotation_figs.pdf')))
 
     # set up range of degrees in radians
@@ -649,7 +655,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
     timepoint_corr_rfit = pd.DataFrame(rfit_conv_xr.isel(frame=range(0,3600)).values).T.corr()
 
     # plot the correlation matrix of rfit over all timepoints
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         plt.figure()
         fig, ax = plt.subplots()
         im = ax.imshow(timepoint_corr_rfit)
@@ -671,7 +677,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
     except ZeroDivisionError:
         template_nanxcorr = False
 
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         plt.figure()
         plt.plot(template)
         plt.title('mean as template')
@@ -685,7 +691,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
             plt.close()
 
     # xcorr of two random timepoints
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         try:
             t0 = np.random.random_integers(0,totalF-1); t1 = np.random.random_integers(0,totalF-1)
             rfit2times_cc, rfit2times_lags = nanxcorr(rfit_conv_xr.isel(frame=t0).values, rfit_conv_xr.isel(frame=t1).values, 10)
@@ -723,7 +729,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
 
         template = np.nanmean(pupil_update, axis=0) # update template
 
-        if config['save_figs'] is True:
+        if config['parameters']['outputs_and_visualization']['save_figs'] is True:
             # plot template with pupil_update for each iteration of fit
             plt.figure()
             plt.title('pupil_update of rep='+str(rep)+' in iterative fit')
@@ -748,7 +754,7 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
     shift_smooth = convolve(shift_nan, np.ones(win)/win)  # convolve to smooth and fill in nans
     shift_smooth = shift_smooth - np.nanmedian(shift_smooth)
 
-    if config['save_figs'] is True:
+    if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         plt.figure()
         plt.plot(shift_nan)
         plt.title('shift nan')
@@ -802,16 +808,16 @@ def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
 
     shift_smooth1 = xr.DataArray(shift_smooth, dims=['frame'])
 
-    if config['save_avi_vids'] is True:
+    if config['parameters']['outputs_and_visualization']['save_avi_vids'] is True:
         eyevid = cv2.VideoCapture(eyevidpath)
         vidsavepath = os.path.join(config['recording_path'], str(trial_name + '_pupil_rotation_rep' + str(rep) + '_' + side_letter + '.avi'))
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         vidout = cv2.VideoWriter(vidsavepath, fourcc, 60.0, (int(eyevid.get(cv2.CAP_PROP_FRAME_WIDTH))*2, int(eyevid.get(cv2.CAP_PROP_FRAME_HEIGHT))))
         
-        if config['num_save_frames'] > int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)):
+        if config['parameters']['outputs_and_visualization']['num_save_frames'] > int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT)):
             num_save_frames = int(eyevid.get(cv2.CAP_PROP_FRAME_COUNT))
         else:
-            num_save_frames = config['num_save_frames']
+            num_save_frames = config['parameters']['outputs_and_visualization']['num_save_frames']
 
         print('plotting pupil rotation on eye video')
         for step in tqdm(range(0,num_save_frames)):

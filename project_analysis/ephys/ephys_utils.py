@@ -5,7 +5,7 @@ utilities for processing ephys data and using ephys analysis outputs
 """
 import pandas as pd
 import numpy as np
-import json
+import json, platform
 import os
 from scipy.signal import sosfiltfilt
 import cv2
@@ -15,8 +15,10 @@ from scipy.signal import butter, lfilter, freqz
 from scipy.interpolate import interp1d
 import platform
 from tqdm import tqdm
+from datetime import datetime
 
 from util.paths import find
+from project_analysis.ephys.population_utils import make_session_summary, make_unit_summary
 
 def load_ephys(csv_filepath):
     """
@@ -30,13 +32,20 @@ def load_ephys(csv_filepath):
     """
     # open the csv file of metadata and pull out all of the desired data paths
     csv = pd.read_csv(csv_filepath)
-    for_data_pool = csv.loc[csv['load_for_data_pool'] == True]
+    for_data_pool = csv[csv['load_for_data_pool'] == any(['TRUE' or True or 'True'])]
     goodsessions = []
     # get all of the best freely moving recordings of a session into a dictionary
-    goodfmrecs = dict(zip(list(for_data_pool['Experiment date']+'_'+for_data_pool['Animal name']),['fm1' if np.isnan(i) else i for i in for_data_pool['best_fm_rec']]))
+    goodfmrecs = dict(zip(list(for_data_pool['experiment_date']+'_'+for_data_pool['animal_name']),['fm1' if np.isnan(i) else i for i in for_data_pool['best_fm_rec']]))
     # get all of the session data locations into a list
+    # if platform.system() == 'Linux':
+    #     for ind, row in for_data_pool.iterrows():
+    #         if row['animal_dirpath'][:2] == '//':
+    #             split_name = list(filter(None, row['animal_dirpath'].split('/')))
+    #             computer = row['computer']; drive = row['drive']
+    #             new_path = '/home/niell_lab/'+computer+'/'+drive+'/'+'/'.join(split_name[2:])
+    # else:
     for ind, row in for_data_pool.iterrows():
-        goodsessions.append(row['data_location'])
+        goodsessions.append(row['animal_dirpath'])
     # get the .h5 files from each day
     # this will be a list of lists, where each list inside of the main list has all the data of a single session
     sessions = [find('*_ephys_props.h5',session) for session in goodsessions]
@@ -126,3 +135,27 @@ def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):
     high = highcut / nyq
     sos = butter(order, [low, high], btype='bandpass', output='sos')
     return sosfiltfilt(sos, data, axis=0)
+
+def population_analysis(config):
+    print('pooling ephys data')
+    df = load_ephys(config['population']['metadata_csv_path'])
+    # clean up h5 file
+    cols = df.columns.values
+    shcols = [c for c in cols if 'gratingssh' in c]
+    for c in shcols:
+        new_col = str(c.replace('gratingssh', 'gratings'))
+        df = df.rename(columns={str(c): new_col})
+    badcols = []
+    for c in cols:
+        if any(s in c for s in ['fm2','hf5','hf6','hf7','hf8']):
+            badcols.append(c)
+    df = df.drop(labels=badcols, axis=1)
+    df = df.groupby(lambda x:x, axis=1); df = df.agg(np.nansum) # combine identical column names
+    print('saving pooled ephys data to '+config['population']['save_path'])
+    h5path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.h5')
+    df.to_hdf(h5path, 'w')
+    print('writing session summary')
+    make_session_summary(df, config['population']['save_path'])
+    print('writing unit summary')
+    make_unit_summary(df, config['population']['save_path'])
+    print('done with population analysis')

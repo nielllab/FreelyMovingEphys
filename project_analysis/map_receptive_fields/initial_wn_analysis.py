@@ -2,8 +2,6 @@
 initial_wn_analysis.py
 
 run minimal analysis needed to get receptive fields in the worldcam
-
-Jan. 21, 2021
 """
 
 # package imports
@@ -41,19 +39,25 @@ from project_analysis.ephys.ephys_figures import *
 
 def quick_whitenoise_analysis(wn_path):
     temp_config = {
-        'data_path': wn_path,
-        'save_path': wn_path,
-        'flip_eye_during_deinter': True,
-        'flip_world_during_deinter': True,
-        'calibration': {
-            'world_checker_npz': 'T:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz'
+        'animal_dir': wn_path,
+        'deinterlace':{
+            'flip_eye_during_deinter': True,
+            'flip_world_during_deinter': True
         },
-        'save_nc_vids': True,
-        'use_BonsaiTS': True,
-        'dwnsmpl': 0.25,
-        'ephys_sample_rate': 30000,
-        'run_with_form_time': True
-    } # 'G:/freely_moving_ephys/ephys_recordings_copy_011721/calibration_params/world_checkerboard_calib.npz'
+        'calibration': {
+            'world_checker_npz': 'E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz'
+        },
+        'parameters':{
+            'follow_strict_naming': True,
+            'outputs_and_visualization':{
+                'save_nc_vids': True,
+                'dwnsmpl': 0.25
+            },
+            'ephys':{
+                'ephys_sample_rate': 30000
+            }
+        }
+    }
 
     world_vids = glob(os.path.join(wn_path, '*WORLD.avi'))
     world_times = glob(os.path.join(wn_path, '*WORLD_BonsaiTS.csv'))
@@ -62,15 +66,15 @@ def quick_whitenoise_analysis(wn_path):
     calibrate_new_world_vids(temp_config)
 
     trial_units = []; name_check = []; path_check = []
-    for avi in find('*.avi', temp_config['data_path']):
+    for avi in find('*.avi', temp_config['animal_dir']):
         bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
-        if temp_config['run_with_form_time'] is True:
+        if temp_config['parameters']['follow_strict_naming'] is True:
             if all(bad not in avi for bad in bad_list):
                 split_name = avi.split('_')[:-1]
                 trial = '_'.join(split_name)
                 path_to_trial = os.path.join(os.path.split(trial)[0])
                 trial_name = os.path.split(trial)[1]
-        elif temp_config['run_with_form_time'] is False:
+        elif temp_config['parameters']['follow_strict_naming'] is False:
             if all(bad not in avi for bad in bad_list):
                 trial_path_noext = os.path.splitext(avi)[0]
                 path_to_trial, trial_name_long = os.path.split(trial_path_noext)
@@ -98,14 +102,14 @@ def quick_whitenoise_analysis(wn_path):
         worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=temp_config)
         worlddlc.name = 'WORLD_times'
         # make xarray of video frames
-        if temp_config['save_nc_vids'] is True:
+        if temp_config['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
             xr_world_frames = format_frames(world_avi, temp_config); xr_world_frames.name = 'WORLD_video'
         # merge but make sure they're not off in lenght by one value, which happens occasionally
         print('saving nc file of world view...')
-        if temp_config['save_nc_vids'] is True:
+        if temp_config['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
             trial_world_data = safe_xr_merge([worlddlc, xr_world_frames])
             trial_world_data.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
-        elif temp_config['save_nc_vids'] is False:
+        elif temp_config['parameters']['outputs_and_visualization']['save_nc_vids'] is False:
             worlddlc.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')))
 
         print('generating ephys plots')
@@ -206,8 +210,10 @@ def quick_whitenoise_analysis(wn_path):
         pdf.savefig()
         plt.close()
 
+        #ch_count = int([16 if '16' in file_dict['probe_name'] else 64][0])  # fails since there's no file_dict
+        ch_count = int(64)  # hack for absence of file_dict ; i think this should still work for 16ch, but we don't really use it anymore anyways; cmn
         # calculate spike-triggered average
-        staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp)
+        staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp,ch_count)
         pdf.savefig()
         plt.close()
 
