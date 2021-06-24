@@ -52,7 +52,7 @@ def make_unit_summary(df, savepath):
             # waveform
             unitfig_wv = unitfig.add_subplot(spec[0, 0])
             wv = row['waveform']
-            unitfig_wv.plot(np.arange(len(wv))*1000/samprate,wv)
+            unitfig_wv.plot(np.arange(len(wv))*1000/samprate,wv); unitfig_wv.set_ylabel('millivolts'); unitfig_wv.set_xlabel('msec')
             unitfig_wv.set_title(str(row['session'])+'_unit'+str(index)+' '+row['KSLabel']+'\ncont='+str(np.round(row['ContamPct'],3)))
 
             unitfig_crf = unitfig.add_subplot(spec[1, 0])

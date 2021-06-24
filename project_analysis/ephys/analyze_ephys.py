@@ -912,8 +912,8 @@ def run_ephys_analysis(file_dict):
 
     print('plotting spike rate vs pupil radius and position')
     # plot rate vs pupil
-    R_range = np.arange(-2,2.5,0.5)
-    spike_rate_vs_pupil_radius_cent, spike_rate_vs_pupil_radius_tuning, spike_rate_vs_pupil_radius_err, spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(Rnorm, R_range, goodcells, eyeT, t, 'pupil radius')
+    R_range = np.arange(10,51,5)
+    spike_rate_vs_pupil_radius_cent, spike_rate_vs_pupil_radius_tuning, spike_rate_vs_pupil_radius_err, spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(eyeR, R_range, goodcells, eyeT, t, 'pupil radius')
     detail_pdf.savefig()
     plt.close()
 
@@ -930,12 +930,12 @@ def run_ephys_analysis(file_dict):
 
     print('plotting spike rate vs theta/phi')
     # plot rate vs theta
-    th_range = np.arange(-30,31,1)
+    th_range = np.arange(-30,31,5)
     spike_rate_vs_theta_cent, spike_rate_vs_theta_tuning, spike_rate_vs_theta_err, spike_rate_vs_theta_fig = plot_spike_rate_vs_var(th, th_range, goodcells, eyeT, t, 'eye theta')
     detail_pdf.savefig()
     plt.close()
 
-    phi_range = np.arange(-30,31,1)
+    phi_range = np.arange(-30,31,5)
     spike_rate_vs_phi_cent, spike_rate_vs_phi_tuning, spike_rate_vs_phi_err, spike_rate_vs_phi_fig = plot_spike_rate_vs_var(phi, phi_range, goodcells, eyeT, t, 'eye phi')
     detail_pdf.savefig()
     plt.close()

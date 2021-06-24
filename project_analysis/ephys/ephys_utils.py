@@ -36,14 +36,11 @@ def load_ephys(csv_filepath):
     goodsessions = []
     # get all of the best freely moving recordings of a session into a dictionary
     goodfmrecs = dict(zip(list(for_data_pool['experiment_date']+'_'+for_data_pool['animal_name']),['fm1' if np.isnan(i) else i for i in for_data_pool['best_fm_rec']]))
-    # get all of the session data locations into a list
-    # if platform.system() == 'Linux':
-    #     for ind, row in for_data_pool.iterrows():
-    #         if row['animal_dirpath'][:2] == '//':
-    #             split_name = list(filter(None, row['animal_dirpath'].split('/')))
-    #             computer = row['computer']; drive = row['drive']
-    #             new_path = '/home/niell_lab/'+computer+'/'+drive+'/'+'/'.join(split_name[2:])
-    # else:
+    # change paths to work with linux
+    if platform.system() == 'Linux':
+        for ind, row in for_data_pool.iterrows():
+            drive = [row['drive'] if row['drive'] == 'nlab-nas' else row['drive'].capitalize()][0]
+            for_data_pool.loc[ind,'animal_dirpath'] = os.path.expanduser('~/'+('/'.join([row['computer'].title(), drive] + list(filter(None, row['animal_dirpath'].replace('\\','/').split('/')))[2:])))
     for ind, row in for_data_pool.iterrows():
         goodsessions.append(row['animal_dirpath'])
     # get the .h5 files from each day
