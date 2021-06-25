@@ -636,6 +636,7 @@ def run_ephys_analysis(file_dict):
         grating_th = np.zeros(len(stim_start))
         grating_mag = np.zeros(len(stim_start))
         grating_dir = np.zeros(len(stim_start))
+        dI = np.zeros(len(stim_start))
         for i in range(len(stim_start)):
             tpts = np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))
             mag = np.sqrt(sx_mn[tpts]**2 + sy_mn[tpts]**2)
@@ -649,12 +650,17 @@ def run_ephys_analysis(file_dict):
             grating_th[i] = np.arctan2(stim_sy,stim_sx)
             grating_mag[i] = np.sqrt(stim_sx**2 + stim_sy**2)
             grating_dir[i] = np.sign(stim_u*stim_sx + stim_v*stim_sy) # dot product of gratient and flow gives direction
+            
+            dI[i] = np.mean(np.diff(img_norm[tpts,ycent,xcent])**2)  # rate of change of image give temporal frequency
         # grating_th = np.round(grating_th *10)/10
 
         grating_ori = grating_th.copy()
         grating_ori[grating_dir<0] = grating_ori[grating_dir<0] + np.pi
         grating_ori = grating_ori - np.min(grating_ori)
         np.unique(grating_ori)
+        
+        grating_tf = np.zeros(len(stim_start))
+        grating_tf[dI>0.5] = 1;  # 0 = low sf; 1 = hi sf
 
         ori_cat = np.floor((grating_ori+np.pi/16)/(np.pi/4))
 
@@ -686,6 +692,7 @@ def run_ephys_analysis(file_dict):
         grating_rate = np.zeros((len(goodcells),len(stim_start)))
         spont_rate = np.zeros((len(goodcells),len(stim_start)))
         ori_tuning = np.zeros((len(goodcells),8,3))
+        ori_tuning_tf = np.zeros((len(goodcells),8,3,2))
         drift_spont = np.zeros(len(goodcells))
         plt.figure(figsize = (12,n_units*2))
 
@@ -698,16 +705,34 @@ def run_ephys_analysis(file_dict):
             for ori in range(8):
                 for sf in range(3):
                     ori_tuning[c,ori,sf] = np.mean(grating_rate[c,(ori_cat==ori) & (sf_cat ==sf)])
+                    for tf in range(2):
+                        ori_tuning_tf[c,ori,sf,tf] = np.mean(grating_rate[c,(ori_cat==ori) & (sf_cat ==sf) & (grating_tf==tf)])
             drift_spont[c] = np.mean(spont_rate[c,:])
-            plt.subplot(n_units,2,2*c+1)
+            plt.subplot(n_units,4,4*c+1)
             plt.scatter(grating_ori,grating_rate[c,:],c= sf_cat)
             plt.plot(3*np.ones(len(spont_rate[c,:])),spont_rate[c,:],'r.')
-            plt.subplot(n_units,2,2*c+2)
+            
+            plt.subplot(n_units,4,4*c+2)
             plt.plot(ori_tuning[c,:,0],label = 'low sf'); plt.plot(ori_tuning[c,:,1],label = 'mid sf');plt.plot(ori_tuning[c,:,2],label = 'hi sf')
             plt.plot([0,7],[drift_spont[c],drift_spont[c]],'r:', label = 'spont')
-            
             try:
-                plt.ylim(0,np.nanmax(ori_tuning[c,:,:]*1.2))
+                plt.ylim(0,np.nanmax(ori_tuning_tf[c,:,:]*1.2))
+            except ValueError:
+                plt.ylim(0,1)
+                
+            plt.subplot(n_units,4,4*c+3)
+            plt.plot(ori_tuning_tf[c,:,0,0],label = 'low sf'); plt.plot(ori_tuning_tf[c,:,1,0],label = 'mid sf');plt.plot(ori_tuning_tf[c,:,2,0],label = 'hi sf')
+            plt.plot([0,7],[drift_spont[c],drift_spont[c]],'r:', label = 'spont')
+            try:
+                plt.ylim(0,np.nanmax(ori_tuning_tf[c,:,:]*1.2))
+            except ValueError:
+                plt.ylim(0,1)
+            
+            plt.subplot(n_units,4,4*c+4)
+            plt.plot(ori_tuning_tf[c,:,0,1],label = 'low sf'); plt.plot(ori_tuning_tf[c,:,1,1],label = 'mid sf');plt.plot(ori_tuning_tf[c,:,2,1],label = 'hi sf')
+            plt.plot([0,7],[drift_spont[c],drift_spont[c]],'r:', label = 'spont')
+            try:
+                plt.ylim(0,np.nanmax(ori_tuning_tf[c,:,:]*1.2))
             except ValueError:
                 plt.ylim(0,1)
         plt.legend()
@@ -1114,6 +1139,7 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_theta_err',
                                         'grating_psth',
                                         'grating_ori',
+                                        'ori_tuning_tf',
                                         'ori_tuning',
                                         'drift_spont',
                                         'spont_rate',
@@ -1145,6 +1171,7 @@ def run_ephys_analysis(file_dict):
                                     grating_psth[unit_num],
                                     grating_ori[unit_num],
                                     ori_tuning[unit_num],
+                                    ori_tuning_tf[unit_num],
                                     drift_spont[unit_num],
                                     spont_rate[unit_num],
                                     grating_rate[unit_num],
