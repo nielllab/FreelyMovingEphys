@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
 from scipy.interpolate import interp1d
+from datetime import datetime
 
 def modulation_index(tuning, zerocent=True, lbound=0, ubound=-1):
     tuning = tuning[~np.isnan(tuning)]
@@ -384,7 +385,7 @@ def make_unit_summary(df, savepath):
     pdf.close()
 
     print('saving an updated h5 ephys file')
-    newdf.to_hdf(os.path.join(savepath, 'updated_ephys_props.h5'), 'w')
+    newdf.to_hdf(os.path.join(savepath, 'updated_ephys_props_'+datetime.today().strftime('%m%d%y')+'.h5'), 'w')
 
 def make_session_summary(df, savepath):
     pdf = PdfPages(os.path.join(savepath, 'session_summary.pdf'))
@@ -402,15 +403,8 @@ def make_session_summary(df, savepath):
         try:
             plt.subplot(4,3,1)
             plt.title('dEye vs dHead')
-            if type(uniquedf['fm1_dEye'][0]) == scipy.interpolate.interpolate.interp1d:
-                dEye = uniquedf['fm1_dHead'].iloc[0]
-                dHead = uniquedf['fm1_dEye'].iloc[0]
-            elif type(uniquedf['fm1_dEye'][0]) == list:
-                dEye = uniquedf['fm1_dEye'].iloc[0]
-                dHead = uniquedf['fm1_dHead'].iloc[0]
-            elif type(uniquedf['fm1_dEye'][0]) == float:
-                dEye = uniquedf['fm1_dHead'].iloc[0]
-                dHead = uniquedf['fm1_dEye'].iloc[0]
+            dEye = uniquedf['fm1_dEye'].iloc[0]
+            dHead = uniquedf['fm1_dHead'].iloc[0]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
             plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10]),'.')
             plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
