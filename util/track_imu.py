@@ -138,31 +138,24 @@ def read_8ch_imu(imupath, timepath, config):
     dataarray values are downsampled by value in input dictionary config
     """
     # set up datatypes and names for each channel
-    if config['parameters']['imu']['flip_gx_gy']:
-        dtypes = np.dtype([
-            ("acc_x",np.uint16),
-            ("acc_y",np.uint16),
-            ("acc_z",np.uint16),
-            ("none1",np.uint16),
-            ("gyro_y",np.uint16),
-            ("gyro_x",np.uint16),
-            ("gyro_z",np.uint16),
-            ("none2",np.uint16)
-        ])
-    else:
-        dtypes = np.dtype([
-            ("acc_x",np.uint16),
-            ("acc_y",np.uint16),
-            ("acc_z",np.uint16),
-            ("none1",np.uint16),
-            ("gyro_x",np.uint16),
-            ("gyro_y",np.uint16),
-            ("gyro_z",np.uint16),
-            ("none2",np.uint16)
-        ])
+    dtypes = np.dtype([
+        ("acc_x",np.uint16),
+        ("acc_y",np.uint16),
+        ("acc_z",np.uint16),
+        ("none1",np.uint16),
+        ("gyro_x",np.uint16),
+        ("gyro_y",np.uint16),
+        ("gyro_z",np.uint16),
+        ("none2",np.uint16)
+    ])
     # read in binary file
     binary_in = pd.DataFrame(np.fromfile(imupath, dtypes, -1, ''))
     binary_in = binary_in.drop(columns=['none1','none2'])
+    if config['parameters']['imu']['flip_gx_gy']:
+        print('flipping imu data')
+        temp = binary_in['gyro_x'].copy()
+        binary_in['gyro_x'] = binary_in['gyro_y'].copy()
+        binary_in['gyro_y'] = temp
     # convert to -5V to 5V
     data = 10 * (binary_in.astype(float)/(2**16) - 0.5)
     # downsample
