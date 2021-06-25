@@ -210,7 +210,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         if config['parameters']['eyes']['spot_subtract'] is True:
             plt.figure()
-            plt.plot(np.sum(spot_likelihood >= config['parameters']['eye']['num_ir_spot_pts_needed'], 1)[0:-1:10])
+            plt.plot(np.sum(spot_likelihood >= config['parameters']['eyes']['num_ir_spot_pts_needed'], 1)[0:-1:10])
             plt.title(str(np.round(np.mean(spot_usegood), 3)) + ' good (req5) for IR spot; thresh= ' + str(config['parameters']['lik_thresh']))
             plt.ylabel('num good IR spot points'); plt.xlabel('every 10th frame')
             pdf.savefig()
