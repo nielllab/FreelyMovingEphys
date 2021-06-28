@@ -16,7 +16,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 from util.paths import find
-from project_analysis.ephys.population_utils import make_session_summary, make_unit_summary
+from project_analysis.ephys.population_utils import make_population_summary, make_session_summary, make_unit_summary
 
 def load_ephys(csv_filepath):
     """
@@ -152,5 +152,7 @@ def population_analysis(config):
     print('writing session summary')
     make_session_summary(df, config['population']['save_path'])
     print('writing unit summary')
-    make_unit_summary(df, config['population']['save_path'])
+    unit_df = make_unit_summary(df, config['population']['save_path'])
+    print('starting unit population analysis')
+    make_population_summary(unit_df, config['population']['save_path'])
     print('done with population analysis')

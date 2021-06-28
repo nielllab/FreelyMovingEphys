@@ -860,7 +860,7 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_name):
     plt.tight_layout()
     return var_cent, tuning, tuning_err, fig
 
-def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=None, drift_spont=None):
+def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=None, drift_spont=None, grating_ori=None, sf_cat=None, grating_rate=None, spont_rate=None):
     samprate = 30000  # ephys sample rate
     fig = plt.figure(figsize = (12,np.ceil(n_units)*2))
     for i, ind in enumerate(goodcells.index): 
@@ -871,10 +871,15 @@ def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, up
         plt.xlabel('msec'); plt.title(str(ind) + ' ' + goodcells.at[ind,'KSLabel']  +  ' cont='+ str(goodcells.at[ind,'ContamPct']))
         
         # plot CRF
-        plt.subplot(n_units,4,i*4 + 2)
-        plt.plot(crange[2:-1],resp[i,2:-1])
-        plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
-                                    
+        if grating_ori is not None:
+            plt.subplot(n_units,4,i*4 + 2)
+            plt.scatter(grating_ori,grating_rate[i,:],c=sf_cat)
+            plt.plot(3*np.ones(len(spont_rate[i,:])),spont_rate[i,:],'r.')
+        else:
+            plt.subplot(n_units,4,i*4 + 2)
+            plt.plot(crange[2:-1],resp[i,2:-1])
+            plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
+
         #plot STA or tuning curve
         plt.subplot(n_units,4,i*4 + 3)
         if ori_tuning is not None:

@@ -102,7 +102,8 @@ def run_ephys_analysis(file_dict):
     world_data = xr.open_dataset(file_dict['world'])
     world_vid_raw = np.uint8(world_data['WORLD_video'])
 
-    sz = world_vid_raw.shape
+    sz = world_vid_raw.shape # raw video size
+    # if size is larger than the target 60x80, resize by 0.5
     if sz[1]>160:
         downsamp = 0.5
         world_vid = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)), dtype = 'uint8')
@@ -112,6 +113,7 @@ def run_ephys_analysis(file_dict):
         # if the worldcam has already been resized when the nc file was written in preprocessing, don't resize
         world_vid = world_vid_raw.copy()
 
+    # world timestamps
     worldT = world_data.timestamps.copy()
 
     # plot worldcam timing
@@ -130,11 +132,12 @@ def run_ephys_analysis(file_dict):
         # open the topdown camera nc file
         top_data = xr.open_dataset(file_dict['top'])
         # get the speed of the base of the animal's tail in the topdown tracking
+        # most points don't track well enough for this to be done with other parts of animal (e.g. head points)
         topx = top_data.TOP1_pts.sel(point_loc='tailbase_x').values; topy = top_data.TOP1_pts.sel(point_loc='tailbase_y').values
         topdX = np.diff(topx); topdY = np.diff(topy)
-        top_speed = np.sqrt(topdX**2, topdY**2)
-        topT = top_data.timestamps.copy()
-        top_vid = np.uint8(top_data['TOP1_video'])
+        top_speed = np.sqrt(topdX**2, topdY**2) # speed of tailbase in topdown camera
+        topT = top_data.timestamps.copy() # read in time timestamps
+        top_vid = np.uint8(top_data['TOP1_video']) # read in top video
 
         del top_data
         gc.collect()
@@ -143,8 +146,8 @@ def run_ephys_analysis(file_dict):
     if file_dict['imu'] is not None:
         print('opening imu data')
         imu_data = xr.open_dataset(file_dict['imu'])
-        accT = imu_data.IMU_data.sample
-        acc_chans = imu_data.IMU_data
+        accT = imu_data.IMU_data.sample # imu timestamps
+        acc_chans = imu_data.IMU_data # imu dample data
         # raw gyro values
         gx = np.array(acc_chans.sel(channel='gyro_x_raw'))
         gy = np.array(acc_chans.sel(channel='gyro_y_raw'))
@@ -158,8 +161,8 @@ def run_ephys_analysis(file_dict):
         gpitch = np.array(acc_chans.sel(channel='pitch'))
         # figure of gyro z
         plt.figure()
-        plt.plot(gz[0:100*60])
-        plt.title('gyro z')
+        plt.plot(gz_deg[0:100*60])
+        plt.title('gyro z (deg)')
         plt.xlabel('frame')
         diagnostic_pdf.savefig()
         plt.close()
@@ -177,7 +180,9 @@ def run_ephys_analysis(file_dict):
             spd_tstamps = spdVals.sel(frame = 'timestamps')
 
     print('opening ephys data')
+    # ephys data for this individual recording
     ephys_data = pd.read_json(file_dict['ephys'])
+    # spike times
     ephys_data['spikeTraw'] = ephys_data['spikeT']
 
     print('getting good cells')
@@ -240,6 +245,7 @@ def run_ephys_analysis(file_dict):
     theta_switch_fig, th_switch = plot_param_switch_check(eye_params)
     diagnostic_pdf.savefig()
     plt.close()
+
     # plot eye variables
     eye_param_fig = plot_eye_params(eye_params, eyeT)
     detail_pdf.savefig()
@@ -251,12 +257,12 @@ def run_ephys_analysis(file_dict):
     # check accelerometer / eye temporal alignment
     if file_dict['imu'] is not None:
         print('checking accelerometer / eye temporal alignment')
-        # eye velocity against head movements
+        # plot eye velocity against head movements
         plt.figure
-        plt.plot(eyeT[0:-1],-dEye,label = '-dEye')
-        plt.plot(accTraw,gz*3-7.5,label = 'gz')
+        plt.plot(eyeT[0:-1],-dEye,label='-dEye')
+        plt.plot(accTraw,gz_deg,label='gz')
         plt.legend()
-        plt.xlim(0,10); plt.xlabel('secs')
+        plt.xlim(0,10); plt.xlabel('secs'); plt.ylabel('gyro (deg)')
         diagnostic_pdf.savefig()
         plt.close()
 
@@ -701,13 +707,14 @@ def run_ephys_analysis(file_dict):
                 spont_rate[c,i] = np.sum((sp> stim_end[i]+edge_win) & (sp<stim_start[i+1])) / (stim_start[i+1] - stim_end[i]- edge_win)  
             for ori in range(8):
                 for sf in range(3):
-                    ori_tuning[c,ori,sf] = np.mean(grating_rate[c,(ori_cat==ori) & (sf_cat ==sf)])
+                    ori_tuning[c,ori,sf] = np.mean(grating_rate[c,(ori_cat==ori) & (sf_cat==sf)])
                     for tf in range(2):
                         ori_tuning_tf[c,ori,sf,tf] = np.mean(grating_rate[c,(ori_cat==ori) & (sf_cat ==sf) & (grating_tf==tf)])
             drift_spont[c] = np.mean(spont_rate[c,:])
             plt.subplot(n_units,4,4*c+1)
-            plt.scatter(grating_ori,grating_rate[c,:],c= sf_cat)
+            plt.scatter(grating_ori,grating_rate[c,:],c=sf_cat)
             plt.plot(3*np.ones(len(spont_rate[c,:])),spont_rate[c,:],'r.')
+
             
             plt.subplot(n_units,4,4*c+2)
             plt.plot(ori_tuning[c,:,0],label = 'low sf'); plt.plot(ori_tuning[c,:,1],label = 'mid sf');plt.plot(ori_tuning[c,:,2],label = 'hi sf')
@@ -936,7 +943,7 @@ def run_ephys_analysis(file_dict):
 
     print('plotting spike rate vs pupil radius and position')
     # plot rate vs pupil
-    R_range = np.arange(10,51,5)
+    R_range = np.linspace(10,50,10)
     spike_rate_vs_pupil_radius_cent, spike_rate_vs_pupil_radius_tuning, spike_rate_vs_pupil_radius_err, spike_rate_vs_pupil_radius_fig = plot_spike_rate_vs_var(eyeR, R_range, goodcells, eyeT, t, 'pupil radius')
     detail_pdf.savefig()
     plt.close()
@@ -954,12 +961,12 @@ def run_ephys_analysis(file_dict):
 
     print('plotting spike rate vs theta/phi')
     # plot rate vs theta
-    th_range = np.arange(-30,31,5)
+    th_range = np.linspace(-30,30,10)
     spike_rate_vs_theta_cent, spike_rate_vs_theta_tuning, spike_rate_vs_theta_err, spike_rate_vs_theta_fig = plot_spike_rate_vs_var(th, th_range, goodcells, eyeT, t, 'eye theta')
     detail_pdf.savefig()
     plt.close()
 
-    phi_range = np.arange(-30,31,5)
+    phi_range = np.linspace(-30,30,10)
     spike_rate_vs_phi_cent, spike_rate_vs_phi_tuning, spike_rate_vs_phi_err, spike_rate_vs_phi_fig = plot_spike_rate_vs_var(phi, phi_range, goodcells, eyeT, t, 'eye phi')
     detail_pdf.savefig()
     plt.close()
@@ -970,19 +977,19 @@ def run_ephys_analysis(file_dict):
         active_accT = active_interp(accT.values)
         use = np.where(active_accT > 40)
 
-        gx_range = np.arange(-5,6,1)
+        gx_range = np.linspace(-5,5,10)
         active_gx = ((gx-np.mean(gx))*7.5)[use]
         spike_rate_vs_gx_cent, spike_rate_vs_gx_tuning, spike_rate_vs_gx_err, spike_rate_vs_gx_fig = plot_spike_rate_vs_var(active_gx, gx_range, goodcells, accT[use], t, 'gyro x')
         detail_pdf.savefig()
         plt.close()
         
-        gy_range = np.arange(-5,6,1)
+        gy_range = np.linspace(-5,5,10)
         active_gy = ((gy-np.mean(gy))*7.5)[use]
         spike_rate_vs_gy_cent, spike_rate_vs_gy_tuning, spike_rate_vs_gy_err, spike_rate_vs_gy_fig = plot_spike_rate_vs_var(active_gy, gy_range, goodcells, accT[use], t, 'gyro y')
         detail_pdf.savefig()
         plt.close()
 
-        gz_range = np.arange(-7,8,1)
+        gz_range = np.linspace(-7,7,10)
         active_gz = ((gz-np.mean(gz))*7.5)[use]
         spike_rate_vs_gz_cent, spike_rate_vs_gz_tuning, spike_rate_vs_gz_err, spike_rate_vs_gz_fig = plot_spike_rate_vs_var(active_gz, gz_range, goodcells, accT[use], t, 'gyro z')
         detail_pdf.savefig()
@@ -998,12 +1005,12 @@ def run_ephys_analysis(file_dict):
     if free_move is True:
         print('plotting spike rate vs pitch/roll')
         # roll vs spike rate
-        roll_range = np.arange(-30,31,10)
+        roll_range = np.linspace(-30,30,10)
         spike_rate_vs_roll_cent, spike_rate_vs_roll_tuning, spike_rate_vs_roll_err, spike_rate_vs_roll_fig = plot_spike_rate_vs_var(groll[use], roll_range, goodcells, accT[use], t, 'roll')
         detail_pdf.savefig()
         plt.close()
         # pitch vs spike rate
-        pitch_range = np.arange(-30,31,10)
+        pitch_range = np.linspace(-30,30,10)
         spike_rate_vs_pitch_cent, spike_rate_vs_pitch_tuning, spike_rate_vs_pitch_err, spike_rate_vs_pitch_fig = plot_spike_rate_vs_var(gpitch[use], pitch_range, goodcells, accT[use], t, 'pitch')
         detail_pdf.savefig()
         plt.close()
@@ -1063,7 +1070,7 @@ def run_ephys_analysis(file_dict):
     print('generating summary plots')
     # generate summary plot
     if file_dict['stim_type'] == 'grat':
-        summary_fig = plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=ori_tuning, drift_spont=drift_spont)
+        summary_fig = plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=ori_tuning, drift_spont=drift_spont, grating_ori=grating_ori, sf_cat=sf_cat, grating_rate=grating_rate, spont_rate=spont_rate)
     else:
         summary_fig = plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg)
     overview_pdf.savefig()
@@ -1141,6 +1148,7 @@ def run_ephys_analysis(file_dict):
                                         'drift_spont',
                                         'spont_rate',
                                         'grating_rate',
+                                        'sf_cat',
                                         'trange',
                                         'theta',
                                         'phi',
@@ -1172,6 +1180,7 @@ def run_ephys_analysis(file_dict):
                                     drift_spont[unit_num],
                                     spont_rate[unit_num],
                                     grating_rate[unit_num],
+                                    sf_cat[unit_num],
                                     trange,
                                     th,
                                     phi,

@@ -152,10 +152,9 @@ def read_8ch_imu(imupath, timepath, config):
     binary_in = pd.DataFrame(np.fromfile(imupath, dtypes, -1, ''))
     binary_in = binary_in.drop(columns=['none1','none2'])
     if config['parameters']['imu']['flip_gx_gy']:
-        print('flipping imu data')
-        temp = binary_in['gyro_x'].copy()
-        binary_in['gyro_x'] = binary_in['gyro_y'].copy()
-        binary_in['gyro_y'] = temp
+        temp = binary_in[:,3].copy()
+        binary_in[:,3] = binary_in[:,4].copy()
+        binary_in[:,4] = temp
     # convert to -5V to 5V
     data = 10 * (binary_in.astype(float)/(2**16) - 0.5)
     # downsample
