@@ -666,10 +666,9 @@ def make_population_summary(df, savepath):
     # corr = scipy.stats.pearsonr(depth,crfmi)
     # plt.title('R='+str(np.round(corr[0],3))+' p='+str(np.round(corr[1],3)))
     plt.ylim([32,-32]); plt.tight_layout(); pdf.savefig(); plt.close()
-    
 
     for sf in ['low','mid','high']:
-    df['norm_ori_tuning_'+sf] = df['hf3_gratings_ori_tuning'].copy().astype(object)
+        df['norm_ori_tuning_'+sf] = df['hf3_gratings_ori_tuning'].copy().astype(object)
     for ind, row in df.iterrows():
         if type(row['hf3_gratings_ori_tuning']) == np.ndarray and ~np.isnan(row['hf3_gratings_drift_spont']):
             orientations = np.array([np.array(i) for i in [item for sublist in row['hf3_gratings_ori_tuning'] for item in sublist]]).reshape(8,3)

@@ -42,8 +42,11 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
     # if running on linux, make new paths to replace the windows paths in csv
     if platform.system() == 'Linux':
         for ind, row in csv.iterrows():
-            drive = [row['drive'] if row['drive'] == 'nlab-nas' else row['drive'].capitalize()][0]
-            csv.loc[ind,'animal_dirpath'] = os.path.expanduser('~/'+('/'.join([row['computer'].title(), drive] + list(filter(None, row['animal_dirpath'].replace('\\','/').split('/')))[2:])))
+            if type(row['drive']) == str and type(row['animal_dirpath']) == str and type(row['computer']) == str:
+                drive = [row['drive'] if row['drive'] == 'nlab-nas' else row['drive'].capitalize()][0]
+                csv.loc[ind,'animal_dirpath'] = os.path.expanduser('~/'+('/'.join([row['computer'].title(), drive] + list(filter(None, row['animal_dirpath'].replace('\\','/').split('/')))[2:])))
+            else:
+                csv = csv.drop(index=ind)
 
     # delete existing DLC .h5 files so that there will be only one in the directory
     # needed in case a different DLC network is being used
