@@ -38,27 +38,27 @@ def saccade_modulation_index(trange, saccavg):
     return r0, r100
 
 def make_unit_summary(df, savepath):
+
     pdf = PdfPages(os.path.join(savepath, 'unit_summary.pdf'))
     samprate = 30000
     
     # set up new h5 file to save out including new metrics
     newdf = df.copy().reset_index()
-    
-    for index, row in tqdm(df.iterrows()):
+    print('num units = ' + str(len(df)))
 
-        # set which fm recording to use
+    for index, row in tqdm(df.iterrows()):
         try:
             fmA = row['best_fm_rec']
         except:
             fmA = 'fm1'
-
         try:
-            unitfig = plt.figure(constrained_layout=True, figsize=(30,22))
-            spec = gridspec.GridSpec(ncols=5, nrows=6, figure=unitfig)
+            unitfig = plt.figure(constrained_layout=True, figsize=(35,30))
+            spec = gridspec.GridSpec(ncols=5, nrows=7, figure=unitfig)
 
             # blank title panel
             unitfig_title = unitfig.add_subplot(spec[0,0])
-            unitfig_title.axis('off').annotate(str(row['session'])+'_unit'+str(index),size=20)
+            unitfig_title.axis('off')
+            unitfig_title.annotate(str(row['session'])+'_unit'+str(index),size=15, xy=(0.05, 0.95), xycoords='axes fraction')
 
             # waveform
             unitfig_wv = unitfig.add_subplot(spec[0, 1])
@@ -96,11 +96,17 @@ def make_unit_summary(df, savepath):
                 whole_shank = row['hf4_revchecker_revchecker_mean_resp_per_ch'][shank_channels]
                 colors = plt.cm.jet(np.linspace(0,1,32))
                 for ch_num in range(len(shank_channels)):
-                    unitfig_lfp.plot(whole_shank.T, color=colors[ch_num], alpha=0.1, linewidth=1)
-                unitfig_lfp.plot(whole_shank[np.argmin(np.min(whole_shank, axis=1)),:], label='layer4', linewidth=1)
+                    unitfig_lfp.plot(whole_shank[ch_num], color=colors[ch_num], alpha=0.3, linewidth=1) # all other channels
+                unitfig_lfp.plot(whole_shank[np.argmin(np.min(whole_shank, axis=1)),:], color=colors[np.argmin(np.min(whole_shank, axis=1))], label='layer4', linewidth=1) # layer 4
+            elif np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'],0) == 16:
+                whole_shank = row['hf4_revchecker_revchecker_mean_resp_per_ch']
+                colors = plt.cm.jet(np.linspace(0,1,16))
+                for ch_num in range(16):
+                    unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][ch_num], color=colors[ch_num], alpha=0.3, linewidth=1) # all other channels
+                unitfig_lfp.plot(whole_shank[np.argmin(np.min(whole_shank, axis=1)),:], color=colors[np.argmin(np.min(whole_shank, axis=1))%16], label='layer4', linewidth=1) # layer 4
             else:
-                unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'].T, color='k', alpha=0.1, linewidth=1)
-            unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], label='this channel', linewidth=1)
+                print('unrecognized probe count in LFP plots during unit summary! index='+str(index))
+            unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], color=colors[row['ch']%32], label='this channel', linewidth=1) # current channel
             try:
                 if shank_channels[0] == 0:
                     newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = int(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']%32]) # shank0
@@ -138,9 +144,11 @@ def make_unit_summary(df, savepath):
             upsacc_avg = row['hf1_wn_upsacc_avg']; downsacc_avg = row['hf1_wn_downsacc_avg']
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_wnsaccavg.set_title('WN left/right saccades')
-            unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:]).annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4')
-            unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r').annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r')
-            unitfig_wnsaccavg.legend(['right','left'])
+            unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
+            unitfig_wnsaccavg.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
+            unitfig_wnsaccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+            unitfig_wnsaccavg.legend(['right','left'], loc=1)
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_wnsaccavg.set_ylim([0,maxval*1.2])
             newdf.at[index, 'hf1_wn_upsacc_modind_t0'] = modind_right[0]; newdf.at[index, 'hf1_wn_downsacc_modind_t0'] = modind_left[0]
@@ -155,7 +163,7 @@ def make_unit_summary(df, savepath):
             unitfig_wnsrpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_wnsrpupilrad.set_title('WN spike rate vs pupil radius\nmod.ind.='+str(modind))
             unitfig_wnsrpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[index, 'hf1_wn_spike_rate_vs_pupil_radius_modind_neg'] = modind[0]; newdf.at[index, 'hf1_wn_spike_rate_vs_pupil_radius_modind_pos'] = modind[1]
+            newdf.at[index, 'hf1_wn_spike_rate_vs_pupil_radius_modind'] = modind
 
             # wn spike rate vs running speed
             unitfig_wnsrvspeed = unitfig.add_subplot(spec[1, 4])
@@ -166,7 +174,7 @@ def make_unit_summary(df, savepath):
             unitfig_wnsrvspeed.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_wnsrvspeed.set_title('WN spike rate vs running speed\nmod.ind.='+str(modind))
             unitfig_wnsrvspeed.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[index, 'hf1_wn_spike_rate_vs_spd_modind_neg'] = modind[0]; newdf.at[index, 'hf1_wn_spike_rate_vs_spd_modind_pos'] = modind[1]
+            newdf.at[index, 'hf1_wn_spike_rate_vs_spd_modind'] = modind
 
             # fm1 sta
             unitfig_fm1sta = unitfig.add_subplot(spec[2, 0])
@@ -237,8 +245,10 @@ def make_unit_summary(df, savepath):
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1upsacc_gazedEye.set_title('FM1 gaze shift dEye')
-            unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:]).annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4')
-            unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r').annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r')
+            unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
+            unitfig_fm1upsacc_gazedEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
+            unitfig_fm1upsacc_gazedEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
             unitfig_fm1upsacc_gazedEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_gazedEye.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_gazedEye.set_ylabel('sp/sec')
@@ -253,8 +263,10 @@ def make_unit_summary(df, savepath):
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1upsacc_compdEye.set_title('FM1 comp dEye')
-            unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:]).annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4')
-            unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r').annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r')
+            unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
+            unitfig_fm1upsacc_compdEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
+            unitfig_fm1upsacc_compdEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
             unitfig_fm1upsacc_compdEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_compdEye.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_compdEye.set_ylabel('sp/sec')
@@ -270,8 +282,10 @@ def make_unit_summary(df, savepath):
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1upsacc_gazedHead.set_title('FM1 gaze shift dHead')
-            unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:]).annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4')
-            unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r').annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r')
+            unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
+            unitfig_fm1upsacc_gazedHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
+            unitfig_fm1upsacc_gazedHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
             unitfig_fm1upsacc_gazedHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_gazedHead.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_gazedHead.set_ylabel('sp/sec')
@@ -286,8 +300,10 @@ def make_unit_summary(df, savepath):
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1upsacc_compdHead.set_title('FM1 comp dHead')
-            unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:]).annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4')
-            unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r').annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r')
+            unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
+            unitfig_fm1upsacc_compdHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
+            unitfig_fm1upsacc_compdHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
             unitfig_fm1upsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_compdHead.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_compdHead.set_ylabel('sp/sec')
@@ -296,7 +312,7 @@ def make_unit_summary(df, savepath):
         
             # orientation spatial frequency tuning curve
             unitfig_ori_tuning = unitfig.add_subplot(spec[6, 0])
-            ori_tuning = row['hf3_gratings_ori_tuning']
+            ori_tuning = np.sum(row['hf3_gratings_ori_tuning'],2) # [orientation, sf, tf]
             drift_spont = row['hf3_gratings_drift_spont']
             tuning = ori_tuning - drift_spont # subtract off spont rate
             tuning[tuning < 0] = 0 # set to 0 when tuning goes negative (i.e. when firing rate is below spontanious rate)
@@ -313,15 +329,13 @@ def make_unit_summary(df, savepath):
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,2],label = 'hi sf')
             unitfig_ori_tuning.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
             unitfig_ori_tuning.legend()
-            unitfig_ori_tuning.set_ylim([0,np.nanmax(ori_tuning)*1.2])
-            newdf.at[index, 'hf3_gratings_osi_low'] = osi[0];newdf.at[index, 'hf3_gratings_osi_mid'] = osi[1];newdf.at[index, 'hf3_gratings_osi_high'] = osi[2]
+            unitfig_ori_tuning.set_ylim([0,np.nanmax(tuning)*1.2])
+            newdf.at[index, 'hf3_gratings_osi_low'] = osi[0]; newdf.at[index, 'hf3_gratings_osi_mid'] = osi[1]; newdf.at[index, 'hf3_gratings_osi_high'] = osi[2]
 
             # orientation temporal frequency tuning curve
-            tf_tuning = row['hf3_gratings_ori_tuning_tf'] # [:,low/mid/high sf,low/high tf]
-            drift_spont = row['hf3_gratings_drift_spont']
             # low temporal freq
             unitfig_ori_tuning_low_tf = unitfig.add_subplot(spec[6, 1])
-            tuning = tf_tuning[:,:,0] - drift_spont # subtract off spont rate
+            tuning = row['hf3_gratings_ori_tuning'][:,:,0] - drift_spont # [:,low/mid/high sf,low/high tf]
             tuning[tuning < 0] = 0 # set to 0 when tuning goes negative (i.e. when firing rate is below spontanious rate)
             th_pref = np.nanargmax(tuning,0) # get position of highest firing rate
             osi = np.zeros([3])
@@ -331,15 +345,14 @@ def make_unit_summary(df, savepath):
                 R_ortho = (tuning[th_ortho, sf] + (tuning[(th_ortho+4)%8, sf])) * 0.5 # ortho firing rate (average between two peaks)
                 osi[sf] = np.round((R_pref - R_ortho) / (R_pref + R_ortho),3)
             unitfig_ori_tuning_low_tf.set_title('low temporal freq orientation tuning\nOSI low='+str(osi[0])+'mid='+str(osi[1])+'high='+str(osi[2]))
-            unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, ori_tuning[:,0],label = 'low sf')
-            unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, ori_tuning[:,1],label = 'mid sf')
-            unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, ori_tuning[:,2],label = 'hi sf')
+            unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,0][:,0],label = 'low sf')
+            unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,0][:,1],label = 'mid sf')
+            unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,0][:,2],label = 'hi sf')
             unitfig_ori_tuning_low_tf.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
-            unitfig_ori_tuning_low_tf.legend()
-            unitfig_ori_tuning_low_tf.set_ylim([0,np.nanmax(ori_tuning)*1.2])
+            unitfig_ori_tuning_low_tf.set_ylim([0,np.nanmax(row['hf3_gratings_ori_tuning'][:,:,0])*1.2])
             # high temporal freq
             unitfig_ori_tuning_high_tf = unitfig.add_subplot(spec[6, 2])
-            tuning = tf_tuning[:,:,1] - drift_spont # subtract off spont rate
+            tuning = row['hf3_gratings_ori_tuning'][:,:,1] - drift_spont # subtract off spont rate
             tuning[tuning < 0] = 0 # set to 0 when tuning goes negative (i.e. when firing rate is below spontanious rate)
             th_pref = np.nanargmax(tuning,0) # get position of highest firing rate
             osi = np.zeros([3])
@@ -349,12 +362,11 @@ def make_unit_summary(df, savepath):
                 R_ortho = (tuning[th_ortho, sf] + (tuning[(th_ortho+4)%8, sf])) * 0.5 # ortho firing rate (average between two peaks)
                 osi[sf] = np.round((R_pref - R_ortho) / (R_pref + R_ortho),3)
             unitfig_ori_tuning_high_tf.set_title('high temporal freq orientation tuning\nOSI low='+str(osi[0])+'mid='+str(osi[1])+'high='+str(osi[2]))
-            unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, ori_tuning[:,0],label = 'low sf')
-            unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, ori_tuning[:,1],label = 'mid sf')
-            unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, ori_tuning[:,2],label = 'hi sf')
+            unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,1][:,0],label = 'low sf')
+            unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,1][:,1],label = 'mid sf')
+            unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,1][:,2],label = 'hi sf')
             unitfig_ori_tuning_high_tf.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
-            unitfig_ori_tuning_high_tf.legend()
-            unitfig_ori_tuning_high_tf.set_ylim([0,np.nanmax(ori_tuning)*1.2])
+            unitfig_ori_tuning_high_tf.set_ylim([0,np.nanmax(row['hf3_gratings_ori_tuning'][:,:,1])*1.2])
 
             # fm1 eye movements
             unitfig_fm1saccavg = unitfig.add_subplot(spec[4, 0])
@@ -362,8 +374,10 @@ def make_unit_summary(df, savepath):
             upsacc_avg = row[fmA+'_upsacc_avg']; downsacc_avg = row[fmA+'_downsacc_avg']
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1saccavg.set_title('FM1 left/right saccades')
-            unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:]).annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4')
-            unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r').annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r')
+            unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
+            unitfig_fm1saccavg.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
+            unitfig_fm1saccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_fm1saccavg.set_ylim([0,maxval*1.2])
             newdf.at[index, 'fm1_upsacc_modind_t0'] = modind_right[0]; newdf.at[index, 'fm1_downsacc_modind_t0'] = modind_left[0]
@@ -378,7 +392,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srpupilrad.set_title('FM1 spike rate vs pupil radius\nmod.ind.='+str(modind))
             unitfig_fm1srpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[index, 'hf1_wn_spike_rate_vs_pupil_radius_modind_neg'] = modind[0]; newdf.at[index, 'hf1_wn_spike_rate_vs_pupil_radius_modind_pos'] = modind[1]
+            newdf.at[index, 'hf1_wn_spike_rate_vs_pupil_radius_modind'] = modind
 
             # fm1 spike rate vs theta
             unitfig_fm1srth = unitfig.add_subplot(spec[5, 1])
@@ -427,18 +441,21 @@ def make_unit_summary(df, savepath):
             plt.tight_layout()
 
             pdf.savefig(unitfig)
+            plt.close()
+
         except:
             pass
-        
-        plt.close()
 
     print('saving unit summary pdf')
     pdf.close()
 
     print('saving an updated h5 ephys file')
-    newdf.to_hdf(os.path.join(savepath, 'pooled_ephys_unit_update_'+datetime.today().strftime('%m%d%y')+'.h5'), 'w')
+    path_out = os.path.join(savepath, 'pooled_ephys_unit_update_'+datetime.today().strftime('%m%d%y')+'.h5')
+    if os.path.isfile(path_out):
+        os.remove(path_out)
+    newdf.to_hdf(path_out, 'w')
 
-    return os.path.join(savepath, 'pooled_ephys_unit_update_'+datetime.today().strftime('%m%d%y')+'.h5')
+    return path_out
 
 def make_session_summary(df, savepath):
     pdf = PdfPages(os.path.join(savepath, 'session_summary.pdf'))
@@ -457,9 +474,16 @@ def make_session_summary(df, savepath):
             plt.subplot(4,3,1)
             plt.title('dEye vs dHead')
             dEye = uniquedf['fm1_dEye'].iloc[0]
-            dHead = uniquedf['fm1_dHead'].iloc[0]
+            dhead = uniquedf['fm1_dHead'].iloc[0]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
-            plt.plot(dEye[0:-1:10],dHead(eyeT[0:-1:10]),'.')
+            if len(dEye[0:-1:10]) == len(dhead(eyeT[0:-1:10])):
+                plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+            elif len(dEye[0:-1:10]) > len(dhead(eyeT[0:-1:10])):
+                len_diff = len(dEye[0:-1:10]) - len(dhead(eyeT[0:-1:10]))
+                plt.plot(dEye[0:-1:10][:-len_diff],dhead(eyeT[0:-1:10]),'.')
+            elif len(dEye[0:-1:10]) < len(dhead(eyeT[0:-1:10])):
+                len_diff = len(dhead(eyeT[0:-1:10])) - len(dEye[0:-1:10])
+                plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10])[:-len_diff],'.')
             plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
             plt.plot([-10,10],[10,-10], 'r')
         except:

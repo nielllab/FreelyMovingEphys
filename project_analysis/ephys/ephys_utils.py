@@ -148,11 +148,12 @@ def population_analysis(config):
     df = df.groupby(lambda x:x, axis=1); df = df.agg(np.nansum) # combine identical column names
     print('saving pooled ephys data to '+config['population']['save_path'])
     h5path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.h5')
+    if os.path.isfile(h5path):
+        os.remove(h5path)
     df.to_hdf(h5path, 'w')
     print('writing session summary')
     make_session_summary(df, config['population']['save_path'])
     print('writing unit summary')
     unit_df = make_unit_summary(df, config['population']['save_path'])
-    print('starting unit population analysis')
-    make_population_summary(unit_df, config['population']['save_path'])
-    print('done with population analysis')
+    # print('starting unit population analysis')
+    # make_population_summary(unit_df, config['population']['save_path'])

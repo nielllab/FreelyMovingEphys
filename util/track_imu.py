@@ -1,7 +1,5 @@
 """
 track_imu.py
-
-read imu from binary
 """
 import xarray as xr
 import pandas as pd
@@ -152,13 +150,15 @@ def read_8ch_imu(imupath, timepath, config):
     binary_in = pd.DataFrame(np.fromfile(imupath, dtypes, -1, ''))
     binary_in = binary_in.drop(columns=['none1','none2'])
     if config['parameters']['imu']['flip_gx_gy']:
-        temp = binary_in[:,3].copy()
-        binary_in[:,3] = binary_in[:,4].copy()
-        binary_in[:,4] = temp
+        temp = binary_in.iloc[:,3].copy()
+        binary_in.iloc[:,3] = binary_in.iloc[:,4].copy()
+        binary_in.iloc[:,4] = temp
+        # binary_in.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
     # convert to -5V to 5V
     data = 10 * (binary_in.astype(float)/(2**16) - 0.5)
     # downsample
     data = data.iloc[::config['parameters']['imu']['imu_downsample']]
+    data = data.reindex(sorted(data.columns), axis=1) # alphabetize columns
     samp_freq = config['parameters']['imu']['imu_sample_rate'] / config['parameters']['imu']['imu_downsample']
     # read in timestamps
     time = pd.DataFrame(open_time1(pd.read_csv(timepath).squeeze()))
@@ -179,7 +179,7 @@ def read_8ch_imu(imupath, timepath, config):
     roll_pitch = pd.DataFrame(roll_pitch, columns=['roll','pitch'])
     # collect the data together to return
     all_data = pd.concat([data.reset_index(), pd.DataFrame(acc).reset_index(), pd.DataFrame(gyro).reset_index(), roll_pitch], axis=1).drop(labels='index',axis=1)
-    all_data.columns = ['acc_x_raw', 'acc_y_raw', 'acc_z_raw', 'gyro_x_raw', 'gyro_y_raw', 'gyro_z_raw','acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z','roll','pitch']
+    all_data.columns = ['acc_x_raw', 'acc_y_raw', 'acc_z_raw', 'gyro_x_raw', 'gyro_y_raw', 'gyro_z_raw','acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z', 'roll', 'pitch']
     imu_out = xr.DataArray(all_data, dims=['sample','channel'])
     imu_out = imu_out.assign_coords({'sample':newtime})
     

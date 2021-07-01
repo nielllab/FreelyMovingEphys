@@ -95,6 +95,6 @@ ephys_analysis:
   recording_list: []                     # list of ephys recording names to analyze (e.g [fm1, hf1_wn]), or empty list (i.e. []) if it should run all found subdirectories
 
 population:                              ### pool data from all 'good' recordings listed in csv file
-  pool_h5_files: true                    # pool data
+  pool_h5_files: false                    # pool data
   metadata_csv_path: T:/freely_moving_ephys/population_summaries/completed_experiment_pool.csv
   save_path: T:/freely_moving_ephys/population_summaries/
