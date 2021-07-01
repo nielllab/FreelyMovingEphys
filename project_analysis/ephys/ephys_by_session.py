@@ -26,8 +26,12 @@ def session_ephys_analysis(config):
             elif 'fm' not in recording_name:
                 fm = False
             this_unit = int(unit)
-            if fm == True:
-                stim_type = 'None'
+            if fm == True and 'light' in recording_name:
+                stim_type = 'light_arena'
+            elif fm == True and 'dark' in recording_name:
+                stim_type = 'dark_arena'
+            elif fm == True and 'light' not in recording_name and 'dark' not in recording_name:
+                stim_type = 'light'
             elif 'wn' in recording_name:
                 stim_type = 'white_noise'
             elif 'grat' in recording_name:
