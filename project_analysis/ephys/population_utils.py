@@ -30,8 +30,8 @@ def modulation_index(tuning, zerocent=True, lbound=1, ubound=-2):
         return [modind_neg, modind_pos]
 
 def saccade_modulation_index(trange, saccavg):
-    t0ind = (np.abs(trange - 0)).argmin()
-    t100ind = int((np.abs(trange - 0)).argmin()+(len(trange) * (1/10)))
+    t0ind = (np.abs(trange-0)).argmin()
+    t100ind = t0ind+4
     baseline = np.nanmean(saccavg[0:int(t100ind-((1/4)*t100ind))])
     r0 = np.round((saccavg[t0ind] - baseline) / (saccavg[t0ind] + baseline), 3)
     r100 = np.round((saccavg[t100ind] - baseline) / (saccavg[t100ind] + baseline), 3)
@@ -103,17 +103,17 @@ def make_unit_summary(df, savepath):
                 colors = plt.cm.jet(np.linspace(0,1,16))
                 for ch_num in range(16):
                     unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][ch_num], color=colors[ch_num], alpha=0.3, linewidth=1) # all other channels
-                unitfig_lfp.plot(whole_shank[np.argmin(np.min(whole_shank, axis=1)),:], color=colors[np.argmin(np.min(whole_shank, axis=1))%16], label='layer4', linewidth=1) # layer 4
+                unitfig_lfp.plot(whole_shank[np.argmin(np.min(whole_shank, axis=1)),:], color=colors[np.argmin(np.min(whole_shank, axis=1))], label='layer4', linewidth=1) # layer 4
             else:
                 print('unrecognized probe count in LFP plots during unit summary! index='+str(index))
-            unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], color=colors[row['ch']%32], label='this channel', linewidth=1) # current channel
+            unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], color=colors[row['ch']], label='this channel', linewidth=1) # current channel
             try:
                 if shank_channels[0] == 0:
-                    newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = int(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']%32]) # shank0
-                    unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']%32]))
+                    newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = int(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']]) # shank0
+                    unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']]))
                 else:
-                    newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']%32]) # shank1
-                    unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']%32]))
+                    newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']]) # shank1
+                    unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']]))
             except KeyError:
                 unitfig_lfp.set_title('ch='+str(row['ch']))
             unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
@@ -312,7 +312,7 @@ def make_unit_summary(df, savepath):
         
             # orientation spatial frequency tuning curve
             unitfig_ori_tuning = unitfig.add_subplot(spec[6, 0])
-            ori_tuning = np.sum(row['hf3_gratings_ori_tuning'],2) # [orientation, sf, tf]
+            ori_tuning = np.mean(row['hf3_gratings_ori_tuning'],2) # [orientation, sf, tf]
             drift_spont = row['hf3_gratings_drift_spont']
             tuning = ori_tuning - drift_spont # subtract off spont rate
             tuning[tuning < 0] = 0 # set to 0 when tuning goes negative (i.e. when firing rate is below spontanious rate)
@@ -329,7 +329,7 @@ def make_unit_summary(df, savepath):
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,2],label = 'hi sf')
             unitfig_ori_tuning.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
             unitfig_ori_tuning.legend()
-            unitfig_ori_tuning.set_ylim([0,np.nanmax(tuning)*1.2])
+            unitfig_ori_tuning.set_ylim([0,np.nanmax(row['hf3_gratings_ori_tuning'][:,:,:])*1.2])
             newdf.at[index, 'hf3_gratings_osi_low'] = osi[0]; newdf.at[index, 'hf3_gratings_osi_mid'] = osi[1]; newdf.at[index, 'hf3_gratings_osi_high'] = osi[2]
 
             # orientation temporal frequency tuning curve
@@ -349,7 +349,7 @@ def make_unit_summary(df, savepath):
             unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,0][:,1],label = 'mid sf')
             unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,0][:,2],label = 'hi sf')
             unitfig_ori_tuning_low_tf.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
-            unitfig_ori_tuning_low_tf.set_ylim([0,np.nanmax(row['hf3_gratings_ori_tuning'][:,:,0])*1.2])
+            unitfig_ori_tuning_low_tf.set_ylim([0,np.nanmax(row['hf3_gratings_ori_tuning'][:,:,:])*1.2])
             # high temporal freq
             unitfig_ori_tuning_high_tf = unitfig.add_subplot(spec[6, 2])
             tuning = row['hf3_gratings_ori_tuning'][:,:,1] - drift_spont # subtract off spont rate
@@ -366,7 +366,7 @@ def make_unit_summary(df, savepath):
             unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,1][:,1],label = 'mid sf')
             unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,1][:,2],label = 'hi sf')
             unitfig_ori_tuning_high_tf.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
-            unitfig_ori_tuning_high_tf.set_ylim([0,np.nanmax(row['hf3_gratings_ori_tuning'][:,:,1])*1.2])
+            unitfig_ori_tuning_high_tf.set_ylim([0,np.nanmax(row['hf3_gratings_ori_tuning'][:,:,:])*1.2])
 
             # fm1 eye movements
             unitfig_fm1saccavg = unitfig.add_subplot(spec[4, 0])
