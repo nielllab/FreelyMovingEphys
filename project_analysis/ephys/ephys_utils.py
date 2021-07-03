@@ -32,6 +32,7 @@ def load_ephys(csv_filepath):
     csv = pd.read_csv(csv_filepath)
     for_data_pool = csv[csv['load_for_data_pool'] == any(['TRUE' or True or 'True'])]
     goodsessions = []
+    probenames_for_goodsessions = []
     # get all of the best freely moving recordings of a session into a dictionary
     goodfmrecs = dict(zip(list(for_data_pool['experiment_date']+'_'+for_data_pool['animal_name']),['fm1' if np.isnan(i) else i for i in for_data_pool['best_fm_rec']]))
     # change paths to work with linux
@@ -41,11 +42,13 @@ def load_ephys(csv_filepath):
             for_data_pool.loc[ind,'animal_dirpath'] = os.path.expanduser('~/'+('/'.join([row['computer'].title(), drive] + list(filter(None, row['animal_dirpath'].replace('\\','/').split('/')))[2:])))
     for ind, row in for_data_pool.iterrows():
         goodsessions.append(row['animal_dirpath'])
+        probenames_for_goodsessions.append(row['probe_name'])
     # get the .h5 files from each day
     # this will be a list of lists, where each list inside of the main list has all the data of a single session
     sessions = [find('*_ephys_props.h5',session) for session in goodsessions]
     # read the data in and append them into one shared df
     all_data = pd.DataFrame([])
+    ind = 0
     for session in sessions:
         session_data = pd.DataFrame([])
         for recording in session:
@@ -76,6 +79,9 @@ def load_ephys(csv_filepath):
             session_data.columns = column_names
             # remove duplicate columns (i.e. shared metadata)
             session_data = session_data.loc[:,~session_data.columns.duplicated()]
+            # add model of probe as new col
+            session_data['probe_name'] = probenames_for_goodsessions[ind]
+            ind += 1
         # new rows for units from different mice or sessions
         all_data = pd.concat([all_data,session_data],axis=0)
     return all_data

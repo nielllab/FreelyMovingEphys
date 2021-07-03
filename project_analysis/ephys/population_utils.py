@@ -107,13 +107,25 @@ def make_unit_summary(df, savepath):
             else:
                 print('unrecognized probe count in LFP plots during unit summary! index='+str(index))
             unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][row['ch']], color=colors[row['ch']], label='this channel', linewidth=1) # current channel
+            depth_to_layer4 = 350 # microns
+            if row['probe_name'] == 'DB_P64-3' or row['probe_name'] == 'DB_P64-8' or row['probe_name'] == 'NN_H64-LP':
+                ch_spacing = 25
+            elif row['probe_name'] == 'NN_H16':
+                ch_spacing = 25
+            # maybe add this to the channel remapping json file? it's likely different for each type of probe
             try:
                 if shank_channels[0] == 0:
-                    newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = int(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']]) # shank0
-                    unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']]))
+                    position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']])
+                    newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch # shank0
+                    depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
+                    newdf.at[index, 'hf4_revchecker_depth_from_surface'] = depth_from_surface
+                    unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(position_of_ch)+' depth='+str(depth_from_surface))
                 else:
-                    newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']]) # shank1
-                    unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']]))
+                    position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']])
+                    newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch # shank1
+                    depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
+                    newdf.at[index, 'hf4_revchecker_depth_from_surface'] = depth_from_surface
+                    unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(position_of_ch)+'\ndepth='+str(depth_from_surface))
             except KeyError:
                 unitfig_lfp.set_title('ch='+str(row['ch']))
             unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
