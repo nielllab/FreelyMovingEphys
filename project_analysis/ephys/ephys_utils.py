@@ -14,6 +14,7 @@ from scipy.interpolate import interp1d
 import platform
 from tqdm import tqdm
 from datetime import datetime
+import scipy.interpolate
 
 from util.paths import find
 from project_analysis.ephys.population_utils import make_population_summary, make_session_summary, make_unit_summary
@@ -80,8 +81,8 @@ def load_ephys(csv_filepath):
             # remove duplicate columns (i.e. shared metadata)
             session_data = session_data.loc[:,~session_data.columns.duplicated()]
             # add model of probe as new col
-            session_data['probe_name'] = probenames_for_goodsessions[ind]
-            ind += 1
+        session_data['probe_name'] = probenames_for_goodsessions[ind]
+        ind += 1
         # new rows for units from different mice or sessions
         all_data = pd.concat([all_data,session_data],axis=0)
     return all_data
@@ -153,10 +154,11 @@ def population_analysis(config):
     df = df.drop(labels=badcols, axis=1)
     df = df.groupby(lambda x:x, axis=1); df = df.agg(np.nansum) # combine identical column names
     print('saving pooled ephys data to '+config['population']['save_path'])
-    h5path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.h5')
-    if os.path.isfile(h5path):
-        os.remove(h5path)
-    df.to_hdf(h5path, 'w')
+    json_path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.json')
+    if os.path.isfile(json_path):
+        os.remove(json_path)
+    df = df.reset_index()
+    df.to_json(json_path, default_handler=str)
     print('writing session summary')
     make_session_summary(df, config['population']['save_path'])
     print('writing unit summary')
