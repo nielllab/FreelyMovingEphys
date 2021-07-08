@@ -13,6 +13,9 @@ if contains(probe_name, '16')
 elseif contains(probe_name, '64')
     nch = 64;
     subset = 1:64;
+elseif contains(probe_name, '128')
+    nch = 128;
+    subset = 1:128;
 else
     error('Could not find usable ch num using given probe name')
 end
