@@ -204,40 +204,56 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
 
     return vidfile
 
-def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, accT=None, gz=None, speedT=None, spd=None):
+def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
-    fig = plt.figure(figsize = (10,12))
-    gs = fig.add_gridspec(5,6)
+    fig = plt.figure(figsize = (10,14))
+    fig.tight_layout()
+    gs = fig.add_gridspec(9,6)
     axEye = fig.add_subplot(gs[0:2,0:2])
     axWorld = fig.add_subplot(gs[0:2,2:4])
     axTopdown = fig.add_subplot(gs[0:2,4:6])
-    axR = fig.add_subplot(gs[2:6,:])
+    axTheta = fig.add_subplot(gs[2,:])
+    axGyro = fig.add_subplot(gs[3,:])
+    axR = fig.add_subplot(gs[4:9,:])
 
     #timerange and center frame (only)
-    tr = [0, 30]
+    tr = [0, 22]
     fr = np.mean(tr) # time for frame
     eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
     worldFr = np.abs(worldT-fr).argmin(dim = "frame")
     topFr = np.abs(topT-fr).argmin(dim = "frame")
 
-    axEye.cla(); axEye.axis('off'); 
+    axEye.cla(); axEye.axis('off')
     axEye.imshow(eye_vid[eyeFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
 
     axWorld.cla();  axWorld.axis('off'); 
     axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
 
-    axTopdown.cla(); axTopdown.axis('off'); 
-    axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal") 
-        
+    # add brightness to top video with brightness added, then plot
+    axTopdown.cla(); axTopdown.axis('off')
+    axTopdown.imshow(((top_vid[topFr,:,:])*2),'gray',vmin=0,vmax=255,aspect="equal")
+
+    # plot eye position
+    axTheta.cla()
+    axTheta.plot(eyeT,th)
+    axTheta.set_xlim(tr[0],tr[1]); 
+    axTheta.set_ylabel('theta (deg)'); axTheta.set_ylim(-50,-10)
+
+    # plot gyro
+    axGyro.plot(accT,gz)
+    axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(-500,500)
+    axGyro.set_ylabel('gyro z (deg/s)')
+    
     # plot spikes
     axR.fontsize = 20
     for i,ind in enumerate(goodcells.index):
-        axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5)
-    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5)
+        i = i%32
+        axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
+    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5) # this unit
 
     n_units = len(goodcells)
 
-    axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , n_units); axR.set_xlabel('secs'); axR.set_ylabel('unit #')
+    axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , n_units); axR.set_xlabel('secs'); axR.set_ylabel('unit')
     axR.spines['right'].set_visible(False)
     axR.spines['top'].set_visible(False)
 
@@ -247,15 +263,14 @@ def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_param
     with writer.saving(fig, vidfile, 100):
         for t in np.arange(tr[0],tr[1],1/30):
             # animate eye
-            axEye.cla(); axEye.axis('off'); 
+            axEye.cla(); axEye.axis('off')
             axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
             # animate world
-            axWorld.cla(); axWorld.axis('off'); 
+            axWorld.cla(); axWorld.axis('off')
             axWorld.imshow(worldInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
             # animate topdown
-            axTopdown.cla(); axTopdown.axis('off'); 
-            axTopdown.imshow(topInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
-            
+            axTopdown.cla(); axTopdown.axis('off')
+            axTopdown.imshow(topInterp(t)*2,'gray',vmin=0,vmax=255,aspect="equal")
             # plot line for time, then remove
             ln = axR.vlines(t,-0.5,30,'b')
             writer.grab_frame()
@@ -263,14 +278,89 @@ def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_param
 
     return vidfile
 
-def make_movie2(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=None, spd=None):
+def make_movie3(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
-    fig = plt.figure(figsize = (10,12))
-    gs = fig.add_gridspec(6,6)
+    fig = plt.figure(figsize = (10,14))
+    fig.tight_layout()
+    gs = fig.add_gridspec(9,6)
     axEye = fig.add_subplot(gs[0:2,0:3])
     axWorld = fig.add_subplot(gs[0:2,3:6])
+    # axTopdown = fig.add_subplot(gs[0:2,4:6])
+    axTheta = fig.add_subplot(gs[2,:])
+    axGyro = fig.add_subplot(gs[3,:])
+    axR = fig.add_subplot(gs[4:9,:])
 
-    axR = fig.add_subplot(gs[2:6,:])
+    #timerange and center frame (only)
+    tr = [0, 22]
+    fr = np.mean(tr) # time for frame
+    eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
+    worldFr = np.abs(worldT-fr).argmin(dim = "frame")
+    topFr = np.abs(topT-fr).argmin(dim = "frame")
+
+    axEye.cla(); axEye.axis('off')
+    axEye.imshow(eye_vid[eyeFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+
+    axWorld.cla();  axWorld.axis('off'); 
+    axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+
+    # add brightness to top video with brightness added, then plot
+    # axTopdown.cla(); axTopdown.axis('off')
+    # axTopdown.imshow(((top_vid[topFr,:,:])*2),'gray',vmin=0,vmax=255,aspect="equal")
+
+    # plot eye position
+    axTheta.cla()
+    axTheta.plot(eyeT,th)
+    axTheta.set_xlim(tr[0],tr[1]); 
+    axTheta.set_ylabel('theta (deg)'); axTheta.set_ylim(-50,-10)
+
+    # plot gyro
+    axGyro.plot(accT,gz)
+    axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(-500,500)
+    axGyro.set_ylabel('gyro z (deg/s)')
+    
+    # plot spikes
+    axR.fontsize = 20
+    for i,ind in enumerate(goodcells.index):
+        i = i%32
+        axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
+    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5) # this unit
+
+    n_units = len(goodcells)
+
+    axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , n_units); axR.set_xlabel('secs'); axR.set_ylabel('unit')
+    axR.spines['right'].set_visible(False)
+    axR.spines['top'].set_visible(False)
+
+    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels_notop.mp4'))
+    # now animate
+    writer = FFMpegWriter(fps=30)
+    with writer.saving(fig, vidfile, 100):
+        for t in np.arange(tr[0],tr[1],1/30):
+            # animate eye
+            axEye.cla(); axEye.axis('off')
+            axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
+            # animate world
+            axWorld.cla(); axWorld.axis('off')
+            axWorld.imshow(worldInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
+            # animate topdown
+            # axTopdown.cla(); axTopdown.axis('off')
+            # axTopdown.imshow(topInterp(t)*2,'gray',vmin=0,vmax=255,aspect="equal")
+            # plot line for time, then remove
+            ln = axR.vlines(t,-0.5,30,'b')
+            writer.grab_frame()
+            ln.remove()
+
+    return vidfile
+
+def make_movie2(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, th, phi, speedT=None, spd=None):
+    # set up figure
+    fig = plt.figure(figsize = (10,12))
+    gs = fig.add_gridspec(7,6)
+    axEye = fig.add_subplot(gs[0:2,0:3])
+    axWorld = fig.add_subplot(gs[0:2,3:6])
+    axTheta = fig.add_subplot(gs[2,:])
+    axGyro = fig.add_subplot(gs[3,:])
+    axR = fig.add_subplot(gs[4:7,:])
 
     #timerange and center frame (only)
     tr = [0, 30]
@@ -283,6 +373,17 @@ def make_movie2(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_param
 
     axWorld.cla();  axWorld.axis('off'); 
     axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal") 
+
+    # plot eye position
+    axTheta.cla()
+    axTheta.plot(eyeT,(eye_params.sel(ellipse_params = 'theta')-np.nanmean(eye_params.sel(ellipse_params = 'theta')))*180/3.14159)
+    axTheta.set_xlim(tr[0],tr[1])
+    axTheta.set_ylabel('theta (deg)'); axTheta.set_ylim(-30,30)
+
+    # plot speed on ball
+    axGyro.plot(speedT,spd)
+    axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(0,20)
+    axGyro.set_ylabel('speed (cm/sec)')
         
     # plot spikes
     axR.fontsize = 20
@@ -316,6 +417,27 @@ def make_movie2(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_param
             ln.remove()
 
     return vidfile
+
+def make_sound1(file_dict, ephys_data, units, this_unit):
+    tr = [0, 22]
+    # generate wave file
+    sp = np.array(ephys_data.at[units[this_unit],'spikeT'])-tr[0]
+    sp = sp[sp>0]
+    datarate = 30000
+
+    # compute waveform samples
+    tmax = tr[1]-tr[0]
+    t = np.linspace(0, tr[1]-tr[0], (tr[1]-tr[0])*datarate,endpoint=False)
+    x = np.zeros(np.size(t))
+    for spt in sp[sp<tmax]:
+        x[np.int64(spt*datarate) : np.int64(spt*datarate +30)] = 1
+        x[np.int64(spt*datarate)+31 : np.int64(spt*datarate +60)] =- 1
+    
+    # Write the samples to a file
+    audfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'.wav'))
+    wavio.write(audfile, x, datarate, sampwidth=1)
+
+    return audfile
 
 def make_sound(file_dict, ephys_data, units, this_unit):
     tr = [0, 30]

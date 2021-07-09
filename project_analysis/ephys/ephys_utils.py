@@ -163,5 +163,5 @@ def population_analysis(config):
     make_session_summary(df, config['population']['save_path'])
     print('writing unit summary')
     unit_df = make_unit_summary(df, config['population']['save_path'])
-    # print('starting unit population analysis')
-    # make_population_summary(unit_df, config['population']['save_path'])
+    print('starting unit population analysis')
+    make_population_summary(unit_df, config['population']['save_path'])

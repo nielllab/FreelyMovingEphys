@@ -3,16 +3,11 @@ initial_wn_analysis.py
 
 run minimal analysis needed to get receptive fields in the worldcam
 """
-
-# package imports
 import argparse, json, sys, os, subprocess, shutil
 import cv2
 import pandas as pd
-os.environ["DLClight"] = "True"
-import deeplabcut
 import numpy as np
 import xarray as xr
-import warnings
 import tkinter as tk
 from tkinter import filedialog
 from glob import glob
@@ -21,23 +16,14 @@ import matplotlib.pyplot as plt
 from glob import glob
 from scipy.interpolate import interp1d
 from matplotlib.backends.backend_pdf import PdfPages
-# module imports
-from util.params import extract_params
+
 from util.format_data import h5_to_xr, format_frames, safe_xr_merge
-from util.paths import find, check_path
-from util.time import open_time, merge_xr_by_timestamps
-from util.track_topdown import topdown_tracking, head_angle1, plot_top_vid, body_props, body_angle
-from util.track_eye import plot_eye_vid, eye_tracking, find_pupil_rotation
-from util.track_world import track_LED
-from util.ephys import format_spikes
-from util.track_ball import ball_tracking
-from util.track_side import side_angle, side_tracking
-from util.track_imu import read_8ch_imu
+from util.paths import find
 from util.deinterlace import deinterlace_data
-from util.calibration import get_calibration_params, calibrate_new_world_vids, calibrate_new_top_vids
+from util.calibration import calibrate_new_world_vids
 from project_analysis.ephys.ephys_figures import *
 
-def quick_whitenoise_analysis(wn_path):
+def quick_whitenoise_analysis(wn_path, ch_count):
     temp_config = {
         'animal_dir': wn_path,
         'deinterlace':{
@@ -58,13 +44,14 @@ def quick_whitenoise_analysis(wn_path):
             }
         }
     }
-
+    # find world files
     world_vids = glob(os.path.join(wn_path, '*WORLD.avi'))
     world_times = glob(os.path.join(wn_path, '*WORLD_BonsaiTS.csv'))
-
+    # deinterlace world video
     deinterlace_data(temp_config, world_vids, world_times)
+    # apply calibration parameters to world video
     calibrate_new_world_vids(temp_config)
-
+    # organize nomenclature
     trial_units = []; name_check = []; path_check = []
     for avi in find('*.avi', temp_config['animal_dir']):
         bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
@@ -85,16 +72,16 @@ def quick_whitenoise_analysis(wn_path):
                 path_check.append(path_to_trial); name_check.append(trial_name)
         except UnboundLocalError:
             pass
-
+    # there should only be one item in trial_units in this case
+    # iterate into that
     for trial_unit in trial_units:
         temp_config['trial_path'] = trial_unit[0]
         t_name = trial_unit[1]
+        # find the timestamps and video for all camera inputs
         trial_cam_csv = find(('*BonsaiTS*.csv'), temp_config['trial_path'])
         trial_cam_avi = find(('*.avi'), temp_config['trial_path'])
-
         trial_cam_csv = [x for x in trial_cam_csv if x != []]
         trial_cam_avi = [x for x in trial_cam_avi if x != []]
-
         # filter the list of files for the current trial to get the world view of this side
         world_csv = [i for i in trial_cam_csv if 'WORLD' in i and 'formatted' in i][0]
         world_avi = [i for i in trial_cam_avi if 'WORLD' in i and 'calib' in i][0]
@@ -111,11 +98,9 @@ def quick_whitenoise_analysis(wn_path):
             trial_world_data.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
         elif temp_config['parameters']['outputs_and_visualization']['save_nc_vids'] is False:
             worlddlc.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')))
-
+        # now start minimal ephys analysis
         print('generating ephys plots')
-
         pdf = PdfPages(os.path.join(wn_path, (t_name + '_prelim_wn_figures.pdf')))
-    
         # generate summary plot
         samprate = 30000  # ephys sample rate
         ephys_file_path = glob(os.path.join(wn_path, '*_ephys_merge.json'))[0]
@@ -125,34 +110,35 @@ def quick_whitenoise_analysis(wn_path):
         ephys_data = pd.read_json(ephys_file_path)
         ephysT0 = ephys_data.iloc[0,12]
         worldT = world_data.timestamps - ephysT0
-
         ephys_data['spikeTraw'] = ephys_data['spikeT'].copy()
-
+        # sort ephys units by channel
+        ephys_data = ephys_data.sort_values(by='ch', axis=0, ascending=True)
+        ephys_data = ephys_data.reset_index()
+        ephys_data = ephys_data.drop('index', axis=1)
+        # correct offset between ephys and other data inputs
         offset0 = 0.1
         drift_rate = -0.1/1000
-
         for i in ephys_data.index:
             ephys_data.at[i,'spikeT'] = np.array(ephys_data.at[i,'spikeTraw']) - (offset0 + np.array(ephys_data.at[i,'spikeTraw']) *drift_rate)
+        # get cells labeled as good
         goodcells = ephys_data.loc[ephys_data['group']=='good']
-      
+        # occasional problem with worldcam timestamps
         if worldT[0]<-600:
             worldT = worldT + 8*60*60
-        
         # resize worldcam to make more manageable
         world_vid = world_vid_raw.copy()
-
+        # img correction applied to worldcam
         cam_gamma = 2
         world_norm = (world_vid/255)**cam_gamma
         std_im = np.std(world_norm,axis=0)
         std_im[std_im<10/255] = 10/255
         img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
         img_norm = img_norm * (std_im>20/255)
-
         contrast = np.empty(worldT.size)
         for i in range(worldT.size):
             contrast[i] = np.std(img_norm[i,:,:])
         newc = interp1d(worldT,contrast,fill_value="extrapolate")
-
+        # bin ephys spike times as spike rate / s
         dt = 0.025
         t = np.arange(0, np.max(worldT),dt)
         ephys_data['rate'] = np.nan
@@ -162,32 +148,29 @@ def quick_whitenoise_analysis(wn_path):
         ephys_data['rate']= ephys_data['rate']/dt
         goodcells = ephys_data.loc[ephys_data['group']=='good']
         n_units = len(goodcells)
-        
         contrast_interp = newc(t[0:-1])
-
+        # plot contrast over entire video
         plt.figure()
         plt.plot(worldT[0:12000],contrast[0:12000])
         plt.xlabel('time')
         plt.ylabel('contrast')
         pdf.savefig()
         plt.close()
-
+        # plot contrast over ~2min
         plt.figure()
         plt.plot(t[0:600],contrast_interp[0:600])
         plt.xlabel('secs'); plt.ylabel('contrast')
         pdf.savefig()
         plt.close()
-
-        spike_corr = 1 #+ 0.125/1200  # correction factor for ephys timing drift, but it's now corrected in spikeT and doesn't need to be manually reset
-
+        # worldcam interp and set floor to values
         img_norm[img_norm<-2] = -2
         movInterp = interp1d(worldT,img_norm,axis=0, bounds_error=False) # added extrapolate for cases where x_new is below interpolation range
-
+        # worldcam timing diff
         plt.figure()
         plt.plot(np.diff(worldT)); plt.xlabel('frame'); plt.ylabel('deltaT'); plt.title('world cam')
         pdf.savefig()
         plt.close()
-
+        # raster
         fig, ax = plt.subplots(figsize=(20,8))
         ax.fontsize = 20
         for i,ind in enumerate(goodcells.index):
@@ -197,8 +180,7 @@ def quick_whitenoise_analysis(wn_path):
             ax.spines['top'].set_visible(False)
         pdf.savefig()
         plt.close()
-
-        # calculate contrast - response functions
+        # calculate contrast response functions
         # mean firing rate in timebins correponding to contrast ranges
         resp = np.empty((n_units,12))
         crange = np.arange(0,1.2,0.1)
@@ -209,11 +191,8 @@ def quick_whitenoise_analysis(wn_path):
         ind_contrast_funcs_fig = plot_ind_contrast_funcs(n_units, goodcells, crange, resp)
         pdf.savefig()
         plt.close()
-
-        #ch_count = int([16 if '16' in file_dict['probe_name'] else 64][0])  # fails since there's no file_dict
-        ch_count = int(64)  # hack for absence of file_dict ; i think this should still work for 16ch, but we don't really use it anymore anyways; cmn
         # calculate spike-triggered average
-        staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp,ch_count)
+        staAll, STA_single_lag_fig = plot_STA_single_lag(n_units, img_norm, goodcells, worldT, movInterp, ch_count)
         pdf.savefig()
         plt.close()
 

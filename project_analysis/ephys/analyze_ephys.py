@@ -182,6 +182,15 @@ def run_ephys_analysis(file_dict):
     print('opening ephys data')
     # ephys data for this individual recording
     ephys_data = pd.read_json(file_dict['ephys'])
+    # sort units by shank and site order
+    ephys_data = ephys_data.sort_values(by='ch', axis=0, ascending=True)
+    ephys_data = ephys_data.reset_index()
+
+    # correct the unit to highlight for the updated order of ephys data
+    # then drop the column of initial index
+    # file_dict['cell'] = ephys_data[ephys_data['index']==file_dict['cell']].index[0]
+    ephys_data = ephys_data.drop('index', axis=1)
+    
     # spike times
     ephys_data['spikeTraw'] = ephys_data['spikeT']
 
@@ -302,7 +311,6 @@ def run_ephys_analysis(file_dict):
         plot_regression_timing_fit_fig = plot_regression_timing_fit(dataT[~np.isnan(dataT)], offset[~np.isnan(dataT)], offset0, drift_rate)
         diagnostic_pdf.savefig()
         plt.close()
-        print(offset0,drift_rate)
 
         del dataT
         gc.collect()
@@ -387,22 +395,12 @@ def run_ephys_analysis(file_dict):
         if file_dict['imu'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
-            print('making a reduced version of the video figure')
-            vidfile1 = make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, accT=accT, gz=gz)
         elif file_dict['speed'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
-            vidfile2 = make_movie2(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
         print('making audio figure')
         audfile = make_sound(file_dict, ephys_data, units, this_unit)
         print('merging videos with sound')
-        if file_dict['imu'] is not None:
-            # from make_movie1 (no panels, just videos and raster)
-            merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels_merge.mp4'))
-            subprocess.call(['ffmpeg', '-i', vidfile1, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
-        elif file_dict['speed'] is not None:
-            merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels_merge.mp4'))
-            subprocess.call(['ffmpeg', '-i', vidfile2, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
         # main video
         merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
         subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
@@ -584,7 +582,26 @@ def run_ephys_analysis(file_dict):
             layer4cent = np.argmin(np.min(rev_resp_mean, axis=1))
             lfp_depth = [list(range(16)) - layer4cent]
             layer4_out = [layer4cent]
-    
+
+    # some extra videos, which we usually will not want
+    # if file_dict['mp4']:
+    #     if file_dict['imu'] is not None:
+    #         print('making a reduced version of video figures')
+    #         vidfile1 = make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=accT, gz=gz_deg)
+    #         vidfile3 = make_movie3(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=accT, gz=gz_deg)
+    #     elif file_dict['speed'] is not None:
+    #         vidfile2 = make_movie2(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, th, phi, speedT=speedT, spd=spd)
+    #     if file_dict['imu'] is not None:
+    #         audfile1 = make_sound1(file_dict, ephys_data, units, this_unit)
+    #         # from make_movie1 (no panels, just videos and raster)
+    #         merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels_merge.mp4'))
+    #         subprocess.call(['ffmpeg', '-i', vidfile1, '-i', audfile1, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+    #         merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels_merge_notop.mp4'))
+    #         subprocess.call(['ffmpeg', '-i', vidfile3, '-i', audfile1, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+    #     elif file_dict['speed'] is not None:
+    #         merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels_merge.mp4'))
+    #         subprocess.call(['ffmpeg', '-i', vidfile2, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+
     if file_dict['stim_type'] == 'grat':
         print('getting grating flow')
         nf = np.size(img_norm,0)-1
