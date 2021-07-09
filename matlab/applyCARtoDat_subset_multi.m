@@ -115,30 +115,33 @@ try
         %%% save out median trace
         save([filename(1:end-4) '_medianTrace.mat'], 'medianTrace', '-v7.3');
      
-        %%% plot trace of each channel
-        figure
-        map64 = [1:2:64 2:2:64];
-        for i = 1:length(subChans)
-            if length(subChans)==64
-                subplot(32,2,map64(i));
-            else
-                subplot(length(subChans),1,i);
+        % only plot figures if fewer than 128ch (fix for memory issue)
+        if nChansTotal < 128:
+            %%% plot trace of each channel
+            figure
+            map64 = [1:2:64 2:2:64];
+            for i = 1:length(subChans)
+                if length(subChans)==64
+                    subplot(32,2,map64(i));
+                else
+                    subplot(length(subChans),1,i);
+                end
+                plot(allData(i,1:3000));
+                axis off
+                if i==1
+                    title(fileList{fnum})
+                end
+                xlabel(num2str(i));
             end
-            plot(allData(i,1:3000));
-            axis off
-            if i==1
-                title(fileList{fnum})
-            end
-            xlabel(num2str(i));
+            savefig(['CAR_' fileList{fnum}(1:end-4) '_fig1'])
+
+            %%% bar plot of stdev for each channel (noise measure)
+            figure
+            bar(std(double(allData),[],2));
+            xlabel('chan'); ylabel('stdev')
+            title(fileList{fnum})
+            savefig(['CAR_' fileList{fnum}(1:end-4) '_fig2'])
         end
-        savefig(['CAR_' fileList{fnum}(1:end-4) '_fig1'])
-        
-        %%% bar plot of stdev for each channel (noise measure)
-        figure
-        bar(std(double(allData),[],2));
-        xlabel('chan'); ylabel('stdev')
-        title(fileList{fnum})
-        savefig(['CAR_' fileList{fnum}(1:end-4) '_fig2'])
         
         fclose(fid);
         
