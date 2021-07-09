@@ -10,6 +10,12 @@ import cv2
 import pickle
 import time
 import subprocess
+import platform
+import matplotlib as mpl 
+if platform.system() == 'Linux':
+    mpl.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
+else:
+    mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
 from matplotlib.animation import FFMpegWriter
 import matplotlib as mpl 
 import wavio
