@@ -1,5 +1,19 @@
 %% generate kilosort maps
 
+%% DB P128-6
+
+%%% x coordinates for each site
+[zeros(1,32) ones(1,32)*150 ones(1,32)*300 ones(1,32)*450];
+
+%%% y coordinates for each site
+[775:-25:0 775:-25:0 775:-25:0 775:-25:0];
+
+%%% shank index
+[ones(1,32) ones(1,32)*2 ones(1,32)*3 ones(1,32)*4];
+
+%%% channel map
+1:128;
+
 %% DB P64-3
 
 %%% x coordinates for each site
