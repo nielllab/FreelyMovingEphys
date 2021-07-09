@@ -1000,10 +1000,17 @@ def plot_summary(n_units, goodcells, crange, resp, file_dict, staAll, trange, up
         
         # plot CRF
         if grating_ori is not None:
+            # for gratings stim, plot orientation tuning curve
             plt.subplot(n_units,4,i*4 + 2)
             plt.scatter(grating_ori,grating_rate[i,:],c=sf_cat)
             plt.plot(3*np.ones(len(spont_rate[i,:])),spont_rate[i,:],'r.')
+        if file_dict['stim_type'] == 'dark_arena':
+            # dark arena will have no values for contrast response function
+            # skip this panel for now
+            plt.subplot(n_units,4,i*4 + 2)
+            plt.axis('off')
         else:
+            # for light fm and all hf besides gratings, plot CRF
             plt.subplot(n_units,4,i*4 + 2)
             plt.plot(crange[2:-1],resp[i,2:-1])
             plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
