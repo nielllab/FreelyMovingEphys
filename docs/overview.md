@@ -3,7 +3,7 @@
 ## Typical Sequence (leading up to specific project analysis)
 1. Preprocess ephys data and merge recordings
 2. Kilosort
-3. Phy
+3. Phy2
 4. Split ephys recordings
 5. Write yaml config or batch csv
 6. Run either session or batch analysis
@@ -51,6 +51,6 @@ A .yaml file like [this one](/example_configs/config.yaml) can be used to run al
 ## Batch Files
 Write a csv file with each index representing a single day+mouse session with the following required columns shown in the table below:
 
-| experiment_date | animal_name | experiment_outcome | run_preproccessing | run_ephys_analysis | load_for_data_pool | best_fm_rec | unit2highlight | current_status | animal_dirpath | computer | drive | probe_name |
+| experiment_date | animal_name | run_preproccessing | run_ephys_analysis | load_for_data_pool | best_light_fm | best_dark_fm | flip_gx_gy | unit2highlight | animal_dirpath | computer | drive | probe_name |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-|date|name|good|TRUE|TRUE|TRUE|fm1|0|ephys analysis complete|/path/to/animal/directory/|computer_name|drive_name|probe model name|
+|date|name|TRUE|TRUE|TRUE|fm1_light|fm2_dark|FALSE|4|/path/to/animal/directory/|computer_name|drive_name|probe model name|
