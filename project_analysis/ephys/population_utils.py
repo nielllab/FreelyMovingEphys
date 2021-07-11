@@ -14,6 +14,8 @@ warnings.filterwarnings('ignore')
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
+from utils.ephys import load_ephys
+
 def modulation_index(tuning, zerocent=True, lbound=1, ubound=-2):
     """
     get modulation index for a tuning curve
@@ -73,7 +75,7 @@ def make_unit_summary(df, savepath):
             darkfm = row['best_light_fm']
         else:
             darkfm = None
-        unitfig = plt.figure(constrained_layout=True, figsize=(50,35))
+        unitfig = plt.figure(constrained_layout=True, figsize=(50,45))
         spec = gridspec.GridSpec(ncols=5, nrows=10, figure=unitfig)
         # blank title panel
         unitfig_title = unitfig.add_subplot(spec[0,0])
@@ -128,9 +130,18 @@ def make_unit_summary(df, savepath):
             elif np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'],0) == 16:
                 whole_shank = row['hf4_revchecker_revchecker_mean_resp_per_ch']
                 colors = plt.cm.jet(np.linspace(0,1,16))
+                shank_num = 0
                 for ch_num in range(16):
                     unitfig_lfp.plot(row['hf4_revchecker_revchecker_mean_resp_per_ch'][ch_num], color=colors[ch_num], alpha=0.3, linewidth=1) # all other channels
-                unitfig_lfp.plot(whole_shank[row['hf4_revchecker_layer4center'][shank_num]], color=colors[row['hf4_revchecker_layer4center'][shank_num]], label='layer4', linewidth=1) # layer 4
+                unitfig_lfp.plot(whole_shank[row['hf4_revchecker_layer4center']], color=colors[row['hf4_revchecker_layer4center']], label='layer4', linewidth=1) # layer 4
+            elif np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'],0) == 128:
+                shank_channels = [c for c in range(np.size(row['hf4_revchecker_revchecker_mean_resp_per_ch'], 0)) if int(np.floor(c/32)) == int(np.floor(int(row['ch'])/32))]
+                whole_shank = row['hf4_revchecker_revchecker_mean_resp_per_ch'][shank_channels]
+                shank_num = int(np.floor(int(row['ch'])/32))
+                colors = plt.cm.jet(np.linspace(0,1,32))
+                for ch_num in range(len(shank_channels)):
+                    unitfig_lfp.plot(whole_shank[ch_num], color=colors[ch_num], alpha=0.1, linewidth=1) # all other channels
+                unitfig_lfp.plot(whole_shank[row['hf4_revchecker_layer4center'][shank_num]], color=colors[row['hf4_revchecker_layer4center'][shank_num]], label='layer4', linewidth=4) # layer 4
             else:
                 print('unrecognized probe count in LFP plots during unit summary! index='+str(index))
             row['ch'] = int(row['ch'])
@@ -140,14 +151,26 @@ def make_unit_summary(df, savepath):
                 ch_spacing = 25/2
             else:
                 ch_spacing = 25
-            if shank_channels[0] == 0: # shank 0
+            if shank_num == 0:
                 position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']])
                 newdf.at[row['index'], 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
                 depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
                 newdf.at[row['index'], 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
                 unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(position_of_ch)+'\ndist2layer4='+str(depth_from_surface), fontsize=20)
-            else: # shank 1
+            elif shank_num == 1:
                 position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']-32])
+                newdf.at[row['index'], 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
+                depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
+                newdf.at[row['index'], 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
+                unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(position_of_ch)+'\ndist2layer4='+str(depth_from_surface), fontsize=20)
+            elif shank_num == 2:
+                position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']-64])
+                newdf.at[row['index'], 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
+                depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
+                newdf.at[row['index'], 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
+                unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(position_of_ch)+'\ndist2layer4='+str(depth_from_surface), fontsize=20)
+            elif shank_num == 3:
+                position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']-96])
                 newdf.at[row['index'], 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
                 depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
                 newdf.at[row['index'], 'hf4_revchecker_depth_from_layer4'] = depth_from_surface

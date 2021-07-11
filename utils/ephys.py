@@ -1354,6 +1354,7 @@ def run_ephys_analysis(file_dict):
         layer5_cent_sh0 = np.argmax(norm_profile_sh0)
         norm_profile_sh1 = lfp_power_profiles_filt[32:64]/np.max(lfp_power_profiles_filt[32:64])
         layer5_cent_sh1 = np.argmax(norm_profile_sh1)
+        lfp_power_profile = [norm_profile_sh0, norm_profile_sh1]
         plt.subplots(1,2, figsize=(10,8))
         plt.subplot(1,2,1)
         plt.plot(norm_profile_sh0,range(0,32))
@@ -1369,6 +1370,7 @@ def run_ephys_analysis(file_dict):
     elif ch_num == 16:
         norm_profile_sh0 = lfp_power_profiles_filt[:16]/np.max(lfp_power_profiles_filt[:16])
         layer5_cent_sh0 = np.argmax(norm_profile_sh0)
+        lfp_power_profile = [norm_profile_sh0]
         plt.figure()
         plt.plot(norm_profile_sh0,range(0,16))
         plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
@@ -1384,6 +1386,7 @@ def run_ephys_analysis(file_dict):
         layer5_cent_sh2 = np.argmax(norm_profile_sh2)
         norm_profile_sh3 = lfp_power_profiles_filt[96:128]/np.max(lfp_power_profiles_filt[96:128])
         layer5_cent_sh3 = np.argmax(norm_profile_sh3)
+        lfp_power_profile = [norm_profile_sh0, norm_profile_sh1, norm_profile_sh2, norm_profile_sh3]
         plt.subplots(1,4, figsize=(20,8))
         plt.subplot(1,4,1)
         plt.plot(norm_profile_sh0,range(0,32))
@@ -1455,9 +1458,16 @@ def run_ephys_analysis(file_dict):
         del all_resp
         gc.collect()
         print('generating figures and csd')
-        # plot traces over each other for two shanks
-        colors = plt.cm.jet(np.linspace(0,1,32))
-        num_channels = int([16 if '16' in file_dict['probe_name'] else 64][0])
+        if '64' in file_dict['probe_name']:
+            num_channels = 64
+            colors = plt.cm.jet(np.linspace(0,1,32))
+        elif '128' in file_dict['probe_name']:
+            num_channels = 128
+            colors = plt.cm.jet(np.linspace(0,1,32))
+        elif '16' in file_dict['probe_name']:
+            num_channels = 16
+            colors = plt.cm.jet(np.linspace(0,1,16))
+        # plot traces for shanks
         if num_channels == 64:
             plt.subplots(1,2 ,figsize=(12,6))
             for ch_num in np.arange(0,64):
@@ -1472,16 +1482,70 @@ def run_ephys_analysis(file_dict):
                     plt.title('ch33:64'); plt.axvline(x=(0.1*samprate))
                     plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
             detail_pdf.savefig(); plt.close()
-        # channels arranged in columns
-        fig, axes = plt.subplots(int(np.size(rev_resp_mean,0)/2),2, figsize=(7,20),sharey=True)
-        ch_num = 0
-        for ax in axes.T.flatten():
-            ax.plot(rev_resp_mean[ch_num], linewidth=1)
-            ax.axvline(x=(0.1*samprate), linewidth=1)
-            ax.axis('off')
-            ax.set_title(ch_num)
-            ch_num = ch_num + 1
-        detail_pdf.savefig(); plt.close()
+        elif num_channels == 16:
+            plt.figure()
+            for ch_num in np.arange(0,16):
+                plt.plot(rev_resp_mean[ch_num], color=colors[ch_num], linewidth=1)
+                plt.axvline(x=(0.1*samprate))
+                plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+            detail_pdf.savefig(); plt.close()
+        elif num_channels == 128:
+            plt.subplots(1,4 ,figsize=(40,6))
+            for ch_num in np.arange(0,128):
+                if ch_num < 32:
+                    plt.subplot(1,4,1)
+                    plt.plot(rev_resp_mean[ch_num], color=colors[ch_num], linewidth=1)
+                    plt.title('ch1:32'); plt.axvline(x=(0.1*samprate))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                elif 32 <= ch_num < 64:
+                    plt.subplot(1,4,2)
+                    plt.plot(rev_resp_mean[ch_num], color=colors[ch_num-32], linewidth=1)
+                    plt.title('ch33:64'); plt.axvline(x=(0.1*samprate))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                elif 64 <= ch_num < 96:
+                    plt.subplot(1,4,3)
+                    plt.plot(rev_resp_mean[ch_num], color=colors[ch_num-64], linewidth=1)
+                    plt.title('ch33:64'); plt.axvline(x=(0.1*samprate))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                elif 96 <= ch_num < 128:
+                    plt.subplot(1,4,4)
+                    plt.plot(rev_resp_mean[ch_num], color=colors[ch_num-96], linewidth=1)
+                    plt.title('ch33:64'); plt.axvline(x=(0.1*samprate))
+                    plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+            detail_pdf.savefig(); plt.close()
+        if num_channels == 64:
+            # channels arranged in columns
+            fig, axes = plt.subplots(int(np.size(rev_resp_mean,0)/2),2, figsize=(7,20),sharey=True)
+            ch_num = 0
+            for ax in axes.T.flatten():
+                ax.plot(rev_resp_mean[ch_num], linewidth=1)
+                ax.axvline(x=(0.1*samprate), linewidth=1)
+                ax.axis('off')
+                ax.set_title(ch_num)
+                ch_num = ch_num + 1
+            detail_pdf.savefig(); plt.close()
+        if num_channels == 128:
+            # channels arranged in columns
+            fig, axes = plt.subplots(int(np.size(rev_resp_mean,0)/4),4, figsize=(7,20),sharey=True)
+            ch_num = 0
+            for ax in axes.T.flatten():
+                ax.plot(rev_resp_mean[ch_num], linewidth=1)
+                ax.axvline(x=(0.1*samprate), linewidth=1)
+                ax.axis('off')
+                ax.set_title(ch_num)
+                ch_num = ch_num + 1
+            detail_pdf.savefig(); plt.close()
+        if num_channels == 16:
+            # channels arranged in columns
+            fig, axes = plt.subplots(int(np.size(rev_resp_mean,0)),1, figsize=(7,20),sharey=True)
+            ch_num = 0
+            for ax in axes.T.flatten():
+                ax.plot(rev_resp_mean[ch_num], linewidth=1)
+                ax.axvline(x=(0.1*samprate), linewidth=1)
+                ax.axis('off')
+                ax.set_title(ch_num)
+                ch_num = ch_num + 1
+            detail_pdf.savefig(); plt.close()
         # csd
         csd = np.ones([np.size(rev_resp_mean,0), np.size(rev_resp_mean,1)])
         csd_interval = 2
@@ -1513,6 +1577,15 @@ def run_ephys_analysis(file_dict):
             layer4cent = np.argmin(np.min(rev_resp_mean, axis=1))
             lfp_depth = [list(range(16)) - layer4cent]
             layer4_out = [layer4cent]
+        elif num_channels == 128:
+            shank0_layer4cent = np.argmin(np.min(rev_resp_mean[0:32,int(samprate*0.1):int(samprate*0.3)], axis=1))
+            shank1_layer4cent = np.argmin(np.min(rev_resp_mean[32:64,int(samprate*0.1):int(samprate*0.3)], axis=1))
+            shank2_layer4cent = np.argmin(np.min(rev_resp_mean[64:96,int(samprate*0.1):int(samprate*0.3)], axis=1))
+            shank3_layer4cent = np.argmin(np.min(rev_resp_mean[96:128,int(samprate*0.1):int(samprate*0.3)], axis=1))
+            shank0_ch_positions = list(range(32)) - shank0_layer4cent; shank1_ch_positions = list(range(32)) - shank1_layer4cent
+            shank2_ch_positions = list(range(32)) - shank2_layer4cent; shank3_ch_positions = list(range(32)) - shank3_layer4cent
+            lfp_depth = [shank0_ch_positions, shank1_ch_positions, shank2_ch_positions, shank3_ch_positions]
+            layer4_out = [shank0_layer4cent, shank1_layer4cent, shank2_layer4cent, shank3_layer4cent]
 
     if file_dict['stim_type'] == 'grat':
         print('getting grating flow')
@@ -1662,11 +1735,11 @@ def run_ephys_analysis(file_dict):
         img_norm_sm[f,:,:] = cv2.resize(img_norm[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
     movInterp = interp1d(worldT, img_norm_sm, axis=0, bounds_error=False)
     # get channel number
-    if '16' in probe_name:
+    if '16' in file_dict['probe_name']:
         ch_num = 16
-    elif '64' in probe_name:
+    elif '64' in file_dict['probe_name']:
         ch_num = 64
-    elif '128' in probe_name:
+    elif '128' in file_dict['probe_name']:
         ch_num = 128
     print('getting STA for single lag')
     # calculate spike-triggered average
@@ -2042,7 +2115,7 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_phi_cent',
                                         'spike_rate_vs_phi_tuning',
                                         'spike_rate_vs_phi_err',
-                                        'layer5center']]
+                                        'lfp_power_profile']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2075,7 +2148,7 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_phi_cent,
                                     spike_rate_vs_phi_tuning[unit_num],
                                     spike_rate_vs_phi_err[unit_num],
-                                    layer5_center]),dtype=object).T
+                                    lfp_power_profile]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -2110,7 +2183,7 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_phi_tuning',
                                         'spike_rate_vs_phi_err',
                                         'layer4center',
-                                        'layer5center']]
+                                        'lfp_power_profile']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2139,7 +2212,7 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_phi_tuning[unit_num],
                                     spike_rate_vs_phi_err[unit_num],
                                     layer4_out,
-                                    layer5_center]),dtype=object).T
+                                    lfp_power_profile]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -2170,7 +2243,7 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_phi_cent',
                                         'spike_rate_vs_phi_tuning',
                                         'spike_rate_vs_phi_err',
-                                        'layer5center']]
+                                        'lfp_power_profile']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2195,7 +2268,7 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_phi_cent,
                                     spike_rate_vs_phi_tuning[unit_num],
                                     spike_rate_vs_phi_err[unit_num],
-                                    layer5_center]),dtype=object).T
+                                    lfp_power_profile]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -2228,7 +2301,7 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_phi_cent',
                                         'spike_rate_vs_phi_tuning',
                                         'spike_rate_vs_phi_err',
-                                        'layer5center']]
+                                        'lfp_power_profile']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2255,7 +2328,7 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_phi_cent,
                                     spike_rate_vs_phi_tuning[unit_num],
                                     spike_rate_vs_phi_err[unit_num],
-                                    layer5_center]),dtype=object).T
+                                    lfp_power_profile]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -2317,7 +2390,7 @@ def run_ephys_analysis(file_dict):
                                         'pitch',
                                         'roll_interp',
                                         'pitch_interp',
-                                        'layer5center']]
+                                        'lfp_power_profile']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2373,7 +2446,7 @@ def run_ephys_analysis(file_dict):
                                     pitch,
                                     roll_interp,
                                     pitch_interp,
-                                    layer5_center]),dtype=object).T
+                                    lfp_power_profile]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
