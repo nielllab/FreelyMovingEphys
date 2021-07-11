@@ -10,13 +10,13 @@ from tkinter import ttk
 # select a directory to use for depth
 root = tk.Tk()
 root.withdraw()
-binary_file = filedialog.askdirectory(title='Select the freely moving ephys binary file:')
+binary_file = filedialog.askopenfile(title='Select the freely moving ephys binary file:')
 # set up window of probe options
 window = Tk()
 window.title('Select probe mapping')
+window.geometry("500x300+250+100")
 tab_control = ttk.Notebook(window)
 main = ttk.Frame(tab_control)
-main.geometry("500x300+250+100")
 tab_control.add(main, text='')
 tab_control.pack(expand=1, fill='both')
 # probe options
