@@ -10,7 +10,7 @@ from tkinter import ttk
 # select a directory to use for depth
 root = tk.Tk()
 root.withdraw()
-binary_file = filedialog.askopenfile(title='Select the freely moving ephys binary file:')
+binary_file = filedialog.askopenfilename(title='Select the freely moving ephys binary file:')
 # set up window of probe options
 window = Tk()
 window.title('Select probe mapping')
