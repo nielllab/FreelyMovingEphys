@@ -116,7 +116,7 @@ try
         save([filename(1:end-4) '_medianTrace.mat'], 'medianTrace', '-v7.3');
      
         % only plot figures if fewer than 128ch (fix for memory issue)
-        if nChansTotal < 128:
+        if nChansTotal < 128
             %%% plot trace of each channel
             figure
             map64 = [1:2:64 2:2:64];
