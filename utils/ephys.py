@@ -24,6 +24,7 @@ from scipy.signal import butter, freqz, lfilter, sosfiltfilt, medfilt
 from tqdm import tqdm
 import scipy.linalg as linalg
 import scipy.sparse as sparse
+import scipy.signal as signal
 import wavio
 from matplotlib.animation import FFMpegWriter
 from matplotlib.backends.backend_pdf import PdfPages
@@ -482,7 +483,7 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
         staAll: STA receptive field of each unit
         fig: figure
     """
-    n_units = len(goodcells)
+    n_units = len(goodcells.index)
     # model setup
     model_dt = 0.025
     model_t = np.arange(0, np.max(worldT), model_dt)
@@ -553,7 +554,7 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
             plt.tight_layout()
         return fig
 
-def plot_STV(goodcells, t, movInterp, img_norm, show_title=True):
+def plot_STV(goodcells, t, movInterp, img_norm):
     """
     plot spike-triggererd varaince
     INPUTS
@@ -565,7 +566,7 @@ def plot_STV(goodcells, t, movInterp, img_norm, show_title=True):
         stvAll: spike triggered variance for all units
         fig: figure
     """
-    n_units = len(goodcells)
+    n_units = len(goodcells.index)
     stvAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
     sta = 0
     lag = 0.125
@@ -606,7 +607,7 @@ def plot_overview(goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg
     OUTPUTS
         fig: figure
     """
-    n_units = len(goodcells)
+    n_units = len(goodcells.index)
     samprate = 30000  # ephys sample rate
     fig = plt.figure(figsize = (12,np.ceil(n_units)*2))
     for i, ind in enumerate(goodcells.index): 
@@ -632,7 +633,7 @@ def plot_overview(goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg
             plt.subplot(n_units,4,i*4 + 2)
             plt.plot(crange[2:-1],resp[i,2:-1])
             plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
-        #plot STA or tuning curve
+        # plot STA or tuning curve
         plt.subplot(n_units,4,i*4 + 3)
         if ori_tuning is not None:
             plt.plot(np.arange(8)*45, ori_tuning[i,:,0], label = 'low sf')
@@ -676,7 +677,7 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_label):
         tuning_err: stderror of variable at each bin
         fig: figure
     """
-    n_units = len(goodcells)
+    n_units = len(goodcells.index)
     scatter = np.zeros((n_units,len(use)))
     tuning = np.zeros((n_units,len(var_range)-1))
     tuning_err = tuning.copy()
@@ -717,7 +718,7 @@ def plot_saccade_locked(goodcells, upsacc, downsacc, trange):
         downsacc_avg: trace of average saccade to the right
         fig: figure
     """
-    n_units = len(goodcells)
+    n_units = len(goodcells.index)
     upsacc_avg = np.zeros((n_units,trange.size-1))
     downsacc_avg = np.zeros((n_units,trange.size-1))
     fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
@@ -931,7 +932,7 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
     # path to save video at
     vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'.mp4'))
     # animate
-    writer = FFMpegWriter(fps=30, extra_args=['-vf scale=800:-2'])
+    writer = FFMpegWriter(fps=30, extra_args=['-vf','scale=800:-2'])
     with writer.saving(fig, vidfile, 100):
         for t in np.arange(tr[0],tr[1],1/30):
             # show eye and world frames
@@ -1330,85 +1331,95 @@ def run_ephys_analysis(file_dict):
     except:
         pass
 
-    print('starting continuous LFP laminar depth estimation')
-    print('loading ephys binary file')
-    # read in ephys binary
-    lfp_ephys = read_ephys_bin(file_dict['ephys_bin'], file_dict['probe_name'], do_remap=True, mapping_json=file_dict['mapping_json'])
-    print('applying bandpass filter')
-    # subtract mean in time dim and apply bandpass filter
-    ephys_center_sub = lfp_ephys - np.mean(lfp_ephys,0)
-    filt_ephys = butter_bandpass(ephys_center_sub, lowcut=600, highcut=6000, fs=30000, order=6)
-    print('getting lfp power profile across channels')
-    # get lfp power profile for each channel
-    ch_num = np.size(filt_ephys,1)
-    lfp_power_profiles = np.zeros([ch_num])
-    for ch in range(ch_num):
-        lfp_power_profiles[ch] = np.sqrt(np.mean(filt_ephys[:,ch]**2))
-    # median filter
-    print('applying median filter')
-    lfp_power_profiles_filt = medfilt(lfp_power_profiles)
-    if file_dict['probe_name'] == 'DB_P64-8':
-        ch_spacing = 25/2
-    else:
-        ch_spacing = 25
-    print('making figures')
-    if ch_num == 64:
-        norm_profile_sh0 = lfp_power_profiles_filt[:32]/np.max(lfp_power_profiles_filt[:32])
-        layer5_cent_sh0 = np.argmax(norm_profile_sh0)
-        norm_profile_sh1 = lfp_power_profiles_filt[32:64]/np.max(lfp_power_profiles_filt[32:64])
-        layer5_cent_sh1 = np.argmax(norm_profile_sh1)
-        plt.subplots(1,2, figsize=(10,8))
-        plt.subplot(1,2,1)
-        plt.plot(norm_profile_sh0,range(0,32))
-        plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
-        plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
-        plt.title('shank0')
-        plt.subplot(1,2,2)
-        plt.plot(norm_profile_sh1,range(0,32))
-        plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
-        plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
-        plt.title('shank1')
-        detail_pdf.savefig(); plt.close()
-    elif ch_num == 16:
-        norm_profile_sh0 = lfp_power_profiles_filt[:16]/np.max(lfp_power_profiles_filt[:16])
-        layer5_cent_sh0 = np.argmax(norm_profile_sh0)
-        plt.figure()
-        plt.plot(norm_profile_sh0,range(0,16))
-        plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
-        plt.ylim([17,-1]); plt.yticks(ticks=list(range(-1,17)),labels=(ch_spacing*np.arange(18)-(layer5_cent_sh0*ch_spacing)))
-        plt.title('shank0')
-        detail_pdf.savefig(); plt.close()
-    elif ch_num == 128:
-        norm_profile_sh0 = lfp_power_profiles_filt[:32]/np.max(lfp_power_profiles_filt[:32])
-        layer5_cent_sh0 = np.argmax(norm_profile_sh0)
-        norm_profile_sh1 = lfp_power_profiles_filt[32:64]/np.max(lfp_power_profiles_filt[32:64])
-        layer5_cent_sh1 = np.argmax(norm_profile_sh1)
-        norm_profile_sh2 = lfp_power_profiles_filt[64:96]/np.max(lfp_power_profiles_filt[64:96])
-        layer5_cent_sh2 = np.argmax(norm_profile_sh2)
-        norm_profile_sh3 = lfp_power_profiles_filt[96:128]/np.max(lfp_power_profiles_filt[96:128])
-        layer5_cent_sh3 = np.argmax(norm_profile_sh3)
-        plt.subplots(1,4, figsize=(20,8))
-        plt.subplot(1,4,1)
-        plt.plot(norm_profile_sh0,range(0,32))
-        plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
-        plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
-        plt.title('shank0')
-        plt.subplot(1,4,2)
-        plt.plot(norm_profile_sh1,range(0,32))
-        plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
-        plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
-        plt.title('shank1')
-        plt.subplot(1,4,3)
-        plt.plot(norm_profile_sh2,range(0,32))
-        plt.plot(norm_profile_sh2[layer5_cent_sh2]+0.01,layer5_cent_sh2,'r*',markersize=12)
-        plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh2*ch_spacing)))
-        plt.title('shank2')
-        plt.subplot(1,4,4)
-        plt.plot(norm_profile_sh3,range(0,32))
-        plt.plot(norm_profile_sh3[layer5_cent_sh3]+0.01,layer5_cent_sh3,'r*',markersize=12)
-        plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh3*ch_spacing)))
-        plt.title('shank3')
-        detail_pdf.savefig(); plt.close()
+    if not free_move:
+        # don't run for freely moving, at least for now, because recordings can be too long to fit ephys binary into memory
+        # was only a problem for a 128ch recording
+        # but hf recordings should be sufficient length to get good estimate
+        print('starting continuous LFP laminar depth estimation')
+        print('loading ephys binary file')
+        # read in ephys binary
+        lfp_ephys = read_ephys_bin(file_dict['ephys_bin'], file_dict['probe_name'], do_remap=True, mapping_json=file_dict['mapping_json'])
+        print('applying bandpass filter')
+        # subtract mean in time dim and apply bandpass filter
+        ephys_center_sub = lfp_ephys - np.mean(lfp_ephys,0)
+        filt_ephys = butter_bandpass(ephys_center_sub, lowcut=600, highcut=6000, fs=30000, order=6)
+        print('getting lfp power profile across channels')
+        # get lfp power profile for each channel
+        ch_num = np.size(filt_ephys,1)
+        lfp_power_profiles = np.zeros([ch_num])
+        for ch in range(ch_num):
+            lfp_power_profiles[ch] = np.sqrt(np.mean(filt_ephys[:,ch]**2)) # multiunit LFP power profile
+        # median filter
+        print('applying median filter')
+        lfp_power_profiles_filt = medfilt(lfp_power_profiles)
+        if file_dict['probe_name'] == 'DB_P64-8':
+            ch_spacing = 25/2
+        else:
+            ch_spacing = 25
+        print('making figures')
+        if ch_num == 64:
+            norm_profile_sh0 = lfp_power_profiles_filt[:32]/np.max(lfp_power_profiles_filt[:32])
+            layer5_cent_sh0 = np.argmax(norm_profile_sh0)
+            norm_profile_sh1 = lfp_power_profiles_filt[32:64]/np.max(lfp_power_profiles_filt[32:64])
+            layer5_cent_sh1 = np.argmax(norm_profile_sh1)
+            lfp_power_profiles = [norm_profile_sh0, norm_profile_sh1]
+            lfp_layer5_centers = [layer5_cent_sh0, layer5_cent_sh1]
+            plt.subplots(1,2, figsize=(10,8))
+            plt.subplot(1,2,1)
+            plt.plot(norm_profile_sh0,range(0,32))
+            plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
+            plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
+            plt.title('shank0')
+            plt.subplot(1,2,2)
+            plt.plot(norm_profile_sh1,range(0,32))
+            plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
+            plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
+            plt.title('shank1')
+            detail_pdf.savefig(); plt.close()
+        elif ch_num == 16:
+            norm_profile_sh0 = lfp_power_profiles_filt[:16]/np.max(lfp_power_profiles_filt[:16])
+            layer5_cent_sh0 = np.argmax(norm_profile_sh0)
+            lfp_power_profiles = [norm_profile_sh0]
+            lfp_layer5_centers = [layer5_cent_sh0]
+            plt.figure()
+            plt.plot(norm_profile_sh0,range(0,16))
+            plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
+            plt.ylim([17,-1]); plt.yticks(ticks=list(range(-1,17)),labels=(ch_spacing*np.arange(18)-(layer5_cent_sh0*ch_spacing)))
+            plt.title('shank0')
+            detail_pdf.savefig(); plt.close()
+        elif ch_num == 128:
+            norm_profile_sh0 = lfp_power_profiles_filt[:32]/np.max(lfp_power_profiles_filt[:32])
+            layer5_cent_sh0 = np.argmax(norm_profile_sh0)
+            norm_profile_sh1 = lfp_power_profiles_filt[32:64]/np.max(lfp_power_profiles_filt[32:64])
+            layer5_cent_sh1 = np.argmax(norm_profile_sh1)
+            norm_profile_sh2 = lfp_power_profiles_filt[64:96]/np.max(lfp_power_profiles_filt[64:96])
+            layer5_cent_sh2 = np.argmax(norm_profile_sh2)
+            norm_profile_sh3 = lfp_power_profiles_filt[96:128]/np.max(lfp_power_profiles_filt[96:128])
+            layer5_cent_sh3 = np.argmax(norm_profile_sh3)
+            lfp_power_profiles = [norm_profile_sh0, norm_profile_sh1, norm_profile_sh2, norm_profile_sh3]
+            lfp_layer5_centers = [layer5_cent_sh0, layer5_cent_sh1, layer5_cent_sh2, layer5_cent_sh3]
+            plt.subplots(1,4, figsize=(20,8))
+            plt.subplot(1,4,1)
+            plt.plot(norm_profile_sh0,range(0,32))
+            plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
+            plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
+            plt.title('shank0')
+            plt.subplot(1,4,2)
+            plt.plot(norm_profile_sh1,range(0,32))
+            plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
+            plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
+            plt.title('shank1')
+            plt.subplot(1,4,3)
+            plt.plot(norm_profile_sh2,range(0,32))
+            plt.plot(norm_profile_sh2[layer5_cent_sh2]+0.01,layer5_cent_sh2,'r*',markersize=12)
+            plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh2*ch_spacing)))
+            plt.title('shank2')
+            plt.subplot(1,4,4)
+            plt.plot(norm_profile_sh3,range(0,32))
+            plt.plot(norm_profile_sh3[layer5_cent_sh3]+0.01,layer5_cent_sh3,'r*',markersize=12)
+            plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh3*ch_spacing)))
+            plt.title('shank3')
+            detail_pdf.savefig(); plt.close()
 
     if file_dict['stim_type'] == 'revchecker':
         print('running revchecker analysis')
@@ -1743,21 +1754,21 @@ def run_ephys_analysis(file_dict):
         ch_num = 128
     print('getting STA for single lag')
     # calculate spike-triggered average
-    staAll, STA_single_lag_fig = plot_STA(goodcells, img_norm, worldT, movInterp, ch_num, lag=2)
+    staAll, STA_single_lag_fig = plot_STA(goodcells, img_norm_sm, worldT, movInterp, ch_num, lag=2)
     detail_pdf.savefig()
     plt.close()
     print('getting STA for range in lags')
     # calculate spike-triggered average
-    fig = plot_STA(goodcells, img_norm, worldT, movInterp, ch_num, lag=np.arange(-2,8,2))
+    fig = plot_STA(goodcells, img_norm_sm, worldT, movInterp, ch_num, lag=np.arange(-2,8,2))
     detail_pdf.savefig()
     plt.close()
     print('getting STV')
     # calculate spike-triggered variance
-    st_var, fig = plot_STV(n_units, goodcells, t, movInterp, img_norm_sm)
+    st_var, fig = plot_STV(goodcells, t, movInterp, img_norm_sm)
     detail_pdf.savefig()
     plt.close()
 
-    if (free_move is True and file_dict['stim_type']=='light_arena') | (file_dict['stim_type'] == 'white_noise'):
+    if (free_move is True) | (file_dict['stim_type'] == 'white_noise'):
         print('doing GLM receptive field estimate')
         # simplified setup for GLM
         # these are general parameters (spike rates, eye position)
@@ -1773,7 +1784,7 @@ def run_ephys_analysis(file_dict):
             model_nsp[i,:],bins = np.histogram(goodcells.at[ind,'spikeT'],bins)
         # get eye position
         print('get eye')
-        thInterp =interp1d(eyeT,th, bounds_error = False)
+        thInterp = interp1d(eyeT,th, bounds_error = False)
         phiInterp =interp1d(eyeT,phi, bounds_error = False)
         model_th = thInterp(model_t+model_dt/2)
         model_phi = phiInterp(model_t+model_dt/2)
@@ -2028,9 +2039,9 @@ def run_ephys_analysis(file_dict):
 
     print('making overview plot')
     if file_dict['stim_type'] == 'grat':
-        summary_fig = plot_overview(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=ori_tuning, drift_spont=drift_spont, grating_ori=grating_ori, sf_cat=sf_cat, grating_rate=grating_rate, spont_rate=spont_rate)
+        summary_fig = plot_overview(goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg, ori_tuning=ori_tuning, drift_spont=drift_spont, grating_ori=grating_ori, sf_cat=sf_cat, grating_rate=grating_rate, spont_rate=spont_rate)
     else:
-        summary_fig = plot_overview(n_units, goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg)
+        summary_fig = plot_overview(goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg)
     overview_pdf.savefig()
     plt.close()
 
@@ -2115,7 +2126,8 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_phi_cent',
                                         'spike_rate_vs_phi_tuning',
                                         'spike_rate_vs_phi_err',
-                                        'lfp_power_profile']]
+                                        'lfp_power_profiles',
+                                        'lfp_layer5_centers']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2148,7 +2160,8 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_phi_cent,
                                     spike_rate_vs_phi_tuning[unit_num],
                                     spike_rate_vs_phi_err[unit_num],
-                                    lfp_power_profile]),dtype=object).T
+                                    lfp_power_profiles,
+                                    lfp_layer5_centers]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -2183,7 +2196,8 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_phi_tuning',
                                         'spike_rate_vs_phi_err',
                                         'layer4center',
-                                        'lfp_power_profile']]
+                                        'lfp_power_profiles',
+                                        'lfp_layer5_centers']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2212,7 +2226,8 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_phi_tuning[unit_num],
                                     spike_rate_vs_phi_err[unit_num],
                                     layer4_out,
-                                    lfp_power_profile]),dtype=object).T
+                                    lfp_power_profiles,
+                                    lfp_layer5_centers]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -2243,7 +2258,8 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_phi_cent',
                                         'spike_rate_vs_phi_tuning',
                                         'spike_rate_vs_phi_err',
-                                        'lfp_power_profile']]
+                                        'lfp_power_profiles',
+                                        'lfp_layer5_centers']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2268,7 +2284,8 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_phi_cent,
                                     spike_rate_vs_phi_tuning[unit_num],
                                     spike_rate_vs_phi_err[unit_num],
-                                    lfp_power_profile]),dtype=object).T
+                                    lfp_power_profiles,
+                                    lfp_layer5_centers]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -2301,7 +2318,8 @@ def run_ephys_analysis(file_dict):
                                         'spike_rate_vs_phi_cent',
                                         'spike_rate_vs_phi_tuning',
                                         'spike_rate_vs_phi_err',
-                                        'lfp_power_profile']]
+                                        'lfp_power_profiles',
+                                        'lfp_layer5_centers']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2328,7 +2346,8 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_phi_cent,
                                     spike_rate_vs_phi_tuning[unit_num],
                                     spike_rate_vs_phi_err[unit_num],
-                                    lfp_power_profile]),dtype=object).T
+                                    lfp_power_profiles,
+                                    lfp_layer5_centers]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
@@ -2389,8 +2408,7 @@ def run_ephys_analysis(file_dict):
                                         'roll',
                                         'pitch',
                                         'roll_interp',
-                                        'pitch_interp',
-                                        'lfp_power_profile']]
+                                        'pitch_interp']]
             unit_df = pd.DataFrame(pd.Series([crange,
                                     crf_cent,
                                     crf_tuning[unit_num],
@@ -2445,8 +2463,7 @@ def run_ephys_analysis(file_dict):
                                     roll,
                                     pitch,
                                     roll_interp,
-                                    pitch_interp,
-                                    lfp_power_profile]),dtype=object).T
+                                    pitch_interp]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = session_name
