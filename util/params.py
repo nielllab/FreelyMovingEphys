@@ -32,11 +32,11 @@ def extract_params(config):
         None
     """
     # get the path to each recording directory
-    if config['preycapture'] == True:
-        recording_names = [i for i in list_subdirs(config['data_path']) if 'trial' in i]
+    if config['preycapture_analysis']['preycapture'] == True:
+        recording_names = [i for i in list_subdirs(config['animal_dir']) if 'trial' in i]
     else:
-        recording_names = [i for i in list_subdirs(config['data_path']) if 'hf' in i or 'fm' in i]
-    recording_paths = [os.path.normpath(os.path.join(config['data_path'], recording_name)) for recording_name in recording_names]
+        recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i]
+    recording_paths = [os.path.normpath(os.path.join(config['animal_dir'], recording_name)) for recording_name in recording_names]
     recordings_dict = dict(zip(recording_names, recording_paths))
     
     # sort dictionary of {name: path} so fm recordings are always handled first

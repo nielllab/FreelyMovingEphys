@@ -13,6 +13,7 @@ from util.img_processing import auto_contrast
 from project_analysis.ephys.ephys_by_session import session_ephys_analysis
 from util.paths import find
 from project_analysis.ephys.ephys_utils import population_analysis
+from project_analysis.prey_capture.calc_basic_params import calc_params
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -64,6 +65,8 @@ def main(config_path, clear_dlc=False, force_probe_name=None, force_flip_gx_gy=F
         session_ephys_analysis(config)
     if config['population']['pool_h5_files'] and batch==False:
         population_analysis(config)
+    if config['preycapture_analysis']['preycapture']==True:
+        calc_params(config)
 
 if __name__ == '__main__':
     args = get_args()
