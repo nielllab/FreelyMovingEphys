@@ -20,7 +20,7 @@ args = get_args()
 if args.config == None:
     root = tk.Tk()
     root.withdraw()
-    config = filedialog.askdirectory(title='Select the animal directory')
+    config = filedialog.askopenfilename(title='Select the config file')
 else:
     config = args.config
 run_session_analysis(config, args.clear_dlc)

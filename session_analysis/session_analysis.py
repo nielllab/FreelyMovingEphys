@@ -10,7 +10,7 @@ from utils.worldcam import track_LED
 from utils.video_correction import get_calibration_params, calibrate_new_world_vids, auto_contrast
 from utils.ephys import session_ephys_analysis
 from utils.paths import find
-from utils.ephys import population_analysis
+from project_analysis.ephys.population_utils import population_analysis
 
 def main(config_path, clear_dlc=False, force_probe_name=None, force_flip_gx_gy=None, batch=False):
     if type(config_path) == dict:

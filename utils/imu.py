@@ -465,7 +465,7 @@ def read_8ch_imu(imupath, timepath, config):
     gyro = pd.DataFrame.to_numpy((data[['gyro_x', 'gyro_y', 'gyro_z']]-pd.DataFrame.mean(data[['gyro_x', 'gyro_y', 'gyro_z']]))*400)
     # collect roll & pitch
     roll_pitch = np.zeros([len(acc),2])
-    for x in trange(len(acc)):
+    for x in range(len(acc)):
         roll_pitch[x,:] = IMU.process((acc[x],gyro[x])) # update by row
     roll_pitch = pd.DataFrame(roll_pitch, columns=['roll','pitch'])
     # collect the data together to return
