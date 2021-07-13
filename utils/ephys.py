@@ -954,7 +954,7 @@ def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_param
     gs = fig.add_gridspec(11,6)
     axEye = fig.add_subplot(gs[0:2,0:3])
     axWorld = fig.add_subplot(gs[0:2,3:6])
-    axRad = fig.add_subplot(gs[2,4:6])
+    axRad = fig.add_subplot(gs[2,:])
     axTheta = fig.add_subplot(gs[3,:])
     axGyro = fig.add_subplot(gs[4,:])
     axR = fig.add_subplot(gs[5:11,:])
@@ -991,7 +991,7 @@ def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_param
     # plot spikes
     axR.fontsize = 20
     for i,ind in enumerate(goodcells.index):
-        i = i%32
+        i = i%32 + np.floor(i/32)
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
     axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5) # this unit
 
@@ -1001,26 +1001,7 @@ def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_param
     axR.spines['right'].set_visible(False)
     axR.spines['top'].set_visible(False)
 
-    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels.mp4'))
-    # now animate
-    writer = FFMpegWriter(fps=30)
-    with writer.saving(fig, vidfile, 100):
-        for t in np.arange(tr[0],tr[1],1/30):
-            # animate eye
-            axEye.cla(); axEye.axis('off')
-            axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
-            # animate world
-            axWorld.cla(); axWorld.axis('off')
-            axWorld.imshow(worldInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
-            # animate topdown
-            # axTopdown.cla(); axTopdown.axis('off')
-            # axTopdown.imshow(topInterp(t)*2,'gray',vmin=0,vmax=255,aspect="equal")
-            # plot line for time, then remove
-            ln = axR.vlines(t,-0.5,30,'b')
-            writer.grab_frame()
-            ln.remove()
-
-    return vidfile
+    return fig
 
 def make_sound(file_dict, ephys_data, units, this_unit):
     """
@@ -1079,6 +1060,86 @@ def make_sound1(file_dict, ephys_data, units, this_unit):
     audfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'.wav'))
     wavio.write(audfile, x, datarate, sampwidth=1)
     return audfile
+
+def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units,
+                this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=None, gz=None, speedT=None, spd=None):
+    # set up figure
+    fig = plt.figure(figsize = (10,16))
+    fig.tight_layout()
+    gs = fig.add_gridspec(11,6)
+    axEye = fig.add_subplot(gs[0:2,0:2])
+    axWorld = fig.add_subplot(gs[0:2,2:4])
+    axTopdown = fig.add_subplot(gs[0:2,4:6])
+    axRad = fig.add_subplot(gs[2,:])
+    axTheta = fig.add_subplot(gs[3,:])
+    axGyro = fig.add_subplot(gs[4,:])
+    axR = fig.add_subplot(gs[5:11,:])
+
+    #timerange and center frame (only)
+    tr = [0, 15]
+    fr = np.mean(tr) # time for frame
+    eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
+    worldFr = np.abs(worldT-fr).argmin(dim = "frame")
+    topFr = np.abs(topT-fr).argmin(dim = "frame")
+
+    axEye.cla(); axEye.axis('off')
+    axEye.imshow(eye_vid[eyeFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+
+    axWorld.cla();  axWorld.axis('off'); 
+    axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+
+    axTopdown.cla();  axTopdown.axis('off'); 
+    axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+
+    axRad.cla()
+    axRad.plot(eyeT,eye_params.sel(ellipse_params = 'longaxis'))
+    axRad.set_xlim(tr[0],tr[1]); 
+    axRad.set_ylabel('pupil radius')# ; axRad.set_ylim(0,40)
+
+    # plot eye position
+    axTheta.cla()
+    axTheta.plot(eyeT,th)
+    axTheta.set_xlim(tr[0],tr[1]); 
+    axTheta.set_ylabel('theta (deg)')#; axTheta.set_ylim(-50,-10)
+
+    # plot gyro
+    axGyro.plot(accT,gz)
+    axGyro.set_xlim(tr[0],tr[1])#; axGyro.set_ylim(-500,500)
+    axGyro.set_ylabel('gyro z (deg/s)')
+    
+    # plot spikes
+    axR.fontsize = 20
+    for i,ind in enumerate(goodcells.index):
+        i = i%32 + np.floor(i/32)
+        axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
+    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5) # this unit
+
+    n_units = len(goodcells)
+
+    axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , n_units); axR.set_xlabel('secs'); axR.set_ylabel('unit')
+    axR.spines['right'].set_visible(False)
+    axR.spines['top'].set_visible(False)
+
+    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels.mp4'))
+    # now animate
+    writer = FFMpegWriter(fps=30)
+    with writer.saving(fig, vidfile, 100):
+        for t in np.arange(tr[0],tr[1],1/30):
+            # animate eye
+            axEye.cla(); axEye.axis('off')
+            axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
+            # animate world
+            axWorld.cla(); axWorld.axis('off')
+            axWorld.imshow(worldInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
+            # animate topdown
+            # axTopdown.cla(); axTopdown.axis('off')
+            # axTopdown.imshow(topInterp(t)*2,'gray',vmin=0,vmax=255,aspect="equal")
+            # plot line for time, then remove
+            ln = axR.vlines(t,-0.5,30,'b')
+            writer.grab_frame()
+            ln.remove()
+
+    return vidfile
 
 def run_ephys_analysis(file_dict):
     """
@@ -1358,11 +1419,15 @@ def run_ephys_analysis(file_dict):
     worldInterp = interp1d(worldT, world_vid_raw, axis=0, bounds_error=False)
     if free_move:
         topInterp = interp1d(topT, top_vid, axis=0,bounds_error=False)
+    if file_dict['imu'] is not None:
+        fig = make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=accT, gz=gz)
+        detail_pdf.savefig()
+        plt.close()
     if file_dict['mp4']:
         if file_dict['imu'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
-            vidfile1 = make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
+            vidfile1 = make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=accT, gz=gz)
         elif file_dict['speed'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
