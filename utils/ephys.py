@@ -1438,8 +1438,9 @@ def run_ephys_analysis(file_dict):
         # main video
         merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
         subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
-        merge_mp4_name1 = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels_merge.mp4'))
-        subprocess.call(['ffmpeg', '-i', vidfile1, '-i', audfile1, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name1])
+        if file_dict['imu'] is not None:
+            merge_mp4_name1 = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels_merge.mp4'))
+            subprocess.call(['ffmpeg', '-i', vidfile1, '-i', audfile1, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name1])
     
     if free_move is True and file_dict['imu'] is not None:
         plt.figure()
