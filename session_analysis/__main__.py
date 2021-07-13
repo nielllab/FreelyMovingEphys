@@ -18,7 +18,7 @@ if __name__ == '__main__':
     args = get_args()
     # if no path was given as an argument, open a dialog box
     if args.config == None:
-        config = sg.popup_get_folder('Choose animal directory')
+        config = sg.popup_get_file('Choose animal directory')
     else:
         config = args.config
     run_session_analysis(config, args.clear_dlc)
