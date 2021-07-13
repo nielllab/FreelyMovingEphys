@@ -144,7 +144,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         spot_xcent = np.mean(x_vals.iloc[:,-5:], 1)
         spot_ycent = np.mean(y_vals.iloc[:,-5:], 1)
         spot_likelihood = likelihood_in[:,-5:].copy()
-        likelihood = likelihood_in[:,:9]
+        likelihood = likelihood_in[:,:-5]
         x_vals = x_vals.iloc[:,:-5].subtract(spot_xcent, axis=0)
         y_vals = y_vals.iloc[:,:-5].subtract(spot_ycent, axis=0)
     elif config['pose_estimation']['has_ir_spot_labeled'] is True and config['parameters']['eyes']['spot_subtract'] is False:
@@ -155,15 +155,15 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         y_vals = y_vals.iloc[:,:-5]
         likelihood = likelihood_in[:,:-5]
     # drop tear/outer
-    if config['pose_estimation']['has_ir_spot_labeled'] is True:
+    if config['pose_estimation']['has_tear_labeled'] is True:
         x_vals = x_vals.iloc[:,:-2]
         y_vals = y_vals.iloc[:,:-2]
-        likelihood = likelihood_in[:,:-2]
+        likelihood = likelihood[:,:-2]
     # get bools of when a frame is usable with the right number of points above threshold
     if config['parameters']['eyes']['spot_subtract'] is True:
         # if spot subtraction is being done, we should only include frames where all five pts marked around the ir spot are good (centroid would be off otherwise)
-        usegood_req5 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ellipse_pts_needed'])# & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
-        usegood_req8 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['calib_ellipse_pts_needed'])# & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+        usegood_req5 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ellipse_pts_needed']) & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+        usegood_req8 = (np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['calib_ellipse_pts_needed']) & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
         spot_usegood = (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
     else:
         usegood_req5 = np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ellipse_pts_needed']
@@ -172,20 +172,20 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         if config['parameters']['eyes']['spot_subtract'] is True:
             plt.figure()
-            plt.plot(np.sum(spot_likelihood >= config['parameters']['eyes']['num_ir_spot_pts_needed'], 1)[0:-1:10])
+            plt.plot(np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1)[0:-1:10])
             plt.title(str(np.round(np.mean(spot_usegood), 3)) + ' good (req5) for IR spot; thresh= ' + str(config['parameters']['lik_thresh']))
             plt.ylabel('num good IR spot points'); plt.xlabel('every 10th frame')
             pdf.savefig()
             plt.close()
         plt.figure()
         plt.plot(np.sum(likelihood >= config['parameters']['lik_thresh'], 1)[0:-1:10])
-        plt.title(str(np.round(np.mean(usegood_req5), 3)) + ' good (req5); thresh= ' + str(config['parameters']['lik_thresh']))
-        plt.ylabel('num good eye points'); plt.xlabel('every 10th frame')
+        plt.title(str(np.round(np.mean(usegood_req5), 3)) + ' good (req7); thresh= ' + str(config['parameters']['lik_thresh']))
+        plt.ylabel('num good pupil points'); plt.xlabel('every 10th frame')
         pdf.savefig()
         plt.close()
         plt.figure()
-        plt.hist(np.sum(likelihood >= config['parameters']['lik_thresh'], 1),bins=9, range = (0,9))
-        plt.xlabel('num good eye points'); plt.ylabel('n frames')
+        plt.hist(np.sum(likelihood >= config['parameters']['lik_thresh'], 1),bins=9, range = (0,9), density=True)
+        plt.xlabel('num good eye points'); plt.ylabel('fraction of frames')
         pdf.savefig()
         plt.close()
     # threshold out pts more than a given distance away from nanmean of that point
@@ -280,7 +280,7 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         try:
             plt.figure()
-            plt.hist(ellipticity)
+            plt.hist(ellipticity, density=True)
             plt.title('ellipticity; thresh= ' + str(config['parameters']['eyes']['ell_thresh']))
             plt.ylabel('num good eye points'); plt.xlabel('frame')
             pdf.savefig()
