@@ -950,7 +950,7 @@ def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_param
                 this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
     fig = plt.figure(figsize = (10,16))
-    fig.tight_layout()
+    plt.tight_layout()
     gs = fig.add_gridspec(11,6)
     axEye = fig.add_subplot(gs[0:2,0:3])
     axWorld = fig.add_subplot(gs[0:2,3:6])
@@ -1065,7 +1065,7 @@ def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, e
                 this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
     fig = plt.figure(figsize = (10,16))
-    fig.tight_layout()
+    plt.tight_layout()
     gs = fig.add_gridspec(11,6)
     axEye = fig.add_subplot(gs[0:2,0:2])
     axWorld = fig.add_subplot(gs[0:2,2:4])
@@ -1091,7 +1091,7 @@ def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, e
     axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
 
     axSpd.cla()
-    axSpd.plot(topT,top_speed)
+    axSpd.plot(topT[:-1],top_speed)
     axSpd.set_xlim(tr[0],tr[1]); 
     axSpd.set_ylabel('speed')# ; axRad.set_ylim(0,40)
 
@@ -1103,7 +1103,7 @@ def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, e
     # plot spikes
     axR.fontsize = 20
     for i,ind in enumerate(goodcells.index):
-        i = i%32 + np.floor(i/32)
+        i = i%32 * np.floor(i/32)
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
     axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5) # this unit
 
