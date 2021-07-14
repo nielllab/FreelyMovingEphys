@@ -130,7 +130,7 @@ try
             plot(allData(i,1:3000));
             axis off
             if i==1
-                title(fileList{fnum})
+                title(fileList{fnum});
             end
             xlabel(num2str(i));
         end
@@ -139,7 +139,7 @@ try
         %%% bar plot of stdev for each channel (noise measure)
         figure
         for i = subChans
-        	bar(std(double(allData[i]),[],2));
+        	bar(std(double(allData(i)),[],2));
         end
         xlabel('chan'); ylabel('stdev')
         title(fileList{fnum})
