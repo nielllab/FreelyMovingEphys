@@ -509,7 +509,7 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
             sta = model_vid.T @ sp
             sta = np.reshape(sta, nks)
             nsp = np.sum(sp)
-            plt.subplot(int(np.ceil(n_units/6)),6,c+1)
+            plt.subplot(int(np.ceil(n_units/10)),10,c+1)
             ch = int(goodcells.at[ind,'ch'])
             if ch_count == 64 or ch_count == 128:
                 shank = np.floor(ch/32); site = np.mod(ch,32)
@@ -1062,7 +1062,7 @@ def make_sound1(file_dict, ephys_data, units, this_unit):
     return audfile
 
 def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units,
-                this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=None, gz=None, speedT=None, spd=None):
+                this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
     fig = plt.figure(figsize = (10,16))
     fig.tight_layout()
@@ -1070,10 +1070,9 @@ def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, e
     axEye = fig.add_subplot(gs[0:2,0:2])
     axWorld = fig.add_subplot(gs[0:2,2:4])
     axTopdown = fig.add_subplot(gs[0:2,4:6])
-    axRad = fig.add_subplot(gs[2,:])
-    axTheta = fig.add_subplot(gs[3,:])
-    axGyro = fig.add_subplot(gs[4,:])
-    axR = fig.add_subplot(gs[5:11,:])
+    axSpd = fig.add_subplot(gs[2,:])
+    axGyro = fig.add_subplot(gs[3,:])
+    axR = fig.add_subplot(gs[4:11,:])
 
     #timerange and center frame (only)
     tr = [0, 15]
@@ -1091,16 +1090,10 @@ def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, e
     axTopdown.cla();  axTopdown.axis('off'); 
     axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
 
-    axRad.cla()
-    axRad.plot(eyeT,eye_params.sel(ellipse_params = 'longaxis'))
-    axRad.set_xlim(tr[0],tr[1]); 
-    axRad.set_ylabel('pupil radius')# ; axRad.set_ylim(0,40)
-
-    # plot eye position
-    axTheta.cla()
-    axTheta.plot(eyeT,th)
-    axTheta.set_xlim(tr[0],tr[1]); 
-    axTheta.set_ylabel('theta (deg)')#; axTheta.set_ylim(-50,-10)
+    axSpd.cla()
+    axSpd.plot(topT,top_speed)
+    axSpd.set_xlim(tr[0],tr[1]); 
+    axSpd.set_ylabel('speed')# ; axRad.set_ylim(0,40)
 
     # plot gyro
     axGyro.plot(accT,gz)
