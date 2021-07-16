@@ -483,7 +483,7 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
         staAll: STA receptive field of each unit
         fig: figure
     """
-    n_units = len(goodcells.index)
+    n_units = len(goodcells)
     # model setup
     model_dt = 0.025
     model_t = np.arange(0, np.max(worldT), model_dt)
@@ -502,7 +502,7 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
     staAll = np.zeros((n_units, np.shape(img_norm)[1], np.shape(img_norm)[2]))
     model_vid[np.isnan(model_vid)] = 0
     if type(lag) == int:
-        fig = plt.figure(figsize=(20,np.ceil(n_units/2)))
+        fig = plt.subplots(int(np.ceil(n_units/10)),10,figsize=(20,np.int(np.ceil(n_units/3))),dpi=50)
         for c, ind in enumerate(goodcells.index):
             sp = model_nsp[c,:].copy()
             sp = np.roll(sp, -lag)
@@ -516,7 +516,7 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
             else:
                 shank = 0; site = ch
             if show_title:
-                plt.title(f'ind={ind!s} nsp={nsp!s}\n ch={ch!s} shank={shank!s}\n site={site!s}')
+                plt.title(f'ind={ind!s} nsp={nsp!s}\n ch={ch!s} shank={shank!s}\n site={site!s}',fontsize=5)
             plt.axis('off')
             if nsp > 0:
                 sta = sta/nsp
@@ -531,7 +531,7 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
         return staAll, fig
     else:
         lagRange = lag
-        fig = plt.figure(figsize=(20,4*n_units))
+        fig = plt.subplots(n_units,5,figsize=(5,np.int(np.ceil(n_units/3))),dpi=50)
         for c, ind in enumerate(goodcells.index):
             for lagInd, lag in enumerate(lagRange):
                 sp = model_nsp[c,:].copy()
@@ -539,7 +539,7 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
                 sta = model_vid.T@sp
                 sta = np.reshape(sta,nks)
                 nsp = np.sum(sp)
-                plt.subplot(n_units,6,(c*6)+lagInd + 1)
+                plt.subplot(n_units,5,(c*5)+lagInd + 1)
                 if nsp > 0:
                     sta = sta/nsp
                 else:
@@ -547,9 +547,9 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
                 if pd.isna(sta) is True:
                     plt.imshow(np.zeros([120,160]))
                 else:
-                    plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+                    plt.imshow((sta-np.mean(sta)),vmin=-0.3,vmax=0.3,cmap = 'jet')
                 if c == 0:
-                    plt.title(str(np.round(lag*model_dt*1000)) + 'msec')
+                    plt.title(str(np.round(lag*model_dt*1000)) + 'msec',fontsize=5)
                 plt.axis('off')
             plt.tight_layout()
         return fig
@@ -566,22 +566,22 @@ def plot_STV(goodcells, t, movInterp, img_norm):
         stvAll: spike triggered variance for all units
         fig: figure
     """
-    n_units = len(goodcells.index)
+    n_units = len(goodcells)
     stvAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
     sta = 0
     lag = 0.125
-    fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
+    fig = plt.subplots(int(np.ceil(n_units/10)),10,figsize=(20,np.int(np.ceil(n_units/3))),dpi=50)
     for c, ind in enumerate(goodcells.index):
         r = goodcells.at[ind,'rate']
         sta = 0
         for i in range(5, t.size-10):
             sta = sta+r[i]*(movInterp(t[i]-lag))**2
-        plt.subplot(int(np.ceil(n_units/4)), 4, c+1)
+        plt.subplot(int(np.ceil(n_units/10)), 10, c+1)
         sta = sta/np.sum(r)
         plt.imshow(sta - np.mean(img_norm**2,axis=0), vmin=-1, vmax=1)
         stvAll[c,:,:] = sta - np.mean(img_norm**2, axis=0)
+        plt.axis('off')
     plt.tight_layout()
-    plt.axis('off')
     return stvAll, fig
 
 def plot_overview(goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg, downsacc_avg,
@@ -607,9 +607,9 @@ def plot_overview(goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg
     OUTPUTS
         fig: figure
     """
-    n_units = len(goodcells.index)
+    n_units = len(goodcells)
     samprate = 30000  # ephys sample rate
-    fig = plt.figure(figsize = (12,np.ceil(n_units)*2))
+    fig = plt.figure(figsize=(5,np.int(np.ceil(n_units/3))),dpi=50)
     for i, ind in enumerate(goodcells.index): 
         # plot waveform
         plt.subplot(n_units,4,i*4 + 1)
@@ -677,7 +677,7 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_label):
         tuning_err: stderror of variable at each bin
         fig: figure
     """
-    n_units = len(goodcells.index)
+    n_units = len(goodcells)
     scatter = np.zeros((n_units,len(use)))
     tuning = np.zeros((n_units,len(var_range)-1))
     tuning_err = tuning.copy()
@@ -691,16 +691,17 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_label):
             usePts = (use>=var_range[j]) & (use<var_range[j+1])
             tuning[i,j] = np.nanmean(scatter[i, usePts])
             tuning_err[i,j] = np.nanstd(scatter[i, usePts]) / np.sqrt(np.count_nonzero(usePts))
-    fig = plt.figure(figsize = (12, 3*np.ceil(n_units/4)))
+    fig = plt.subplots(int(np.ceil(n_units/10)),10,figsize=(np.int(np.ceil(n_units/3)),np.int(np.ceil(n_units/3))),dpi=50)
     for i, ind in enumerate(goodcells.index):
-        plt.subplot(np.ceil(n_units/4),4,i+1)
+        plt.subplot(np.ceil(n_units/10),10,i+1)
         plt.errorbar(var_cent,tuning[i,:],yerr=tuning_err[i,:])
         try:
             plt.ylim(0,np.nanmax(tuning[i,:]*1.2))
         except ValueError:
             plt.ylim(0,1)
-        plt.xlim([var_range[0], var_range[-1]]); plt.title(ind)
-        plt.xlabel(var_label); plt.ylabel('sp/sec')
+        plt.xlim([var_range[0], var_range[-1]]); plt.title(ind,fontsize=5)
+        plt.xlabel(var_label,fontsize=5); plt.ylabel('sp/sec',fontsize=5)
+        plt.xticks(fontsize=5); plt.yticks(fontsize=5)
     plt.tight_layout()
     return var_cent, tuning, tuning_err, fig
 
@@ -718,10 +719,10 @@ def plot_saccade_locked(goodcells, upsacc, downsacc, trange):
         downsacc_avg: trace of average saccade to the right
         fig: figure
     """
-    n_units = len(goodcells.index)
+    n_units = len(goodcells)
     upsacc_avg = np.zeros((n_units,trange.size-1))
     downsacc_avg = np.zeros((n_units,trange.size-1))
-    fig = plt.figure(figsize = (12,np.ceil(n_units/2)))
+    fig = plt.subplots(np.ceil(n_units/7).astype('int'),7,figsize=(35,np.int(np.ceil(n_units/3))),dpi=50)
     for i, ind in enumerate(goodcells.index):
         for s in np.array(upsacc):
             hist, edges = np.histogram(goodcells.at[ind,'spikeT']-s, trange)
@@ -729,7 +730,7 @@ def plot_saccade_locked(goodcells, upsacc, downsacc, trange):
         for s in np.array(downsacc):
             hist,edges = np.histogram(goodcells.at[ind,'spikeT']-s,trange)
             downsacc_avg[i,:] = downsacc_avg[i,:]+ hist/(downsacc.size*np.diff(trange))
-        plt.subplot(np.ceil(n_units/4).astype('int'),4,i+1)
+        plt.subplot(np.ceil(n_units/7).astype('int'),7,i+1)
         plt.plot(0.5*(trange[0:-1] + trange[1:]), upsacc_avg[i,:])
         plt.plot(0.5*(trange[0:-1] + trange[1:]), downsacc_avg[i,:],'r')
         maxval = np.max(np.maximum(upsacc_avg[i,:], downsacc_avg[i,:]))
@@ -833,13 +834,13 @@ def fit_glm_vid(model_vid, model_nsp, model_dt, use, nks):
             cc = np.corrcoef(sp_smooth, pred_smooth)
             cc_all[celln,lag_ind] = cc[0,1]
     # figure of receptive fields
-    fig = plt.figure(figsize = (12,2*n_units))
+    fig = plt.figure(figsize=(10,np.int(np.ceil(n_units/3))),dpi=50)
     for celln in tqdm(range(n_units)):
         for lag_ind, lag in enumerate(lag_list):
             crange = np.max(np.abs(sta_all[celln,:,:,:]))
             plt.subplot(n_units,6,(celln*6)+lag_ind + 1)  
             plt.imshow(sta_all[celln, lag_ind, :, :], vmin=-crange, vmax=crange, cmap='jet')
-            plt.title('cc={:.2f}'.format (cc_all[celln,lag_ind]))
+            plt.title('cc={:.2f}'.format (cc_all[celln,lag_ind]),fontsize=5)
     return sta_all, cc_all, fig
 
 def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units,
@@ -941,30 +942,31 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
             axWorld.cla(); axWorld.axis('off'); 
             axWorld.imshow(worldInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
             # plot line for time, then remove
-            ln = axR.vlines(t,-0.5,30,'b')
+            ln = axR.vlines(t,-0.5,n_units,'b')
             writer.grab_frame()
             ln.remove()
     return vidfile
 
-def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units,
-                this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=None, gz=None, speedT=None, spd=None):
+def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params,
+			dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid,
+			topT, topInterp, th, phi, top_speed, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
     fig = plt.figure(figsize = (10,16))
     plt.tight_layout()
     gs = fig.add_gridspec(11,6)
-    axEye = fig.add_subplot(gs[0:2,0:3])
-    axWorld = fig.add_subplot(gs[0:2,3:6])
-    axRad = fig.add_subplot(gs[2,:])
-    axTheta = fig.add_subplot(gs[3,:])
-    axGyro = fig.add_subplot(gs[4,:])
-    axR = fig.add_subplot(gs[5:11,:])
-
+    axEye = fig.add_subplot(gs[0:2,0:2])
+    axWorld = fig.add_subplot(gs[0:2,2:4])
+    axTopdown = fig.add_subplot(gs[0:2,4:6])
+    axSpd = fig.add_subplot(gs[2,:])
+    axGyro = fig.add_subplot(gs[3,:])
+    axR = fig.add_subplot(gs[4:11,:])
+    
     #timerange and center frame (only)
     tr = [0, 15]
     fr = np.mean(tr) # time for frame
     eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
     worldFr = np.abs(worldT-fr).argmin(dim = "frame")
-    # topFr = np.abs(topT-fr).argmin(dim = "frame")
+    topFr = np.abs(topT-fr).argmin(dim = "frame")
 
     axEye.cla(); axEye.axis('off')
     axEye.imshow(eye_vid[eyeFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
@@ -972,26 +974,23 @@ def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_param
     axWorld.cla();  axWorld.axis('off'); 
     axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
 
-    axRad.cla()
-    axRad.plot(eyeT,eye_params.sel(ellipse_params = 'longaxis'))
-    axRad.set_xlim(tr[0],tr[1]); 
-    axRad.set_ylabel('pupil radius')# ; axRad.set_ylim(0,40)
-
-    # plot eye position
-    axTheta.cla()
-    axTheta.plot(eyeT,th)
-    axTheta.set_xlim(tr[0],tr[1]); 
-    axTheta.set_ylabel('theta (deg)')#; axTheta.set_ylim(-50,-10)
+    axTopdown.cla();  axTopdown.axis('off'); 
+    axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+    
+    axSpd.cla()
+    axSpd.plot(topT[:-1],top_speed)
+    axSpd.set_xlim(tr[0],tr[1]); 
+    axSpd.set_ylabel('speed')# ; axRad.set_ylim(0,40)
 
     # plot gyro
     axGyro.plot(accT,gz)
     axGyro.set_xlim(tr[0],tr[1])#; axGyro.set_ylim(-500,500)
     axGyro.set_ylabel('gyro z (deg/s)')
-    
+
     # plot spikes
     axR.fontsize = 20
     for i,ind in enumerate(goodcells.index):
-        i = i%32 + np.floor(i/32)
+        i = i%32 * np.floor(i/32)
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
     axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5) # this unit
 
@@ -1061,18 +1060,18 @@ def make_sound1(file_dict, ephys_data, units, this_unit):
     wavio.write(audfile, x, datarate, sampwidth=1)
     return audfile
 
-def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units,
+def make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units,
                 this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
     fig = plt.figure(figsize = (10,16))
     plt.tight_layout()
     gs = fig.add_gridspec(11,6)
-    axEye = fig.add_subplot(gs[0:2,0:2])
-    axWorld = fig.add_subplot(gs[0:2,2:4])
-    axTopdown = fig.add_subplot(gs[0:2,4:6])
-    axSpd = fig.add_subplot(gs[2,:])
-    axGyro = fig.add_subplot(gs[3,:])
-    axR = fig.add_subplot(gs[4:11,:])
+    axEye = fig.add_subplot(gs[0:2,0:3])
+    axWorld = fig.add_subplot(gs[0:2,3:6])
+    axRad = fig.add_subplot(gs[2,:])
+    axTheta = fig.add_subplot(gs[3,:])
+    axGyro = fig.add_subplot(gs[4,:])
+    axR = fig.add_subplot(gs[5:11,:])
 
     #timerange and center frame (only)
     tr = [0, 15]
@@ -1087,13 +1086,16 @@ def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, e
     axWorld.cla();  axWorld.axis('off'); 
     axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
 
-    axTopdown.cla();  axTopdown.axis('off'); 
-    axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+    axRad.cla()
+    axRad.plot(eyeT,eye_params.sel(ellipse_params = 'longaxis'))
+    axRad.set_xlim(tr[0],tr[1]); 
+    axRad.set_ylabel('pupil radius')# ; axRad.set_ylim(0,40)
 
-    axSpd.cla()
-    axSpd.plot(topT[:-1],top_speed)
-    axSpd.set_xlim(tr[0],tr[1]); 
-    axSpd.set_ylabel('speed')# ; axRad.set_ylim(0,40)
+    # plot eye position
+    axTheta.cla()
+    axTheta.plot(eyeT,th)
+    axTheta.set_xlim(tr[0],tr[1]); 
+    axTheta.set_ylabel('theta (deg)')#; axTheta.set_ylim(-50,-10)
 
     # plot gyro
     axGyro.plot(accT,gz)
@@ -1115,7 +1117,7 @@ def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, e
 
     vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels.mp4'))
     # now animate
-    writer = FFMpegWriter(fps=30)
+    writer = FFMpegWriter(fps=30, extra_args=['-vf','scale=1000:-2'])
     with writer.saving(fig, vidfile, 100):
         for t in np.arange(tr[0],tr[1],1/30):
             # animate eye
@@ -1128,7 +1130,7 @@ def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, e
             # axTopdown.cla(); axTopdown.axis('off')
             # axTopdown.imshow(topInterp(t)*2,'gray',vmin=0,vmax=255,aspect="equal")
             # plot line for time, then remove
-            ln = axR.vlines(t,-0.5,30,'b')
+            ln = axR.vlines(t,-0.5,n_units,'b')
             writer.grab_frame()
             ln.remove()
 
@@ -1420,7 +1422,7 @@ def run_ephys_analysis(file_dict):
         if file_dict['imu'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
-            vidfile1 = make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, accT=accT, gz=gz)
+            vidfile1 = make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=accT, gz=gz)
         elif file_dict['speed'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
@@ -1532,7 +1534,8 @@ def run_ephys_analysis(file_dict):
             layer5_cent_sh1 = np.argmax(norm_profile_sh1)
             lfp_power_profiles = [norm_profile_sh0, norm_profile_sh1]
             lfp_layer5_centers = [layer5_cent_sh0, layer5_cent_sh1]
-            plt.subplots(1,2, figsize=(10,8))
+            plt.subplots(1,2)
+            plt.tight_layout()
             plt.subplot(1,2,1)
             plt.plot(norm_profile_sh0,range(0,32))
             plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
@@ -1550,6 +1553,7 @@ def run_ephys_analysis(file_dict):
             lfp_power_profiles = [norm_profile_sh0]
             lfp_layer5_centers = [layer5_cent_sh0]
             plt.figure()
+            plt.tight_layout()
             plt.plot(norm_profile_sh0,range(0,16))
             plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
             plt.ylim([17,-1]); plt.yticks(ticks=list(range(-1,17)),labels=(ch_spacing*np.arange(18)-(layer5_cent_sh0*ch_spacing)))
@@ -1566,7 +1570,8 @@ def run_ephys_analysis(file_dict):
             layer5_cent_sh3 = np.argmax(norm_profile_sh3)
             lfp_power_profiles = [norm_profile_sh0, norm_profile_sh1, norm_profile_sh2, norm_profile_sh3]
             lfp_layer5_centers = [layer5_cent_sh0, layer5_cent_sh1, layer5_cent_sh2, layer5_cent_sh3]
-            plt.subplots(1,4, figsize=(20,8))
+            plt.subplots(1,4)
+            plt.tight_layout()
             plt.subplot(1,4,1)
             plt.plot(norm_profile_sh0,range(0,32))
             plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
@@ -2210,7 +2215,8 @@ def run_ephys_analysis(file_dict):
     print('making summary plot')
     hist_dt = 1
     hist_t = np.arange(0, np.max(worldT),hist_dt)
-    plt.figure(figsize = (12,n_units*2))
+    plt.subplots(n_units+3,1,figsize=(8,int(np.ceil(n_units/3))))
+    plt.tight_layout()
     # either gyro or optical mouse reading
     plt.subplot(n_units+3,1,1)
     if has_imu:
@@ -2232,8 +2238,7 @@ def run_ephys_analysis(file_dict):
         rate,bins = np.histogram(ephys_data.at[ind,'spikeT'],hist_t)
         plt.subplot(n_units+3,1,i+4)
         plt.plot(bins[0:-1],rate)
-        plt.xlabel('secs')
-        plt.ylabel('sp/sec'); plt.xlim(bins[0],bins[-1]); plt.title('unit ' + str(ind))
+        plt.xlim(bins[0],bins[-1]); plt.ylabel('unit ' + str(ind))
     plt.tight_layout()
     detail_pdf.savefig()
     plt.close()
