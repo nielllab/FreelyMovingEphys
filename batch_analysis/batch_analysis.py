@@ -60,7 +60,7 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
                 config['ephys_analysis']['run_ephys_analysis'] = False
             # run session analysis using the yaml config file
             try:
-                analyze_session(config, clear_dlc=clear_dlc, force_probe_name=row['probe_name'], force_flip_gx_gy=row['flip_gx_gy'],batch=True)
+                analyze_session(config, clear_dlc=clear_dlc, force_probe_name=row['probe_name'], force_flip_gx_gy=row['flip_gx_gy'], batch=True, drop_slow_frames=row['drop_slow_frames'])
             except:
                 logf.log([row['experiment_date']+'_'+row['animal_name'], traceback.format_exc()],PRINT=False)
     with open(config_path, 'r') as infile:
