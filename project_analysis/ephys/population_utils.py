@@ -71,10 +71,7 @@ def make_unit_summary(df, savepath):
     # iterate through units
     for index, row in tqdm(df.iterrows()):
         lightfm = row['best_light_fm']
-        if type(row['best_dark_fm']) == str:
-            darkfm = row['best_light_fm']
-        else:
-            darkfm = None
+        darkfm = row['best_light_fm']
         unitfig = plt.figure(constrained_layout=True, figsize=(50,45))
         spec = gridspec.GridSpec(ncols=5, nrows=10, figure=unitfig)
         # blank title panel
@@ -775,29 +772,35 @@ def make_session_summary(df, savepath):
     """
     pdf = PdfPages(os.path.join(savepath, 'session_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
     df['unit'] = df.index.values
+    print(df, df.index)
     df = df.set_index('session')
+    print(df, df.index)
 
     unique_inds = sorted(list(set(df.index.values)))
 
     for unique_ind in tqdm(unique_inds):
         uniquedf = df.loc[unique_ind]
         # set up subplots
-        plt.subplots(4,3,figsize=(20,25))
+        plt.subplots(4,4,figsize=(25,25))
         # eye position vs head position
         try:
-            plt.subplot(4,3,1)
-            plt.title('dEye vs dHead', fontsize=20)
+            plt.subplot(4,4,1)
+            plt.title('dEye vs dHead (LIGHT)', fontsize=20)
             dEye = uniquedf['fm1_dEye'].iloc[0]
             dhead = uniquedf['fm1_dHead'].iloc[0]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
-            if len(dEye[0:-1:10]) == len(dhead(eyeT[0:-1:10])):
-                plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
-            elif len(dEye[0:-1:10]) > len(dhead(eyeT[0:-1:10])):
-                len_diff = len(dEye[0:-1:10]) - len(dhead(eyeT[0:-1:10]))
-                plt.plot(dEye[0:-1:10][:-len_diff],dhead(eyeT[0:-1:10]),'.')
-            elif len(dEye[0:-1:10]) < len(dhead(eyeT[0:-1:10])):
-                len_diff = len(dhead(eyeT[0:-1:10])) - len(dEye[0:-1:10])
-                plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10])[:-len_diff],'.')
+            plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+            plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
+            plt.plot([-10,10],[10,-10], 'r')
+        except:
+            pass
+        try:
+            plt.subplot(4,4,2)
+            plt.title('dEye vs dHead (DARK)', fontsize=20)
+            dEye = uniquedf['fm1_dark_dEye'].iloc[0]
+            dhead = uniquedf['fm1_dark_dHead'].iloc[0]
+            eyeT = uniquedf['fm1_dark_eyeT'].iloc[0]
+            plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
             plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
             plt.plot([-10,10],[10,-10], 'r')
         except:
@@ -808,31 +811,45 @@ def make_session_summary(df, savepath):
             pitch_interp = uniquedf['fm1_pitch_interp'].iloc[0]
             th = uniquedf['fm1_theta'].iloc[0]
             phi = uniquedf['fm1_phi'].iloc[0]
-            plt.subplot(4,3,2)
+            plt.subplot(4,4,3)
             plt.plot(pitch_interp[::100], th[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
-            plt.title(unique_ind+' eye fit: m='+str(uniquedf['best_ellipse_fit_m'].iloc[0])+' r='+str(uniquedf['best_ellipse_fit_r'].iloc[0]), fontsize=20)
-            plt.subplot(4,3,3)
+            plt.title('LIGHT'+unique_ind+' eye fit: m='+str(uniquedf['best_ellipse_fit_m'].iloc[0])+' r='+str(uniquedf['best_ellipse_fit_r'].iloc[0]), fontsize=20)
+            plt.subplot(4,4,3)
             plt.plot(roll_interp[::100], phi[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
         except:
             pass
         try:
+            dark_roll_interp = uniquedf['fm1_dark_roll_interp'].iloc[0]
+            dark_pitch_interp = uniquedf['fm1_dark_pitch_interp'].iloc[0]
+            th_dark = uniquedf['fm1_dark_theta'].iloc[0]
+            phi_dark = uniquedf['fm1_dark_phi'].iloc[0]
+            plt.subplot(4,4,4)
+            plt.plot(dark_pitch_interp[::100], th_dark[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
+            plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
+            plt.title('DARK', fontsize=20)
+            plt.subplot(4,4,3)
+            plt.plot(dark_roll_interp[::100], phi_dark[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
+            plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
+        except:
+            pass
+        try:
             # histogram of theta from -45 to 45deg (are eye movements in resonable range?)
-            plt.subplot(4,3,4)
+            plt.subplot(4,4,5)
             plt.title('hist of FM theta', fontsize=20)
             plt.hist(uniquedf['fm1_theta'].iloc[0], range=[-45,45])
             # histogram of phi from -45 to 45deg (are eye movements in resonable range?)
-            plt.subplot(4,3,5)
+            plt.subplot(4,4,6)
             plt.title('hist of FM phi', fontsize=20)
             plt.hist(uniquedf['fm1_phi'].iloc[0], range=[-45,45])
             # histogram of gyro z (resonable range?)
-            plt.subplot(4,3,6)
+            plt.subplot(4,4,7)
             plt.title('hist of FM gyro z', fontsize=20)
             plt.hist(uniquedf['fm1_gz'].iloc[0], range=[2,4])
             # plot of contrast response functions on same panel scaled to max 30sp/sec
             # plot of average contrast reponse function across units
-            plt.subplot(4,3,7)
+            plt.subplot(4,4,8)
             plt.title('CRFs', fontsize=20)
             for ind, row in uniquedf.iterrows():
                 plt.errorbar(row['hf1_wn_crf_cent'],row['hf1_wn_crf_tuning'],yerr=row['hf1_wn_crf_err'])
@@ -844,19 +861,19 @@ def make_session_summary(df, savepath):
             if num_channels == 64:
                 for ch_num in np.arange(0,64):
                     if ch_num<=31:
-                        plt.subplot(4,3,8)
+                        plt.subplot(4,4,9)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
                         plt.title('lfp trace, shank1', fontsize=20); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                         plt.ylim([-1200,400])
                     if ch_num>31:
-                        plt.subplot(4,3,9)
+                        plt.subplot(4,4,10)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
                         plt.title('lfp trace, shank2', fontsize=20); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                         plt.ylim([-1200,400])
             # fm spike raster
-            plt.subplot(4,3,10)
+            plt.subplot(4,4,11)
             plt.title('FM raster', fontsize=20)
             i = 0
             for ind, row in uniquedf.iterrows():
@@ -866,7 +883,7 @@ def make_session_summary(df, savepath):
         except:
             pass
         # all psth plots in a single panel, with avg plotted over the top
-        plt.subplot(4,3,11)
+        plt.subplot(4,4,12)
         lower = -0.5; upper = 1.5; dt = 0.1
         bins = np.arange(lower,upper+dt,dt)
         psth_list = []
@@ -883,7 +900,7 @@ def make_session_summary(df, savepath):
             plt.ylim([0,np.nanmax(avg_psth)*1.5])
         except:
             pass
-        plt.subplot(4,3,12)
+        plt.subplot(4,4,13)
         plt.axis('off')
         plt.tight_layout()
         pdf.savefig()

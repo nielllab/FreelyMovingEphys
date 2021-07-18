@@ -12,7 +12,7 @@ from utils.ephys import session_ephys_analysis
 from utils.paths import find
 from project_analysis.ephys.population_utils import population_analysis
 
-def main(config_path, clear_dlc=False, force_probe_name=None, force_flip_gx_gy=None, batch=False):
+def main(config_path, clear_dlc=False, force_probe_name=None, force_flip_gx_gy=None, batch=False, drop_slow_frames=None):
     if type(config_path) == dict:
         # if config options were provided instead of the expected path to a file
         config = config_path
@@ -25,9 +25,11 @@ def main(config_path, clear_dlc=False, force_probe_name=None, force_flip_gx_gy=N
     if force_probe_name is not None:
         config['ephys_analysis']['probe_type'] = force_probe_name
     # force gyro x and y to flip labels for sessions which have the imu rotated 90deg
-    # default is false, batch analysis can overwrite to true
+    # default to overwrite none, batch analysis can overwrite the config file to true or false
     if force_flip_gx_gy is not None:
         config['parameters']['imu']['flip_gx_gy'] = force_flip_gx_gy
+    if drop_slow_frames is not None:
+        config['parameters']['drop_slow_frames'] = drop_slow_frames
     if config['deinterlace']['run_deinter']:
         deinterlace_data(config)
     if config['img_correction']['run_img_correction']:

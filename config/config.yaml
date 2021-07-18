@@ -77,6 +77,7 @@ parameters:
   topdown:
     get_top_thetas: false                # whether or not to calculate head and body angle using the top camera, which is only worthwhile if tracking is good (default=false)
   follow_strict_naming: true             # in special cases, make file-searching follow a less strict version of naming (default=true)
+  drop_slow_frames: false                # drop frames surrounding gaps in eye and world timestamps (win size is +/- 3 frames)m to accomodate dropped data
 
 # IR SPOT IN SPACE
 ir_spot_in_space:

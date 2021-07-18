@@ -5,6 +5,7 @@ import gc, json, os, cv2, platform, subprocess, traceback
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from itertools import chain
 import pandas as pd
 import xarray as xr
 from netCDF4 import Dataset
@@ -156,7 +157,7 @@ def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):
     sos = butter(order, [low, high], btype='bandpass', output='sos')
     return sosfiltfilt(sos, data, axis=0)
 
-def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, probe_name):
+def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, probe_name, drop_slow_frames):
     """
     assemble file paths and options into dictionary
     output dictionary is passed into func run_ephys_analysis
@@ -194,11 +195,11 @@ def find_files(rec_path, rec_name, free_move, cell, stim_type, mp4, probe_name):
     if free_move is True:
         dict_out = {'cell':cell,'top':top_file,'eye':eye_file,'world':world_file,'ephys':ephys_file,
         'ephys_bin':ephys_bin_file,'speed':None,'imu':imu_file,'save':rec_path,'name':rec_name,
-        'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name,'mapping_json':mapping_json}
+        'stim_type':stim_type,'mp4':mp4,'probe_name':probe_name,'mapping_json':mapping_json, 'drop_slow_frames':drop_slow_frames}
     elif free_move is False:
         dict_out = {'cell':cell,'eye':eye_file,'world':world_file,'ephys':ephys_file,'ephys_bin':ephys_bin_file,
         'speed':speed_file,'imu':None,'save':rec_path,'name':rec_name,'stim_type':stim_type,
-        'mp4':mp4,'probe_name':probe_name,'mapping_json':mapping_json}
+        'mp4':mp4,'probe_name':probe_name,'mapping_json':mapping_json, 'drop_slow_frames':drop_slow_frames}
     return dict_out
 
 def plot_psth(goodcells, onsets, lower, upper, dt):
@@ -1061,21 +1062,22 @@ def make_sound1(file_dict, ephys_data, units, this_unit):
     wavio.write(audfile, x, datarate, sampwidth=1)
     return audfile
 
-def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params, dEye, goodcells, units,
-                this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=None, gz=None, speedT=None, spd=None):
+def make_summary_panels(eyeT, worldT, eye_vid, world_vid, contrast, eye_params,
+			dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid,
+			topT, topInterp, th, phi, top_speed, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
     fig = plt.figure(figsize = (10,16))
-    plt.tight_layout()
-    gs = fig.add_gridspec(11,6)
+    gs = fig.add_gridspec(12,6)
     axEye = fig.add_subplot(gs[0:2,0:2])
     axWorld = fig.add_subplot(gs[0:2,2:4])
     axTopdown = fig.add_subplot(gs[0:2,4:6])
-    axSpd = fig.add_subplot(gs[2,:])
-    axGyro = fig.add_subplot(gs[3,:])
-    axR = fig.add_subplot(gs[4:11,:])
-
+    axRad = fig.add_subplot(gs[2,:])
+    axTh = fig.add_subplot(gs[3,:])
+    axGyro = fig.add_subplot(gs[4,:])
+    axR = fig.add_subplot(gs[5:12,:])
+    
     #timerange and center frame (only)
-    tr = [0, 15]
+    tr = [7, 7+15]
     fr = np.mean(tr) # time for frame
     eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
     worldFr = np.abs(worldT-fr).argmin(dim = "frame")
@@ -1089,50 +1091,37 @@ def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, e
 
     axTopdown.cla();  axTopdown.axis('off'); 
     axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+    
+    axTh.cla()
+    axTh.plot(eyeT,th)
+    axTh.set_xlim(tr[0],tr[1]); 
+    axTh.set_ylabel('theta (deg)'); axTh.set_ylim(-50,0)
 
-    axSpd.cla()
-    axSpd.plot(topT[:-1],top_speed)
-    axSpd.set_xlim(tr[0],tr[1]); 
-    axSpd.set_ylabel('speed')# ; axRad.set_ylim(0,40)
-
+    axRad.cla()
+    axRad.plot(eyeT,eye_params.sel(ellipse_params='longaxis'))
+    axRad.set_xlim(tr[0],tr[1])
+    axRad.set_ylabel('pupil radius')
+    
     # plot gyro
     axGyro.plot(accT,gz)
-    axGyro.set_xlim(tr[0],tr[1])#; axGyro.set_ylim(-500,500)
+    axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(-500,500)
     axGyro.set_ylabel('gyro z (deg/s)')
-    
+
     # plot spikes
     axR.fontsize = 20
+    even_raster = np.arange(0,len(goodcells.index),4)
     for i,ind in enumerate(goodcells.index):
-        i = i%32 * np.floor(i/32)
+        i = (even_raster+np.floor(i/32))[i%32]
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
-    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5) # this unit
-
+    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'k',linewidth=0.5) # this unit
+    
     n_units = len(goodcells)
-
-    axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , n_units); axR.set_xlabel('secs'); axR.set_ylabel('unit')
+    axR.set_ylim(n_units,-.5)
+    axR.set_xlim(tr[0],tr[1]); axR.set_xlabel('secs'); axR.set_ylabel('unit')
     axR.spines['right'].set_visible(False)
     axR.spines['top'].set_visible(False)
-
-    vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels.mp4'))
-    # now animate
-    writer = FFMpegWriter(fps=30)
-    with writer.saving(fig, vidfile, 100):
-        for t in np.arange(tr[0],tr[1],1/30):
-            # animate eye
-            axEye.cla(); axEye.axis('off')
-            axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
-            # animate world
-            axWorld.cla(); axWorld.axis('off')
-            axWorld.imshow(worldInterp(t),'gray',vmin=0,vmax=255,aspect="equal")
-            # animate topdown
-            # axTopdown.cla(); axTopdown.axis('off')
-            # axTopdown.imshow(topInterp(t)*2,'gray',vmin=0,vmax=255,aspect="equal")
-            # plot line for time, then remove
-            ln = axR.vlines(t,-0.5,30,'b')
-            writer.grab_frame()
-            ln.remove()
-
-    return vidfile
+    plt.tight_layout()
+    return fig
 
 def run_ephys_analysis(file_dict):
     """
@@ -1298,6 +1287,12 @@ def run_ephys_analysis(file_dict):
     # make space in memory
     del eye_data
     gc.collect()
+    if file_dict['drop_slow_frames'] is True:
+        # in the case that the recording has long time lags, drop data in a window +/- 3 frames around these slow frames
+        isfast = np.diff(eyeT)<=0.03
+        isslow = sorted(list(set(chain.from_iterable([list(range(int(i)-3,int(i)+4)) for i in np.where(isfast==False)[0]]))))
+        th[isslow] = np.nan
+        phi[isslow] = np.nan
     # check that deinterlacing worked correctly
     # plot theta and theta_switch
     # want theta_switch to be jagged, theta to be smooth
@@ -2000,6 +1995,8 @@ def run_ephys_analysis(file_dict):
     plt.close()
     if free_move is True:
         dhead = interp1d(accT,(gz-np.mean(gz))*7.5, bounds_error=False)
+        if file_dict['drop_slow_frames'] is True:
+            dhead[isslow] = np.nan
         dgz = dEye + dhead(eyeT[0:-1])
 
         plt.figure()
@@ -2654,7 +2651,7 @@ def load_ephys(csv_filepath):
     probenames_for_goodsessions = []
     # get all of the best freely moving recordings of a session into a dictionary
     goodlightrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else 'fm1' for i in for_data_pool['best_light_fm']]))
-    gooddarkrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else 'fm1' for i in for_data_pool['best_dark_fm']]))
+    gooddarkrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else None for i in for_data_pool['best_dark_fm']]))
     # change paths to work with linux
     if platform.system() == 'Linux':
         for ind, row in for_data_pool.iterrows():
@@ -2707,6 +2704,11 @@ def load_ephys(csv_filepath):
         ind += 1
         # new rows for units from different mice or sessions
         all_data = pd.concat([all_data,session_data],axis=0)
+    fm2_light = [c for c in all_data.columns.values if 'fm2_light' in c]
+    fm1_dark = [c for c in all_data.columns.values if 'fm1_dark' in c]
+    dark_dict = dict(zip(fm1_dark, [i.replace('fm1_dark', 'fm_dark') for i in fm1_dark]))
+    light_dict = dict(zip(fm2_light, [i.replace('fm2_light_', 'fm1_') for i in fm2_light]))
+    all_data = all_data.rename(dark_dict, axis=1).rename(light_dict, axis=1)
     return all_data
 
 def session_ephys_analysis(config):
