@@ -119,6 +119,7 @@ try
         figure
         map64 = [1:2:64 2:2:64];
         map128 = [1:4:128 2:4:128 3:4:128 4:4:128];
+        
         for i = 1:length(subChans)
             if length(subChans)==64
                 subplot(32,2,map64(i));
