@@ -978,7 +978,7 @@ def make_sound(file_dict, ephys_data, units, this_unit):
     wavio.write(audfile, x, datarate, sampwidth=1)
     return audfile
 
-def make_summary_panels(eyeT, worldT, eye_vid, world_vid, contrast, eye_params,
+def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params,
 			dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid,
 			topT, topInterp, th, phi, top_speed, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
@@ -1025,9 +1025,16 @@ def make_summary_panels(eyeT, worldT, eye_vid, world_vid, contrast, eye_params,
 
     # plot spikes
     axR.fontsize = 20
-    even_raster = np.arange(0,len(goodcells.index),4)
+    probe = file_dict['probe_name']
+    if '64' in probe:
+        sh_num = 2
+    elif '128' in probe:
+        sh_num = 4
+    elif '16' in probe:
+        sh_num = 16
+    even_raster = np.arange(0,len(goodcells.index),sh_num)
     for i,ind in enumerate(goodcells.index):
-        i = (even_raster+np.floor(i/32))[i%32]
+        i = (even_raster+(i%32))[int(np.floor(i/32))]
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
     axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'k',linewidth=0.5) # this unit
     
@@ -1324,7 +1331,7 @@ def run_ephys_analysis(file_dict):
     if free_move:
         topInterp = interp1d(topT, top_vid, axis=0,bounds_error=False)
     if file_dict['imu'] is not None:
-        fig = make_summary_panels(eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=accT, gz=gz)
+        fig = make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=accT, gz=gz)
         detail_pdf.savefig()
         plt.close()
     if file_dict['mp4']:

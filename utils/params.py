@@ -22,6 +22,8 @@ def get_params(config):
     # get the path to each recording directory
     recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i]
     recording_paths = [os.path.join(config['animal_dir'], recording_name) for recording_name in recording_names]
+    if config['parameters']['recording_list'] != []:
+        recording_names = [i for i in recording_names if i in config['parameters']['recording_list']]
     recordings_dict = dict(zip(recording_names, recording_paths))
     # sort dictionary of {name: path} so fm recordings are always handled first
     sorted_keys = sorted(recordings_dict, key=lambda x:('fm' not in x, x))
