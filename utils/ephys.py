@@ -1916,8 +1916,6 @@ def run_ephys_analysis(file_dict):
     plt.close()
     if free_move is True:
         dhead = interp1d(accT,(gz-np.mean(gz))*7.5, bounds_error=False)
-        if file_dict['drop_slow_frames'] is True:
-            dhead[isslow] = np.nan
         dgz = dEye + dhead(eyeT[0:-1])
 
         plt.figure()
@@ -2630,6 +2628,9 @@ def load_ephys(csv_filepath):
     dark_dict = dict(zip(fm1_dark, [i.replace('fm1_dark', 'fm_dark') for i in fm1_dark]))
     light_dict = dict(zip(fm2_light, [i.replace('fm2_light_', 'fm1_') for i in fm2_light]))
     all_data = all_data.rename(dark_dict, axis=1).rename(light_dict, axis=1)
+    for ind, row in all_data.iterrows():
+        if type(row['session']) != str:
+            all_data = all_data.drop(ind, axis=0)
     return all_data
 
 def session_ephys_analysis(config):

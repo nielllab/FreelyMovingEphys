@@ -43,12 +43,15 @@ def plot_prelim_STA(spikeT, img_norm, worldT, movInterp, ch_count, lag=2):
         plt.subplot(int(np.ceil(n_units/10)),10,c+1)
         if nsp > 0:
             sta = sta/nsp
+            # flip matrix so that physical top is at the top (worldcam comes in upsidedown)
+            sta = np.fliplr(np.flipud(sta))
         else:
             sta = np.nan
         if pd.isna(sta) is True:
             plt.imshow(np.zeros([120,160]))
         else:
-            plt.imshow((sta-np.mean(sta) ),vmin=-0.3,vmax=0.3,cmap = 'jet')
+            starange = np.max(np.abs(sta))*1.1
+            plt.imshow((sta-np.mean(sta)), vmin=-starange, vmax=starange, cmap='jet')
             staAll[c,:,:] = sta
     plt.tight_layout()
     return staAll, fig
@@ -103,7 +106,7 @@ def main(whitenoise_directory, probe):
     print('getting receptive fields and plotting')
     all_spikeT = []
     for ch in tqdm(range(np.size(filt_ephys,1))):
-        spike_thresh = -200
+        spike_thresh = -350
         spike_inds = list(np.where(filt_ephys[:,ch] < spike_thresh)[0])
         spikeT = ephys_time[spike_inds]
         all_spikeT.append(spikeT - (offset0 + spikeT * drift_rate))
