@@ -871,7 +871,7 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
     """
     # set up figure
     fig = plt.figure(figsize = (8,12))
-    gs = fig.add_gridspec(9,4)
+    gs = fig.add_gridspec(12,4)
     axEye = fig.add_subplot(gs[0:2,0:2])
     axWorld = fig.add_subplot(gs[0:2,2:4])
     axRad = fig.add_subplot(gs[2,:])
@@ -879,9 +879,9 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
     axdTheta = fig.add_subplot(gs[4,:])
     axGyro = fig.add_subplot(gs[5,:])
     axContrast = fig.add_subplot(gs[6,:])
-    axR = fig.add_subplot(gs[7:9,:])
+    axR = fig.add_subplot(gs[7:12,:])
     # timerange and center frame (only)
-    tr = [0, 30]
+    tr = [15, 30]
     fr = np.mean(tr) # time for frame
     eyeFr = np.abs(eyeT-fr).argmin(dim="frame")
     worldFr = np.abs(worldT-fr).argmin(dim="frame")
@@ -931,6 +931,7 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
     axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , n_units); axR.set_xlabel('secs'); axR.set_ylabel('unit #')
     axR.spines['right'].set_visible(False)
     axR.spines['top'].set_visible(False)
+    plt.tight_layout()
     # path to save video at
     vidfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'.mp4'))
     # animate
@@ -948,61 +949,6 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
             ln.remove()
     return vidfile
 
-def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params,
-			dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid,
-			topT, topInterp, th, phi, top_speed, accT=None, gz=None, speedT=None, spd=None):
-    # set up figure
-    fig = plt.figure(figsize = (10,16))
-    plt.tight_layout()
-    gs = fig.add_gridspec(11,6)
-    axEye = fig.add_subplot(gs[0:2,0:2])
-    axWorld = fig.add_subplot(gs[0:2,2:4])
-    axTopdown = fig.add_subplot(gs[0:2,4:6])
-    axSpd = fig.add_subplot(gs[2,:])
-    axGyro = fig.add_subplot(gs[3,:])
-    axR = fig.add_subplot(gs[4:11,:])
-    
-    #timerange and center frame (only)
-    tr = [0, 15]
-    fr = np.mean(tr) # time for frame
-    eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
-    worldFr = np.abs(worldT-fr).argmin(dim = "frame")
-    topFr = np.abs(topT-fr).argmin(dim = "frame")
-
-    axEye.cla(); axEye.axis('off')
-    axEye.imshow(eye_vid[eyeFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
-
-    axWorld.cla();  axWorld.axis('off'); 
-    axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
-
-    axTopdown.cla();  axTopdown.axis('off'); 
-    axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
-    
-    axSpd.cla()
-    axSpd.plot(topT[:-1],top_speed)
-    axSpd.set_xlim(tr[0],tr[1]); 
-    axSpd.set_ylabel('speed')# ; axRad.set_ylim(0,40)
-
-    # plot gyro
-    axGyro.plot(accT,gz)
-    axGyro.set_xlim(tr[0],tr[1])#; axGyro.set_ylim(-500,500)
-    axGyro.set_ylabel('gyro z (deg/s)')
-
-    # plot spikes
-    axR.fontsize = 20
-    for i,ind in enumerate(goodcells.index):
-        i = i%32 * np.floor(i/32)
-        axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
-    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'b',linewidth=0.5) # this unit
-
-    n_units = len(goodcells)
-
-    axR.set_xlim(tr[0],tr[1]); axR.set_ylim(-0.5 , n_units); axR.set_xlabel('secs'); axR.set_ylabel('unit')
-    axR.spines['right'].set_visible(False)
-    axR.spines['top'].set_visible(False)
-
-    return fig
-
 def make_sound(file_dict, ephys_data, units, this_unit):
     """
     make sound to accompany video
@@ -1015,7 +961,7 @@ def make_sound(file_dict, ephys_data, units, this_unit):
         audfile: filepath to .wav file
     """
     # timerange
-    tr = [0, 30]
+    tr = [15, 30]
     # generate wav file
     sp = np.array(ephys_data.at[units[this_unit],'spikeT'])-tr[0]
     sp = sp[sp>0]
@@ -1032,36 +978,7 @@ def make_sound(file_dict, ephys_data, units, this_unit):
     wavio.write(audfile, x, datarate, sampwidth=1)
     return audfile
 
-def make_sound1(file_dict, ephys_data, units, this_unit):
-    """
-    make sound to accompany video
-    INPUTS
-        file_dict: dict of file names and options for ephys analysis
-        ephys_data: ephys data for all units as dataframe
-        units: index of all units
-        this_unit: unit to highlight for sound
-    OUTPUTS
-        audfile: filepath to .wav file
-    """
-    # timerange
-    tr = [0, 15]
-    # generate wav file
-    sp = np.array(ephys_data.at[units[this_unit],'spikeT'])-tr[0]
-    sp = sp[sp>0]
-    datarate = 30000
-    # compute waveform samples
-    tmax = tr[1]-tr[0]
-    t = np.linspace(0, tr[1]-tr[0], (tr[1]-tr[0])*datarate,endpoint=False)
-    x = np.zeros(np.size(t))
-    for spt in sp[sp<tmax]:
-        x[np.int64(spt*datarate) : np.int64(spt*datarate +30)] = 1
-        x[np.int64(spt*datarate)+31 : np.int64(spt*datarate +60)] =- 1
-    # write the samples to a file
-    audfile = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'.wav'))
-    wavio.write(audfile, x, datarate, sampwidth=1)
-    return audfile
-
-def make_summary_panels(eyeT, worldT, eye_vid, world_vid, contrast, eye_params,
+def make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params,
 			dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid,
 			topT, topInterp, th, phi, top_speed, accT=None, gz=None, speedT=None, spd=None):
     # set up figure
@@ -1108,9 +1025,16 @@ def make_summary_panels(eyeT, worldT, eye_vid, world_vid, contrast, eye_params,
 
     # plot spikes
     axR.fontsize = 20
-    even_raster = np.arange(0,len(goodcells.index),4)
+    probe = file_dict['probe_name']
+    if '64' in probe:
+        sh_num = 2
+    elif '128' in probe:
+        sh_num = 4
+    elif '16' in probe:
+        sh_num = 16
+    even_raster = np.arange(0,len(goodcells.index),sh_num)
     for i,ind in enumerate(goodcells.index):
-        i = (even_raster+np.floor(i/32))[i%32]
+        i = (even_raster+(i%32))[int(np.floor(i/32))]
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5) # all units
     axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'k',linewidth=0.5) # this unit
     
@@ -1414,20 +1338,15 @@ def run_ephys_analysis(file_dict):
         if file_dict['imu'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, accT=accT, gz=gz)
-            vidfile1 = make_movie1(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=accT, gz=gz)
         elif file_dict['speed'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
         print('making audio figure')
         audfile = make_sound(file_dict, ephys_data, units, this_unit)
-        audfile1 = make_sound1(file_dict, ephys_data, units, this_unit)
         print('merging videos with sound')
         # main video
         merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
         subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
-        if file_dict['imu'] is not None:
-            merge_mp4_name1 = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_simple_panels_merge.mp4'))
-            subprocess.call(['ffmpeg', '-i', vidfile1, '-i', audfile1, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name1])
     
     if free_move is True and file_dict['imu'] is not None:
         plt.figure()
@@ -1997,8 +1916,6 @@ def run_ephys_analysis(file_dict):
     plt.close()
     if free_move is True:
         dhead = interp1d(accT,(gz-np.mean(gz))*7.5, bounds_error=False)
-        if file_dict['drop_slow_frames'] is True:
-            dhead[isslow] = np.nan
         dgz = dEye + dhead(eyeT[0:-1])
 
         plt.figure()
@@ -2711,6 +2628,9 @@ def load_ephys(csv_filepath):
     dark_dict = dict(zip(fm1_dark, [i.replace('fm1_dark', 'fm_dark') for i in fm1_dark]))
     light_dict = dict(zip(fm2_light, [i.replace('fm2_light_', 'fm1_') for i in fm2_light]))
     all_data = all_data.rename(dark_dict, axis=1).rename(light_dict, axis=1)
+    for ind, row in all_data.iterrows():
+        if type(row['session']) != str:
+            all_data = all_data.drop(ind, axis=0)
     return all_data
 
 def session_ephys_analysis(config):
@@ -2757,7 +2677,8 @@ def session_ephys_analysis(config):
             norm_recording_path = os.path.normpath(recording_path).replace('\\', '/')
             full_recording_name = '_'.join(norm_recording_path.split('/')[-3:-1])+'_control_Rig2_'+os.path.split(norm_recording_path)[1].split('/')[-1]
             mp4 = config['ephys_analysis']['write_videos']
-            file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4, probe_name)
+            drop_slow_frames = config['parameters']['drop_slow_frames']
+            file_dict = find_files(recording_path, full_recording_name, fm, this_unit, stim_type, mp4, probe_name, drop_slow_frames)
             run_ephys_analysis(file_dict)
         except:
             print(traceback.format_exc())

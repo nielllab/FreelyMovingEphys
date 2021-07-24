@@ -872,6 +872,29 @@ def make_session_summary(df, savepath):
                         plt.title('lfp trace, shank2', fontsize=20); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                         plt.ylim([-1200,400])
+            elif num_channels == 128:
+                plt.subplots(1,4 ,figsize=(40,6))
+                for ch_num in np.arange(0,128):
+                    if ch_num < 32:
+                        plt.subplot(1,4,1)
+                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
+                        plt.title('ch1:32'); plt.axvline(x=(0.1*30000))
+                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                    elif 32 <= ch_num < 64:
+                        plt.subplot(1,4,2)
+                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
+                        plt.title('ch33:64'); plt.axvline(x=(0.1*30000))
+                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                    elif 64 <= ch_num < 96:
+                        plt.subplot(1,4,3)
+                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-64], linewidth=1)
+                        plt.title('ch33:64'); plt.axvline(x=(0.1*30000))
+                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
+                    elif 96 <= ch_num < 128:
+                        plt.subplot(1,4,4)
+                        plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-96], linewidth=1)
+                        plt.title('ch33:64'); plt.axvline(x=(0.1*30000))
+                        plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
             # fm spike raster
             plt.subplot(4,4,11)
             plt.title('FM raster', fontsize=20)
@@ -901,10 +924,68 @@ def make_session_summary(df, savepath):
         except:
             pass
         plt.subplot(4,4,13)
-        plt.axis('off')
-        plt.tight_layout()
-        pdf.savefig()
-        plt.close()
+        try:
+            lfp_power_profile = uniquedf['lfp_power_profiles'].iloc[0]
+            layer5_cent = uniquedf['lfp_layer5_centers'].iloc[0]
+            if uniquedf['probe_name'] == 'DB_P64-8':
+                ch_spacing = 25/2
+            else:
+                ch_spacing = 25
+            if ch_num == 64:
+                norm_profile_sh0 = lfp_power_profile[0]
+                layer5_cent_sh0 = layer5_cent[0]
+                norm_profile_sh1 = lfp_power_profile[1]
+                layer5_cent_sh1 = layer5_cent[1]
+                plt.subplot(4,4,13)
+                plt.plot(norm_profile_sh0,range(0,32))
+                plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
+                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
+                plt.title('shank0')
+                plt.subplot(4,4,14)
+                plt.plot(norm_profile_sh1,range(0,32))
+                plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
+                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
+                plt.title('shank1')
+            elif ch_num == 16:
+                norm_profile_sh0 = lfp_power_profile[0]
+                layer5_cent_sh0 = layer5_cent[0]
+                plt.subplot(4,4,13)
+                plt.tight_layout()
+                plt.plot(norm_profile_sh0,range(0,16))
+                plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
+                plt.ylim([17,-1]); plt.yticks(ticks=list(range(-1,17)),labels=(ch_spacing*np.arange(18)-(layer5_cent_sh0*ch_spacing)))
+                plt.title('shank0')
+            elif ch_num == 128:
+                norm_profile_sh0 = lfp_power_profile[0]
+                layer5_cent_sh0 = layer5_cent[0]
+                norm_profile_sh1 = lfp_power_profile[1]
+                layer5_cent_sh1 = layer5_cent[1]
+                norm_profile_sh2 = lfp_power_profile[2]
+                layer5_cent_sh2 = layer5_cent[2]
+                norm_profile_sh3 = lfp_power_profile[3]
+                layer5_cent_sh3 = layer5_cent[3]
+                plt.subplot(4,4,13)
+                plt.plot(norm_profile_sh0,range(0,32))
+                plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
+                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
+                plt.title('shank0')
+                plt.subplot(4,4,14)
+                plt.plot(norm_profile_sh1,range(0,32))
+                plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
+                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
+                plt.title('shank1')
+                plt.subplot(4,4,15)
+                plt.plot(norm_profile_sh2,range(0,32))
+                plt.plot(norm_profile_sh2[layer5_cent_sh2]+0.01,layer5_cent_sh2,'r*',markersize=12)
+                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh2*ch_spacing)))
+                plt.title('shank2')
+                plt.subplot(4,4,16)
+                plt.plot(norm_profile_sh3,range(0,32))
+                plt.plot(norm_profile_sh3[layer5_cent_sh3]+0.01,layer5_cent_sh3,'r*',markersize=12)
+                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh3*ch_spacing)))
+                plt.title('shank3')
+        except:
+            pass
     print('saving session summary pdf')
     pdf.close()
 

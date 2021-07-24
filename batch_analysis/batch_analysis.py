@@ -7,7 +7,7 @@ import pandas as pd
 from utils.log import log
 from utils.paths import find
 from session_analysis.session_analysis import main as analyze_session
-from utils.ephys import population_analysis
+from project_analysis.ephys.population_utils import population_analysis
 
 def main(csv_filepath, config_path, log_dir, clear_dlc):
     # initialize logger
