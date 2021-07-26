@@ -633,7 +633,11 @@ def plot_overview(goodcells, crange, resp, file_dict, staAll, trange, upsacc_avg
             # for light fm and all hf besides gratings, plot CRF
             plt.subplot(n_units,4,i*4 + 2)
             plt.plot(crange[2:-1],resp[i,2:-1])
-            plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec'); plt.ylim([0,np.nanmax(resp[i,2:-1])])
+            plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec')
+            try:
+                plt.ylim([0,np.nanmax(resp[i,2:-1])])
+            except ValueError:
+                plt.ylim(0,1)
         # plot STA or tuning curve
         plt.subplot(n_units,4,i*4 + 3)
         if ori_tuning is not None:
