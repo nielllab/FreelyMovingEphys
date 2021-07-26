@@ -155,6 +155,7 @@ def main(whitenoise_directory, probe):
         raster_fig = plot_spike_raster(goodcells)
         pdf.savefig()
         plt.close()
+        print('making diagnostic plots')
         # plot contrast over entire video
         plt.figure()
         plt.plot(worldT[0:12000],contrast[0:12000])
@@ -173,14 +174,9 @@ def main(whitenoise_directory, probe):
         plt.plot(np.diff(worldT)); plt.xlabel('frame'); plt.ylabel('deltaT'); plt.title('world cam')
         pdf.savefig()
         plt.close()
-        # calculate contrast response functions
-        # mean firing rate in timebins correponding to contrast ranges
-        resp = np.empty((n_units,12))
+        print('getting contrast response function')
         crange = np.arange(0,1.2,0.1)
-        for i,ind in enumerate(goodcells.index):
-            for c,cont in enumerate(crange):
-                resp[i,c] = np.mean(goodcells.at[ind,'rate'][(contrast_interp>cont) & (contrast_interp<(cont+0.1))])
-        crf_cent, crf_tuning, crf_err, crf_fig = plot_spike_rate_vs_var(goodcells, contrast, crange, worldT, t, 'contrast', show_title=False)
+        crf_cent, crf_tuning, crf_err, crf_fig = plot_spike_rate_vs_var(contrast, crange, goodcells, worldT, t, 'contrast')
         pdf.savefig()
         plt.close()
         print('getting spike-triggered average')
@@ -192,8 +188,9 @@ def main(whitenoise_directory, probe):
         pdf.savefig()
         plt.close()
         print('getting spike-triggered variance')
-        _, STV_fig = plot_STV(goodcells, t, movInterp, img_norm, show_title=False)
+        _, STV_fig = plot_STV(goodcells, t, movInterp, img_norm)
         pdf.savefig()
         plt.close()
-        print('done')
+        print('closing pdf')
         pdf.close()
+        print('done')
