@@ -2631,6 +2631,9 @@ def load_ephys(csv_filepath):
     for ind, row in all_data.iterrows():
         if type(row['session']) != str:
             all_data = all_data.drop(ind, axis=0)
+    for col in list(all_data.loc[:,all_data.columns.duplicated()].columns.values):
+        all_data[col] = all_data.iloc[:,0].combine_first(all_data.iloc[:,1])
+    all_data = all_data.loc[:,~all_data.columns.duplicated()]
     return all_data
 
 def session_ephys_analysis(config):
