@@ -139,9 +139,11 @@ try
 
         %%% bar plot of stdev for each channel (noise measure)
         figure
-        for i = subChans
-        	bar(std(double(allData(i)),[],2));
+        stdByChan = zeros(length(subChans),1);
+        for i = 1:length(subChans)
+            stdByChan(i,:) = std(double(allData(i,:)),[],2);
         end
+        bar(stdByChan);
         xlabel('chan'); ylabel('stdev')
         title(fileList{fnum})
         savefig(['CAR_' fileList{fnum}(1:end-4) '_fig2'])
