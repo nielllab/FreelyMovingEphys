@@ -18,7 +18,7 @@ def plot_prelim_STA(spikeT, img_norm, worldT, movInterp, ch_count, lag=2):
     n_units = len(spikeT)
     # model setup
     model_dt = 0.025
-    model_t = np.arange(0, np.max(worldT), model_dt)
+    model_t = np.arange(0, np.nanmax(worldT), model_dt)
     model_nsp = np.zeros((n_units, len(model_t)))
     # get binned spike rate
     bins = np.append(model_t, model_t[-1]+model_dt)
@@ -68,8 +68,8 @@ def main(whitenoise_directory, probe):
     ephys_center_sub = lfp_ephys - np.mean(lfp_ephys,0)
     filt_ephys = butter_bandpass(ephys_center_sub, lowcut=800, highcut=8000, fs=30000, order=6)
     t0 = open_time(ephys_time_file)[0]
-    world_timestamps = open_time(world_time_file)
-    world_timestamps = world_timestamps - t0
+    worldT = open_time(world_time_file)
+    worldT = worldT - t0
     print('loading worldcam video')
     vidread = cv2.VideoCapture(world_file)
     world_vid = np.empty([int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)),
@@ -100,7 +100,6 @@ def main(whitenoise_directory, probe):
     img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
     img_norm = img_norm * (std_im>20/255)
     img_norm[img_norm<-2] = -2
-    worldT = open_time(world_time_file) - t0
     movInterp = interp1d(worldT, img_norm, axis=0, bounds_error=False)
     plt.subplots(np.size(filt_ephys,1),1,figsize=(5,int(np.ceil(np.size(filt_ephys,1)/2))))
     print('getting receptive fields and plotting')
