@@ -59,14 +59,11 @@ def deinterlace_data(config, vid_list=None, time_list=None):
             # create save path
             avi_out_path = os.path.join(current_path, (key + 'deinter.avi'))
             # flip the eye video horizonally and vertically and deinterlace, if this is specified in the config
-            if config['deinterlace']['flip_eye_during_deinter'] is True and 'EYE' in this_avi:
-                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip, hflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
-            # flip the world video horizontally and vertically and deinterlace, if this is specificed in the config
-            elif config['deinterlace']['flip_world_during_deinter'] is True and 'WORLD' in this_avi:
-                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip, hflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
+            if config['deinterlace']['flip_eye_during_deinter'] is True and ('EYE' in this_avi or 'WORLD' in this_avi):
+                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip, hflip, scale=640:480', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
             # or, deinterlace without flipping
-            else:
-                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
+            elif config['deinterlace']['flip_eye_during_deinter'] is False and ('EYE' in this_avi or 'WORLD' in this_avi):
+                subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, scale=640:480', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
             # correct the frame count of the video
             # now that it's deinterlaced, the video has 2x the number of frames as before
             # this will be used to correct the timestamps associated with this video

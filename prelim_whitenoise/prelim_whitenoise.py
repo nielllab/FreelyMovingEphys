@@ -180,7 +180,7 @@ def main(whitenoise_directory, probe):
         pdf.savefig()
         plt.close()
         print('getting spike-triggered average')
-        _, STA_singlelag_fig = plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title=False)
+        _, STA_singlelag_fig = plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title=True)
         pdf.savefig()
         plt.close()
         print('getting spike-triggered average with range in lags')
