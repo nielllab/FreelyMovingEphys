@@ -33,7 +33,7 @@ def modulation_index(tuning, zerocent=True, lbound=1, ubound=-2):
         return np.round((tuning[ubound] - tuning[lbound]) / (tuning[ubound] + tuning[lbound]), 3)
     # if bins increase from zero in both the positive and negative direction
     elif zerocent is True:
-        r0 = np.nanmean(tuning[4:6])
+        r0 = tuning[4]
         modind_neg = np.round((tuning[lbound] - r0) / (tuning[lbound] + r0), 3)
         modind_pos = np.round((tuning[ubound] - r0) / (tuning[ubound] + r0), 3)
         return [modind_neg, modind_pos]
@@ -70,8 +70,8 @@ def make_unit_summary(df, savepath):
     print('num units = ' + str(len(df)))
     # iterate through units
     for index, row in tqdm(df.iterrows()):
-        lightfm = row['best_light_fm']
-        darkfm = row['best_light_fm']
+        lightfm = 'fm1'
+        darkfm = 'fm_dark'
         unitfig = plt.figure(constrained_layout=True, figsize=(50,45))
         spec = gridspec.GridSpec(ncols=5, nrows=10, figure=unitfig)
         # blank title panel
@@ -179,6 +179,25 @@ def make_unit_summary(df, savepath):
         except:
             pass
         try:
+            # depth from LFP power profile using wn stim
+            power_profiles = row['hf1_wn_lfp_power_profiles']
+            ch_shank = int(np.floor(row['ch']/32))
+            ch_shank_profile = power_profiles[ch_shank]
+            ch_power = ch_shank_profile[row['ch']%32]
+            layer5cent = row['hf1_wn_lfp_layer5_centers'][ch_shank]
+            ch_spacing = 25
+            ch_depth = ch_spacing*(row['ch']%32)-(layer5cent*ch_spacing)
+            num_sites = 32
+            unitfig_power_depth = unitfig.add_subplot(spec[6:8, 4])
+            unitfig_power_depth.plot(ch_shank_profile,range(0,num_sites))
+            unitfig_power_depth.plot(ch_shank_profile[layer5cent]+0.01,layer5cent,'r*',markersize=12)
+            unitfig_power_depth.hlines(y=ch_depth, xmin=0, xmax=ch_power, colors='g', linewidth=5)
+            unitfig_power_depth.set_ylim([33,-1]); unitfig_power_depth.set_yticks(list(range(-1,num_sites+1))); unitfig_power_depth.set_yticklabels(ch_spacing*np.arange(num_sites+2)-(layer5cent*ch_spacing))
+            unitfig_power_depth.set_title('shank='+str(ch_shank)+' site='+str(row['ch']%32)+'\n depth='+str(ch_depth), fontsize=20)
+            newdf.at[row['index'], 'hf1_wn_depth_from_layer5'] = ch_depth
+        except:
+            pass
+        try:
             # wn sta
             unitfig_wnsta = unitfig.add_subplot(spec[1, 0])
             wnsta = np.reshape(row['hf1_wn_spike_triggered_average'],tuple(row['hf1_wn_sta_shape']))
@@ -213,6 +232,7 @@ def make_unit_summary(df, savepath):
             unitfig_wnsaccavg.legend(['right','left'], loc=1)
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_wnsaccavg.set_ylim([0,maxval*1.2])
+            unitfig_wnsaccavg.set_xlim([-0.5,0.5])
             newdf.at[row['index'], 'hf1_wn_upsacc_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'hf1_wn_downsacc_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'hf1_wn_upsacc_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'hf1_wn_downsacc_modind_t100'] = modind_left[1]
         except:
@@ -332,6 +352,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1upsacc_gazedEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_gazedEye.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_gazedEye.set_ylabel('sp/sec')
+            unitfig_fm1upsacc_gazedEye.set-xlim([-0.5,0.5])
             newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dEye_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dEye_modind_t100'] = modind_left[1]
         except:
@@ -352,6 +373,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1upsacc_compdEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_compdEye.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_compdEye.set_ylabel('sp/sec')
+            unitfig_fm1upsacc_compdEye.set-xlim([-0.5,0.5])
             newdf.at[row['index'], 'fm1_upsacc_avg_comp_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dEye_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_avg_comp_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dEye_modind_t100'] = modind_left[1]
         except:
@@ -372,6 +394,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1upsacc_gazedHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_gazedHead.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_gazedHead.set_ylabel('sp/sec')
+            unitfig_fm1upsacc_gazedHead.set-xlim([-0.5,0.5])
             newdf.at[row['index'], 'fm1_wn_upsacc_avg_gaze_shift_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dHead_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dHead_modind_t100'] = modind_left[1]
         except:
@@ -392,6 +415,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1upsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_compdHead.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_compdHead.set_ylabel('sp/sec')
+            unitfig_fm1upsacc_compdHead.set-xlim([-0.5,0.5])
             newdf.at[row['index'], 'fm1_upsacc_avg_comp_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dHead_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_avg_comp_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dHead_modind_t100'] = modind_left[1]
         except:
@@ -471,6 +495,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1saccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_fm1saccavg.set_ylim([0,maxval*1.2])
+            unitfig_fm1saccavg.set_xlim([-0.5,0.5])
             newdf.at[row['index'], 'fm1_upsacc_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_modind_t100'] = modind_left[1]
         except:
@@ -598,6 +623,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darkupsacc_gazedEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
                 unitfig_darkupsacc_gazedEye.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_gazedEye.set_ylabel('sp/sec')
+                unitfig_darkupsacc_gazedEye.set_xlim([-0.5,0.5])
                 newdf.at[row['index'], darkfm+'_upsacc_avg_gaze_shift_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dEye_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_avg_gaze_shift_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dEye_modind_t100'] = modind_left[1]
             except:
@@ -618,6 +644,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darkupsacc_compdEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
                 unitfig_darkupsacc_compdEye.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_compdEye.set_ylabel('sp/sec')
+                unitfig_darkupsacc_compdEye.set_xlim([-0.5,0.5])
                 newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dEye_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dEye_modind_t100'] = modind_left[1]
             except:
@@ -638,6 +665,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darkupsacc_gazedHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
                 unitfig_darkupsacc_gazedHead.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_gazedHead.set_ylabel('sp/sec')
+                unitfig_darkupsacc_gazedHead.set_xlim([-0.5,0.5])
                 newdf.at[row['index'], darkfm+'_wn_upsacc_avg_gaze_shift_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dHead_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_avg_gaze_shift_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dHead_modind_t100'] = modind_left[1]
             except:
@@ -658,6 +686,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darkupsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
                 unitfig_darkupsacc_compdHead.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_compdHead.set_ylabel('sp/sec')
+                unitfig_darkupsacc_compdHead.set_xlim([-0.5,0.5])
                 newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dHead_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dHead_modind_t100'] = modind_left[1]
             except:
@@ -676,6 +705,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darksaccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
                 maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
                 unitfig_darksaccavg.set_ylim([0,maxval*1.2])
+                unitfig_darksaccavg.set_xlim([-0.5,0.5])
                 newdf.at[row['index'], darkfm+'_upsacc_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_modind_t100'] = modind_left[1]
             except:
@@ -772,84 +802,83 @@ def make_session_summary(df, savepath):
     """
     pdf = PdfPages(os.path.join(savepath, 'session_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
     df['unit'] = df.index.values
-    print(df, df.index)
     df = df.set_index('session')
-    print(df, df.index)
 
     unique_inds = sorted(list(set(df.index.values)))
 
     for unique_ind in tqdm(unique_inds):
         uniquedf = df.loc[unique_ind]
         # set up subplots
-        plt.subplots(4,4,figsize=(25,25))
+        plt.subplots(4,5,figsize=(25,25))
+        plt.suptitle(unique_ind+' eye fit: m='+str(uniquedf['best_ellipse_fit_m'].iloc[0])+' r='+str(uniquedf['best_ellipse_fit_r'].iloc[0]), fontsize=20)
         # eye position vs head position
         try:
-            plt.subplot(4,4,1)
+            plt.subplot(4,5,1)
             plt.title('dEye vs dHead (LIGHT)', fontsize=20)
             dEye = uniquedf['fm1_dEye'].iloc[0]
             dhead = uniquedf['fm1_dHead'].iloc[0]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
             plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
-            plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
-            plt.plot([-10,10],[10,-10], 'r')
-        except:
-            pass
+            plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-15,15)); plt.ylim((-15,15))
+            plt.plot([-15,15],[15,-15], 'r')
+        except Exception as e:
+            print(e)
         try:
-            plt.subplot(4,4,2)
+            plt.subplot(4,5,2)
             plt.title('dEye vs dHead (DARK)', fontsize=20)
-            dEye = uniquedf['fm1_dark_dEye'].iloc[0]
-            dhead = uniquedf['fm1_dark_dHead'].iloc[0]
-            eyeT = uniquedf['fm1_dark_eyeT'].iloc[0]
+            dEye = uniquedf['fm_dark_dEye'].iloc[0]
+            dhead = uniquedf['fm_dark_dHead'].iloc[0]
+            eyeT = uniquedf['fm_dark_eyeT'].iloc[0]
             plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
-            plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-10,10)); plt.ylim((-10,10))
-            plt.plot([-10,10],[10,-10], 'r')
-        except:
-            pass
+            plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-15,15)); plt.ylim((-15,15))
+            plt.plot([-15,15],[15,-15], 'r')
+        except Exception as e:
+            print(e)
         try:
             accT = uniquedf['fm1_accT'].iloc[0]
             roll_interp = uniquedf['fm1_roll_interp'].iloc[0]
             pitch_interp = uniquedf['fm1_pitch_interp'].iloc[0]
             th = uniquedf['fm1_theta'].iloc[0]
             phi = uniquedf['fm1_phi'].iloc[0]
-            plt.subplot(4,4,3)
+            plt.subplot(4,5,3)
+            plt.title('LIGHT', fontsize=20)
             plt.plot(pitch_interp[::100], th[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
-            plt.title('LIGHT'+unique_ind+' eye fit: m='+str(uniquedf['best_ellipse_fit_m'].iloc[0])+' r='+str(uniquedf['best_ellipse_fit_r'].iloc[0]), fontsize=20)
-            plt.subplot(4,4,3)
+            plt.subplot(4,5,4)
             plt.plot(roll_interp[::100], phi[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
-        except:
-            pass
+        except Exception as e:
+            print(e)
         try:
-            dark_roll_interp = uniquedf['fm1_dark_roll_interp'].iloc[0]
-            dark_pitch_interp = uniquedf['fm1_dark_pitch_interp'].iloc[0]
-            th_dark = uniquedf['fm1_dark_theta'].iloc[0]
-            phi_dark = uniquedf['fm1_dark_phi'].iloc[0]
-            plt.subplot(4,4,4)
+            dark_roll_interp = uniquedf['fm_dark_roll_interp'].iloc[0]
+            dark_pitch_interp = uniquedf['fm_dark_pitch_interp'].iloc[0]
+            th_dark = uniquedf['fm_dark_theta'].iloc[0]
+            phi_dark = uniquedf['fm_dark_phi'].iloc[0]
+            plt.subplot(4,5,5)
             plt.plot(dark_pitch_interp[::100], th_dark[::100], '.'); plt.xlabel('pitch'); plt.ylabel('theta')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
             plt.title('DARK', fontsize=20)
-            plt.subplot(4,4,3)
+            plt.subplot(4,5,6)
             plt.plot(dark_roll_interp[::100], phi_dark[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
-        except:
-            pass
+        except Exception as e:
+            print(e)
         try:
             # histogram of theta from -45 to 45deg (are eye movements in resonable range?)
-            plt.subplot(4,4,5)
+            plt.subplot(4,5,7)
             plt.title('hist of FM theta', fontsize=20)
             plt.hist(uniquedf['fm1_theta'].iloc[0], range=[-45,45])
             # histogram of phi from -45 to 45deg (are eye movements in resonable range?)
-            plt.subplot(4,4,6)
+            plt.subplot(4,5,8)
             plt.title('hist of FM phi', fontsize=20)
             plt.hist(uniquedf['fm1_phi'].iloc[0], range=[-45,45])
             # histogram of gyro z (resonable range?)
-            plt.subplot(4,4,7)
+            plt.subplot(4,5,9)
             plt.title('hist of FM gyro z', fontsize=20)
             plt.hist(uniquedf['fm1_gz'].iloc[0], range=[2,4])
             # plot of contrast response functions on same panel scaled to max 30sp/sec
             # plot of average contrast reponse function across units
-            plt.subplot(4,4,8)
+            plt.subplot(4,5,10)
             plt.title('CRFs', fontsize=20)
             for ind, row in uniquedf.iterrows():
                 plt.errorbar(row['hf1_wn_crf_cent'],row['hf1_wn_crf_tuning'],yerr=row['hf1_wn_crf_err'])
@@ -861,52 +890,51 @@ def make_session_summary(df, savepath):
             if num_channels == 64:
                 for ch_num in np.arange(0,64):
                     if ch_num<=31:
-                        plt.subplot(4,4,9)
+                        plt.subplot(4,5,11)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
-                        plt.title('lfp trace, shank1', fontsize=20); plt.axvline(x=(0.1*30000))
+                        plt.title('ch1:32', fontsize=20); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                         plt.ylim([-1200,400])
                     if ch_num>31:
-                        plt.subplot(4,4,10)
+                        plt.subplot(4,5,12)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
-                        plt.title('lfp trace, shank2', fontsize=20); plt.axvline(x=(0.1*30000))
+                        plt.title('ch33:64', fontsize=20); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                         plt.ylim([-1200,400])
             elif num_channels == 128:
-                plt.subplots(1,4 ,figsize=(40,6))
                 for ch_num in np.arange(0,128):
                     if ch_num < 32:
-                        plt.subplot(1,4,1)
+                        plt.subplot(4,5,11)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num], linewidth=1)
                         plt.title('ch1:32'); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                     elif 32 <= ch_num < 64:
-                        plt.subplot(1,4,2)
+                        plt.subplot(4,5,12)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-32], linewidth=1)
                         plt.title('ch33:64'); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                     elif 64 <= ch_num < 96:
-                        plt.subplot(1,4,3)
+                        plt.subplot(4,5,13)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-64], linewidth=1)
                         plt.title('ch33:64'); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
                     elif 96 <= ch_num < 128:
-                        plt.subplot(1,4,4)
+                        plt.subplot(4,5,14)
                         plt.plot(uniquedf['hf4_revchecker_revchecker_mean_resp_per_ch'].iloc[0][ch_num], color=colors[ch_num-96], linewidth=1)
                         plt.title('ch33:64'); plt.axvline(x=(0.1*30000))
                         plt.xticks(np.arange(0,18000,18000/5),np.arange(0,600,600/5))
             # fm spike raster
-            plt.subplot(4,4,11)
+            plt.subplot(4,5,15)
             plt.title('FM raster', fontsize=20)
             i = 0
             for ind, row in uniquedf.iterrows():
                 plt.vlines(row['fm1_spikeT'],i-0.25,i+0.25)
                 plt.xlim(0, 10); plt.xlabel('secs'); plt.ylabel('unit #')
                 i = i+1
-        except:
-            pass
+        except Exception as e:
+            print(e)
         # all psth plots in a single panel, with avg plotted over the top
-        plt.subplot(4,4,12)
+        plt.subplot(4,5,16)
         lower = -0.5; upper = 1.5; dt = 0.1
         bins = np.arange(lower,upper+dt,dt)
         psth_list = []
@@ -914,78 +942,79 @@ def make_session_summary(df, savepath):
             try:
                 plt.plot(bins[0:-1]+dt/2,row['hf3_gratings_grating_psth'])
                 psth_list.append(row['hf3_gratings_grating_psth'])
-            except ValueError:
-                pass
+            except Exception as e:
+                print(e)
         try:
             avg_psth = np.mean(np.array(psth_list), axis=0)
             plt.plot(bins[0:-1]+dt/2,avg_psth,color='k',linewidth=6)
             plt.title('gratings psth', fontsize=20); plt.xlabel('time'); plt.ylabel('sp/sec')
             plt.ylim([0,np.nanmax(avg_psth)*1.5])
-        except:
-            pass
-        plt.subplot(4,4,13)
+        except Exception as e:
+            print(e)
         try:
-            lfp_power_profile = uniquedf['lfp_power_profiles'].iloc[0]
-            layer5_cent = uniquedf['lfp_layer5_centers'].iloc[0]
-            if uniquedf['probe_name'] == 'DB_P64-8':
-                ch_spacing = 25/2
-            else:
-                ch_spacing = 25
-            if ch_num == 64:
-                norm_profile_sh0 = lfp_power_profile[0]
-                layer5_cent_sh0 = layer5_cent[0]
-                norm_profile_sh1 = lfp_power_profile[1]
-                layer5_cent_sh1 = layer5_cent[1]
-                plt.subplot(4,4,13)
-                plt.plot(norm_profile_sh0,range(0,32))
-                plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
-                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
-                plt.title('shank0')
-                plt.subplot(4,4,14)
-                plt.plot(norm_profile_sh1,range(0,32))
-                plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
-                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
-                plt.title('shank1')
-            elif ch_num == 16:
-                norm_profile_sh0 = lfp_power_profile[0]
-                layer5_cent_sh0 = layer5_cent[0]
-                plt.subplot(4,4,13)
-                plt.tight_layout()
-                plt.plot(norm_profile_sh0,range(0,16))
-                plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
-                plt.ylim([17,-1]); plt.yticks(ticks=list(range(-1,17)),labels=(ch_spacing*np.arange(18)-(layer5_cent_sh0*ch_spacing)))
-                plt.title('shank0')
-            elif ch_num == 128:
-                norm_profile_sh0 = lfp_power_profile[0]
-                layer5_cent_sh0 = layer5_cent[0]
-                norm_profile_sh1 = lfp_power_profile[1]
-                layer5_cent_sh1 = layer5_cent[1]
-                norm_profile_sh2 = lfp_power_profile[2]
-                layer5_cent_sh2 = layer5_cent[2]
-                norm_profile_sh3 = lfp_power_profile[3]
-                layer5_cent_sh3 = layer5_cent[3]
-                plt.subplot(4,4,13)
-                plt.plot(norm_profile_sh0,range(0,32))
-                plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
-                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
-                plt.title('shank0')
-                plt.subplot(4,4,14)
-                plt.plot(norm_profile_sh1,range(0,32))
-                plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
-                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
-                plt.title('shank1')
-                plt.subplot(4,4,15)
-                plt.plot(norm_profile_sh2,range(0,32))
-                plt.plot(norm_profile_sh2[layer5_cent_sh2]+0.01,layer5_cent_sh2,'r*',markersize=12)
-                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh2*ch_spacing)))
-                plt.title('shank2')
-                plt.subplot(4,4,16)
-                plt.plot(norm_profile_sh3,range(0,32))
-                plt.plot(norm_profile_sh3[layer5_cent_sh3]+0.01,layer5_cent_sh3,'r*',markersize=12)
-                plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh3*ch_spacing)))
-                plt.title('shank3')
-        except:
-            pass
+            lfp_power_profile = uniquedf['hf1_wn_lfp_power_profiles'].iloc[0]
+            layer5_cent = uniquedf['hf1_wn_lfp_layer5_centers'].iloc[0]
+            if type(lfp_power_profile) == list:
+                if uniquedf['probe_name'].iloc[0] == 'DB_P64-8':
+                    ch_spacing = 25/2
+                else:
+                    ch_spacing = 25
+                if '64' in uniquedf['probe_name'].iloc[0]:
+                    norm_profile_sh0 = lfp_power_profile[0]
+                    layer5_cent_sh0 = layer5_cent[0]
+                    norm_profile_sh1 = lfp_power_profile[1]
+                    layer5_cent_sh1 = layer5_cent[1]
+                    plt.subplot(4,5,17)
+                    plt.plot(norm_profile_sh0,range(0,32))
+                    plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
+                    plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
+                    plt.title('shank0')
+                    plt.subplot(4,5,18)
+                    plt.plot(norm_profile_sh1,range(0,32))
+                    plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
+                    plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
+                    plt.title('shank1')
+                if '16' in uniquedf['probe_name'].iloc[0]:
+                    norm_profile_sh0 = lfp_power_profile[0]
+                    layer5_cent_sh0 = layer5_cent[0]
+                    plt.subplot(4,5,17)
+                    plt.tight_layout()
+                    plt.plot(norm_profile_sh0,range(0,16))
+                    plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
+                    plt.ylim([17,-1]); plt.yticks(ticks=list(range(-1,17)),labels=(ch_spacing*np.arange(18)-(layer5_cent_sh0*ch_spacing)))
+                    plt.title('shank0')
+                if '128' in uniquedf['probe_name'].iloc[0]:
+                    norm_profile_sh0 = lfp_power_profile[0]
+                    layer5_cent_sh0 = layer5_cent[0]
+                    norm_profile_sh1 = lfp_power_profile[1]
+                    layer5_cent_sh1 = layer5_cent[1]
+                    norm_profile_sh2 = lfp_power_profile[2]
+                    layer5_cent_sh2 = layer5_cent[2]
+                    norm_profile_sh3 = lfp_power_profile[3]
+                    layer5_cent_sh3 = layer5_cent[3]
+                    plt.subplot(4,5,17)
+                    plt.plot(norm_profile_sh0,range(0,32))
+                    plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
+                    plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh0*ch_spacing)))
+                    plt.title('shank0')
+                    plt.subplot(4,5,18)
+                    plt.plot(norm_profile_sh1,range(0,32))
+                    plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
+                    plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
+                    plt.title('shank1')
+                    plt.subplot(4,5,19)
+                    plt.plot(norm_profile_sh2,range(0,32))
+                    plt.plot(norm_profile_sh2[layer5_cent_sh2]+0.01,layer5_cent_sh2,'r*',markersize=12)
+                    plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh2*ch_spacing)))
+                    plt.title('shank2')
+                    plt.subplot(4,5,20)
+                    plt.plot(norm_profile_sh3,range(0,32))
+                    plt.plot(norm_profile_sh3[layer5_cent_sh3]+0.01,layer5_cent_sh3,'r*',markersize=12)
+                    plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh3*ch_spacing)))
+                    plt.title('shank3')
+        except Exception as e:
+            print(e)
+        pdf.savefig()
     print('saving session summary pdf')
     pdf.close()
 
@@ -1092,9 +1121,9 @@ def make_population_summary(df1, savepath):
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.hist(df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0],color='r',bins=np.arange(-600,600,25),alpha=.5,orientation='horizontal')
+    plt.hist(df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0],color='r',bins=np.arange(-600,600,25),alpha=.5,orientation='horizontal')
     plt.xlabel('channels above or below center of layer 4')
-    plt.hist(df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1],color='k',bins=np.arange(-600,600,25),alpha=.5,orientation='horizontal')
+    plt.hist(df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1],color='k',bins=np.arange(-600,600,25),alpha=.5,orientation='horizontal')
     plt.ylim([600,-600])
      
     plt.plot([0,14],[0,0],'k')
@@ -1109,8 +1138,8 @@ def make_population_summary(df1, savepath):
             df1.at[ind, 'responsive_to_contrast'] = np.abs(tuning[-2] - tuning[1]) > 1
         else:
             df1.at[ind, 'responsive_to_contrast'] = False
-    plt.plot(df1['hf1_wn_crf_modind'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['hf1_wn_crf_modind'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['hf1_wn_crf_modind'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['hf1_wn_crf_modind'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==1], 'k.')
     plt.xlabel('contrast response modulation index'); plt.ylabel('depth relative to layer 4'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
@@ -1137,9 +1166,9 @@ def make_population_summary(df1, savepath):
     use = df1#[df1['responsive_to_gratings']==True]
     for ind, row in use.iterrows():
         if row['waveform_km_label'] == 0:
-            plt.plot(row['hf3_gratings_drift_spont'], row['hf4_revchecker_depth_from_layer4'],'r.')
+            plt.plot(row['hf3_gratings_drift_spont'], row['hf1_wn_depth_from_layer5'],'r.')
         elif row['waveform_km_label'] == 1:
-            plt.plot(row['hf3_gratings_drift_spont'], row['hf4_revchecker_depth_from_layer4'],'k.')
+            plt.plot(row['hf3_gratings_drift_spont'], row['hf1_wn_depth_from_layer5'],'k.')
     plt.ylabel('depth relative to layer 4')
     plt.xlabel('gratings spont rate')
     plt.title('spont rate vs depth'); plt.ylim([600,-600])
@@ -1252,62 +1281,62 @@ def make_population_summary(df1, savepath):
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('prefered orientation selectivity index'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('pref sf'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_pos'][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_pos'][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('positive head roll tuning modulation index'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_neg'][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_neg'][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('negative head roll tuning modulation index'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_pos'][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_pos'][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('positive head pitch tuning modulation index'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_neg'][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_neg'][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('negative head pitch tuning modulation index'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
     
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_pos'][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_pos'][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('positive eye theta tuning modulation index'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_neg'][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_neg'][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('negative eye theta tuning modulation index'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_pos'][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_pos'][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('positive eye phi tuning modulation index'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_neg'][df1['waveform_km_label']==0], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_neg'][df1['waveform_km_label']==1], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
     plt.ylabel('depth relative to layer 4'); plt.xlabel('negative eye phi tuning modulation index'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
@@ -1326,14 +1355,14 @@ def make_population_summary(df1, savepath):
     
     plt.figure()
     plt.title('contrast spont rate'); plt.ylabel('depth relative to layer 4'); plt.xlabel('contrast spont rate (sp/sec)')
-    plt.plot(crfs0[:,4], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(crfs1[:,4], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.'); plt.ylim([600,-600])
+    plt.plot(crfs0[:,4], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(crfs1[:,4], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
     
     plt.figure()
     plt.title('contrast evoked rate'); plt.ylabel('depth relative to layer 4'); plt.xlabel('contrast evoked rate (sp/sec)')
-    plt.plot(crfs0[:,-2], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(crfs1[:,-2], df1['hf4_revchecker_depth_from_layer4'][df1['waveform_km_label']==1], 'k.'); plt.ylim([600,-600])
+    plt.plot(crfs0[:,-2], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(crfs1[:,-2], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.'); plt.ylim([600,-600])
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     print('saving population summary pdf')
@@ -1355,18 +1384,28 @@ def population_analysis(config):
     """
     print('pooling ephys data')
     df = load_ephys(config['population']['metadata_csv_path'])
-    # clean up h5 file
+    # fix typos
     cols = df.columns.values
     shcols = [c for c in cols if 'gratingssh' in c]
     for c in shcols:
         new_col = str(c.replace('gratingssh', 'gratings'))
         df = df.rename(columns={str(c): new_col})
-    badcols = []
+    # remove empty data which has no session name
+    for ind, row in df.iterrows():
+        if type(row['session']) != str:
+            df = df.drop(ind, axis=0)
+    # remove fm2, hf5-8 recordings
+    cols = df.columns.values; badcols = []
     for c in cols:
         if any(s in c for s in ['fm2','hf5','hf6','hf7','hf8']):
             badcols.append(c)
     df = df.drop(labels=badcols, axis=1)
-    df = df.groupby(lambda x:x, axis=1); df = df.agg(np.nansum) # combine identical column names
+    # drop duplicate columns
+    duplicates = df.columns.values[df.columns.duplicated()]
+    for d in duplicates:
+        temp = df[d].iloc[:,0].combine_first(df[d].iloc[:,1])
+        df = df.drop(columns=d)
+        df[d] = temp
     print('saving pooled ephys data to '+config['population']['save_path'])
     json_path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.json')
     if os.path.isfile(json_path):

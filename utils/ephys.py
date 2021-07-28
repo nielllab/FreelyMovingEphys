@@ -2597,16 +2597,6 @@ def load_ephys(csv_filepath):
             rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
             # rename spike time columns so that data is retained for each of the seperate trials
             rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
-            # add a column for the 'r' and 'm' of ellipse fit
-            try:
-                ellipse_json_path = find('*'+rec_data['best_light_fm']+'*fm_eyecameracalc_props.json',session)
-                with open(ellipse_json_path, 'r') as fp:
-                    ellipse_fit_params = json.load(fp)
-                rec_data['best_ellipse_fit_m'] = ellipse_fit_params['regression_m']
-                rec_data['best_ellipse_fit_r'] = ellipse_fit_params['regression_r']
-            except:
-                rec_data['best_ellipse_fit_m'] = np.nan
-                rec_data['best_ellipse_fit_r'] = np.nan
             # add a column for which fm recording should be prefered
             for key,val in goodlightrecs.items():
                 if key in rec_data['session'].iloc[0]:
@@ -2623,6 +2613,15 @@ def load_ephys(csv_filepath):
             # remove duplicate columns (i.e. shared metadata)
             session_data = session_data.loc[:,~session_data.columns.duplicated()]
             # add model of probe as new col
+        animal = goodsessions[ind]
+        ellipse_json_path = find('*fm_eyecameracalc_props.json', animal)
+        if ellipse_json_path != []:
+            with open(ellipse_json_path[0]) as f:
+                ellipse_fit_params = json.load(f)
+            session_data['best_ellipse_fit_m'] = ellipse_fit_params['regression_m']
+            session_data['best_ellipse_fit_r'] = ellipse_fit_params['regression_r']
+        else:
+            print(ellipse_json_path)
         session_data['probe_name'] = probenames_for_goodsessions[ind]
         ind += 1
         # new rows for units from different mice or sessions
