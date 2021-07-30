@@ -191,7 +191,7 @@ def make_unit_summary(df, savepath):
             unitfig_power_depth = unitfig.add_subplot(spec[6:8, 4])
             unitfig_power_depth.plot(ch_shank_profile,range(0,num_sites))
             unitfig_power_depth.plot(ch_shank_profile[layer5cent]+0.01,layer5cent,'r*',markersize=12)
-            unitfig_power_depth.hlines(y=ch_depth, xmin=0, xmax=ch_power, colors='g', linewidth=5)
+            unitfig_power_depth.hlines(y=row['ch']%32, xmin=0, xmax=ch_power, colors='g', linewidth=5)
             unitfig_power_depth.set_ylim([33,-1]); unitfig_power_depth.set_yticks(list(range(-1,num_sites+1))); unitfig_power_depth.set_yticklabels(ch_spacing*np.arange(num_sites+2)-(layer5cent*ch_spacing))
             unitfig_power_depth.set_title('shank='+str(ch_shank)+' site='+str(row['ch']%32)+'\n depth='+str(ch_depth), fontsize=20)
             newdf.at[row['index'], 'hf1_wn_depth_from_layer5'] = ch_depth
@@ -226,13 +226,13 @@ def make_unit_summary(df, savepath):
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_wnsaccavg.set_title('WN left/right saccades', fontsize=20)
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-            unitfig_wnsaccavg.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_wnsaccavg.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
             unitfig_wnsaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            unitfig_wnsaccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+            unitfig_wnsaccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
             unitfig_wnsaccavg.legend(['right','left'], loc=1)
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_wnsaccavg.set_ylim([0,maxval*1.2])
-            unitfig_wnsaccavg.set_xlim([-0.5,0.5])
+            unitfig_wnsaccavg.set_xlim([-0.5,0.6])
             newdf.at[row['index'], 'hf1_wn_upsacc_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'hf1_wn_downsacc_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'hf1_wn_upsacc_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'hf1_wn_downsacc_modind_t100'] = modind_left[1]
         except:
@@ -294,7 +294,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srvgz.set_title('FM1 spike rate vs gyro_z\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_wn_spike_rate_vs_gz_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_wn_spike_rate_vs_gz_modind_pos'] = modind[1]
+            newdf.at[row['index'], 'fm1_spike_rate_vs_gz_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_gz_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -307,7 +307,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srvgx.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srvgx.set_title('FM1 spike rate vs gyro_x\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srvgx.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_wn_spike_rate_vs_gx_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_wn_spike_rate_vs_gx_modind_pos'] = modind[1]
+            newdf.at[row['index'], 'fm1_spike_rate_vs_gx_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_gx_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -320,7 +320,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srvgy.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_y\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srvgy.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_wn_spike_rate_vs_gy_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_wn_spike_rate_vs_gy_modind_pos'] = modind[1]
+            newdf.at[row['index'], 'fm1_spike_rate_vs_gy_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_gy_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -346,13 +346,13 @@ def make_unit_summary(df, savepath):
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1upsacc_gazedEye.set_title('FM1 gaze shift dEye', fontsize=20)
             unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-            unitfig_fm1upsacc_gazedEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1upsacc_gazedEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
             unitfig_fm1upsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            unitfig_fm1upsacc_gazedEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+            unitfig_fm1upsacc_gazedEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
             unitfig_fm1upsacc_gazedEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_gazedEye.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_gazedEye.set_ylabel('sp/sec')
-            unitfig_fm1upsacc_gazedEye.set-xlim([-0.5,0.5])
+            unitfig_fm1upsacc_gazedEye.set_xlim([-0.5,0.6])
             newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dEye_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dEye_modind_t100'] = modind_left[1]
         except:
@@ -367,13 +367,13 @@ def make_unit_summary(df, savepath):
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1upsacc_compdEye.set_title('FM1 comp dEye', fontsize=20)
             unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-            unitfig_fm1upsacc_compdEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1upsacc_compdEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
             unitfig_fm1upsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            unitfig_fm1upsacc_compdEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+            unitfig_fm1upsacc_compdEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
             unitfig_fm1upsacc_compdEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_compdEye.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_compdEye.set_ylabel('sp/sec')
-            unitfig_fm1upsacc_compdEye.set-xlim([-0.5,0.5])
+            unitfig_fm1upsacc_compdEye.set_xlim([-0.5,0.6])
             newdf.at[row['index'], 'fm1_upsacc_avg_comp_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dEye_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_avg_comp_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dEye_modind_t100'] = modind_left[1]
         except:
@@ -388,14 +388,14 @@ def make_unit_summary(df, savepath):
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1upsacc_gazedHead.set_title('FM1 gaze shift dHead', fontsize=20)
             unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-            unitfig_fm1upsacc_gazedHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1upsacc_gazedHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
             unitfig_fm1upsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            unitfig_fm1upsacc_gazedHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+            unitfig_fm1upsacc_gazedHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
             unitfig_fm1upsacc_gazedHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_gazedHead.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_gazedHead.set_ylabel('sp/sec')
-            unitfig_fm1upsacc_gazedHead.set-xlim([-0.5,0.5])
-            newdf.at[row['index'], 'fm1_wn_upsacc_avg_gaze_shift_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dHead_modind_t0'] = modind_left[0]
+            unitfig_fm1upsacc_gazedHead.set_xlim([-0.5,0.6])
+            newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dHead_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dHead_modind_t100'] = modind_left[1]
         except:
             pass
@@ -409,13 +409,13 @@ def make_unit_summary(df, savepath):
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1upsacc_compdHead.set_title('FM1 comp dHead', fontsize=20)
             unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-            unitfig_fm1upsacc_compdHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1upsacc_compdHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
             unitfig_fm1upsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            unitfig_fm1upsacc_compdHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+            unitfig_fm1upsacc_compdHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
             unitfig_fm1upsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
             unitfig_fm1upsacc_compdHead.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_compdHead.set_ylabel('sp/sec')
-            unitfig_fm1upsacc_compdHead.set-xlim([-0.5,0.5])
+            unitfig_fm1upsacc_compdHead.set_xlim([-0.5,0.6])
             newdf.at[row['index'], 'fm1_upsacc_avg_comp_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dHead_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_avg_comp_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dHead_modind_t100'] = modind_left[1]
         except:
@@ -429,12 +429,18 @@ def make_unit_summary(df, savepath):
             tuning[tuning < 0] = 0 # set to 0 when tuning goes negative (i.e. when firing rate is below spontanious rate)
             th_pref = np.nanargmax(tuning,0) # get position of highest firing rate
             osi = np.zeros([3])
+            dsi = np.zeros([3])
             for sf in range(3):
                 R_pref = (tuning[th_pref[sf], sf] + (tuning[(th_pref[sf]+4)%8, sf])) * 0.5 # get that firing rate (avg between peaks)
                 th_ortho = (th_pref[sf]+2)%8 # get ortho position
                 R_ortho = (tuning[th_ortho, sf] + (tuning[(th_ortho+4)%8, sf])) * 0.5 # ortho firing rate (average between two peaks)
+                # orientaiton selectivity index
                 osi[sf] = np.round((R_pref - R_ortho) / (R_pref + R_ortho),3)
-            unitfig_ori_tuning.set_title('orientation tuning\nosi l='+str(osi[0])+'m='+str(osi[1])+'h='+str(osi[2]), fontsize=20)
+                # direction selectivity index
+                th_null = (th_pref[sf]+4)%8 # get other direction of same orientation
+                R_null = tuning[th_null, sf] # tuning value at that peak
+                dsi[sf] = np.round((R_pref - R_null) / (R_pref + R_null), 3)
+            unitfig_ori_tuning.set_title('orientation tuning\n OSI l='+str(osi[0])+'m='+str(osi[1])+'h='+str(osi[2])+'\n DSI l='+str(dsi[0])+'m='+str(dsi[1])+'h='+str(dsi[2]), fontsize=20)
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,0],label = 'low sf')
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,1],label = 'mid sf')
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,2],label = 'hi sf')
@@ -442,6 +448,7 @@ def make_unit_summary(df, savepath):
             unitfig_ori_tuning.legend()
             unitfig_ori_tuning.set_ylim([0,np.nanmax(row['hf3_gratings_ori_tuning'][:,:,:])*1.2])
             newdf.at[row['index'], 'hf3_gratings_osi_low'] = osi[0]; newdf.at[row['index'], 'hf3_gratings_osi_mid'] = osi[1]; newdf.at[row['index'], 'hf3_gratings_osi_high'] = osi[2]
+            newdf.at[row['index'], 'hf3_gratings_dsi_low'] = dsi[0]; newdf.at[row['index'], 'hf3_gratings_dsi_mid'] = dsi[1]; newdf.at[row['index'], 'hf3_gratings_dsi_high'] = dsi[2]
         except:
             pass
         try:
@@ -490,12 +497,12 @@ def make_unit_summary(df, savepath):
             modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
             unitfig_fm1saccavg.set_title('FM1 left/right saccades', fontsize=20)
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-            unitfig_fm1saccavg.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+            unitfig_fm1saccavg.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
             unitfig_fm1saccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-            unitfig_fm1saccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+            unitfig_fm1saccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_fm1saccavg.set_ylim([0,maxval*1.2])
-            unitfig_fm1saccavg.set_xlim([-0.5,0.5])
+            unitfig_fm1saccavg.set_xlim([-0.5,0.6])
             newdf.at[row['index'], 'fm1_upsacc_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_modind_t0'] = modind_left[0]
             newdf.at[row['index'], 'fm1_upsacc_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_modind_t100'] = modind_left[1]
         except:
@@ -523,7 +530,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srth.set_title('FM1 spike rate vs theta\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_wn_spike_rate_vs_theta_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_wn_spike_rate_vs_theta_modind_pos'] = modind[1]
+            newdf.at[row['index'], 'fm1_spike_rate_vs_theta_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_theta_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -536,7 +543,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srphi.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srphi.set_title('FM1 spike rate vs phi\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srphi.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_wn_spike_rate_vs_phi_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_wn_spike_rate_vs_phi_modind_pos'] = modind[1]
+            newdf.at[row['index'], 'fm1_spike_rate_vs_phi_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_phi_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -549,7 +556,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srroll.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srroll.set_title('FM1 spike rate vs roll\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srroll.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srroll.set_xlim(-30,30)
-            newdf.at[row['index'], 'fm1_wn_spike_rate_vs_roll_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_wn_spike_rate_vs_roll_modind_pos'] = modind[1]
+            newdf.at[row['index'], 'fm1_spike_rate_vs_roll_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_roll_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -562,7 +569,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srpitch.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srpitch.set_title('FM1 spike rate vs pitch\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srpitch.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srpitch.set_xlim(-30,30)
-            newdf.at[row['index'], 'fm1_wn_spike_rate_vs_pitch_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_wn_spike_rate_vs_pitch_modind_pos'] = modind[1]
+            newdf.at[row['index'], 'fm1_spike_rate_vs_pitch_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_pitch_modind_pos'] = modind[1]
         except:
             pass
 
@@ -591,7 +598,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darksrvgx.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_darksrvgx.set_title('FM DARK spike rate vs gyro_x\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
                 unitfig_darksrvgx.set_ylim(0,np.nanmax(tuning[:]*1.2))
-                newdf.at[row['index'], darkfm+'_spike_rate_vs_gx_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_wn_spike_rate_vs_gx_modind_pos'] = modind[1]
+                newdf.at[row['index'], darkfm+'_spike_rate_vs_gx_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_gx_modind_pos'] = modind[1]
             except:
                 pass
             try:
@@ -617,13 +624,13 @@ def make_unit_summary(df, savepath):
                 modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
                 unitfig_darkupsacc_gazedEye.set_title('FM DARK gaze shift dEye', fontsize=20)
                 unitfig_darkupsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-                unitfig_darkupsacc_gazedEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+                unitfig_darkupsacc_gazedEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
                 unitfig_darkupsacc_gazedEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-                unitfig_darkupsacc_gazedEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+                unitfig_darkupsacc_gazedEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
                 unitfig_darkupsacc_gazedEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
                 unitfig_darkupsacc_gazedEye.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_gazedEye.set_ylabel('sp/sec')
-                unitfig_darkupsacc_gazedEye.set_xlim([-0.5,0.5])
+                unitfig_darkupsacc_gazedEye.set_xlim([-0.5,0.6])
                 newdf.at[row['index'], darkfm+'_upsacc_avg_gaze_shift_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dEye_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_avg_gaze_shift_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dEye_modind_t100'] = modind_left[1]
             except:
@@ -638,13 +645,13 @@ def make_unit_summary(df, savepath):
                 modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
                 unitfig_darkupsacc_compdEye.set_title('FM DARK comp dEye', fontsize=20)
                 unitfig_darkupsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-                unitfig_darkupsacc_compdEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+                unitfig_darkupsacc_compdEye.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
                 unitfig_darkupsacc_compdEye.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-                unitfig_darkupsacc_compdEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+                unitfig_darkupsacc_compdEye.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
                 unitfig_darkupsacc_compdEye.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
                 unitfig_darkupsacc_compdEye.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_compdEye.set_ylabel('sp/sec')
-                unitfig_darkupsacc_compdEye.set_xlim([-0.5,0.5])
+                unitfig_darkupsacc_compdEye.set_xlim([-0.5,0.6])
                 newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dEye_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dEye_modind_t100'] = modind_left[1]
             except:
@@ -659,13 +666,13 @@ def make_unit_summary(df, savepath):
                 modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
                 unitfig_darkupsacc_gazedHead.set_title('FM DARK gaze shift dHead', fontsize=20)
                 unitfig_darkupsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-                unitfig_darkupsacc_gazedHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+                unitfig_darkupsacc_gazedHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
                 unitfig_darkupsacc_gazedHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-                unitfig_darkupsacc_gazedHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+                unitfig_darkupsacc_gazedHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
                 unitfig_darkupsacc_gazedHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
                 unitfig_darkupsacc_gazedHead.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_gazedHead.set_ylabel('sp/sec')
-                unitfig_darkupsacc_gazedHead.set_xlim([-0.5,0.5])
+                unitfig_darkupsacc_gazedHead.set_xlim([-0.5,0.6])
                 newdf.at[row['index'], darkfm+'_wn_upsacc_avg_gaze_shift_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dHead_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_avg_gaze_shift_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dHead_modind_t100'] = modind_left[1]
             except:
@@ -680,13 +687,13 @@ def make_unit_summary(df, savepath):
                 modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
                 unitfig_darkupsacc_compdHead.set_title('FM DARK comp dHead', fontsize=20)
                 unitfig_darkupsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-                unitfig_darkupsacc_compdHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+                unitfig_darkupsacc_compdHead.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
                 unitfig_darkupsacc_compdHead.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-                unitfig_darkupsacc_compdHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+                unitfig_darkupsacc_compdHead.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
                 unitfig_darkupsacc_compdHead.vlines(0,0,np.max(upsacc_avg[:]*0.2),'r')
                 unitfig_darkupsacc_compdHead.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_compdHead.set_ylabel('sp/sec')
-                unitfig_darkupsacc_compdHead.set_xlim([-0.5,0.5])
+                unitfig_darkupsacc_compdHead.set_xlim([-0.5,0.6])
                 newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dHead_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dHead_modind_t100'] = modind_left[1]
             except:
@@ -700,12 +707,12 @@ def make_unit_summary(df, savepath):
                 modind_right = saccade_modulation_index(trange, upsacc_avg); modind_left = saccade_modulation_index(trange, downsacc_avg)
                 unitfig_darksaccavg.set_title('FM DARK left/right saccades', fontsize=20)
                 unitfig_darksaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),upsacc_avg[:])
-                unitfig_darksaccavg.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction')
+                unitfig_darksaccavg.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]),color='#1f77b4', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
                 unitfig_darksaccavg.plot(0.5*(trange[0:-1]+ trange[1:]),downsacc_avg[:],'r')
-                unitfig_darksaccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction')
+                unitfig_darksaccavg.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]),color='r', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
                 maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
                 unitfig_darksaccavg.set_ylim([0,maxval*1.2])
-                unitfig_darksaccavg.set_xlim([-0.5,0.5])
+                unitfig_darksaccavg.set_xlim([-0.5,0.6])
                 newdf.at[row['index'], darkfm+'_upsacc_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_modind_t0'] = modind_left[0]
                 newdf.at[row['index'], darkfm+'_upsacc_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_modind_t100'] = modind_left[1]
             except:
@@ -746,7 +753,7 @@ def make_unit_summary(df, savepath):
                 unitfig_fm1srphi.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_fm1srphi.set_title('FM DARK spike rate vs phi\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
                 unitfig_fm1srphi.set_ylim(0,np.nanmax(tuning[:]*1.2))
-                newdf.at[row['index'], 'fm1_wn_spike_rate_vs_phi_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_wn_spike_rate_vs_phi_modind_pos'] = modind[1]
+                newdf.at[row['index'], 'fm1_spike_rate_vs_phi_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_phi_modind_pos'] = modind[1]
             except:
                 pass
             try:
@@ -822,7 +829,7 @@ def make_session_summary(df, savepath):
             plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-15,15)); plt.ylim((-15,15))
             plt.plot([-15,15],[15,-15], 'r')
         except Exception as e:
-            print(e)
+            print('deye/dhead light', e)
         try:
             plt.subplot(4,5,2)
             plt.title('dEye vs dHead (DARK)', fontsize=20)
@@ -833,7 +840,7 @@ def make_session_summary(df, savepath):
             plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-15,15)); plt.ylim((-15,15))
             plt.plot([-15,15],[15,-15], 'r')
         except Exception as e:
-            print(e)
+            print('deye/dhead dark', e)
         try:
             accT = uniquedf['fm1_accT'].iloc[0]
             roll_interp = uniquedf['fm1_roll_interp'].iloc[0]
@@ -848,7 +855,7 @@ def make_session_summary(df, savepath):
             plt.plot(roll_interp[::100], phi[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
         except Exception as e:
-            print(e)
+            print('theta/phi vs roll/pitch light', e)
         try:
             dark_roll_interp = uniquedf['fm_dark_roll_interp'].iloc[0]
             dark_pitch_interp = uniquedf['fm_dark_pitch_interp'].iloc[0]
@@ -862,7 +869,7 @@ def make_session_summary(df, savepath):
             plt.plot(dark_roll_interp[::100], phi_dark[::100], '.'); plt.xlabel('roll'); plt.ylabel('phi')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
         except Exception as e:
-            print(e)
+            print('theta/phi vs roll/pitch dark', e)
         try:
             # histogram of theta from -45 to 45deg (are eye movements in resonable range?)
             plt.subplot(4,5,7)
@@ -1018,6 +1025,13 @@ def make_session_summary(df, savepath):
     print('saving session summary pdf')
     pdf.close()
 
+def plot_pop_vars(df1, varX, varY):
+    fig = plt.figure()
+    plt.plot(df1[varX][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1[varY][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1[varX][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1[varY][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
+    plt.ylabel(varY); plt.xlabel(varX)
+    return fig
+
 def make_population_summary(df1, savepath):
     """
     summarize an entire population of ephys units
@@ -1027,8 +1041,9 @@ def make_population_summary(df1, savepath):
     OUTPUTS
         None
     """
-    newdf = df1.copy()
+    print('opening pdf')
     pdf = PdfPages(os.path.join(savepath, 'population_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
+    print('labeling by waveform')
     plt.figure()
     plt.title('normalized waveform')
     df1['norm_waveform'] = df1['waveform']
@@ -1075,6 +1090,7 @@ def make_population_summary(df1, savepath):
     plt.ylabel('AHP'); plt.xlabel('waveform trough width')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('kmeans')
     plt.figure()
     km_labels = KMeans(n_clusters=2).fit(list(df1['norm_waveform'][df1['waveform_peak'] < 0].to_numpy())).labels_
     count = 0
@@ -1097,6 +1113,7 @@ def make_population_summary(df1, savepath):
             plt.plot(row['norm_waveform'], 'k')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('pca')
     plt.figure()
     pca_in = np.zeros([379,61])
     for i in range(len(df1['norm_waveform'][df1['waveform_peak'] < 0])):
@@ -1120,15 +1137,15 @@ def make_population_summary(df1, savepath):
     plt.title('seperation by PCA, with colors from kmeans')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('depth plot')
     plt.figure()
     plt.hist(df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0],color='r',bins=np.arange(-600,600,25),alpha=.5,orientation='horizontal')
-    plt.xlabel('channels above or below center of layer 4')
+    plt.xlabel('channels above or below center of layer 5'), plt.xlim([600,-600])
     plt.hist(df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1],color='k',bins=np.arange(-600,600,25),alpha=.5,orientation='horizontal')
-    plt.ylim([600,-600])
-     
     plt.plot([0,14],[0,0],'k')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('contrast vs depth')
     plt.figure()
     for ind, row in df1.iterrows():
         tuning = row['hf1_wn_crf_tuning']
@@ -1138,16 +1155,20 @@ def make_population_summary(df1, savepath):
             df1.at[ind, 'responsive_to_contrast'] = np.abs(tuning[-2] - tuning[1]) > 1
         else:
             df1.at[ind, 'responsive_to_contrast'] = False
+
+    depth_range = [np.max(df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True]), np.min(df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True])]
+
     plt.plot(df1['hf1_wn_crf_modind'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==0], 'r.')
     plt.plot(df1['hf1_wn_crf_modind'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True][df1['waveform_km_label']==1], 'k.')
-    plt.xlabel('contrast response modulation index'); plt.ylabel('depth relative to layer 4'); plt.ylim([600,-600])
+    plt.xlabel('contrast response modulation index'); plt.ylabel('depth relative to layer 5'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('orientation and direction selectivity')
     plt.figure()
     for sf in ['low','mid','high']:
         df1['norm_ori_tuning_'+sf] = df1['hf3_gratings_ori_tuning'].copy().astype(object)
     for ind, row in df1.iterrows():
-        if type(row['hf3_gratings_ori_tuning']) == list and ~np.isnan(row['hf3_gratings_drift_spont']):
+        try:
             orientations = np.nanmean(np.array(row['hf3_gratings_ori_tuning'], dtype=np.float),2)
             for sfnum in range(3):
                 sf = ['low','mid','high'][sfnum]
@@ -1156,188 +1177,158 @@ def make_population_summary(df1, savepath):
             mean_for_sf[mean_for_sf<0] = 0
             df1.at[ind,'sf_pref'] = ((mean_for_sf[0]*1)+(mean_for_sf[1]*2)+(mean_for_sf[2]*3))/np.sum(mean_for_sf)
             df1.at[ind,'responsive_to_gratings'] = [True if np.max(mean_for_sf)>2 else False][0]
-        else:
+        except:
             for sfnum in range(3):
                 sf = ['low','mid','high'][sfnum]
                 df1.at[ind,'norm_ori_tuning_'+sf] = None
             df1.at[ind,'responsive_to_gratings'] = False
             df1.at[ind,'sf_pref'] = np.nan
 
-    use = df1#[df1['responsive_to_gratings']==True]
-    for ind, row in use.iterrows():
+    for ind, row in df1.iterrows():
         if row['waveform_km_label'] == 0:
             plt.plot(row['hf3_gratings_drift_spont'], row['hf1_wn_depth_from_layer5'],'r.')
         elif row['waveform_km_label'] == 1:
             plt.plot(row['hf3_gratings_drift_spont'], row['hf1_wn_depth_from_layer5'],'k.')
-    plt.ylabel('depth relative to layer 4')
+    plt.ylabel('depth relative to layer 5')
     plt.xlabel('gratings spont rate')
-    plt.title('spont rate vs depth'); plt.ylim([600,-600])
+    plt.title('spont rate vs depth'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
     # plot prefered spatial frequency for all gratings-responsive units
+    plt.figure()
     plt.hist(df1['sf_pref'][df1['responsive_to_gratings']==True], bins=np.arange(1,3.25,0.25))
     plt.xlabel('prefered spatial frequency'); plt.ylabel('unit count')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
+    df1['osi_for_sf_pref'] = np.nan
+    df1['dsi_for_sf_pref'] = np.nan
     for ind, row in df1.iterrows():
         if ~np.isnan(row['sf_pref']):
             best_sf_pref = int(np.round(row['sf_pref']))
             df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_gz_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_gz_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('positive head gz tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+            df1.at[ind, 'dsi_for_sf_pref'] = row[(['hf3_gratings_dsi_low','hf3_gratings_dsi_mid','hf3_gratings_dsi_high'][best_sf_pref-1])]
+    
+    # ORIENTATION selectivity
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gz_modind_pos', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    for ind, row in df1.iterrows():
-        if ~np.isnan(row['sf_pref']):
-            best_sf_pref = int(np.round(row['sf_pref']))
-            df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_gz_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_gz_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('positive head gz tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gz_modind_neg', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    for ind, row in df1.iterrows():
-        if ~np.isnan(row['sf_pref']):
-            best_sf_pref = int(np.round(row['sf_pref']))
-            df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_gx_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_gx_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('positive head gx tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gx_modind_pos', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    for ind, row in df1.iterrows():
-        if ~np.isnan(row['sf_pref']):
-            best_sf_pref = int(np.round(row['sf_pref']))
-            df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_gx_modind_neg'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_gx_modind_neg'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('negative head gx tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gx_modind_neg', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    for ind, row in df1.iterrows():
-        if ~np.isnan(row['sf_pref']):
-            best_sf_pref = int(np.round(row['sf_pref']))
-            df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_gy_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_gy_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('positive head gy tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gy_modind_pos', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    for ind, row in df1.iterrows():
-        if ~np.isnan(row['sf_pref']):
-            best_sf_pref = int(np.round(row['sf_pref']))
-            df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_gy_modind_neg'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_gy_modind_neg'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('negative head gy tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gy_modind_neg', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    for ind, row in df1.iterrows():
-        if ~np.isnan(row['sf_pref']):
-            best_sf_pref = int(np.round(row['sf_pref']))
-            df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_roll_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_roll_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('positive head roll tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_roll_modind_pos', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    for ind, row in df1.iterrows():
-        if ~np.isnan(row['sf_pref']):
-            best_sf_pref = int(np.round(row['sf_pref']))
-            df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_roll_modind_neg'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_roll_modind_neg'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('negative head roll tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_roll_modind_neg', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    for ind, row in df1.iterrows():
-        if ~np.isnan(row['sf_pref']):
-            best_sf_pref = int(np.round(row['sf_pref']))
-            df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_pitch_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_pitch_modind_pos'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('positive head pitch tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_pitch_modind_pos', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    for ind, row in df1.iterrows():
-        if ~np.isnan(row['sf_pref']):
-            best_sf_pref = int(np.round(row['sf_pref']))
-            df1.at[ind, 'osi_for_sf_pref'] = row[(['hf3_gratings_osi_low','hf3_gratings_osi_mid','hf3_gratings_osi_high'][best_sf_pref-1])]
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['fm1_wn_spike_rate_vs_pitch_modind_neg'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['fm1_wn_spike_rate_vs_pitch_modind_neg'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('negative head pitch tuning modulation index'); plt.xlabel('prefered orientation selectivity index')
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_pitch_modind_neg', 'osi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    plt.figure()
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['osi_for_sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('prefered orientation selectivity index'); plt.ylim([600,-600])
+    fig = plot_pop_vars(df1, 'hf1_wn_depth_from_layer5', 'osi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    # DIRECTION selectivity
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gz_modind_pos', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gz_modind_neg', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gx_modind_pos', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gx_modind_neg', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gy_modind_pos', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_gy_modind_neg', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_roll_modind_pos', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_roll_modind_neg', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_pitch_modind_pos', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'fm1_spike_rate_vs_pitch_modind_neg', 'dsi_for_sf_pref')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    fig = plot_pop_vars(df1, 'hf1_wn_depth_from_layer5', 'dsi_for_sf_pref')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
     plt.plot(df1['sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==0], 'r.')
     plt.plot(df1['sf_pref'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['responsive_to_gratings']==True][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('pref sf'); plt.ylim([600,-600])
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('pref sf'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('positive head roll tuning modulation index'); plt.ylim([600,-600])
+    plt.plot(df1['fm1_spike_rate_vs_roll_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_spike_rate_vs_roll_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('positive head roll tuning modulation index'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_roll_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('negative head roll tuning modulation index'); plt.ylim([600,-600])
+    plt.plot(df1['fm1_spike_rate_vs_roll_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_spike_rate_vs_roll_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('negative head roll tuning modulation index'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('positive head pitch tuning modulation index'); plt.ylim([600,-600])
+    plt.plot(df1['fm1_spike_rate_vs_pitch_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_spike_rate_vs_pitch_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('positive head pitch tuning modulation index'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_pitch_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('negative head pitch tuning modulation index'); plt.ylim([600,-600])
+    plt.plot(df1['fm1_spike_rate_vs_pitch_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_spike_rate_vs_pitch_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('negative head pitch tuning modulation index'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
     
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('positive eye theta tuning modulation index'); plt.ylim([600,-600])
+    plt.plot(df1['fm1_spike_rate_vs_theta_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_spike_rate_vs_theta_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('positive eye theta tuning modulation index'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_theta_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('negative eye theta tuning modulation index'); plt.ylim([600,-600])
+    plt.plot(df1['fm1_spike_rate_vs_theta_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_spike_rate_vs_theta_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('negative eye theta tuning modulation index'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('positive eye phi tuning modulation index'); plt.ylim([600,-600])
+    plt.plot(df1['fm1_spike_rate_vs_phi_modind_pos'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_spike_rate_vs_phi_modind_pos'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('positive eye phi tuning modulation index'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     plt.figure()
-    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(df1['fm1_wn_spike_rate_vs_phi_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
-    plt.ylabel('depth relative to layer 4'); plt.xlabel('negative eye phi tuning modulation index'); plt.ylim([600,-600])
+    plt.plot(df1['fm1_spike_rate_vs_phi_modind_neg'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
+    plt.plot(df1['fm1_spike_rate_vs_phi_modind_neg'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.')
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('negative eye phi tuning modulation index'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     crfs0 = np.zeros([len(df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==0]),11])
@@ -1354,22 +1345,22 @@ def make_population_summary(df1, savepath):
             pass
     
     plt.figure()
-    plt.title('contrast spont rate'); plt.ylabel('depth relative to layer 4'); plt.xlabel('contrast spont rate (sp/sec)')
+    plt.title('contrast spont rate'); plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast spont rate (sp/sec)')
     plt.plot(crfs0[:,4], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(crfs1[:,4], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.'); plt.ylim([600,-600])
+    plt.plot(crfs1[:,4], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
     
     plt.figure()
-    plt.title('contrast evoked rate'); plt.ylabel('depth relative to layer 4'); plt.xlabel('contrast evoked rate (sp/sec)')
+    plt.title('contrast evoked rate'); plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast evoked rate (sp/sec)')
     plt.plot(crfs0[:,-2], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'r.')
-    plt.plot(crfs1[:,-2], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.'); plt.ylim([600,-600])
+    plt.plot(crfs1[:,-2], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'k.'); plt.ylim(depth_range)
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     print('saving population summary pdf')
     pdf.close()
 
     print('saving updated version of df')
-    newdf.to_hdf(os.path.join(savepath, 'pooled_ephys_population_update_'+datetime.today().strftime('%m%d%y')+'.h5'), 'w')
+    df1.to_json(os.path.join(savepath, 'pooled_ephys_population_update_'+datetime.today().strftime('%m%d%y')+'.json'), 'w')
 
     print('done')
 
@@ -1416,5 +1407,6 @@ def population_analysis(config):
     make_session_summary(df, config['population']['save_path'])
     print('writing unit summary')
     unit_df = make_unit_summary(df, config['population']['save_path'])
+    del df
     print('starting unit population analysis')
     make_population_summary(unit_df, config['population']['save_path'])

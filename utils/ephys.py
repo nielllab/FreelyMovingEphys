@@ -2612,7 +2612,7 @@ def load_ephys(csv_filepath):
             session_data.columns = column_names
             # remove duplicate columns (i.e. shared metadata)
             session_data = session_data.loc[:,~session_data.columns.duplicated()]
-            # add model of probe as new col
+        # add probe name as new col
         animal = goodsessions[ind]
         ellipse_json_path = find('*fm_eyecameracalc_props.json', animal)
         if ellipse_json_path != []:
@@ -2625,17 +2625,20 @@ def load_ephys(csv_filepath):
         session_data['probe_name'] = probenames_for_goodsessions[ind]
         ind += 1
         # new rows for units from different mice or sessions
-        all_data = pd.concat([all_data,session_data],axis=0)
+        all_data = pd.concat([all_data, session_data], axis=0)
     fm2_light = [c for c in all_data.columns.values if 'fm2_light' in c]
     fm1_dark = [c for c in all_data.columns.values if 'fm1_dark' in c]
     dark_dict = dict(zip(fm1_dark, [i.replace('fm1_dark', 'fm_dark') for i in fm1_dark]))
     light_dict = dict(zip(fm2_light, [i.replace('fm2_light_', 'fm1_') for i in fm2_light]))
     all_data = all_data.rename(dark_dict, axis=1).rename(light_dict, axis=1)
+    # drop data without session name
     for ind, row in all_data.iterrows():
         if type(row['session']) != str:
             all_data = all_data.drop(ind, axis=0)
+    # combine columns where one property of the unit is spread across multiple columns because of renaming scheme
     for col in list(all_data.loc[:,all_data.columns.duplicated()].columns.values):
-        all_data[col] = all_data.iloc[:,0].combine_first(all_data.iloc[:,1])
+        all_data[col] = all_data[col].iloc[:,0].combine_first(all_data[col].iloc[:,1])
+    # and drop the duplicates that have only partial data (all the data will now be in another column)
     all_data = all_data.loc[:,~all_data.columns.duplicated()]
     return all_data
 
