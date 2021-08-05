@@ -65,7 +65,7 @@ def make_unit_summary(df, savepath):
     # set up pdf
     pdf = PdfPages(os.path.join(savepath, 'unit_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
     samprate = 30000
-    # set up new h5 file to save out including new metrics
+    # set up new file to save out including new metrics
     newdf = df.copy().reset_index()
     print('num units = ' + str(len(df)))
     # iterate through units
@@ -435,12 +435,12 @@ def make_unit_summary(df, savepath):
                 th_ortho = (th_pref[sf]+2)%8 # get ortho position
                 R_ortho = (tuning[th_ortho, sf] + (tuning[(th_ortho+4)%8, sf])) * 0.5 # ortho firing rate (average between two peaks)
                 # orientaiton selectivity index
-                osi[sf] = np.round((R_pref - R_ortho) / (R_pref + R_ortho),3)
+                osi[sf] = (R_pref - R_ortho) / (R_pref + R_ortho)
                 # direction selectivity index
                 th_null = (th_pref[sf]+4)%8 # get other direction of same orientation
                 R_null = tuning[th_null, sf] # tuning value at that peak
-                dsi[sf] = np.round((R_pref - R_null) / (R_pref + R_null), 3)
-            unitfig_ori_tuning.set_title('orientation tuning\n OSI l='+str(osi[0])+'m='+str(osi[1])+'h='+str(osi[2])+'\n DSI l='+str(dsi[0])+'m='+str(dsi[1])+'h='+str(dsi[2]), fontsize=20)
+                dsi[sf] = (R_pref - R_null) / (R_pref + R_null)
+            unitfig_ori_tuning.set_title('orientation tuning\n OSI l='+str(np.round(osi[0],3))+'m='+str(np.round(osi[1],3))+'h='+str(np.round(osi[2],3))+'\n DSI l='+str(np.round(dsi[0],3))+'m='+str(np.round(dsi[1],3))+'h='+str(np.round(dsi[2],3)), fontsize=20)
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,0],label = 'low sf')
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,1],label = 'mid sf')
             unitfig_ori_tuning.plot(np.arange(8)*45, ori_tuning[:,2],label = 'hi sf')
@@ -463,8 +463,11 @@ def make_unit_summary(df, savepath):
                 R_pref = (tuning[th_pref[sf], sf] + (tuning[(th_pref[sf]+4)%8, sf])) * 0.5 # get that firing rate (avg between peaks)
                 th_ortho = (th_pref[sf]+2)%8 # get ortho position
                 R_ortho = (tuning[th_ortho, sf] + (tuning[(th_ortho+4)%8, sf])) * 0.5 # ortho firing rate (average between two peaks)
-                osi[sf] = np.round((R_pref - R_ortho) / (R_pref + R_ortho),3)
-            unitfig_ori_tuning_low_tf.set_title('low tf\nosi l='+str(osi[0])+' m='+str(osi[1])+' h='+str(osi[2]), fontsize=20)
+                osi[sf] = (R_pref - R_ortho) / (R_pref + R_ortho)
+                th_null = (th_pref[sf]+4)%8 # get other direction of same orientation
+                R_null = tuning[th_null, sf] # tuning value at that peak
+                dsi[sf] = (R_pref - R_null) / (R_pref + R_null)
+            unitfig_ori_tuning.set_title('low tf\n OSI l='+str(np.round(osi[0],3))+'m='+str(np.round(osi[1],3))+'h='+str(np.round(osi[2],3))+'\n DSI l='+str(np.round(dsi[0],3))+'m='+str(np.round(dsi[1],3))+'h='+str(np.round(dsi[2],3)), fontsize=20)
             unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,0][:,0],label = 'low sf')
             unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,0][:,1],label = 'mid sf')
             unitfig_ori_tuning_low_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,0][:,2],label = 'hi sf')
@@ -480,8 +483,11 @@ def make_unit_summary(df, savepath):
                 R_pref = (tuning[th_pref[sf], sf] + (tuning[(th_pref[sf]+4)%8, sf])) * 0.5 # get that firing rate (avg between peaks)
                 th_ortho = (th_pref[sf]+2)%8 # get ortho position
                 R_ortho = (tuning[th_ortho, sf] + (tuning[(th_ortho+4)%8, sf])) * 0.5 # ortho firing rate (average between two peaks)
-                osi[sf] = np.round((R_pref - R_ortho) / (R_pref + R_ortho),3)
-            unitfig_ori_tuning_high_tf.set_title('high tf\nosi l='+str(osi[0])+'m='+str(osi[1])+'h='+str(osi[2]), fontsize=20)
+                osi[sf] = (R_pref - R_ortho) / (R_pref + R_ortho)
+                th_null = (th_pref[sf]+4)%8 # get other direction of same orientation
+                R_null = tuning[th_null, sf] # tuning value at that peak
+                dsi[sf] = (R_pref - R_null) / (R_pref + R_null)
+            unitfig_ori_tuning.set_title('high tf\n OSI l='+str(np.round(osi[0],3))+'m='+str(np.round(osi[1],3))+'h='+str(np.round(osi[2],3))+'\n DSI l='+str(np.round(dsi[0],3))+'m='+str(np.round(dsi[1],3))+'h='+str(np.round(dsi[2],3)), fontsize=20)
             unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,1][:,0],label = 'low sf')
             unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,1][:,1],label = 'mid sf')
             unitfig_ori_tuning_high_tf.plot(np.arange(8)*45, row['hf3_gratings_ori_tuning'][:,:,1][:,2],label = 'hi sf')
@@ -791,10 +797,7 @@ def make_unit_summary(df, savepath):
     pdf.close()
 
     print('saving an updated json')
-    path_out = os.path.join(savepath, 'pooled_ephys_unit_update_'+datetime.today().strftime('%m%d%y')+'.json')
-    if os.path.isfile(path_out):
-        os.remove(path_out)
-    newdf.to_json(path_out, default_handler=str)
+    newdf.to_pickle(os.path.join(savepath, 'pooled_ephys_unit_update_'+datetime.today().strftime('%m%d%y')+'.pickle'))
 
     return newdf
 
@@ -1140,7 +1143,7 @@ def make_population_summary(df1, savepath):
     print('depth plot')
     plt.figure()
     plt.hist(df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0],color='r',bins=np.arange(-600,600,25),alpha=.5,orientation='horizontal')
-    plt.xlabel('channels above or below center of layer 5'), plt.xlim([600,-600])
+    plt.xlabel('channels above or below center of layer 5')
     plt.hist(df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1],color='k',bins=np.arange(-600,600,25),alpha=.5,orientation='horizontal')
     plt.plot([0,14],[0,0],'k')
     plt.tight_layout(); pdf.savefig(); plt.close()
@@ -1360,7 +1363,7 @@ def make_population_summary(df1, savepath):
     pdf.close()
 
     print('saving updated version of df')
-    df1.to_json(os.path.join(savepath, 'pooled_ephys_population_update_'+datetime.today().strftime('%m%d%y')+'.json'), 'w')
+    df1.to_pickle(os.path.join(savepath, 'pooled_ephys_population_update_'+datetime.today().strftime('%m%d%y')+'.pickkle'))
 
     print('done')
 
@@ -1398,11 +1401,11 @@ def population_analysis(config):
         df = df.drop(columns=d)
         df[d] = temp
     print('saving pooled ephys data to '+config['population']['save_path'])
-    json_path = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.json')
-    if os.path.isfile(json_path):
-        os.remove(json_path)
+    path_out = os.path.join(config['population']['save_path'],'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.pickle')
+    if os.path.isfile(path_out):
+        os.remove(path_out)
     df = df.reset_index()
-    df.to_json(json_path, default_handler=str)
+    df.to_pickle(path_out)
     print('writing session summary')
     make_session_summary(df, config['population']['save_path'])
     print('writing unit summary')
