@@ -532,7 +532,7 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
         return staAll, fig
     else:
         lagRange = lag
-        fig = plt.subplots(n_units,5,figsize=(5,np.int(np.ceil(n_units/3))),dpi=50)
+        fig = plt.subplots(n_units,5,figsize=(6, np.int(np.ceil(n_units/2))),dpi=300)
         for c, ind in enumerate(goodcells.index):
             for lagInd, lag in enumerate(lagRange):
                 sp = model_nsp[c,:].copy()
