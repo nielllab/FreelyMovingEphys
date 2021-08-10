@@ -2627,10 +2627,14 @@ def load_ephys(csv_filepath):
         # add probe name
         session_data['probe_name'] = probenames_for_goodsessions[ind]
         # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
-        manual_depth_entry = layer5_depth_for_goodsessions[ind]
-        num_auto_depth_entries = len(row['lfp_layer5_centers'])
-        if ~np.isnan(manual_depth_entry) and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != any(['FALSE' or False or 'False']):
-            session_data['lfp_layer5_centers'] = list(np.ones(num_auto_depth_entries)*int(session_depth))
+        try:
+            manual_depth_entry = layer5_depth_for_goodsessions[ind]
+            num_auto_depth_entries = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[-1])
+            if type(manual_depth_entry) != np.nan and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != 'FALSE':
+                session_data['hf1_wn_lfp_layer5_centers'] = list(np.ones(num_auto_depth_entries).astype(int)*int(manual_depth_entry))
+        except Exception as e:
+            print('error with overwriting depth for ', rec_data['session'])
+            print(e)
         ind += 1
         # new rows for units from different mice or sessions
         all_data = pd.concat([all_data, session_data], axis=0)
