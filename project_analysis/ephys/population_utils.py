@@ -185,7 +185,10 @@ def make_unit_summary(df, savepath):
             ch_shank_profile = power_profiles[ch_shank]
             ch_power = ch_shank_profile[row['ch']%32]
             layer5cent = row['hf1_wn_lfp_layer5_centers'][ch_shank]
-            ch_spacing = 25
+            if row['probe_name'] == 'DB_P64-3':
+                ch_spacing = 25/2
+            else:
+                ch_spacing = 25
             ch_depth = ch_spacing*(row['ch']%32)-(layer5cent*ch_spacing)
             num_sites = 32
             unitfig_power_depth = unitfig.add_subplot(spec[6:8, 4])

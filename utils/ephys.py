@@ -2572,6 +2572,7 @@ def load_ephys(csv_filepath):
     for_data_pool = csv[csv['load_for_data_pool'] == any(['TRUE' or True or 'True'])]
     goodsessions = []
     probenames_for_goodsessions = []
+    layer5_depth_for_goodsessions = []
     # get all of the best freely moving recordings of a session into a dictionary
     goodlightrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else 'fm1' for i in for_data_pool['best_light_fm']]))
     gooddarkrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else None for i in for_data_pool['best_dark_fm']]))
@@ -2583,6 +2584,7 @@ def load_ephys(csv_filepath):
     for ind, row in for_data_pool.iterrows():
         goodsessions.append(row['animal_dirpath'])
         probenames_for_goodsessions.append(row['probe_name'])
+        layer5_depth_for_goodsessions.append(row['overwrite_layer5center'])
     # get the .h5 files from each day
     # this will be a list of lists, where each list inside of the main list has all the data of a single session
     sessions = [find('*_ephys_props.h5',session) for session in goodsessions]
@@ -2622,7 +2624,13 @@ def load_ephys(csv_filepath):
             session_data['best_ellipse_fit_r'] = ellipse_fit_params['regression_r']
         else:
             print(ellipse_json_path)
+        # add probe name
         session_data['probe_name'] = probenames_for_goodsessions[ind]
+        # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
+        manual_depth_entry = layer5_depth_for_goodsessions[ind]
+        num_auto_depth_entries = len(row['lfp_layer5_centers'])
+        if ~np.isnan(manual_depth_entry) and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != any(['FALSE' or False or 'False']):
+            session_data['lfp_layer5_centers'] = list(np.ones(num_auto_depth_entries)*int(session_depth))
         ind += 1
         # new rows for units from different mice or sessions
         all_data = pd.concat([all_data, session_data], axis=0)
