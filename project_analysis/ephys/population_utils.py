@@ -1042,10 +1042,11 @@ def plot_pop_vars(df1, varX, varY):
     plt.ylabel(varY); plt.xlabel(varX)
     return fig
 
-def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along_y=False):
+def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along_y=False, use_median=False):
     """
     filter_for: dict of value to require for a column of the dataframe
     """
+    # plt.rcParams.update({'font.size': 22})
     fig = plt.subplot(3,5,n)
     if force_range is None:
         force_range = np.arange(-0.3,0.305,0.05)
@@ -1062,12 +1063,16 @@ def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along
                 y = y[df1[key]==val]
         x = x.to_numpy().astype(float)
         y = y.to_numpy().astype(float)
+        if use_median == False:
+            stat2use = np.nanmean
+        elif use_median == True:
+            stat2use = 'median'
         if along_y == False:
-            bin_means, bin_edges, bin_number = stats.binned_statistic(x[~np.isnan(x) & ~np.isnan(y)], y[~np.isnan(x) & ~np.isnan(y)], statistic='mean', bins=force_range)
+            bin_means, bin_edges, bin_number = stats.binned_statistic(x[~np.isnan(x) & ~np.isnan(y)], y[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
             bin_std, _, _ = stats.binned_statistic(x[~np.isnan(x) & ~np.isnan(y)], y[~np.isnan(x) & ~np.isnan(y)], statistic='std', bins=force_range)
             hist, _ = np.histogram(x[~np.isnan(x) & ~np.isnan(y)], bins=force_range)
         elif along_y == True:
-            bin_means, bin_edges, bin_number = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic='mean', bins=force_range)
+            bin_means, bin_edges, bin_number = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
             bin_std, _, _ = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic='std', bins=force_range)
             hist, _ = np.histogram(y[~np.isnan(x) & ~np.isnan(y)], bins=force_range)
         tuning_err = bin_std / np.sqrt(hist)
@@ -1129,6 +1134,7 @@ def get_cluster_props(p, t):
         return 'unresponsive'
 
 def plot_cluster_prop(df1, cluster_prop, waveform_keys, filter_for=None):
+    # plt.rcParams.update({'font.size': 22})
     y = df1[cluster_prop]
     if filter_for is not None:
         for key, val in filter_for.items():
@@ -1157,6 +1163,7 @@ def make_population_summary(df1, savepath):
     OUTPUTS
         None
     """
+    # plt.rcParams.update({'font.size': 22})
     print('opening pdf')
     pdf = PdfPages(os.path.join(savepath, 'population_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
     
@@ -1262,7 +1269,7 @@ def make_population_summary(df1, savepath):
     plt.subplot(2,5,9)
     plt.hist(df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1],color='b',bins=np.arange(-600,600,25),alpha=0.3,orientation='horizontal')
     plt.hist(df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0],color='g',bins=np.arange(-600,600,25),alpha=0.3,orientation='horizontal')
-    plt.xlabel('channels above or below center of layer 5')
+    plt.xlabel('channels above or below center of layer 5'); plt.gca().invert_yaxis()
     plt.plot([0,14],[0,0],'k')
 
     plt.subplot(2,5,10)
@@ -1270,6 +1277,7 @@ def make_population_summary(df1, savepath):
 
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('panels of osi vs variable')
     ### osi figure
     for ind, row in df1.iterrows():
         tuning = row['hf1_wn_crf_tuning']
@@ -1279,13 +1287,14 @@ def make_population_summary(df1, savepath):
             df1.at[ind, 'responsive_to_contrast'] = np.abs(tuning[-2] - tuning[1]) > 1
         else:
             df1.at[ind, 'responsive_to_contrast'] = False
+
     depth_range = [np.max(df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True]), np.min(df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True])]
 
     plt.subplots(3,5, figsize=(24,15))
     n = 1
 
-    fig = plot_var_vs_var(df1, 'hf1_wn_crf_modind', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_contrast':True}, force_range=np.arange(-650,650,50), along_y=True)
-    plt.ylabel('depth relative to layer 5'); plt.xlabel('wn contrast modulation index'); plt.legend(handles=[bluepatch, greenpatch])
+    fig = plot_var_vs_var(df1, 'hf1_wn_crf_modind', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_contrast':True}, force_range=np.arange(-650,650,100), along_y=True)
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('wn contrast modulation index'); plt.legend(handles=[bluepatch, greenpatch]); plt.gca().invert_yaxis()
 
     for sf in ['low','mid','high']:
         df1['norm_ori_tuning_'+sf] = df1['hf3_gratings_ori_tuning'].copy().astype(object)
@@ -1307,8 +1316,8 @@ def make_population_summary(df1, savepath):
             df1.at[ind,'sf_pref'] = np.nan
 
     n += 1
-    fig = plot_var_vs_var(df1, 'hf3_gratings_drift_spont', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
-    plt.ylabel('depth relative to layer 5'); plt.xlabel('grat spont rate')
+    fig = plot_var_vs_var(df1, 'hf3_gratings_drift_spont', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, use_median=True)
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('grat spont rate'); plt.gca().invert_yaxis()
 
     n += 1
     plt.subplot(3,5,n)
@@ -1365,8 +1374,9 @@ def make_population_summary(df1, savepath):
     plt.ylabel('orientation selectivity index for prefered sf'); plt.xlabel('head pitch negative-direction modulation index')
 
     n += 1
-    fig = plot_var_vs_var(df1, 'osi_for_sf_pref', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'osi_for_sf_pref', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, use_median=True)
     plt.xlabel('orientation selectivity index for prefered sf'); plt.ylabel('depth relative to layer 5')
+    plt.gca().invert_yaxis()
 
     n += 1
     plt.subplot(3,5,n)
@@ -1374,6 +1384,7 @@ def make_population_summary(df1, savepath):
 
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('panels of dsi vs variable')
     ### dsi figure
     plt.subplots(3,5, figsize=(24,15))
     n = 1
@@ -1418,27 +1429,33 @@ def make_population_summary(df1, savepath):
     plt.ylabel('direction selectivity index for prefered sf'); plt.xlabel('head pitch negative-direction modulation index')
 
     n += 1
-    fig = plot_var_vs_var(df1, 'dsi_for_sf_pref', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'dsi_for_sf_pref', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('direction selectivity index for prefered sf'); plt.ylabel('depth relative to layer 5')
+    plt.gca().invert_yaxis()
 
     n += 1
-    fig = plot_var_vs_var(df1, 'sf_pref', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'sf_pref', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('prefered spatial frequency'); plt.ylabel('depth relative to layer 5')
+    plt.gca().invert_yaxis()
 
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_roll_modind_pos', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_roll_modind_pos', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('spike rate modulation with positive head roll'); plt.ylabel('depth relative to layer 5')
+    plt.gca().invert_yaxis()
 
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_roll_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_roll_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('spike rate modulation with negative head roll'); plt.ylabel('depth relative to layer 5')
+    plt.gca().invert_yaxis()
 
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_pos', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_pos', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('spike rate modulation with positive head pitch'); plt.ylabel('depth relative to layer 5')
+    plt.gca().invert_yaxis()
 
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('depth vs variables')
     ### depth figure
     crfs0 = np.zeros([len(df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==0]),11])
     crfs1 = np.zeros([len(df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==1]),11])
@@ -1456,48 +1473,97 @@ def make_population_summary(df1, savepath):
     plt.subplots(3,5, figsize=(24,20))
     n = 1
 
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('spike rate modulation with negative head pitch'); plt.ylabel('depth relative to layer 5'); plt.legend(handles=[bluepatch, greenpatch])
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_theta_modind_pos', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_theta_modind_pos', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('spike rate modulation with positive eye theta'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_theta_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_theta_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('spike rate modulation with negative eye theta'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_phi_modind_pos', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_phi_modind_pos', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('spike rate modulation with positive eye phi'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_phi_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,50), along_y=True)
-    plt.xlabel('contrast spont rate'); plt.ylabel('depth relative to layer 5')
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_phi_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
+    plt.xlabel('spike rate modulation with negative eye phi'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     n += 1
     plt.subplot(3,5,n)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast spont rate (sp/sec)')
     plt.plot(crfs0[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.')
     plt.plot(crfs1[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.'); plt.ylim(depth_range)
+    stat2use = 'median'
+    force_range = np.arange(-650,650,100)
+    for count in range(2):
+        crf = [crfs0, crfs1][count]
+        x = crf[:,0]
+        y = df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==count]
+        c = ['g','b'][count]
+        bin_means, bin_edges, bin_number = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
+        bin_std, _, _ = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], y[~np.isnan(x) & ~np.isnan(y)], statistic='std', bins=force_range)
+        hist, _ = np.histogram(y[~np.isnan(x) & ~np.isnan(y)], bins=force_range)
+        tuning_err = bin_std / np.sqrt(hist)
+        plt.plot(bin_means, bin_edges[:-1], c+'-')
+        plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
     plt.gca().invert_yaxis()
     n += 1
     plt.subplot(3,5,n)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('max contrast rate (sp/sec)')
-    plt.plot(crfs0[:,-1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.'); plt.xlim([0,50])
+    plt.plot(crfs0[:,-1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.')
     plt.plot(crfs1[:,-1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.'); plt.ylim(depth_range)
+    stat2use = 'median'
+    for count in range(2):
+        crf = [crfs0, crfs1][count]
+        x = crf[:,0]
+        y = df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==count]
+        c = ['g','b'][count]
+        bin_means, bin_edges, bin_number = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
+        bin_std, _, _ = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic='std', bins=force_range)
+        hist, _ = np.histogram(y[~np.isnan(x) & ~np.isnan(y)], bins=force_range)
+        tuning_err = bin_std / np.sqrt(hist)
+        plt.plot(bin_means, bin_edges[:-1], c+'-')
+        plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
     plt.gca().invert_yaxis()
     n += 1
     plt.subplot(3,5,n)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast evoked rate (sp/sec)')
-    plt.plot(crfs0[:,-1]/crfs0[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.'); plt.xlim([0,50])
-    plt.plot(crfs1[:,-1]/crfs1[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.'); plt.ylim(depth_range)
+    plt.plot(crfs0[:,-1]-crfs0[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.')
+    plt.plot(crfs1[:,-1]-crfs1[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.'); plt.ylim(depth_range)
+    stat2use = 'median'
+    for count in range(2):
+        crf = [crfs0, crfs1][count]
+        x = crf[:,0]
+        y = df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==count]
+        c = ['g','b'][count]
+        bin_means, bin_edges, bin_number = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
+        bin_std, _, _ = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic='std', bins=force_range)
+        hist, _ = np.histogram(y[~np.isnan(x) & ~np.isnan(y)], bins=force_range)
+        tuning_err = bin_std / np.sqrt(hist)
+        plt.plot(bin_means, bin_edges[:-1], c+'-')
+        plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
     plt.gca().invert_yaxis()
-    for i in range(9,16):
+    # fraction responsive to gratings
+    n += 1
+    plt.subplot(3,5,n)
+    plt.bar(['responsive', 'not responsive'], height=[len(df1[df1['responsive_to_contrast']==True])/len(df1), len(df1[df1['responsive_to_contrast']==False])/len(df1)])
+    plt.title('fraction responsive to contrast')
+    # fraction responsive to contrast
+    n += 1
+    plt.subplot(3,5,n)
+    plt.bar(['responsive', 'not responsive'], height=[len(df1[df1['responsive_to_gratings']==True])/len(df1), len(df1[df1['responsive_to_gratings']==False])/len(df1)])
+    plt.title('fraction responsive to gratings')
+    n += 1
+    for i in range(n,16):
         plt.subplot(3,5,i)
         plt.axis('off')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('clustering waveforms')
     ### waveform clustering figures
     waveform_keys1 = ['fm1_upsacc_avg_gaze_shift_dEye', 'fm1_downsacc_avg_gaze_shift_dEye', 'fm1_upsacc_avg_gaze_shift_dHead', 'fm1_downsacc_avg_gaze_shift_dHead']
     waveform_keys2 = ['fm1_upsacc_avg_comp_dEye', 'fm1_downsacc_avg_comp_dEye', 'fm1_upsacc_avg_comp_dHead', 'fm1_downsacc_avg_comp_dHead']
@@ -1532,7 +1598,7 @@ def make_population_summary(df1, savepath):
                 for keynum in range(len(waveform_keys)):
                     df1.at[ind, waveform_keys[keynum]+'_cluster'] = unit_clusters[keynum]
         
-        plt.subplots(4,5, figsize=(35,35))
+        plt.subplots(4,5, figsize=(24,15))
         count = 1
         mean_cluster_all_keys = {}
         colors = plt.cm.jet(np.arange(-650,650))
@@ -1562,13 +1628,13 @@ def make_population_summary(df1, savepath):
 
         cluster_types = {}
         count = 1
-        plt.subplots(4,5,figsize=(35,35))
+        plt.subplots(1,4,figsize=(24,15))
         for key, old_clusters in mean_cluster_all_keys.items():
             this_key = []
+            plt.subplot(1,4,count)
             for label in range(5):
                 baseline = np.nanmean(old_clusters[label][:30])
                 p, t = get_peak_trough(old_clusters[label][38:48], baseline)
-                plt.subplot(4,5,count)
                 count += 1
                 plt.plot(old_clusters[label][38:48], '-')
                 if ~np.isnan(p):
@@ -1586,7 +1652,7 @@ def make_population_summary(df1, savepath):
                 if ~np.isnan(row[key+'_cluster']):
                     df1.at[ind, key+'_cluster_type'] = cluster_types[key][int(row[key+'_cluster'])]
 
-        plt.subplots(4,5,figsize=(30,20))
+        plt.subplots(4,5,figsize=(24,15))
         count = 1
         for key in waveform_keys:
             for label in ['biphasic','negative','early','late','unresponsive']:
@@ -1621,7 +1687,7 @@ def make_population_summary(df1, savepath):
         fig = plot_cluster_prop(df1, 'tf_pref', waveform_keys, filter_for={'responsive_to_gratings':True})
         plt.tight_layout(); pdf.savefig(); plt.close()
 
-        waveform_key_pairs = list(itertools.combinations(waveform_keys, 2))
+        waveform_key_pairs = sorted(list(itertools.combinations(waveform_keys, 2)))
 
         count = 1
         fig, axes = plt.subplots(2,3,figsize=(15,10))

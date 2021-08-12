@@ -922,11 +922,12 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
         sh_num = 2
     elif '128' in probe:
         sh_num = 4
-    elif '16' in probe:
-        sh_num = 1
-    even_raster = np.arange(0,len(goodcells.index),sh_num)
+    sh0 = np.arange(0,len(goodcells.index)+sh_num,sh_num)
+    full_raster = np.array([]).astype(int)
+    for sh in range(sh_num):
+        full_raster = np.concatenate([full_raster, sh0+sh])
     for i, ind in enumerate(goodcells.index):
-        i = (even_raster+np.floor(i/32))[i%32]
+        i = full_raster[i]
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5)
     axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'k',linewidth=0.5) # this unit
     
@@ -1296,7 +1297,7 @@ def run_ephys_analysis(file_dict):
         ephys_data.at[i,'spikeT'] = np.array(ephys_data.at[i,'spikeTraw']) - (offset0 + np.array(ephys_data.at[i,'spikeTraw']) *drift_rate)
     goodcells = ephys_data.loc[ephys_data['group']=='good']
     print('preparing worldcam video')
-    if free_move:
+    if free_move and file_dict['stim_type'] != 'dark_arena':
         print('estimating eye-world calibration')
         fig, xmap, ymap = eye_shift_estimation(th, phi, eyeT, world_vid,worldT,60*60)
         xcorrection = xmap.copy()
@@ -1947,7 +1948,12 @@ def run_ephys_analysis(file_dict):
         plt.close()
         
         plt.figure()
-        plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+        if len(dEye[0:-1:10]) == len(dhead(eyeT[0:-1:10])):
+            plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+        elif len(dEye[0:-1:10]) > len(dhead(eyeT[0:-1:10])):
+            plt.plot(dEye[0:-1:10][:len(dhead(eyeT[0:-1:10]))],dhead(eyeT[0:-1:10]),'.')
+        elif len(dEye[0:-1:10]) < len(dhead(eyeT[0:-1:10])):
+            plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10])[:len(dEye[0:-1:10])],'.')
         plt.xlabel('dEye'); plt.ylabel('dHead')
         plt.xlim((-10,10)); plt.ylim((-10,10))
         plt.plot([-10,10],[10,-10], 'r')
@@ -2446,7 +2452,7 @@ def run_ephys_analysis(file_dict):
             unit_df.index = [ind]
             unit_df['session'] = session_name
             unit_data = pd.concat([unit_data, unit_df], axis=0)
-    elif free_move is True:
+    elif free_move is True and file_dict['stim_type'] == 'light_arena':
         for unit_num, ind in enumerate(goodcells.index):
             cols = [stim+'_'+i for i in ['c_range',
                                         'crf_cent',
@@ -2550,6 +2556,118 @@ def run_ephys_analysis(file_dict):
                                     spike_rate_vs_pitch_err[unit_num],
                                     glm_receptive_field[unit_num],
                                     glm_cc[unit_num],
+                                    spike_rate_vs_phi_cent,
+                                    spike_rate_vs_phi_tuning[unit_num],
+                                    spike_rate_vs_phi_err[unit_num],
+                                    accT,
+                                    roll,
+                                    pitch,
+                                    roll_interp,
+                                    pitch_interp]),dtype=object).T
+            unit_df.columns = cols
+            unit_df.index = [ind]
+            unit_df['session'] = session_name
+            unit_data = pd.concat([unit_data, unit_df], axis=0)
+    elif free_move is True and file_dict['stim_type'] == 'dark_arena':
+        for unit_num, ind in enumerate(goodcells.index):
+            cols = [stim+'_'+i for i in ['c_range',
+                                        'crf_cent',
+                                        'crf_tuning',
+                                        'crf_err',
+                                        'spike_triggered_average',
+                                        'sta_shape',
+                                        'spike_triggered_variance',
+                                        'upsacc_avg',
+                                        'downsacc_avg',
+                                        'upsacc_avg_gaze_shift_dEye',
+                                        'downsacc_avg_gaze_shift_dEye',
+                                        'upsacc_avg_comp_dEye',
+                                        'downsacc_avg_comp_dEye',
+                                        'upsacc_avg_gaze_shift_dHead',
+                                        'downsacc_avg_gaze_shift_dHead',
+                                        'upsacc_avg_comp_dHead',
+                                        'downsacc_avg_comp_dHead',
+                                        'spike_rate_vs_pupil_radius_cent',
+                                        'spike_rate_vs_pupil_radius_tuning',
+                                        'spike_rate_vs_pupil_radius_err',
+                                        'spike_rate_vs_theta_cent',
+                                        'spike_rate_vs_theta_tuning',
+                                        'spike_rate_vs_theta_err',
+                                        'spike_rate_vs_gz_cent',
+                                        'spike_rate_vs_gz_tuning',
+                                        'spike_rate_vs_gz_err',
+                                        'spike_rate_vs_gx_cent',
+                                        'spike_rate_vs_gx_tuning',
+                                        'spike_rate_vs_gx_err',
+                                        'spike_rate_vs_gy_cent',
+                                        'spike_rate_vs_gy_tuning',
+                                        'spike_rate_vs_gy_err',
+                                        'trange',
+                                        'dHead',
+                                        'dEye',
+                                        'eyeT',
+                                        'theta',
+                                        'phi',
+                                        'gz',
+                                        'spike_rate_vs_roll_cent',
+                                        'spike_rate_vs_roll_tuning',
+                                        'spike_rate_vs_roll_err',
+                                        'spike_rate_vs_pitch_cent',
+                                        'spike_rate_vs_pitch_tuning',
+                                        'spike_rate_vs_pitch_err',
+                                        'spike_rate_vs_phi_cent',
+                                        'spike_rate_vs_phi_tuning',
+                                        'spike_rate_vs_phi_err',
+                                        'accT',
+                                        'roll',
+                                        'pitch',
+                                        'roll_interp',
+                                        'pitch_interp']]
+            unit_df = pd.DataFrame(pd.Series([crange,
+                                    crf_cent,
+                                    crf_tuning[unit_num],
+                                    crf_err[unit_num],
+                                    np.ndarray.flatten(staAll[unit_num]),
+                                    np.shape(staAll[unit_num]),
+                                    np.ndarray.flatten(st_var[unit_num]),
+                                    upsacc_avg[unit_num],
+                                    downsacc_avg[unit_num],
+                                    upsacc_avg_gaze_shift_dEye[unit_num],
+                                    downsacc_avg_gaze_shift_dEye[unit_num],
+                                    upsacc_avg_comp_dEye[unit_num],
+                                    downsacc_avg_comp_dEye[unit_num],
+                                    upsacc_avg_gaze_shift_dHead[unit_num],
+                                    downsacc_avg_gaze_shift_dHead[unit_num],
+                                    upsacc_avg_comp_dHead[unit_num],
+                                    downsacc_avg_comp_dHead[unit_num],
+                                    spike_rate_vs_pupil_radius_cent,
+                                    spike_rate_vs_pupil_radius_tuning[unit_num],
+                                    spike_rate_vs_pupil_radius_err[unit_num],
+                                    spike_rate_vs_theta_cent,
+                                    spike_rate_vs_theta_tuning[unit_num],
+                                    spike_rate_vs_theta_err[unit_num],
+                                    spike_rate_vs_gz_cent,
+                                    spike_rate_vs_gz_tuning[unit_num],
+                                    spike_rate_vs_gz_err[unit_num],
+                                    spike_rate_vs_gx_cent,
+                                    spike_rate_vs_gx_tuning[unit_num],
+                                    spike_rate_vs_gx_err[unit_num],
+                                    spike_rate_vs_gy_cent,
+                                    spike_rate_vs_gy_tuning[unit_num],
+                                    spike_rate_vs_gy_err[unit_num],
+                                    trange,
+                                    dhead,
+                                    dEye,
+                                    eyeT,
+                                    th,
+                                    phi,
+                                    gz,
+                                    spike_rate_vs_roll_cent,
+                                    spike_rate_vs_roll_tuning[unit_num],
+                                    spike_rate_vs_roll_err[unit_num],
+                                    spike_rate_vs_pitch_cent,
+                                    spike_rate_vs_pitch_tuning[unit_num],
+                                    spike_rate_vs_pitch_err[unit_num],
                                     spike_rate_vs_phi_cent,
                                     spike_rate_vs_phi_tuning[unit_num],
                                     spike_rate_vs_phi_err[unit_num],
@@ -2697,7 +2815,7 @@ def session_ephys_analysis(config):
             elif fm == True and 'dark' in recording_name:
                 stim_type = 'dark_arena'
             elif fm == True and 'light' not in recording_name and 'dark' not in recording_name:
-                stim_type = 'light'
+                stim_type = 'light_arena'
             elif 'wn' in recording_name:
                 stim_type = 'white_noise'
             elif 'grat' in recording_name:

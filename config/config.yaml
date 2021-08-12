@@ -36,7 +36,7 @@ pose_estimation:
   has_tear_labeled: true                 # are there two points labeled at the tear duct and outer edge of the eye? (default=true)
   multianimal_top_project: false         # is the topdown camera's dlc network a multianimal project? (default=false)
   projects:
-    REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCamsSpot-dylan-2021-04-01/config.yaml
+    REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams4-dylan-2021-08-09/config.yaml
     TOP1: E:/freely_moving_ephys/deeplabcut_projects/EphysTopDark-dylan-2021-02-13/config.yaml
 
 # PARAMETERS
