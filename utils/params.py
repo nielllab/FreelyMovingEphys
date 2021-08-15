@@ -31,7 +31,7 @@ def get_params(config):
     # go into each trial and get out the camera/ephys types according to what's listed in json file
     for dir_name in recordings_dict:
         config['recording_path'] = recordings_dict[dir_name]
-        recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', config['recording_path']) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze'])][0])[1])[0].split('_')[:-1])
+        recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', config['recording_path']) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
         trial_cam_h5 = find(('*.h5'), config['recording_path'])
         trial_cam_csv = find(('*BonsaiTS*.csv'), config['recording_path'])
         trial_cam_avi = find(('*.avi'), config['recording_path'])

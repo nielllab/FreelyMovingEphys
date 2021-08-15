@@ -189,7 +189,7 @@ def make_unit_summary(df, savepath):
             ch_shank_profile = power_profiles[ch_shank]
             ch_power = ch_shank_profile[row['ch']%32]
             layer5cent = row['hf1_wn_lfp_layer5_centers'][ch_shank]
-            if row['probe_name'] == 'DB_P64-3':
+            if row['probe_name'] == 'DB_P64-8':
                 ch_spacing = 25/2
             else:
                 ch_spacing = 25
@@ -1069,11 +1069,11 @@ def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along
             stat2use = 'median'
         if along_y == False:
             bin_means, bin_edges, bin_number = stats.binned_statistic(x[~np.isnan(x) & ~np.isnan(y)], y[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
-            bin_std, _, _ = stats.binned_statistic(x[~np.isnan(x) & ~np.isnan(y)], y[~np.isnan(x) & ~np.isnan(y)], statistic='std', bins=force_range)
+            bin_std, _, _ = stats.binned_statistic(x[~np.isnan(x) & ~np.isnan(y)], y[~np.isnan(x) & ~np.isnan(y)], statistic=np.nanstd, bins=force_range)
             hist, _ = np.histogram(x[~np.isnan(x) & ~np.isnan(y)], bins=force_range)
         elif along_y == True:
             bin_means, bin_edges, bin_number = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
-            bin_std, _, _ = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic='std', bins=force_range)
+            bin_std, _, _ = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=np.nanstd, bins=force_range)
             hist, _ = np.histogram(y[~np.isnan(x) & ~np.isnan(y)], bins=force_range)
         tuning_err = bin_std / np.sqrt(hist)
         plt.plot(x, y, c+'.')
@@ -1510,7 +1510,7 @@ def make_population_summary(df1, savepath):
         tuning_err = bin_std / np.sqrt(hist)
         plt.plot(bin_means, bin_edges[:-1], c+'-')
         plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
-    plt.gca().invert_yaxis()
+    plt.xlim([-5,30])
     n += 1
     plt.subplot(3,5,n)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('max contrast rate (sp/sec)')
@@ -1528,7 +1528,7 @@ def make_population_summary(df1, savepath):
         tuning_err = bin_std / np.sqrt(hist)
         plt.plot(bin_means, bin_edges[:-1], c+'-')
         plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
-    plt.gca().invert_yaxis()
+    plt.xlim([-5,30])
     n += 1
     plt.subplot(3,5,n)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast evoked rate (sp/sec)')
@@ -1546,17 +1546,17 @@ def make_population_summary(df1, savepath):
         tuning_err = bin_std / np.sqrt(hist)
         plt.plot(bin_means, bin_edges[:-1], c+'-')
         plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
-    plt.gca().invert_yaxis()
+    plt.xlim([-15,30])
     # fraction responsive to gratings
     n += 1
     plt.subplot(3,5,n)
     plt.bar(['responsive', 'not responsive'], height=[len(df1[df1['responsive_to_contrast']==True])/len(df1), len(df1[df1['responsive_to_contrast']==False])/len(df1)])
-    plt.title('fraction responsive to contrast')
+    plt.title('fraction responsive to contrast'); plt.ylim([0,1])
     # fraction responsive to contrast
     n += 1
     plt.subplot(3,5,n)
     plt.bar(['responsive', 'not responsive'], height=[len(df1[df1['responsive_to_gratings']==True])/len(df1), len(df1[df1['responsive_to_gratings']==False])/len(df1)])
-    plt.title('fraction responsive to gratings')
+    plt.title('fraction responsive to gratings'); plt.ylim([0,1])
     n += 1
     for i in range(n,16):
         plt.subplot(3,5,i)
@@ -1598,7 +1598,7 @@ def make_population_summary(df1, savepath):
                 for keynum in range(len(waveform_keys)):
                     df1.at[ind, waveform_keys[keynum]+'_cluster'] = unit_clusters[keynum]
         
-        plt.subplots(4,5, figsize=(24,15))
+        plt.subplots(4,5, figsize=(35,24))
         count = 1
         mean_cluster_all_keys = {}
         colors = plt.cm.jet(np.arange(-650,650))
@@ -1628,23 +1628,24 @@ def make_population_summary(df1, savepath):
 
         cluster_types = {}
         count = 1
-        plt.subplots(1,4,figsize=(24,15))
+        plt.subplots(2,2,figsize=(24,10))
         for key, old_clusters in mean_cluster_all_keys.items():
             this_key = []
-            plt.subplot(1,4,count)
+            plt.subplot(2,2,count)
             for label in range(5):
                 baseline = np.nanmean(old_clusters[label][:30])
                 p, t = get_peak_trough(old_clusters[label][38:48], baseline)
-                count += 1
-                plt.plot(old_clusters[label][38:48], '-')
-                if ~np.isnan(p):
-                    plt.plot(p, old_clusters[label][38:48][int(p)], 'g*')
-                if ~np.isnan(t):
-                    plt.plot(t, old_clusters[label][38:48][int(t)], 'r*')
+                plt.plot(old_clusters[label] - baseline, '-', label=label)
+                # if ~np.isnan(p):
+                #     plt.plot(p, old_clusters[label][38:48][int(p)] - baseline, 'g*')
+                # if ~np.isnan(t):
+                #     plt.plot(t, old_clusters[label][38:48][int(t)] - baseline, 'r*')
                 plt.title(key+' '+str(label))
                 this_cluster = get_cluster_props(p, t)
                 this_key.append(this_cluster)
+                plt.legend()
             cluster_types[key] = this_key
+            count += 1
         plt.tight_layout(); pdf.savefig(); plt.close()
 
         for ind, row in df1.iterrows():
