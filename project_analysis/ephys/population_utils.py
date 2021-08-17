@@ -835,7 +835,12 @@ def make_session_summary(df, savepath):
             dEye = uniquedf['fm1_dEye'].iloc[0]
             dhead = uniquedf['fm1_dHead'].iloc[0]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
-            plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+            if len(dEye[0:-1:10]) == len(dhead(eyeT[0:-1:10])):
+                plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'.')
+            elif len(dEye[0:-1:10]) > len(dhead(eyeT[0:-1:10])):
+                plt.plot(dEye[0:-1:10][:len(dhead(eyeT[0:-1:10]))],dhead(eyeT[0:-1:10]),'.')
+            elif len(dEye[0:-1:10]) < len(dhead(eyeT[0:-1:10])):
+                plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10])[:len(dEye[0:-1:10])],'.')
             plt.xlabel('dEye'); plt.ylabel('dHead'); plt.xlim((-15,15)); plt.ylim((-15,15))
             plt.plot([-15,15],[15,-15], 'r')
         except Exception as e:
@@ -1135,14 +1140,14 @@ def get_cluster_props(p, t):
 
 def plot_cluster_prop(df1, cluster_prop, waveform_keys, filter_for=None):
     # plt.rcParams.update({'font.size': 22})
-    y = df1[cluster_prop]
+    y = df1[cluster_prop].dropna()
     if filter_for is not None:
         for key, val in filter_for.items():
             y = y[df1[key]==val]
-    fig = plt.subplots(1,4,figsize=(25,6))
+    fig = plt.subplots(2,4,figsize=(25,12))
     count = 1
     for key in waveform_keys:
-        plt.subplot(1,4,count)
+        plt.subplot(2,4,count)
         plt.title(key)
         for labelnum in range(5):
             label = ['biphasic','negative','early','late','unresponsive'][labelnum]
@@ -1472,7 +1477,6 @@ def make_population_summary(df1, savepath):
 
     plt.subplots(3,5, figsize=(24,20))
     n = 1
-
     fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
     plt.xlabel('spike rate modulation with negative head pitch'); plt.ylabel('depth relative to layer 5'); plt.legend(handles=[bluepatch, greenpatch])
     plt.gca().invert_yaxis()
@@ -1565,8 +1569,10 @@ def make_population_summary(df1, savepath):
 
     print('clustering waveforms')
     ### waveform clustering figures
-    waveform_keys1 = ['fm1_upsacc_avg_gaze_shift_dEye', 'fm1_downsacc_avg_gaze_shift_dEye', 'fm1_upsacc_avg_gaze_shift_dHead', 'fm1_downsacc_avg_gaze_shift_dHead']
-    waveform_keys2 = ['fm1_upsacc_avg_comp_dEye', 'fm1_downsacc_avg_comp_dEye', 'fm1_upsacc_avg_comp_dHead', 'fm1_downsacc_avg_comp_dHead']
+    waveform_keys1 = ['fm1_upsacc_avg_gaze_shift_dEye', 'fm1_downsacc_avg_gaze_shift_dEye', 'fm1_upsacc_avg_gaze_shift_dHead', 'fm1_downsacc_avg_gaze_shift_dHead',
+                    'fm_dark_upsacc_avg_gaze_shift_dEye', 'fm_dark_downsacc_avg_gaze_shift_dEye', 'fm_dark_upsacc_avg_gaze_shift_dHead', 'fm_dark_downsacc_avg_gaze_shift_dHead']
+    waveform_keys2 = ['fm1_upsacc_avg_comp_dEye', 'fm1_downsacc_avg_comp_dEye', 'fm1_upsacc_avg_comp_dHead', 'fm1_downsacc_avg_comp_dHead',
+                    'fm_dark_upsacc_avg_comp_dEye', 'fm_dark_downsacc_avg_comp_dEye', 'fm_dark_upsacc_avg_comp_dHead', 'fm_dark_downsacc_avg_comp_dHead']
     all_waveform_keys = [waveform_keys1, waveform_keys2]
     for waveform_keys in all_waveform_keys:
         waveforms = df1[waveform_keys].values.flatten()
@@ -1597,53 +1603,71 @@ def make_population_summary(df1, savepath):
             if unit_clusters != []:
                 for keynum in range(len(waveform_keys)):
                     df1.at[ind, waveform_keys[keynum]+'_cluster'] = unit_clusters[keynum]
-        
-        plt.subplots(4,5, figsize=(35,24))
+
+        plt.subplots(8,5, figsize=(35,45))
         count = 1
         mean_cluster_all_keys = {}
         colors = plt.cm.jet(np.arange(-650,650))
         for key in waveform_keys:
             mean_cluster = []
             for label in range(5):
-                plt.subplot(4,5,count)
-                plt.title('key='+str(key)+' cluster='+str(label)+' count='+str(np.nansum(np.nan_to_num(np.array(df1[key+'_cluster']), 0)==label)))
+                plt.subplot(8,5,count)
+                plt.title('key='+str(key)+' cluster='+str(label)+' count='+str(len(df1[key][df1[key+'_cluster']==label].dropna())))
                 inhibitory_nested = df1[key][df1[key+'_cluster']==label][df1['waveform_km_label']==0].ravel()
-                inhibitory = np.zeros([len(inhibitory_nested),len(inhibitory_nested[0])])
-                for i in range(len(inhibitory_nested)):
-                    inhibitory[i,:] = inhibitory_nested[i]
-                plt.plot(inhibitory.T, 'g')
+                sz1 = (np.size(inhibitory_nested, 0) if type(inhibitory_nested) != np.float else 0)
+                for i in range(sz1):
+                    temp_sz0 = (len(inhibitory_nested[i]) if type(inhibitory_nested[i]) != np.float else 0)
+                    if temp_sz0 > 0:
+                        sz0 = temp_sz0
+                if sz0 > 0 and sz1 > 0:
+                    inhibitory = np.zeros([sz1,sz0])
+                    for i in range(sz1):
+                        inhibitory[i,:] = inhibitory_nested[i]
+                    plt.plot(inhibitory.T, 'g')
+                else:
+                    inhibitory = np.nan
                 excitatory_nested = df1[key][df1[key+'_cluster']==label][df1['waveform_km_label']==1].ravel()
-                excitatory = np.zeros([len(excitatory_nested),len(excitatory_nested[0])])
-                for i in range(len(excitatory_nested)):
-                    excitatory[i,:] = excitatory_nested[i]
-                plt.plot(excitatory.T, 'b')
-                all_units = np.nanmean(np.concatenate([inhibitory, excitatory], axis=0), axis=0)
-                mean_cluster.append(all_units)
-                plt.plot(all_units, 'y', linewidth=10)
+                sz1 = (np.size(excitatory_nested, 0) if type(excitatory_nested) != np.float else 0)
+                for i in range(sz1):
+                    temp_sz0 = (len(excitatory_nested[i]) if type(excitatory_nested[i]) != np.float else 0)
+                    if temp_sz0 > 0:
+                        sz0 = temp_sz0
+                if sz0 > 0 and sz1 > 0:
+                    excitatory = np.zeros([sz1,sz0])
+                    for i in range(sz1):
+                        excitatory[i,:] = excitatory_nested[i]
+                    plt.plot(excitatory.T, 'b')
+                else:
+                    excitatory = np.nan
+                if type(inhibitory) != float and type(excitatory) != float:
+                    all_units = np.nanmean(np.concatenate([inhibitory, excitatory], axis=0), axis=0)
+                    mean_cluster.append(all_units)
+                    plt.plot(all_units, 'y', linewidth=10)
+                else:
+                    mean_cluster.append(np.nan)
                 count += 1
                 plt.xlim([35,55])
             mean_cluster_all_keys[key] = mean_cluster
         plt.legend(handles=[bluepatch, greenpatch])
         plt.tight_layout(); pdf.savefig(); plt.close()
-
+        
         cluster_types = {}
         count = 1
-        plt.subplots(2,2,figsize=(24,10))
+        plt.subplots(4,2,figsize=(24,10))
         for key, old_clusters in mean_cluster_all_keys.items():
             this_key = []
-            plt.subplot(2,2,count)
+            plt.subplot(4,2,count)
             for label in range(5):
-                baseline = np.nanmean(old_clusters[label][:30])
-                p, t = get_peak_trough(old_clusters[label][38:48], baseline)
-                plt.plot(old_clusters[label] - baseline, '-', label=label)
-                # if ~np.isnan(p):
-                #     plt.plot(p, old_clusters[label][38:48][int(p)] - baseline, 'g*')
-                # if ~np.isnan(t):
-                #     plt.plot(t, old_clusters[label][38:48][int(t)] - baseline, 'r*')
-                plt.title(key+' '+str(label))
-                this_cluster = get_cluster_props(p, t)
-                this_key.append(this_cluster)
-                plt.legend()
+                if type(old_clusters[label]) != float:
+                    baseline = np.nanmean(old_clusters[label][:30])
+                    p, t = get_peak_trough(old_clusters[label][38:48], baseline)
+                    plt.plot(old_clusters[label] - baseline, '-', label=label)
+                    plt.title(key+' '+str(label))
+                    this_cluster = get_cluster_props(p, t)
+                    this_key.append(this_cluster)
+                    plt.legend()
+                else:
+                    this_key.append(np.nan)
             cluster_types[key] = this_key
             count += 1
         plt.tight_layout(); pdf.savefig(); plt.close()
@@ -1651,13 +1675,16 @@ def make_population_summary(df1, savepath):
         for ind, row in df1.iterrows():
             for key in waveform_keys:
                 if ~np.isnan(row[key+'_cluster']):
-                    df1.at[ind, key+'_cluster_type'] = cluster_types[key][int(row[key+'_cluster'])]
+                    if type(row[key]) != float:
+                        df1.at[ind, key+'_cluster_type'] = cluster_types[key][int(row[key+'_cluster'])]
+                    else:
+                        df1.at[ind, key+'_cluster_type'] = np.isnan
 
-        plt.subplots(4,5,figsize=(24,15))
+        plt.subplots(8,5,figsize=(24,45))
         count = 1
         for key in waveform_keys:
             for label in ['biphasic','negative','early','late','unresponsive']:
-                plt.subplot(4,5,count)
+                plt.subplot(8,5,count)
                 plt.hist(df1['hf1_wn_depth_from_layer5'][df1[key+'_cluster_type']==label],bins=list(np.arange(-650,650+100,100)),orientation='horizontal')
                 plt.title(key+' cluster= '+label)
                 count += 1
@@ -1691,7 +1718,7 @@ def make_population_summary(df1, savepath):
         waveform_key_pairs = sorted(list(itertools.combinations(waveform_keys, 2)))
 
         count = 1
-        fig, axes = plt.subplots(2,3,figsize=(15,10))
+        fig, axes = plt.subplots(4,7,figsize=(45,25))
         for this_key_pair in waveform_key_pairs:
             count_matrix = np.zeros([5,5])
             cluster_dict = {'biphasic':0, 'negative':1, 'early':2, 'late':3, 'unresponsive':4}
@@ -1706,7 +1733,7 @@ def make_population_summary(df1, savepath):
                     count_matrix[pos0, pos1] = count_matrix[pos0, pos1] + 1
             for i in range(4,5):
                 count_matrix[i,i] = np.nan
-            ax = plt.subplot(2,3,count)
+            ax = plt.subplot(4,7,count)
             im = plt.imshow(count_matrix, cmap='Blues', vmin=0, vmax=28)
             ax.set_xticks(np.arange(5))
             ax.set_xticklabels(['biphasic','negative','early','late','unresponsive'])
@@ -1714,25 +1741,31 @@ def make_population_summary(df1, savepath):
             ax.set_yticklabels(['biphasic','negative','early','late','unresponsive'])
             plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
                     rotation_mode="anchor")
-            plt.xlabel(key0); plt.ylabel(key1)
+            plt.ylabel(key0); plt.xlabel(key1)
             count += 1
             plt.colorbar(im)
         plt.tight_layout(); pdf.savefig(); plt.close()
 
         # fraction of all inhibitory and excitatory units are in each cluster
-        fig, axes = plt.subplots(1,4,figsize=(25,6))
+        fig, axes = plt.subplots(2,4,figsize=(25,12))
         count = 0
         for waveform_key in waveform_keys:
             key_data = np.zeros([5,2])
             count += 1
             for labelnum in range(5):
                 label = ['biphasic','negative','early','late','unresponsive'][labelnum]
-                num_inh = len(df1[df1[waveform_key+'_cluster_type']==label][df1['waveform_km_label']==0])
-                num_exc = len(df1[df1[waveform_key+'_cluster_type']==label][df1['waveform_km_label']==1])
-                key_data[labelnum, 0] = num_inh / len(df1[df1['waveform_km_label']==0])
-                key_data[labelnum, 1] = num_exc / len(df1[df1['waveform_km_label']==1])
+                num_inh = len(df1[waveform_key][df1[waveform_key+'_cluster_type']==label][df1['waveform_km_label']==0].dropna())
+                num_exc = len(df1[waveform_key][df1[waveform_key+'_cluster_type']==label][df1['waveform_km_label']==1].dropna())
+                if num_inh > 0:
+                    key_data[labelnum, 0] = num_inh / len(df1[waveform_key][df1['waveform_km_label']==0].dropna())
+                else:
+                    key_data[labelnum, 0] = 0
+                if num_exc > 0:
+                    key_data[labelnum, 1] = num_exc / len(df1[waveform_key][df1['waveform_km_label']==1].dropna())
+                else:
+                    key_data[labelnum, 1] = 0
             labels = ['biphasic','negative','early','late','unresponsive']
-            ax = plt.subplot(1,4,count)
+            ax = plt.subplot(2,4,count)
             x = np.arange(len(labels))
             width = 0.35
             plt.bar(x - width/2, key_data[:,0], width=width, label='inhibitory')
