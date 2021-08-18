@@ -125,7 +125,7 @@ def get_params(config):
             else:
                 eye_sides = []
             for eye_side in eye_sides:
-                print('tracking ' + eye_side + 'for ' + recording_name)
+                print('tracking ' + eye_side + ' for ' + recording_name)
                 # filter the list of files for the current trial to get the eye of this side
                 if config['parameters']['follow_strict_naming'] is True:
                     eye_h5 = [i for i in trial_cam_h5 if eye_side in i and 'deinter' in i][0]

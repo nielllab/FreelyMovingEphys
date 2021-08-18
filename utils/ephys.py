@@ -555,31 +555,51 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
             plt.tight_layout()
         return fig
 
-def plot_STV(goodcells, t, movInterp, img_norm):
+def plot_STV(goodcells, movInterp, img_norm, worldT):
     """
     plot spike-triggererd varaince
     INPUTS
         goodcells: ephys dataframe
-        t: timebase from worldT
         movInterp: interpolator for worldcam movie
         img_norm: normalized worldcam video
+        worldT: world timestamps
     OUTPUTS
         stvAll: spike triggered variance for all units
         fig: figure
     """
     n_units = len(goodcells)
-    stvAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
-    sta = 0
-    lag = 0.125
+    # model setup
+    model_dt = 0.025
+    model_t = np.arange(0, np.max(worldT), model_dt)
+    model_nsp = np.zeros((n_units, len(model_t)))
+    # get binned spike rate
+    bins = np.append(model_t, model_t[-1]+model_dt)
+    for i, ind in enumerate(goodcells.index):
+        model_nsp[i,:], bins = np.histogram(goodcells.at[ind,'spikeT'], bins)
+    # settting up video
+    nks = np.shape(img_norm[0,:,:])
+    nk = nks[0]*nks[1]
+    model_vid = np.zeros((len(model_t),nk))
+    for i in range(len(model_t)):
+        model_vid[i,:] = np.reshape(movInterp(model_t[i]+model_dt/2), nk)
+    lag = 2
+    stvAll = np.zeros((n_units, np.shape(img_norm)[1], np.shape(img_norm)[2]))
     fig = plt.subplots(int(np.ceil(n_units/10)),10,figsize=(20,np.int(np.ceil(n_units/3))),dpi=50)
     for c, ind in enumerate(goodcells.index):
-        r = goodcells.at[ind,'rate']
-        sta = 0
-        for i in range(5, t.size-10):
-            sta = sta+r[i]*(movInterp(t[i]-lag))**2
+        sp = model_nsp[c,:].copy()
+        sp = np.roll(sp, -lag)
+        sta = model_vid.T @ sp
+        sta = np.reshape(sta, nks)
+        nsp = np.sum(sp)
         plt.subplot(int(np.ceil(n_units/10)), 10, c+1)
-        sta = sta/np.sum(r)
-        plt.imshow(sta - np.mean(img_norm**2,axis=0), vmin=-1, vmax=1)
+        if nsp > 0:
+            sta = sta / nsp
+        else:
+            sta = np.nan
+        if pd.isna(sta) is True:
+            plt.imshow(np.zeros([120,160]))
+        else:
+            plt.imshow(sta - np.mean(img_norm**2,axis=0), vmin=-1, vmax=1)
         stvAll[c,:,:] = sta - np.mean(img_norm**2, axis=0)
         plt.axis('off')
     plt.tight_layout()
@@ -876,44 +896,54 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
     # set up figure
     fig = plt.figure(figsize = (10,16))
     gs = fig.add_gridspec(12,6)
-    axEye = fig.add_subplot(gs[0:2,0:2])
-    axWorld = fig.add_subplot(gs[0:2,2:4])
-    axTopdown = fig.add_subplot(gs[0:2,4:6])
+    if top_vid is not None:
+        axEye = fig.add_subplot(gs[0:2,0:2])
+        axWorld = fig.add_subplot(gs[0:2,2:4])
+        axTopdown = fig.add_subplot(gs[0:2,4:6])
+    else:
+        axEye = fig.add_subplot(gs[0:2,0:3])
+        axWorld = fig.add_subplot(gs[0:2,3:6])
     axRad = fig.add_subplot(gs[2,:])
     axTh = fig.add_subplot(gs[3,:])
-    axGyro = fig.add_subplot(gs[4,:])
-    axR = fig.add_subplot(gs[5:12,:])
+    if top_vid is not None:
+        axGyro = fig.add_subplot(gs[4,:])
+        axR = fig.add_subplot(gs[5:12,:])
+    else:
+        axR = fig.add_subplot(gs[4:12,:])
 
     # timerange and center frame (only)
     tr = [7, 7+15]
     fr = np.mean(tr) # time for frame
     eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
     worldFr = np.abs(worldT-fr).argmin(dim = "frame")
-    topFr = np.abs(topT-fr).argmin(dim = "frame")
+    if top_vid is not None:
+        topFr = np.abs(topT-fr).argmin(dim = "frame")
 
     axEye.cla(); axEye.axis('off')
     axEye.imshow(eye_vid[eyeFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
 
     axWorld.cla();  axWorld.axis('off'); 
     axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
-
-    axTopdown.cla();  axTopdown.axis('off'); 
-    axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+    
+    if top_vid is not None:
+        axTopdown.cla();  axTopdown.axis('off'); 
+        axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
     
     axTh.cla()
     axTh.plot(eyeT,th)
     axTh.set_xlim(tr[0],tr[1]); 
-    axTh.set_ylabel('theta (deg)'); axTh.set_ylim(-50,0)
+    axTh.set_ylabel('theta (deg)')#; axTh.set_ylim(-50,0)
 
     axRad.cla()
     axRad.plot(eyeT,eye_params.sel(ellipse_params='longaxis'))
     axRad.set_xlim(tr[0],tr[1])
     axRad.set_ylabel('pupil radius')
     
-    # plot gyro
-    axGyro.plot(accT,gz)
-    axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(-500,500)
-    axGyro.set_ylabel('gyro z (deg/s)')    
+    if top_vid is not None:
+        # plot gyro
+        axGyro.plot(accT,gz)
+        axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(-500,500)
+        axGyro.set_ylabel('gyro z (deg/s)')    
   
     # plot spikes
     axR.fontsize = 20
@@ -942,15 +972,16 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
 
     # animate
     writer = FFMpegWriter(fps=30, extra_args=['-vf','scale=800:-2'])
-    with writer.saving(fig, vidfile, 100):
+    with writer.saving(fig, vidfile, dpi=100):
         for t in np.arange(tr[0],tr[1],1/30):
             # show eye and world frames
-            axEye.cla(); axEye.axis('off'); 
+            axEye.cla(); axEye.axis('off')
             axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
             axWorld.cla(); axWorld.axis('off'); 
             axWorld.imshow(worldInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
-            axTopdown.cla(); axTopdown.axis('off'); 
-            axTopdown.imshow(topInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
+            if top_vid is not None:
+                axTopdown.cla(); axTopdown.axis('off')
+                axTopdown.imshow(topInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
             # plot line for time, then remove
             ln = axR.vlines(t,-0.5,n_units,'b')
             writer.grab_frame()
@@ -969,7 +1000,7 @@ def make_sound(file_dict, ephys_data, units, this_unit):
         audfile: filepath to .wav file
     """
     # timerange
-    tr = [15, 30]
+    tr = [7, 7+15]
     # generate wav file
     sp = np.array(ephys_data.at[units[this_unit],'spikeT'])-tr[0]
     sp = sp[sp>0]
@@ -1310,8 +1341,8 @@ def run_ephys_analysis(file_dict):
         for f in tqdm(range(np.shape(world_vid)[0])):
             world_vid[f,:,:] = imshift(world_vid[f,:,:],(-np.int8(thInterp(worldT[f])*ycorrection[0] + phiInterp(worldT[f])*ycorrection[1]),
                                                          -np.int8(thInterp(worldT[f])*xcorrection[0] + phiInterp(worldT[f])*xcorrection[1])))
-        print('saving worldcam video corrected for eye movements')
-        np.save(file=os.path.join(file_dict['save'], 'corrected_worldcam.npy'), arr=world_vid)
+        # print('saving worldcam video corrected for eye movements')
+        # np.save(file=os.path.join(file_dict['save'], 'corrected_worldcam.npy'), arr=world_vid)
     std_im = np.std(world_vid,axis=0)
     img_norm = (world_vid-np.mean(world_vid,axis=0))/std_im
     std_im[std_im<20] = 0
@@ -1346,16 +1377,16 @@ def run_ephys_analysis(file_dict):
         if file_dict['imu'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=accT, gz=gz_deg)
-        # elif file_dict['speed'] is not None:
-        #     print('making video figure')
-        #     vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
-            print('making audio figure')
             audfile = make_sound(file_dict, ephys_data, units, this_unit)
-            print('merging videos with sound')
-            # main video
             merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
             subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
-    
+        elif file_dict['speed'] is not None:
+            print('making video figure')
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid=None, topT=None, topInterp=None, th=th, phi=phi, top_speed=None, speedT=speedT, spd=spd)
+            audfile = make_sound(file_dict, ephys_data, units, this_unit)
+            merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
+            subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+
     if free_move is True and file_dict['imu'] is not None:
         plt.figure()
         plt.plot(eyeT[0:-1],np.diff(th),label = 'dTheta')
@@ -1856,7 +1887,7 @@ def run_ephys_analysis(file_dict):
     plt.close()
     print('getting STV')
     # calculate spike-triggered variance
-    st_var, fig = plot_STV(goodcells, t, movInterp, img_norm_sm)
+    st_var, fig = plot_STV(goodcells, movInterp, img_norm_sm, worldT)
     detail_pdf.savefig()
     plt.close()
 

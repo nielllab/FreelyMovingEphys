@@ -148,9 +148,6 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         x_vals = x_vals.iloc[:,:-5].subtract(spot_xcent, axis=0)
         y_vals = y_vals.iloc[:,:-5].subtract(spot_ycent, axis=0)
     elif config['pose_estimation']['has_ir_spot_labeled'] is True and config['parameters']['eyes']['spot_subtract'] is False:
-        spot_xvals = x_vals.iloc[:,-5:]
-        spot_yvals = y_vals.iloc[:,-5:]
-        spot_likelihood = likelihood_in[:,-5:]
         x_vals = x_vals.iloc[:,:-5]
         y_vals = y_vals.iloc[:,:-5]
         likelihood = likelihood_in[:,:-5]
