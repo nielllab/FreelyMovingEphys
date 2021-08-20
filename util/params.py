@@ -33,7 +33,7 @@ def extract_params(config):
     """
     # get the path to each recording directory
     if config['preycapture_analysis']['preycapture'] == True:
-        recording_names = [i for i in list_subdirs(config['animal_dir']) if 'trial' in i]
+        recording_names = [i for i in list_subdirs(config['animal_dir'])]
     else:
         recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i]
     recording_paths = [os.path.normpath(os.path.join(config['animal_dir'], recording_name)) for recording_name in recording_names]
@@ -93,11 +93,12 @@ def extract_params(config):
                     # top_props = body_props(pts, head_theta, config, recording_name, top_view)
                     # make videos (only saved if config says so)
                     if config['parameters']['outputs_and_visualization']['save_avi_vids'] is True:
-                        print('plotting points on top video')
-                        if config['parameters']['topdown']['get_top_thetas'] is True:
-                            plot_top_vid(top_avi, pts, head_ang=head_theta, config=config, trial_name=recording_name, top_view=top_view)
-                        elif config['parameters']['topdown']['get_top_thetas'] is False:
-                            plot_top_vid(top_avi, pts, head_ang=None, config=config, trial_name=recording_name, top_view=top_view)
+                        if not os.path.exists(os.path.join(config['recording_path'], (recording_name + '_' + top_view + '_plot.avi'))):
+                            print('plotting points on top video')
+                            if config['parameters']['topdown']['get_top_thetas'] is True:
+                                plot_top_vid(top_avi, pts, head_ang=head_theta, config=config, trial_name=recording_name, top_view=top_view)
+                            elif config['parameters']['topdown']['get_top_thetas'] is False:
+                                plot_top_vid(top_avi, pts, head_ang=None, config=config, trial_name=recording_name, top_view=top_view)
                     # make xarray of video frames
                     xr_top_frames = format_frames(top_avi, config); xr_top_frames.name = top_view+'_video'
                     # name and organize data

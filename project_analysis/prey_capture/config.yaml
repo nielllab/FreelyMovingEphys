@@ -4,7 +4,7 @@ animal_dir: /path/                       # animal-specific data directory
 
 # DEINTERLACE
 deinterlace:
-  run_deinter: true                      ### get deinterlaced copy of videos?
+  run_deinter: false                      ### get deinterlaced copy of videos?
   flip_eye_during_deinter: true          # whether or not to rotate eyecam 180deg
   flip_world_during_deinter: true        # whether or not to rotate worldcam 180deg
 
@@ -37,12 +37,12 @@ pose_estimation:
   multianimal_top_project: false         # is the topdown camera's dlc network a multianimal project? (default=false)
 
   projects:
-    TOP1: T:/deeplabcut_projects/PreyCaptureOpto-Molly-2021-05-13/config.yaml
-    TOP2: T:/deeplabcut_projects/PreyCaptureOpto-Molly-2021-05-13/config.yaml
+    TOP1: T:/deeplabcut_projects/BinocularOpto-Elliott-2021-08-12/config.yaml
+    TOP2: T:/deeplabcut_projects/BinocularOpto-Elliott-2021-08-12/config.yaml
 
 # PARAMETERS
 parameters:
-  run_params: false                       ### get parameters?
+  run_params: true                       ### get parameters?
   lik_thresh: 0                       # points below this value will be dropped, should be between 0 and 1 (default=0.99)
   ignore_avis: false                     # switch off analysis for all video inputs, only run analysis on addtl inputs like imu, ball rotation, etc.
   ephys:
@@ -58,13 +58,13 @@ parameters:
     num_ir_spot_pts_needed: 5            # drop eyecam frames that don't have this number of eyecam ir spot reflection points above the likelihood threshold (default=5, max=5)
     pxl_thresh: 50                       # maximum acceptable number of pixels for radius of the pupil (default=50)
   imu:
-    orientation: false                   # get roll/pitch orientation from imu (default=true)
+    orientation: true                   # get roll/pitch orientation from imu (default=true)
     imu_downsample: 100                  # factor by which to downsample the imu data (default=100)
     imu_sample_rate: 30000               # sample rate of the imu (default=30000)
   outputs_and_visualization:
     dwnsmpl: 0.5                        # factor by which to downsample videos before packing into .nc (default=0.25)
     num_save_frames: 3600                # number of frames to write to dianostic .avi (default=3600 (one minute))
-    save_avi_vids: false                  # whether or not to save diagnostic .avi (default=true)
+    save_avi_vids: true                  # whether or not to save diagnostic .avi (default=true)
     save_figs: true                      # whether or not to save pdfs of diagnostic and summary figures (default=true)
     save_nc_vids: true                   # whether or not to save nc files of parameters (default=true)
     eye_fig_pts_dwnspl: 100              # factor by which to downsample the number of points plotted in eyecam diagnostic figures (default=100)

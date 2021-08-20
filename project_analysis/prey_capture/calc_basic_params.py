@@ -3,11 +3,13 @@ import argparse
 import glob
 import sys 
 import yaml 
+import traceback
 
 import numpy as np
 import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from scipy import interpolate 
 from scipy import signal
@@ -31,7 +33,7 @@ mpl.rcParams.update({'font.size':         24,
                     })
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--csv_path', type=str, default='T:\OptoPreyCapture\csv_today.csv')
+    parser.add_argument('--csv_path', type=str, default='T:\BinocOptoPreyCapture\csv_testing.csv')
     args = parser.parse_args()
     return args
 
@@ -111,24 +113,30 @@ def calc_basic_param_from_file(f, pixpercm = 14.5, thresh = 0.99,framerate = 60)
 
 
 
-def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=31):
+def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=15):
 # find the start and end of each approach
-    approach = []
-    paired = list(zip(az,spd))
-    for pair in paired:
-        if np.abs(pair[0]) < 30 and pair[1] > 5:
-            approach.append(1)
-        else:
-            approach.append(0)
+    # approach = []
+    # paired = list(zip(az,spd))
+    approach  = (np.abs(az) < 30) & (spd > 5)
+    approach = approach.astype(int)
+    # for pair in paired:
+    #     if np.abs(pair[0]) < 30 & pair[1] > 5:
+    #         approach.append(1)
+    #     else:
+    #         approach.append(0)
 
-    approach = signal.medfilt(approach, med_filt_win) # 31 is hardcoded half a second based on framerate
+    approach = signal.medfilt(approach, med_filt_win) # 31 is hardcoded half a second based on framerate; 15=.25*60 fps
     approach = np.asarray(approach)
 
     approachStarts = np.where(np.diff(approach)>0)
     approachEnds = np.where(np.diff(approach)<0)
-    firstApproach = np.min(approachStarts)
-    timetoapproach = t[firstApproach] # return this
-    freqapproach=np.size(approachStarts) / movieT # return this
+    if np.size(approachStarts) != 0:
+        firstApproach = np.min(approachStarts)
+        timetoapproach = t[firstApproach] # return this
+    else:
+        firstApproach = np.nan
+        timetoapproach = np.nan
+    freqapproach= np.size(approachStarts) / movieT # return this
     
     # find instances of intercept given an approach (end of approach range <2cm); index dist using approachEnds, if range value <2, then call an intercept
     intercept = []
@@ -156,7 +164,7 @@ def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=31):
     return timetoapproach, freqapproach, prob_inter, prob_capture
 
 def calc_params(config):
-    recording_names = [i for i in list_subdirs(config['animal_dir']) if 'trial' in i]
+    recording_names = [i for i in list_subdirs(config['animal_dir'])]
     recording_paths = [os.path.normpath(os.path.join(config['animal_dir'], recording_name)) for recording_name in recording_names]
     recordings_dict = dict(zip(recording_names, recording_paths))
 
@@ -167,7 +175,8 @@ def calc_params(config):
 
         az, spd, dist, mouse_xy, Cricket_xy, t, movieT, captureT = calc_basic_param_from_file(topfile)
         timetoapproach, freqapproach, prob_inter, prob_capture=calc_prob(az, spd, dist, mouse_xy, Cricket_xy, t, movieT)
-        
+
+
         df = pd.DataFrame({'Angle': az,
                         'Speed': spd,
                         'Dist':  dist,
@@ -219,11 +228,37 @@ def calc_params(config):
             pdf.savefig()  # saves the current figure into a pdf page
             plt.close()
         
-
-
+def calc_days_data(csv2, base_path):
+    row = csv2.iloc[0]
+    fpath = str(list((base_path /row['experiment_date'] / row['animal_name'] /'trial_{:d}'.format(row['Trial'])).glob('*_BasicParams.h5'))[0])
+    with pd.HDFStore(fpath) as store:
+        data = store['df']
+        metadata = store.get_storer('df').attrs.metadata
+    df_meta = pd.DataFrame(columns=list(metadata.keys()))
+    for ind, row in csv2.iterrows():
+        fname = str(list((base_path /row['experiment_date'] / row['animal_name'] /'trial_{:d}'.format(row['Trial'])).glob('*_BasicParams.h5'))[0])
+        with pd.HDFStore(fname) as store:
+            data = store['df']
+            metadata = store.get_storer('df').attrs.metadata
+            metadata.update(csv2[['animal_name','experiment_date','Trial','LaserOn','Wallpaper']].iloc[ind])
+            df_meta = df_meta.append(metadata, ignore_index=True)
+    with PdfPages(base_path / 'Todays_BasicParams_Plots.pdf') as pdf:
+        fig, ax = plt.subplots()
+        g = sns.catplot(
+            data=df_meta, kind="bar",
+            x="Wallpaper", y="CaptureT", hue="LaserOn",
+            ci='sd', palette="dark", alpha=.6, height=6
+            )
+        g.despine(left=True)
+        g.set_axis_labels("", "Time (s)")
+        g.legend.set_title("")
+        g.set_xticklabels(rotation=90)
+        plt.tight_layout()
+        pdf.savefig()  # saves the current figure into a pdf page
 
 if __name__ == '__main__':
     args = get_args()
+    base_path = Path('T:/BinocOptoPreyCapture').expanduser()
     csv_filepath = os.path.normpath(args.csv_path)
     csv = pd.read_csv(csv_filepath)
     csv['experiment_date'] = pd.to_datetime(csv['experiment_date'],infer_datetime_format=True,format='%m%d%Y').dt.strftime('%m%d%y')
@@ -237,19 +272,20 @@ if __name__ == '__main__':
     csv2 = pd.DataFrame(columns=cols)
     for ind,row in csv.iterrows():
         for n in range(1,5):
-            if '*' in row['Trial_{:d}'.format(n)]:
+            if '*' in row['{:d}'.format(n)]:
                 csv2 = csv2.append(row[:-4].append(pd.Series([n,True],index=['Trial','LaserOn'])),ignore_index=True)
             else:
                 csv2 = csv2.append(row[:-4].append(pd.Series([n,False],index=['Trial','LaserOn'])),ignore_index=True)
-    inds, labels = csv2['Wallpaper'].factorize()
+    inds, labels = csv2['Environment'].factorize()
 
     # row = csv2[(csv2['Wallpaper']==labels[0]) & (csv2['LaserOn']==False)].reset_index(drop=True).iloc[0]
-    row = csv2.iloc[0]
-    topfile=glob.glob((os.path.normpath(os.path.join(row['drive']+':/','OptoPreyCapture',row['experiment_date'],row['animal_name'],f'trial_{n}','*TOP1.nc'))))[0]# Top nc file
-    imufile=glob.glob((os.path.normpath(os.path.join(row['drive']+':/','OptoPreyCapture',row['experiment_date'],row['animal_name'],f'trial_{n}','*imu.nc'))))[0]# IMU nc File
+    n = 3
+    row = csv2.iloc[n]
+    topfile=glob.glob((os.path.normpath(os.path.join(row['drive']+':/','BinocOptoPreyCapture',row['experiment_date'],row['animal_name'],f'{n}','*TOP1.nc'))))[0]# Top nc file
+    # imufile=glob.glob((os.path.normpath(os.path.join(row['drive']+':/','BinocOptoPreyCapture',row['experiment_date'],row['animal_name'],f'{n}','*imu.nc'))))[0]# IMU nc File
     
-    animal_dir = (os.path.normpath(os.path.join(row['drive']+':/','OptoPreyCapture',row['experiment_date'],row['animal_name'])))
-    config_path =os.path.normpath(os.getcwd()+'\project_analysis\prey_capture\config.yaml')
+    animal_dir = (os.path.normpath(os.path.join(row['drive']+':/','BinocOptoPreyCapture',row['experiment_date'],row['animal_name'])))
+    config_path = os.path.normpath(os.getcwd()+'\project_analysis\prey_capture\config.yaml')
     with open(config_path, 'r') as infile:
         config = yaml.load(infile, Loader=yaml.FullLoader)
     config['animal_dir'] = animal_dir
