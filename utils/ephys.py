@@ -30,7 +30,6 @@ import wavio
 from matplotlib.animation import FFMpegWriter
 from matplotlib.backends.backend_pdf import PdfPages
 from numpy import nan
-from scipy.interpolate import interp1d
 from sklearn.linear_model import LinearRegression
 import scipy.signal
 from scipy.io import loadmat
@@ -753,7 +752,7 @@ def plot_saccade_locked(goodcells, upsacc, downsacc, trange):
             hist, edges = np.histogram(goodcells.at[ind,'spikeT']-s, trange)
             upsacc_avg[i,:] = upsacc_avg[i,:] + hist / (upsacc.size*np.diff(trange))
         for s in np.array(downsacc):
-            hist,edges = np.histogram(goodcells.at[ind,'spikeT']-s,trange)
+            hist, edges = np.histogram(goodcells.at[ind,'spikeT']-s,trange)
             downsacc_avg[i,:] = downsacc_avg[i,:]+ hist/(downsacc.size*np.diff(trange))
         plt.subplot(np.ceil(n_units/7).astype('int'),7,i+1)
         plt.plot(0.5*(trange[0:-1] + trange[1:]), upsacc_avg[i,:])
@@ -959,7 +958,7 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
     for i, ind in enumerate(goodcells.index):
         i = full_raster[i]
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5)
-    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'k',linewidth=0.5) # this unit
+    axR.vlines(goodcells.at[units[this_unit],'spikeT'], full_raster[this_unit+1]-0.25, full_raster[this_unit+1]+0.25,'b',linewidth=0.5) # this unit
     
     n_units = len(goodcells)
     axR.set_ylim(n_units,-.5)
@@ -2008,7 +2007,7 @@ def run_ephys_analysis(file_dict):
 
     if free_move is True:
         # plot gaze shifting eye movements
-        sthresh = 3
+        sthresh = 5
         upsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
         downsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
         upsacc_avg_gaze_shift_dEye, downsacc_avg_gaze_shift_dEye, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
@@ -2025,7 +2024,7 @@ def run_ephys_analysis(file_dict):
         downsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
         upsacc_avg_gaze_shift_dHead, downsacc_avg_gaze_shift_dHead, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('gaze shift dhead') ; detail_pdf.savefig() ;  plt.close()
-        # plot compensatory eye movements    
+        # plot compensatory head movements
         sthresh = 3
         upsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
         downsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
@@ -2755,26 +2754,29 @@ def load_ephys(csv_filepath):
     for session in sessions:
         session_data = pd.DataFrame([])
         for recording in session:
-            rec_data = pd.read_hdf(recording)
-            # get name of the current recording (i.e. 'fm' or 'hf1_wn')
-            rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
-            # rename spike time columns so that data is retained for each of the seperate trials
-            rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
-            # add a column for which fm recording should be prefered
-            for key,val in goodlightrecs.items():
-                if key in rec_data['session'].iloc[0]:
-                    rec_data['best_light_fm'] = val
-            for key,val in gooddarkrecs.items():
-                if key in rec_data['session'].iloc[0]:
-                    rec_data['best_dark_fm'] = val
-            # get column names
-            column_names = list(session_data.columns.values) + list(rec_data.columns.values)
-            # new columns for same unit within a session
-            session_data = pd.concat([session_data, rec_data],axis=1,ignore_index=True)
-            # add the list of column names from all sessions plus the current recording
-            session_data.columns = column_names
-            # remove duplicate columns (i.e. shared metadata)
-            session_data = session_data.loc[:,~session_data.columns.duplicated()]
+            try:
+                rec_data = pd.read_hdf(recording)
+                # get name of the current recording (i.e. 'fm' or 'hf1_wn')
+                rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
+                # rename spike time columns so that data is retained for each of the seperate trials
+                rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
+                # add a column for which fm recording should be prefered
+                for key,val in goodlightrecs.items():
+                    if key in rec_data['session'].iloc[0]:
+                        rec_data['best_light_fm'] = val
+                for key,val in gooddarkrecs.items():
+                    if key in rec_data['session'].iloc[0]:
+                        rec_data['best_dark_fm'] = val
+                # get column names
+                column_names = list(session_data.columns.values) + list(rec_data.columns.values)
+                # new columns for same unit within a session
+                session_data = pd.concat([session_data, rec_data],axis=1,ignore_index=True)
+                # add the list of column names from all sessions plus the current recording
+                session_data.columns = column_names
+                # remove duplicate columns (i.e. shared metadata)
+                session_data = session_data.loc[:,~session_data.columns.duplicated()]
+            except AttributeError:
+                pass
         # add probe name as new col
         animal = goodsessions[ind]
         ellipse_json_path = find('*fm_eyecameracalc_props.json', animal)
@@ -2794,7 +2796,7 @@ def load_ephys(csv_filepath):
             if type(manual_depth_entry) != np.nan and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != 'FALSE':
                 session_data['hf1_wn_lfp_layer5_centers'] = list(np.ones(num_auto_depth_entries).astype(int)*int(manual_depth_entry))
         except Exception as e:
-            print('error with overwriting depth for ', rec_data['session'])
+            print('error with overwriting depth for ', rec_data['session'].unique())
             print(e)
         ind += 1
         # new rows for units from different mice or sessions
