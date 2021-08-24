@@ -8,6 +8,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
+from scipy.interpolate import interp1d
 from datetime import datetime
 from scipy import stats
 import warnings
@@ -1990,6 +1991,35 @@ def make_population_summary(df1, savepath):
     plt.tight_layout(); pdf.savefig(); plt.close()
     print('dhead and deye around time of compensatory head movements')
     var_around_saccade_fig = var_around_saccade(df1, 'head_comp')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    for ind, row in df1.iterrows():
+    try:
+        mean_for_sf = np.array([np.mean(df1.at[ind,'norm_ori_tuning_low']), np.mean(df1.at[ind,'norm_ori_tuning_mid']), np.mean(df1.at[ind,'norm_ori_tuning_high'])])
+        mean_for_sf[mean_for_sf<0] = 0
+        df1.at[ind, 'hf3_gratings_evoked_rate'] = np.max(mean_for_sf)
+    except:
+        pass
+    fig, ax = plt.subplots(1,1,figsize=(15,5))
+    labels = ['grat spont', 'grat evoked', 'wn spont', 'wn evoked', 'fm light stationary', 'fm light active', 'fm dark stationary', 'fm dark active']
+    x = np.arange(len(labels))
+    width = 0.35; a = 0
+    exc_rates = pd.concat([df1['hf3_gratings_drift_spont'][df1['waveform_km_label']==1].astype(float), df1['hf3_gratings_evoked_rate'][df1['waveform_km_label']==1],
+                        df1['hf1_wn_spont_rate'][df1['waveform_km_label']==1], df1['hf1_wn_evoked_rate'][df1['waveform_km_label']==1],
+                        df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==1], df1['fm1_active_rec_rate'][df1['waveform_km_label']==1],
+                        df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==1]], axis=1)
+
+    inh_rates = pd.concat([df1['hf3_gratings_drift_spont'][df1['waveform_km_label']==0].astype(float), df1['hf3_gratings_evoked_rate'][df1['waveform_km_label']==0],
+                        df1['hf1_wn_spont_rate'][df1['waveform_km_label']==0], df1['hf1_wn_evoked_rate'][df1['waveform_km_label']==0],
+                        df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==0], df1['fm1_active_rec_rate'][df1['waveform_km_label']==0],
+                        df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==0]], axis=1)
+    plt.bar(x - width/2, np.nanmedian(exc_rates,a), yerr=np.nanstd(exc_rates,a)/np.sqrt(np.size(exc_rates,a)), color='b', width=width, label='exc')
+    plt.bar(x + width/2, np.nanmedian(inh_rates,a), yerr=np.nanstd(inh_rates,a)/np.sqrt(np.size(inh_rates,a)), color='g', width=width, label='inh')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    plt.ylim([0,20])
+    plt.legend()
+    plt.ylabel('sp/sec')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     print('saving population summary pdf')
