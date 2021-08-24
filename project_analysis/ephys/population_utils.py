@@ -1159,6 +1159,93 @@ def plot_cluster_prop(df1, cluster_prop, waveform_keys, filter_for=None):
         count += 1
     return fig
 
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = np.nanargmin(np.abs(array - value))
+    return array[idx]
+
+def var_around_saccade(df1, movement):
+    sessions = [i for i in df1['session'].unique() if type(i) != float]
+    n_sessions = 9
+    trange = np.arange(-1,1.1,0.025)
+    fig = plt.subplots(n_sessions,4, figsize=(20,30))
+    count = 1
+    for session_num in tqdm(range(len(sessions))):
+        session = sessions[session_num]
+        # get 0th index of units in this session (all units have identical info for these columns)
+        row = df1[df1['session']==session].iloc[0]
+        
+        if type(row['fm1_eyeT']) != float and type(row['fm1_dEye']) != float and type(row['fm1_dHead']) != float:
+            
+            eyeT = row['fm1_eyeT'].values
+            dEye = row['fm1_dEye']
+            dhead = row['fm1_dHead']
+            dgz = dEye + dhead(eyeT[0:-1])
+            
+            if movement=='eye_gaze_shifting':
+                sthresh = 5
+                rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
+                leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+            elif movement=='eye_comp':
+                sthresh = 3
+                rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
+                leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
+            elif movement=='head_gaze_shifting':
+                sthresh = 3
+                rightsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)>sthresh)]
+                leftsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+            elif movement=='head_comp':
+                sthresh = 3
+                rightsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
+                leftsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
+
+            deye_mov_right = np.zeros([len(rightsacc), len(trange)])
+            deye_mov_left = np.zeros([len(leftsacc), len(trange)])
+            dgz_mov_right = np.zeros([len(rightsacc), len(trange)])
+            dgz_mov_left = np.zeros([len(leftsacc), len(trange)])
+            
+            for sind in range(len(rightsacc)):
+                s = rightsacc[sind]
+                mov_ind = np.where([eyeT==find_nearest(eyeT, s)])[1]
+                trange_inds = list(mov_ind - np.arange(42)) + list(mov_ind) + list(mov_ind + np.arange(41))
+                if np.max(trange_inds) < len(dEye):
+                    deye_mov_right[sind,:] = dEye[np.array(trange_inds)]
+                if np.max(trange_inds) < len(dgz):
+                    dgz_mov_right[sind,:] = dgz[np.array(trange_inds)]
+            for sind in range(len(leftsacc)):
+                s = leftsacc[sind]
+                mov_ind = np.where([eyeT==find_nearest(eyeT, s)])[1]
+                trange_inds = list(mov_ind - np.arange(42)) + list(mov_ind) + list(mov_ind + np.arange(41))                
+                if np.max(trange_inds) < len(dEye):
+                    deye_mov_left[sind,:] = dEye[np.array(trange_inds)]
+                if np.max(trange_inds) < len(dgz):
+                    dgz_mov_left[sind,:] = dgz[np.array(trange_inds)]
+            
+            plt.subplot(n_sessions,4, count)
+            count += 1
+            plt.plot(np.nanmean(deye_mov_right,0), color='#1f77b4')
+            plt.plot(np.nanmean(deye_mov_left,0), color='r')
+            plt.title(session + movement)
+            plt.ylabel('deye')
+            plt.subplot(n_sessions,4, count)
+            count += 1
+            plt.plot(np.nancumsum(np.nanmean(deye_mov_right,0)), color='#1f77b4')
+            plt.plot(np.nancumsum(np.nanmean(deye_mov_left,0)), color='r')
+            plt.ylabel('cumulative deye')
+            plt.subplot(n_sessions,4, count)
+            count += 1
+            plt.plot(np.nanmean(dgz_mov_right,0), color='#1f77b4')
+            plt.plot(np.nanmean(dgz_mov_left,0), color='r')
+            plt.ylabel('dhead')
+            plt.subplot(n_sessions,4, count)
+            count += 1
+            plt.plot(np.nancumsum(np.nanmean(dgz_mov_right,0)), color='#1f77b4')
+            plt.plot(np.nancumsum(np.nanmean(dgz_mov_left,0)), color='r')
+            plt.ylabel('cumulative dhead')
+
+    plt.tight_layout()
+    return fig
+
 def make_population_summary(df1, savepath):
     """
     summarize an entire population of ephys units
@@ -1464,6 +1551,15 @@ def make_population_summary(df1, savepath):
     ### depth figure
     crfs0 = np.zeros([len(df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==0]),11])
     crfs1 = np.zeros([len(df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==1]),11])
+    for i, x in df1['hf1_wn_crf_tuning'].iteritems():
+        if type(x) != float:
+            df1.at[i, 'hf1_wn_spont_rate'] = x[0]
+            df1.at[i, 'hf1_wn_max_contrast_rate'] = x[-1]
+            df1.at[i, 'hf1_wn_evoked_rate'] = x[-1] - x[0]
+        else:
+            df1.at[i, 'hf1_wn_spont_rate'] = np.nan
+            df1.at[i, 'hf1_wn_max_contrast_rate'] = np.nan
+            df1.at[i, 'hf1_wn_evoked_rate'] = np.nan
     for i in range(len(df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==0])):
         try:
             crfs0[i,:] = df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==0][i]
@@ -1474,7 +1570,7 @@ def make_population_summary(df1, savepath):
             crfs1[i,:] = df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==1][i]
         except:
             pass
-
+    
     plt.subplots(3,5, figsize=(24,20))
     n = 1
     fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_neg', 'hf1_wn_depth_from_layer5', n, filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True)
@@ -1567,7 +1663,6 @@ def make_population_summary(df1, savepath):
         plt.axis('off')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
-    print('clustering waveforms')
     ### waveform clustering figures
     waveform_keys1 = ['fm1_upsacc_avg_gaze_shift_dEye', 'fm1_downsacc_avg_gaze_shift_dEye', 'fm1_upsacc_avg_gaze_shift_dHead', 'fm1_downsacc_avg_gaze_shift_dHead',
                     'fm_dark_upsacc_avg_gaze_shift_dEye', 'fm_dark_downsacc_avg_gaze_shift_dEye', 'fm_dark_upsacc_avg_gaze_shift_dHead', 'fm_dark_downsacc_avg_gaze_shift_dHead']
@@ -1575,6 +1670,7 @@ def make_population_summary(df1, savepath):
                     'fm_dark_upsacc_avg_comp_dEye', 'fm_dark_downsacc_avg_comp_dEye', 'fm_dark_upsacc_avg_comp_dHead', 'fm_dark_downsacc_avg_comp_dHead']
     all_waveform_keys = [waveform_keys1, waveform_keys2]
     for waveform_keys in all_waveform_keys:
+        print('clustering waveforms')
         waveforms = df1[waveform_keys].values.flatten()
         wv_inds = list(np.floor(np.arange(0, len(df1[waveform_keys].values), 1/len(waveform_keys))).astype(int))
         baselines = np.zeros([len(waveforms), 1])
@@ -1603,7 +1699,7 @@ def make_population_summary(df1, savepath):
             if unit_clusters != []:
                 for keynum in range(len(waveform_keys)):
                     df1.at[ind, waveform_keys[keynum]+'_cluster'] = unit_clusters[keynum]
-
+        print('plotting clusters')
         plt.subplots(8,5, figsize=(35,45))
         count = 1
         mean_cluster_all_keys = {}
@@ -1650,7 +1746,7 @@ def make_population_summary(df1, savepath):
             mean_cluster_all_keys[key] = mean_cluster
         plt.legend(handles=[bluepatch, greenpatch])
         plt.tight_layout(); pdf.savefig(); plt.close()
-        
+        print('relabeling based on peak finding')
         cluster_types = {}
         count = 1
         plt.subplots(4,2,figsize=(24,10))
@@ -1671,7 +1767,7 @@ def make_population_summary(df1, savepath):
             cluster_types[key] = this_key
             count += 1
         plt.tight_layout(); pdf.savefig(); plt.close()
-
+        print('plotting histograms of cluster depths')
         for ind, row in df1.iterrows():
             for key in waveform_keys:
                 if ~np.isnan(row[key+'_cluster']):
@@ -1690,7 +1786,7 @@ def make_population_summary(df1, savepath):
                 count += 1
                 plt.gca().invert_yaxis()
         plt.tight_layout(); pdf.savefig(); plt.close()
-
+        print('plotting boxplots of cluster properties')
         fig = plot_cluster_prop(df1, 'dsi_for_sf_pref', waveform_keys, filter_for={'responsive_to_gratings':True})
         plt.tight_layout(); pdf.savefig(); plt.close()
 
@@ -1716,7 +1812,7 @@ def make_population_summary(df1, savepath):
         plt.tight_layout(); pdf.savefig(); plt.close()
 
         waveform_key_pairs = sorted(list(itertools.combinations(waveform_keys, 2)))
-
+        print('matrix of cluster changes between movement types')
         count = 1
         fig, axes = plt.subplots(4,7,figsize=(45,25))
         for this_key_pair in waveform_key_pairs:
@@ -1776,10 +1872,132 @@ def make_population_summary(df1, savepath):
             plt.title(waveform_key)
         plt.tight_layout(); pdf.savefig(); plt.close()
 
+    print('firing rate by stim')
+    fig, ax = plt.subplots(1,1)
+    for ind, row in df1.iterrows():
+        if type(row['fm1_spikeT']) != float:
+            df1.at[ind,'fm1_rec_rate'] = len(row['fm1_spikeT']) / (row['fm1_spikeT'][-1] - row['fm1_spikeT'][0])
+        if type(row['hf3_gratings_spikeT']) != float:
+            df1.at[ind,'hf3_gratings_rec_rate'] = len(row['hf3_gratings_spikeT']) / (row['hf3_gratings_spikeT'][-1] - row['hf3_gratings_spikeT'][0])
+        if type(row['fm_dark_spikeT']) != float:
+            df1.at[ind,'fm_dark_rec_rate'] = len(row['fm_dark_spikeT']) / (row['fm_dark_spikeT'][-1] - row['fm_dark_spikeT'][0])
+        if type(row['hf1_wn_spikeT']) != float:
+            df1.at[ind,'hf1_wn_rec_rate'] = len(row['hf1_wn_spikeT']) / (row['hf1_wn_spikeT'][-1] - row['hf1_wn_spikeT'][0])
+    labels = ['grat', 'wn', 'fm light', 'fm dark']
+    x = np.arange(len(labels))
+    width = 0.35; a = 1
+    exc_rates = np.array([df1['hf3_gratings_rec_rate'][df1['waveform_km_label']==1], df1['hf1_wn_rec_rate'][df1['waveform_km_label']==1], df1['fm1_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_rec_rate'][df1['waveform_km_label']==1]])
+    inh_rates = np.array([df1['hf3_gratings_rec_rate'][df1['waveform_km_label']==0], df1['hf1_wn_rec_rate'][df1['waveform_km_label']==0], df1['fm1_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_rec_rate'][df1['waveform_km_label']==0]])
+    plt.bar(x - width/2, np.nanmean(exc_rates,a), yerr=np.nanstd(exc_rates,a)/np.sqrt(np.size(exc_rates,a)), color='b', width=width, label='exc')
+    plt.bar(x + width/2, np.nanmean(inh_rates,a), yerr=np.nanstd(inh_rates,a)/np.sqrt(np.size(inh_rates,a)), color='g', width=width, label='inh')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    plt.legend()
+    plt.ylabel('sp/sec')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    print('getting fm active times and comparing spike rates')
+    sessions = [x for x in df1['session'].unique() if str(x) != 'nan']
+    for session in sessions:
+        session_data = df1[df1['session']==session]
+        # find active times
+        model_dt = 0.025
+        if type(session_data['fm1_eyeT'].iloc[0]) != float:
+            # light setup
+            fm_light_eyeT = session_data['fm1_eyeT'].iloc[0].values
+            fm_light_gz = session_data['fm1_gz'].iloc[0]
+            fm_light_accT = session_data['fm1_accT'].iloc[0]
+            light_model_t = np.arange(0,np.nanmax(fm_light_eyeT),model_dt)
+            light_model_gz = interp1d(fm_light_accT,(fm_light_gz-np.mean(fm_light_gz))*7.5,bounds_error=False)(light_model_t)
+            light_model_active = np.convolve(np.abs(light_model_gz),np.ones(np.int(1/model_dt)),'same')
+            light_active = light_model_active>40
+
+            n_units = len(session_data)
+            light_model_nsp = np.zeros((n_units, len(light_model_t)))
+            bins = np.append(light_model_t, light_model_t[-1]+model_dt)
+            duration = np.nanmax(fm_light_eyeT)
+            i = 0
+            for ind, row in session_data.iterrows():
+                light_model_nsp[i,:], bins = np.histogram(row['fm1_spikeT'], bins)
+                unit_active_spikes = light_model_nsp[i, light_active]
+                unit_stationary_spikes = light_model_nsp[i, ~light_active]
+                df1.at[ind,'fm1_active_rec_rate'] = np.sum(unit_active_spikes[~np.isnan(unit_active_spikes)]) / duration
+                df1.at[ind,'fm1_stationary_rec_rate'] = np.sum(unit_stationary_spikes[~np.isnan(unit_stationary_spikes)]) / duration
+                i += 1
+            
+            print('light time active:', np.sum(light_active) / len(light_active))
+        if type(session_data['fm_dark_eyeT'].iloc[0]) != float:
+            del unit_active_spikes, unit_stationary_spikes
+            
+            # dark setup
+            fm_dark_eyeT = session_data['fm_dark_eyeT'].iloc[0].values
+            fm_dark_gz = session_data['fm_dark_gz'].iloc[0]
+            fm_dark_accT = session_data['fm_dark_accT'].iloc[0]
+            dark_model_t = np.arange(0,np.nanmax(fm_dark_eyeT),model_dt)
+            dark_model_gz = interp1d(fm_dark_accT,(fm_dark_gz-np.mean(fm_dark_gz))*7.5,bounds_error=False)(dark_model_t)
+            dark_model_active = np.convolve(np.abs(dark_model_gz),np.ones(np.int(1/model_dt)),'same')
+            dark_active = dark_model_active>40
+            
+            
+            n_units = len(session_data)
+            dark_model_nsp = np.zeros((n_units, len(dark_model_t)))
+            bins = np.append(dark_model_t, dark_model_t[-1]+model_dt)
+            duration = np.nanmax(fm_dark_eyeT)
+            i = 0
+            for ind, row in session_data.iterrows():
+                dark_model_nsp[i,:], bins = np.histogram(row['fm_dark_spikeT'], bins)
+                unit_active_spikes = dark_model_nsp[i, dark_active]
+                unit_stationary_spikes = dark_model_nsp[i, ~dark_active]
+                df1.at[ind,'fm_dark_active_rec_rate'] = np.sum(unit_active_spikes[~np.isnan(unit_active_spikes)]) / duration
+                df1.at[ind,'fm_dark_stationary_rec_rate'] = np.sum(unit_stationary_spikes[~np.isnan(unit_stationary_spikes)]) / duration
+                i += 1
+
+    fig, ax = plt.subplots(1,1)
+    labels = ['active light','stationary light','active dark','stationary dark']
+    x = np.arange(len(labels))
+    width = 0.35
+    exc_rates = np.array([df1['fm1_active_rec_rate'][df1['waveform_km_label']==1], df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==1]])
+    inh_rates = np.array([df1['fm1_active_rec_rate'][df1['waveform_km_label']==0], df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==0]])
+    plt.bar(x - width/2, np.nanmedian(exc_rates,1), yerr=np.nanstd(exc_rates,1)/np.sqrt(np.size(exc_rates,1)), color='b', width=width, label='exc')
+    plt.bar(x + width/2, np.nanmedian(inh_rates,1), yerr=np.nanstd(inh_rates,1)/np.sqrt(np.size(inh_rates,1)), color='g', width=width, label='inh')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    plt.legend()
+    plt.ylabel('sp/sec')
+    
+    fig, ax = plt.subplots(1,1)
+    labels = ['active light','stationary light','active dark','stationary dark']
+    x = np.arange(len(labels))
+    width = 0.35
+    exc_rates = np.array([df1['fm1_active_rec_rate'][df1['waveform_km_label']==1], df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==1]])
+    inh_rates = np.array([df1['fm1_active_rec_rate'][df1['waveform_km_label']==0], df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==0]])
+    plt.bar(x - width/2, np.nanmean(exc_rates,1), yerr=np.nanstd(exc_rates,1)/np.sqrt(np.size(exc_rates,1)), color='b', width=width, label='exc')
+    plt.bar(x + width/2, np.nanmean(inh_rates,1), yerr=np.nanstd(inh_rates,1)/np.sqrt(np.size(inh_rates,1)), color='g', width=width, label='inh')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    plt.legend()
+    plt.ylabel('sp/sec')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    print('dhead and deye around time of gaze shifting eye movements')
+    var_around_saccade_fig = var_around_saccade(df1, 'eye_gaze_shifting')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+    print('dhead and deye around time of compesatory eye movements')
+    var_around_saccade_fig = var_around_saccade(df1, 'eye_comp')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+    print('dhead and deye around time of gaze shifting head movements')
+    var_around_saccade_fig = var_around_saccade(df1, 'head_gaze_shifting')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+    print('dhead and deye around time of compensatory head movements')
+    var_around_saccade_fig = var_around_saccade(df1, 'head_comp')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
     print('saving population summary pdf')
     pdf.close()
 
     print('done')
+
+    return df1
 
 def population_analysis(config):
     """
