@@ -1208,7 +1208,7 @@ def var_around_saccade(df1, movement):
             for sind in range(len(rightsacc)):
                 s = rightsacc[sind]
                 mov_ind = np.where([eyeT==find_nearest(eyeT, s)])[1]
-                trange_inds = list(mov_ind - np.arange(42)) + list(mov_ind) + list(mov_ind + np.arange(41))
+                trange_inds = list(mov_ind + np.arange(-42,42))
                 if np.max(trange_inds) < len(dEye):
                     deye_mov_right[sind,:] = dEye[np.array(trange_inds)]
                 if np.max(trange_inds) < len(dgz):
@@ -1216,7 +1216,7 @@ def var_around_saccade(df1, movement):
             for sind in range(len(leftsacc)):
                 s = leftsacc[sind]
                 mov_ind = np.where([eyeT==find_nearest(eyeT, s)])[1]
-                trange_inds = list(mov_ind - np.arange(42)) + list(mov_ind) + list(mov_ind + np.arange(41))                
+                trange_inds = list(mov_ind + np.arange(-42,42))
                 if np.max(trange_inds) < len(dEye):
                     deye_mov_left[sind,:] = dEye[np.array(trange_inds)]
                 if np.max(trange_inds) < len(dgz):
@@ -1889,8 +1889,8 @@ def make_population_summary(df1, savepath):
     width = 0.35; a = 1
     exc_rates = np.array([df1['hf3_gratings_rec_rate'][df1['waveform_km_label']==1], df1['hf1_wn_rec_rate'][df1['waveform_km_label']==1], df1['fm1_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_rec_rate'][df1['waveform_km_label']==1]])
     inh_rates = np.array([df1['hf3_gratings_rec_rate'][df1['waveform_km_label']==0], df1['hf1_wn_rec_rate'][df1['waveform_km_label']==0], df1['fm1_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_rec_rate'][df1['waveform_km_label']==0]])
-    plt.bar(x - width/2, np.nanmean(exc_rates,a), yerr=np.nanstd(exc_rates,a)/np.sqrt(np.size(exc_rates,a)), color='b', width=width, label='exc')
-    plt.bar(x + width/2, np.nanmean(inh_rates,a), yerr=np.nanstd(inh_rates,a)/np.sqrt(np.size(inh_rates,a)), color='g', width=width, label='inh')
+    plt.bar(x - width/2, np.nanmedian(exc_rates,a), yerr=np.nanstd(exc_rates,a)/np.sqrt(np.size(exc_rates,a)), color='b', width=width, label='exc')
+    plt.bar(x + width/2, np.nanmedian(inh_rates,a), yerr=np.nanstd(inh_rates,a)/np.sqrt(np.size(inh_rates,a)), color='g', width=width, label='inh')
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     plt.legend()
@@ -1922,11 +1922,10 @@ def make_population_summary(df1, savepath):
                 light_model_nsp[i,:], bins = np.histogram(row['fm1_spikeT'], bins)
                 unit_active_spikes = light_model_nsp[i, light_active]
                 unit_stationary_spikes = light_model_nsp[i, ~light_active]
-                df1.at[ind,'fm1_active_rec_rate'] = np.sum(unit_active_spikes[~np.isnan(unit_active_spikes)]) / duration
-                df1.at[ind,'fm1_stationary_rec_rate'] = np.sum(unit_stationary_spikes[~np.isnan(unit_stationary_spikes)]) / duration
+                df1.at[ind,'fm1_active_rec_rate'] = np.sum(unit_active_spikes) / len(unit_active_spikes)
+                df1.at[ind,'fm1_stationary_rec_rate'] = np.sum(unit_stationary_spikes) / len(unit_stationary_spikes)
                 i += 1
-            
-            print('light time active:', np.sum(light_active) / len(light_active))
+
         if type(session_data['fm_dark_eyeT'].iloc[0]) != float:
             del unit_active_spikes, unit_stationary_spikes
             
@@ -1949,8 +1948,8 @@ def make_population_summary(df1, savepath):
                 dark_model_nsp[i,:], bins = np.histogram(row['fm_dark_spikeT'], bins)
                 unit_active_spikes = dark_model_nsp[i, dark_active]
                 unit_stationary_spikes = dark_model_nsp[i, ~dark_active]
-                df1.at[ind,'fm_dark_active_rec_rate'] = np.sum(unit_active_spikes[~np.isnan(unit_active_spikes)]) / duration
-                df1.at[ind,'fm_dark_stationary_rec_rate'] = np.sum(unit_stationary_spikes[~np.isnan(unit_stationary_spikes)]) / duration
+                df1.at[ind,'fm_dark_active_rec_rate'] = np.sum(unit_active_spikes) / len(unit_active_spikes)
+                df1.at[ind,'fm_dark_stationary_rec_rate'] = np.sum(unit_stationary_spikes) / len(unit_stationary_spikes)
                 i += 1
 
     fig, ax = plt.subplots(1,1)
@@ -1961,19 +1960,6 @@ def make_population_summary(df1, savepath):
     inh_rates = np.array([df1['fm1_active_rec_rate'][df1['waveform_km_label']==0], df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==0]])
     plt.bar(x - width/2, np.nanmedian(exc_rates,1), yerr=np.nanstd(exc_rates,1)/np.sqrt(np.size(exc_rates,1)), color='b', width=width, label='exc')
     plt.bar(x + width/2, np.nanmedian(inh_rates,1), yerr=np.nanstd(inh_rates,1)/np.sqrt(np.size(inh_rates,1)), color='g', width=width, label='inh')
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    plt.legend()
-    plt.ylabel('sp/sec')
-    
-    fig, ax = plt.subplots(1,1)
-    labels = ['active light','stationary light','active dark','stationary dark']
-    x = np.arange(len(labels))
-    width = 0.35
-    exc_rates = np.array([df1['fm1_active_rec_rate'][df1['waveform_km_label']==1], df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==1]])
-    inh_rates = np.array([df1['fm1_active_rec_rate'][df1['waveform_km_label']==0], df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==0]])
-    plt.bar(x - width/2, np.nanmean(exc_rates,1), yerr=np.nanstd(exc_rates,1)/np.sqrt(np.size(exc_rates,1)), color='b', width=width, label='exc')
-    plt.bar(x + width/2, np.nanmean(inh_rates,1), yerr=np.nanstd(inh_rates,1)/np.sqrt(np.size(inh_rates,1)), color='g', width=width, label='inh')
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     plt.legend()
@@ -1994,23 +1980,22 @@ def make_population_summary(df1, savepath):
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     for ind, row in df1.iterrows():
-    try:
-        mean_for_sf = np.array([np.mean(df1.at[ind,'norm_ori_tuning_low']), np.mean(df1.at[ind,'norm_ori_tuning_mid']), np.mean(df1.at[ind,'norm_ori_tuning_high'])])
-        mean_for_sf[mean_for_sf<0] = 0
-        df1.at[ind, 'hf3_gratings_evoked_rate'] = np.max(mean_for_sf)
-    except:
-        pass
+        try:
+            mean_for_sf = np.array([np.mean(df1.at[ind,'norm_ori_tuning_low']), np.mean(df1.at[ind,'norm_ori_tuning_mid']), np.mean(df1.at[ind,'norm_ori_tuning_high'])])
+            mean_for_sf[mean_for_sf<0] = 0
+            df1.at[ind, 'hf3_gratings_evoked_rate'] = np.max(mean_for_sf)
+        except:
+            pass
     fig, ax = plt.subplots(1,1,figsize=(15,5))
-    labels = ['grat spont', 'grat evoked', 'wn spont', 'wn evoked', 'fm light stationary', 'fm light active', 'fm dark stationary', 'fm dark active']
+    labels = ['grat spont', 'grat stim', 'wn spont', 'wn max contrast', 'fm light stationary', 'fm light active', 'fm dark stationary', 'fm dark active']
     x = np.arange(len(labels))
     width = 0.35; a = 0
-    exc_rates = pd.concat([df1['hf3_gratings_drift_spont'][df1['waveform_km_label']==1].astype(float), df1['hf3_gratings_evoked_rate'][df1['waveform_km_label']==1],
-                        df1['hf1_wn_spont_rate'][df1['waveform_km_label']==1], df1['hf1_wn_evoked_rate'][df1['waveform_km_label']==1],
+    exc_rates = pd.concat([df1['hf3_gratings_drift_spont'][df1['waveform_km_label']==1].astype(float), df1['hf3_gratings_evoked_rate'][df1['waveform_km_label']==1]+df1['hf3_gratings_drift_spont'][df1['waveform_km_label']==1].astype(float),
+                        df1['hf1_wn_spont_rate'][df1['waveform_km_label']==1], df1['hf1_wn_evoked_rate'][df1['waveform_km_label']==1]+df1['hf1_wn_spont_rate'][df1['waveform_km_label']==1],
                         df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==1], df1['fm1_active_rec_rate'][df1['waveform_km_label']==1],
                         df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==1], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==1]], axis=1)
-
-    inh_rates = pd.concat([df1['hf3_gratings_drift_spont'][df1['waveform_km_label']==0].astype(float), df1['hf3_gratings_evoked_rate'][df1['waveform_km_label']==0],
-                        df1['hf1_wn_spont_rate'][df1['waveform_km_label']==0], df1['hf1_wn_evoked_rate'][df1['waveform_km_label']==0],
+    inh_rates = pd.concat([df1['hf3_gratings_drift_spont'][df1['waveform_km_label']==0].astype(float), df1['hf3_gratings_evoked_rate'][df1['waveform_km_label']==0]+df1['hf3_gratings_drift_spont'][df1['waveform_km_label']==0].astype(float),
+                        df1['hf1_wn_spont_rate'][df1['waveform_km_label']==0], df1['hf1_wn_evoked_rate'][df1['waveform_km_label']==0]+df1['hf1_wn_spont_rate'][df1['waveform_km_label']==0],
                         df1['fm1_stationary_rec_rate'][df1['waveform_km_label']==0], df1['fm1_active_rec_rate'][df1['waveform_km_label']==0],
                         df1['fm_dark_stationary_rec_rate'][df1['waveform_km_label']==0], df1['fm_dark_active_rec_rate'][df1['waveform_km_label']==0]], axis=1)
     plt.bar(x - width/2, np.nanmedian(exc_rates,a), yerr=np.nanstd(exc_rates,a)/np.sqrt(np.size(exc_rates,a)), color='b', width=width, label='exc')
@@ -2018,6 +2003,7 @@ def make_population_summary(df1, savepath):
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     plt.ylim([0,20])
+    plt.title('median spike rate')
     plt.legend()
     plt.ylabel('sp/sec')
     plt.tight_layout(); pdf.savefig(); plt.close()
@@ -2070,8 +2056,8 @@ def population_analysis(config):
     df.to_pickle(path_out)
     print('writing session summary')
     make_session_summary(df, config['population']['save_path'])
-    print('writing unit summary')
-    unit_df = make_unit_summary(df, config['population']['save_path'])
-    del df
-    print('starting unit population analysis')
-    make_population_summary(unit_df, config['population']['save_path'])
+    # print('writing unit summary')
+    # unit_df = make_unit_summary(df, config['population']['save_path'])
+    # del df
+    # print('starting unit population analysis')
+    # make_population_summary(unit_df, config['population']['save_path'])
