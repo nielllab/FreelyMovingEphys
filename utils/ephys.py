@@ -787,7 +787,9 @@ def fit_glm_vid(model_vid, model_nsp, model_dt, use, nks):
     # subtract mean and renormalize -- necessary? 
     mn_img = np.mean(x[use,:],axis=0)
     x = x-mn_img
-    x = x/np.std(x[use,:],axis =0)
+    img_std = np.std(x[use,:],axis=0)
+    x[:,img_std==0] = 0
+    x = np.nan_to_num(x/img_std,0)
     x = np.append(x,np.ones((nT,1)), axis = 1) # append column of ones
     x = x[use,:]
     # set up prior matrix (regularizer)
@@ -1918,22 +1920,20 @@ def run_ephys_analysis(file_dict):
             model_active = np.convolve(np.abs(model_gz),np.ones(np.int(1/model_dt)),'same')
             use = np.where((np.abs(model_th)<10) & (np.abs(model_phi)<10)& (model_active>40) )[0]
         else:
-            use = np.where((np.abs(model_th)<10) & (np.abs(model_phi)<10))[0]
+            use = np.array([True for i in range(len(model_th))])
         # get video ready for GLM
+        print('setting up video')
         downsamp = 0.25
-        print('setting up video') 
-        movInterp = None; model_vid_sm = 0
-        movInterp = interp1d(worldT,img_norm,'nearest',axis = 0,bounds_error = False) 
-        testimg = movInterp(model_t[0])
+        testimg = img_norm[0,:,:]
         testimg = cv2.resize(testimg,(int(np.shape(testimg)[1]*downsamp), int(np.shape(testimg)[0]*downsamp)))
-        testimg = testimg[5:-5,5:-5]; #remove area affected by eye movement correction
-        model_vid_sm = np.zeros((len(model_t),np.int(np.shape(testimg)[0]*np.shape(testimg)[1])))
-        for i in tqdm(range(len(model_t))):
-            model_vid = movInterp(model_t[i] + model_dt/2)
-            smallvid = cv2.resize(model_vid,(np.int(np.shape(img_norm)[2]*downsamp),np.int(np.shape(img_norm)[1]*downsamp)),interpolation = cv2.INTER_AREA)
+        testimg = testimg[5:-5,5:-5]; # remove area affected by eye movement correction
+        resize_img_norm = np.zeros([np.size(img_norm,0), np.int(np.shape(testimg)[0]*np.shape(testimg)[1])])
+        for i in tqdm(range(np.size(img_norm,0))):
+            smallvid = cv2.resize(img_norm[i,:,:], (np.int(np.shape(img_norm)[2]*downsamp), np.int(np.shape(img_norm)[1]*downsamp)), interpolation=cv2.INTER_LINEAR_EXACT)
             smallvid = smallvid[5:-5,5:-5]
-            #smallvid = smallvid - np.mean(smallvid)
-            model_vid_sm[i,:] = np.reshape(smallvid,np.shape(smallvid)[0]*np.shape(smallvid)[1])
+            resize_img_norm[i,:] = np.reshape(smallvid,np.shape(smallvid)[0]*np.shape(smallvid)[1])
+        movInterp = interp1d(worldT, resize_img_norm, 'nearest', axis=0, bounds_error=False)
+        model_vid_sm = movInterp(model_t)
         nks = np.shape(smallvid); nk = nks[0]*nks[1]
         model_vid_sm[np.isnan(model_vid_sm)]=0
         del movInterp
@@ -2728,8 +2728,11 @@ def load_ephys(csv_filepath):
         all_data: DataFrame of all units marked for pooled analysis, with each index representing a unit across all recordings of a session
     """
     # open the csv file of metadata and pull out all of the desired data paths
-    csv = pd.read_csv(csv_filepath)
-    for_data_pool = csv[csv['load_for_data_pool'] == any(['TRUE' or True or 'True'])]
+    if type(csv_filepath) == str:
+        csv = pd.read_csv(csv_filepath)
+        for_data_pool = csv[csv['load_for_data_pool'] == any(['TRUE' or True or 'True'])]
+    elif type(csv_filepath) == pd.Series:
+        for_data_pool = csv_filepath
     goodsessions = []
     probenames_for_goodsessions = []
     layer5_depth_for_goodsessions = []

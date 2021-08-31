@@ -96,11 +96,6 @@ ephys_analysis:
   write_videos: true                     # write mp4 videos
   recording_list: []                     # list of ephys recording names to analyze (e.g [fm1, hf1_wn]), or empty list (i.e. []) if it should run all found subdirectories
 
-independent_summary:
-  create_summary: true
-  best_fm_light: fm1
-  best_fm_dark: fm1_dark                 # enter false if there is no dark recording
-
 population:                              ### pool data from all 'good' recordings listed in csv file
   pool_h5_files: false                    # pool data
   metadata_csv_path: T:/freely_moving_ephys/population_summaries/completed_experiment_pool.csv
