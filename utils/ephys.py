@@ -587,7 +587,7 @@ def plot_STV(goodcells, movInterp, img_norm, worldT):
     for c, ind in enumerate(goodcells.index):
         sp = model_nsp[c,:].copy()
         sp = np.roll(sp, -lag)
-        sta = model_vid.T @ sp
+        sta = np.nan_to_num(model_vid,0).T @ sp
         sta = np.reshape(sta, nks)
         nsp = np.sum(sp)
         plt.subplot(int(np.ceil(n_units/10)), 10, c+1)
