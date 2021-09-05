@@ -262,7 +262,13 @@ def calc_days_data(csv2, base_path):
 
 if __name__ == '__main__':
     args = get_args()
-    base_path = Path('T:/BinocOptoPreyCapture').expanduser()
+    import platform
+    if platform.system() == 'Linux':
+        base_path = Path('~/NewMonster/T/BinocOptoPreyCapture/').expanduser()
+        print('Running on Linux')
+    else:
+        base_path = Path('T:/BinocOptoPreyCapture').expanduser()
+        print('Running on Windows')
     csv_filepath = os.path.normpath(args.csv_path)
     csv = pd.read_csv(csv_filepath)
     csv['experiment_date'] = pd.to_datetime(csv['experiment_date'],infer_datetime_format=True,format='%m%d%Y').dt.strftime('%m%d%y')
@@ -270,19 +276,18 @@ if __name__ == '__main__':
     csv = csv[csv['experiment_outcome']=='good'].reset_index(drop=True)
     # Format Pandas Dataframe to have Trial number and Stimulus condition
 
-    cols = list(csv.keys()[:-4])
+    cols = list(csv.keys()[:-4]) # Take every column but last 4 which is computer info
     cols.append('Trial')
     cols.append('LaserOn')
     csv2 = pd.DataFrame(columns=cols)
     for ind,row in csv.iterrows():
-        for n in range(1,5):
+        for n in range(1,5): # Trials 1-5
             if '*' in row['{:d}'.format(n)]:
                 csv2 = csv2.append(row[:-4].append(pd.Series([n,True],index=['Trial','LaserOn'])),ignore_index=True)
             else:
                 csv2 = csv2.append(row[:-4].append(pd.Series([n,False],index=['Trial','LaserOn'])),ignore_index=True)
     inds, labels = csv2['Environment'].factorize()
 
-    # row = csv2[(csv2['Wallpaper']==labels[0]) & (csv2['LaserOn']==False)].reset_index(drop=True).iloc[0]
     n = 3
     row = csv2.iloc[n]
     topfile=glob.glob((os.path.normpath(os.path.join(row['drive']+':/','BinocOptoPreyCapture',row['experiment_date'],row['animal_name'],f'{n}','*TOP1.nc'))))[0]# Top nc file
