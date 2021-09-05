@@ -132,9 +132,11 @@ def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=15):
     approachEnds = np.where(np.diff(approach)<0)
     if np.size(approachStarts) != 0:
         firstApproach = np.min(approachStarts)
+        dist_at_fapproach = dist[firstApproach]
         timetoapproach = t[firstApproach] # return this
     else:
         firstApproach = np.nan
+        dist_at_fapproach = np.nan
         timetoapproach = np.nan
     freqapproach= np.size(approachStarts) / movieT # return this
     
@@ -161,7 +163,7 @@ def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=15):
     else:
         print('no capture')
     
-    return timetoapproach, freqapproach, prob_inter, prob_capture
+    return timetoapproach, freqapproach, prob_inter, prob_capture, dist_at_fapproach
 
 def calc_params(config):
     recording_names = [i for i in list_subdirs(config['animal_dir'])]
@@ -174,7 +176,7 @@ def calc_params(config):
         topfile = os.path.join(recordings_dict[dir_name], recording_name + '_TOP1.nc')
 
         az, spd, dist, mouse_xy, Cricket_xy, t, movieT, captureT = calc_basic_param_from_file(topfile)
-        timetoapproach, freqapproach, prob_inter, prob_capture=calc_prob(az, spd, dist, mouse_xy, Cricket_xy, t, movieT)
+        timetoapproach, freqapproach, prob_inter, prob_capture, dist_at_fapproach = calc_prob(az, spd, dist, mouse_xy, Cricket_xy, t, movieT)
 
 
         df = pd.DataFrame({'Angle': az,
@@ -193,6 +195,7 @@ def calc_params(config):
             'FreqApproach': freqapproach,
             'ProbInter': prob_inter,
             'ProbCapture': prob_capture,
+            'dist_at_fapproach': dist_at_fapproach,
         }
         
         ##### Save Data into h5 file #####
@@ -224,6 +227,7 @@ def calc_params(config):
             ax.set_title('DLC Tracking')
             ax.legend(['Mouse', 'Cricket'],bbox_to_anchor=(1.01, 1), fontsize=10)
             ax.set_aspect('equal', 'box')
+            ax.set_ylim(ax.get_ylim()[::-1])        # invert the axis
             plt.tight_layout()
             pdf.savefig()  # saves the current figure into a pdf page
             plt.close()

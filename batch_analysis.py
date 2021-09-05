@@ -14,7 +14,7 @@ import pandas as pd
 import logging
 from pathlib import Path
 
-# from util.params import extract_params
+from util.params import extract_params
 # from util.dlc import run_DLC_Analysis
 # from util.deinterlace import deinterlace_data
 # from util.track_world import track_LED
@@ -43,7 +43,7 @@ def get_args():
 
     return args
 
-
+ 
 def main(csv_filepath, config_path, log_dir, clear_dlc):
     base_path = Path(csv_filepath).parent
 

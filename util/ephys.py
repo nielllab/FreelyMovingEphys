@@ -38,9 +38,9 @@ from scipy.ndimage import shift as imshift
 from sklearn.cluster import KMeans
 from sklearn.linear_model import LinearRegression
 
-from utils.aux_funcs import nanxcorr
-from utils.paths import find, list_subdirs
-from utils.time import open_time
+from util.aux_funcs import nanxcorr
+from util.paths import find, list_subdirs
+from util.time import open_time
 
 def format_spikes(merge_file, samprate):
     """
