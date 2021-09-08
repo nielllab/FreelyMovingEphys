@@ -2,6 +2,7 @@
 population_utils.py
 """
 import numpy as np
+import ast
 import pandas as pd
 import os
 from tqdm import tqdm
@@ -188,7 +189,7 @@ def make_unit_summary(df, savepath):
             power_profiles = row['hf1_wn_lfp_power_profiles']
             ch_shank = int(np.floor(row['ch']/32))
             ch_shank_profile = power_profiles[ch_shank]
-            ch_power = ch_shank_profile[row['ch']%32]
+            ch_power = ch_shank_profile[int(row['ch']%32)]
             layer5cent = row['hf1_wn_lfp_layer5_centers'][ch_shank]
             if row['probe_name'] == 'DB_P64-8':
                 ch_spacing = 25/2
@@ -202,9 +203,10 @@ def make_unit_summary(df, savepath):
             unitfig_power_depth.hlines(y=row['ch']%32, xmin=0, xmax=ch_power, colors='g', linewidth=5)
             unitfig_power_depth.set_ylim([33,-1]); unitfig_power_depth.set_yticks(list(range(-1,num_sites+1))); unitfig_power_depth.set_yticklabels(ch_spacing*np.arange(num_sites+2)-(layer5cent*ch_spacing))
             unitfig_power_depth.set_title('shank='+str(ch_shank)+' site='+str(row['ch']%32)+'\n depth='+str(ch_depth), fontsize=20)
-            newdf.at[row['index'], 'hf1_wn_depth_from_layer5'] = ch_depth
-        except:
-            pass
+            newdf.at[index, 'hf1_wn_depth_from_layer5'] = ch_depth
+        except Exception as e:
+            unitfig_power_depth = unitfig.add_subplot(spec[6:8, 4])
+            unitfig_power_depth.set_title(e)
         try:
             # wn sta
             unitfig_wnsta = unitfig.add_subplot(spec[1, 0])
@@ -241,8 +243,8 @@ def make_unit_summary(df, savepath):
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_wnsaccavg.set_ylim([0,maxval*1.2])
             unitfig_wnsaccavg.set_xlim([-0.5,0.6])
-            newdf.at[row['index'], 'hf1_wn_upsacc_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'hf1_wn_downsacc_modind_t0'] = modind_left[0]
-            newdf.at[row['index'], 'hf1_wn_upsacc_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'hf1_wn_downsacc_modind_t100'] = modind_left[1]
+            newdf.at[index, 'hf1_wn_upsacc_modind_t0'] = modind_right[0]; newdf.at[index, 'hf1_wn_downsacc_modind_t0'] = modind_left[0]
+            newdf.at[index, 'hf1_wn_upsacc_modind_t100'] = modind_right[1]; newdf.at[index, 'hf1_wn_downsacc_modind_t100'] = modind_left[1]
         except:
             pass
         try:
@@ -255,7 +257,7 @@ def make_unit_summary(df, savepath):
             unitfig_wnsrpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_wnsrpupilrad.set_title('WN spike rate vs pupil radius\nmod.ind.='+str(modind), fontsize=20)
             unitfig_wnsrpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'hf1_wn_spike_rate_vs_pupil_radius_modind'] = modind
+            newdf.at[index, 'hf1_wn_spike_rate_vs_pupil_radius_modind'] = modind
         except:
             pass
         try:
@@ -268,7 +270,7 @@ def make_unit_summary(df, savepath):
             unitfig_wnsrvspeed.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_wnsrvspeed.set_title('WN spike rate vs running speed\nmod.ind.='+str(modind), fontsize=20)
             unitfig_wnsrvspeed.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'hf1_wn_spike_rate_vs_spd_modind'] = modind
+            newdf.at[index, 'hf1_wn_spike_rate_vs_spd_modind'] = modind
         except:
             pass
         try:
@@ -302,7 +304,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srvgz.set_title('FM1 spike rate vs gyro_z\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_spike_rate_vs_gz_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_gz_modind_pos'] = modind[1]
+            newdf.at[index, 'fm1_spike_rate_vs_gz_modind_neg'] = modind[0]; newdf.at[index, 'fm1_spike_rate_vs_gz_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -315,7 +317,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srvgx.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srvgx.set_title('FM1 spike rate vs gyro_x\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srvgx.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_spike_rate_vs_gx_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_gx_modind_pos'] = modind[1]
+            newdf.at[index, 'fm1_spike_rate_vs_gx_modind_neg'] = modind[0]; newdf.at[index, 'fm1_spike_rate_vs_gx_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -328,7 +330,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srvgy.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srvgy.set_title('FM1 spike rate vs gyro_y\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srvgy.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_spike_rate_vs_gy_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_gy_modind_pos'] = modind[1]
+            newdf.at[index, 'fm1_spike_rate_vs_gy_modind_neg'] = modind[0]; newdf.at[index, 'fm1_spike_rate_vs_gy_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -361,8 +363,8 @@ def make_unit_summary(df, savepath):
             unitfig_fm1upsacc_gazedEye.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_gazedEye.set_ylabel('sp/sec')
             unitfig_fm1upsacc_gazedEye.set_xlim([-0.5,0.6])
-            newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dEye_modind_t0'] = modind_left[0]
-            newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dEye_modind_t100'] = modind_left[1]
+            newdf.at[index, 'fm1_upsacc_avg_gaze_shift_dEye_modind_t0'] = modind_right[0]; newdf.at[index, 'fm1_downsacc_avg_gaze_shift_dEye_modind_t0'] = modind_left[0]
+            newdf.at[index, 'fm1_upsacc_avg_gaze_shift_dEye_modind_t100'] = modind_right[1]; newdf.at[index, 'fm1_downsacc_avg_gaze_shift_dEye_modind_t100'] = modind_left[1]
         except:
             pass
         try:
@@ -382,8 +384,8 @@ def make_unit_summary(df, savepath):
             unitfig_fm1upsacc_compdEye.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_compdEye.set_ylabel('sp/sec')
             unitfig_fm1upsacc_compdEye.set_xlim([-0.5,0.6])
-            newdf.at[row['index'], 'fm1_upsacc_avg_comp_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dEye_modind_t0'] = modind_left[0]
-            newdf.at[row['index'], 'fm1_upsacc_avg_comp_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dEye_modind_t100'] = modind_left[1]
+            newdf.at[index, 'fm1_upsacc_avg_comp_dEye_modind_t0'] = modind_right[0]; newdf.at[index, 'fm1_downsacc_avg_comp_dEye_modind_t0'] = modind_left[0]
+            newdf.at[index, 'fm1_upsacc_avg_comp_dEye_modind_t100'] = modind_right[1]; newdf.at[index, 'fm1_downsacc_avg_comp_dEye_modind_t100'] = modind_left[1]
         except:
             pass
         try:
@@ -403,8 +405,8 @@ def make_unit_summary(df, savepath):
             unitfig_fm1upsacc_gazedHead.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_gazedHead.set_ylabel('sp/sec')
             unitfig_fm1upsacc_gazedHead.set_xlim([-0.5,0.6])
-            newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dHead_modind_t0'] = modind_left[0]
-            newdf.at[row['index'], 'fm1_upsacc_avg_gaze_shift_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_gaze_shift_dHead_modind_t100'] = modind_left[1]
+            newdf.at[index, 'fm1_upsacc_avg_gaze_shift_dHead_modind_t0'] = modind_right[0]; newdf.at[index, 'fm1_downsacc_avg_gaze_shift_dHead_modind_t0'] = modind_left[0]
+            newdf.at[index, 'fm1_upsacc_avg_gaze_shift_dHead_modind_t100'] = modind_right[1]; newdf.at[index, 'fm1_downsacc_avg_gaze_shift_dHead_modind_t100'] = modind_left[1]
         except:
             pass
         try:
@@ -424,8 +426,8 @@ def make_unit_summary(df, savepath):
             unitfig_fm1upsacc_compdHead.set_ylim([0,maxval*1.2])
             unitfig_fm1upsacc_compdHead.set_ylabel('sp/sec')
             unitfig_fm1upsacc_compdHead.set_xlim([-0.5,0.6])
-            newdf.at[row['index'], 'fm1_upsacc_avg_comp_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dHead_modind_t0'] = modind_left[0]
-            newdf.at[row['index'], 'fm1_upsacc_avg_comp_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_avg_comp_dHead_modind_t100'] = modind_left[1]
+            newdf.at[index, 'fm1_upsacc_avg_comp_dHead_modind_t0'] = modind_right[0]; newdf.at[index, 'fm1_downsacc_avg_comp_dHead_modind_t0'] = modind_left[0]
+            newdf.at[index, 'fm1_upsacc_avg_comp_dHead_modind_t100'] = modind_right[1]; newdf.at[index, 'fm1_downsacc_avg_comp_dHead_modind_t100'] = modind_left[1]
         except:
             pass
         try:
@@ -455,8 +457,8 @@ def make_unit_summary(df, savepath):
             unitfig_ori_tuning.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
             unitfig_ori_tuning.legend()
             unitfig_ori_tuning.set_ylim([0,np.nanmax(row['hf3_gratings_ori_tuning'][:,:,:])*1.2])
-            newdf.at[row['index'], 'hf3_gratings_osi_low'] = osi[0]; newdf.at[row['index'], 'hf3_gratings_osi_mid'] = osi[1]; newdf.at[row['index'], 'hf3_gratings_osi_high'] = osi[2]
-            newdf.at[row['index'], 'hf3_gratings_dsi_low'] = dsi[0]; newdf.at[row['index'], 'hf3_gratings_dsi_mid'] = dsi[1]; newdf.at[row['index'], 'hf3_gratings_dsi_high'] = dsi[2]
+            newdf.at[index, 'hf3_gratings_osi_low'] = osi[0]; newdf.at[index, 'hf3_gratings_osi_mid'] = osi[1]; newdf.at[index, 'hf3_gratings_osi_high'] = osi[2]
+            newdf.at[index, 'hf3_gratings_dsi_low'] = dsi[0]; newdf.at[index, 'hf3_gratings_dsi_mid'] = dsi[1]; newdf.at[index, 'hf3_gratings_dsi_high'] = dsi[2]
         except:
             pass
         try:
@@ -517,8 +519,8 @@ def make_unit_summary(df, savepath):
             maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
             unitfig_fm1saccavg.set_ylim([0,maxval*1.2])
             unitfig_fm1saccavg.set_xlim([-0.5,0.6])
-            newdf.at[row['index'], 'fm1_upsacc_modind_t0'] = modind_right[0]; newdf.at[row['index'], 'fm1_downsacc_modind_t0'] = modind_left[0]
-            newdf.at[row['index'], 'fm1_upsacc_modind_t100'] = modind_right[1]; newdf.at[row['index'], 'fm1_downsacc_modind_t100'] = modind_left[1]
+            newdf.at[index, 'fm1_upsacc_modind_t0'] = modind_right[0]; newdf.at[index, 'fm1_downsacc_modind_t0'] = modind_left[0]
+            newdf.at[index, 'fm1_upsacc_modind_t100'] = modind_right[1]; newdf.at[index, 'fm1_downsacc_modind_t100'] = modind_left[1]
         except:
             pass
         try:
@@ -531,7 +533,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srpupilrad.set_title('FM1 spike rate vs pupil radius\nmod.ind.='+str(modind), fontsize=20)
             unitfig_fm1srpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'hf1_wn_spike_rate_vs_pupil_radius_modind'] = modind
+            newdf.at[index, 'hf1_wn_spike_rate_vs_pupil_radius_modind'] = modind
         except:
             pass
         try:
@@ -544,7 +546,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srth.set_title('FM1 spike rate vs theta\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srth.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_spike_rate_vs_theta_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_theta_modind_pos'] = modind[1]
+            newdf.at[index, 'fm1_spike_rate_vs_theta_modind_neg'] = modind[0]; newdf.at[index, 'fm1_spike_rate_vs_theta_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -557,7 +559,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srphi.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srphi.set_title('FM1 spike rate vs phi\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srphi.set_ylim(0,np.nanmax(tuning[:]*1.2))
-            newdf.at[row['index'], 'fm1_spike_rate_vs_phi_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_phi_modind_pos'] = modind[1]
+            newdf.at[index, 'fm1_spike_rate_vs_phi_modind_neg'] = modind[0]; newdf.at[index, 'fm1_spike_rate_vs_phi_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -570,7 +572,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srroll.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srroll.set_title('FM1 spike rate vs roll\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srroll.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srroll.set_xlim(-30,30)
-            newdf.at[row['index'], 'fm1_spike_rate_vs_roll_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_roll_modind_pos'] = modind[1]
+            newdf.at[index, 'fm1_spike_rate_vs_roll_modind_neg'] = modind[0]; newdf.at[index, 'fm1_spike_rate_vs_roll_modind_pos'] = modind[1]
         except:
             pass
         try:
@@ -583,7 +585,7 @@ def make_unit_summary(df, savepath):
             unitfig_fm1srpitch.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
             unitfig_fm1srpitch.set_title('FM1 spike rate vs pitch\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
             unitfig_fm1srpitch.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srpitch.set_xlim(-30,30)
-            newdf.at[row['index'], 'fm1_spike_rate_vs_pitch_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_pitch_modind_pos'] = modind[1]
+            newdf.at[index, 'fm1_spike_rate_vs_pitch_modind_neg'] = modind[0]; newdf.at[index, 'fm1_spike_rate_vs_pitch_modind_pos'] = modind[1]
         except:
             pass
 
@@ -599,7 +601,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darksrvgz.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_darksrvgz.set_title('FM DARK spike rate vs gyro_z\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
                 unitfig_darksrvgz.set_ylim(0,np.nanmax(tuning[:]*1.2))
-                newdf.at[row['index'], darkfm+'_wn_spike_rate_vs_gz_modind_neg'] = modind[0]; newdf.at[row['index'], darkfm+'_spike_rate_vs_gz_modind_pos'] = modind[1]
+                newdf.at[index, darkfm+'_wn_spike_rate_vs_gz_modind_neg'] = modind[0]; newdf.at[index, darkfm+'_spike_rate_vs_gz_modind_pos'] = modind[1]
             except:
                 pass
             try:
@@ -612,7 +614,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darksrvgx.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_darksrvgx.set_title('FM DARK spike rate vs gyro_x\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
                 unitfig_darksrvgx.set_ylim(0,np.nanmax(tuning[:]*1.2))
-                newdf.at[row['index'], darkfm+'_spike_rate_vs_gx_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_gx_modind_pos'] = modind[1]
+                newdf.at[index, darkfm+'_spike_rate_vs_gx_modind_neg'] = modind[0]; newdf.at[index, 'fm1_spike_rate_vs_gx_modind_pos'] = modind[1]
             except:
                 pass
             try:
@@ -625,7 +627,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darksrvgy.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_darksrvgy.set_title('FM DARK spike rate vs gyro_y\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
                 unitfig_darksrvgy.set_ylim(0,np.nanmax(tuning[:]*1.2))
-                newdf.at[row['index'], darkfm+'_spike_rate_vs_gy_modind_neg'] = modind[0]; newdf.at[row['index'], darkfm+'_spike_rate_vs_gy_modind_pos'] = modind[1]
+                newdf.at[index, darkfm+'_spike_rate_vs_gy_modind_neg'] = modind[0]; newdf.at[index, darkfm+'_spike_rate_vs_gy_modind_pos'] = modind[1]
             except:
                 pass
             try:
@@ -645,8 +647,8 @@ def make_unit_summary(df, savepath):
                 unitfig_darkupsacc_gazedEye.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_gazedEye.set_ylabel('sp/sec')
                 unitfig_darkupsacc_gazedEye.set_xlim([-0.5,0.6])
-                newdf.at[row['index'], darkfm+'_upsacc_avg_gaze_shift_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dEye_modind_t0'] = modind_left[0]
-                newdf.at[row['index'], darkfm+'_upsacc_avg_gaze_shift_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dEye_modind_t100'] = modind_left[1]
+                newdf.at[index, darkfm+'_upsacc_avg_gaze_shift_dEye_modind_t0'] = modind_right[0]; newdf.at[index, darkfm+'_downsacc_avg_gaze_shift_dEye_modind_t0'] = modind_left[0]
+                newdf.at[index, darkfm+'_upsacc_avg_gaze_shift_dEye_modind_t100'] = modind_right[1]; newdf.at[index, darkfm+'_downsacc_avg_gaze_shift_dEye_modind_t100'] = modind_left[1]
             except:
                 pass
             try:
@@ -666,8 +668,8 @@ def make_unit_summary(df, savepath):
                 unitfig_darkupsacc_compdEye.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_compdEye.set_ylabel('sp/sec')
                 unitfig_darkupsacc_compdEye.set_xlim([-0.5,0.6])
-                newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dEye_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dEye_modind_t0'] = modind_left[0]
-                newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dEye_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dEye_modind_t100'] = modind_left[1]
+                newdf.at[index, darkfm+'_upsacc_avg_comp_dEye_modind_t0'] = modind_right[0]; newdf.at[index, darkfm+'_downsacc_avg_comp_dEye_modind_t0'] = modind_left[0]
+                newdf.at[index, darkfm+'_upsacc_avg_comp_dEye_modind_t100'] = modind_right[1]; newdf.at[index, darkfm+'_downsacc_avg_comp_dEye_modind_t100'] = modind_left[1]
             except:
                 pass
             try:
@@ -687,8 +689,8 @@ def make_unit_summary(df, savepath):
                 unitfig_darkupsacc_gazedHead.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_gazedHead.set_ylabel('sp/sec')
                 unitfig_darkupsacc_gazedHead.set_xlim([-0.5,0.6])
-                newdf.at[row['index'], darkfm+'_wn_upsacc_avg_gaze_shift_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dHead_modind_t0'] = modind_left[0]
-                newdf.at[row['index'], darkfm+'_upsacc_avg_gaze_shift_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_gaze_shift_dHead_modind_t100'] = modind_left[1]
+                newdf.at[index, darkfm+'_wn_upsacc_avg_gaze_shift_dHead_modind_t0'] = modind_right[0]; newdf.at[index, darkfm+'_downsacc_avg_gaze_shift_dHead_modind_t0'] = modind_left[0]
+                newdf.at[index, darkfm+'_upsacc_avg_gaze_shift_dHead_modind_t100'] = modind_right[1]; newdf.at[index, darkfm+'_downsacc_avg_gaze_shift_dHead_modind_t100'] = modind_left[1]
             except:
                 pass
             try:
@@ -708,8 +710,8 @@ def make_unit_summary(df, savepath):
                 unitfig_darkupsacc_compdHead.set_ylim([0,maxval*1.2])
                 unitfig_darkupsacc_compdHead.set_ylabel('sp/sec')
                 unitfig_darkupsacc_compdHead.set_xlim([-0.5,0.6])
-                newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dHead_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dHead_modind_t0'] = modind_left[0]
-                newdf.at[row['index'], darkfm+'_upsacc_avg_comp_dHead_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_avg_comp_dHead_modind_t100'] = modind_left[1]
+                newdf.at[index, darkfm+'_upsacc_avg_comp_dHead_modind_t0'] = modind_right[0]; newdf.at[index, darkfm+'_downsacc_avg_comp_dHead_modind_t0'] = modind_left[0]
+                newdf.at[index, darkfm+'_upsacc_avg_comp_dHead_modind_t100'] = modind_right[1]; newdf.at[index, darkfm+'_downsacc_avg_comp_dHead_modind_t100'] = modind_left[1]
             except:
                 pass
             try:
@@ -727,8 +729,8 @@ def make_unit_summary(df, savepath):
                 maxval = np.max(np.maximum(upsacc_avg[:],downsacc_avg[:]))
                 unitfig_darksaccavg.set_ylim([0,maxval*1.2])
                 unitfig_darksaccavg.set_xlim([-0.5,0.6])
-                newdf.at[row['index'], darkfm+'_upsacc_modind_t0'] = modind_right[0]; newdf.at[row['index'], darkfm+'_downsacc_modind_t0'] = modind_left[0]
-                newdf.at[row['index'], darkfm+'_upsacc_modind_t100'] = modind_right[1]; newdf.at[row['index'], darkfm+'_downsacc_modind_t100'] = modind_left[1]
+                newdf.at[index, darkfm+'_upsacc_modind_t0'] = modind_right[0]; newdf.at[index, darkfm+'_downsacc_modind_t0'] = modind_left[0]
+                newdf.at[index, darkfm+'_upsacc_modind_t100'] = modind_right[1]; newdf.at[index, darkfm+'_downsacc_modind_t100'] = modind_left[1]
             except:
                 pass
             try:
@@ -741,7 +743,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darksrpupilrad.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_darksrpupilrad.set_title('FM DARK spike rate vs pupil radius\nmod.ind.='+str(modind), fontsize=20)
                 unitfig_darksrpupilrad.set_ylim(0,np.nanmax(tuning[:]*1.2))
-                newdf.at[row['index'], darkfm+'_spike_rate_vs_pupil_radius_modind'] = modind
+                newdf.at[index, darkfm+'_spike_rate_vs_pupil_radius_modind'] = modind
             except:
                 pass
             try:
@@ -754,7 +756,7 @@ def make_unit_summary(df, savepath):
                 unitfig_darksrth.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_darksrth.set_title('FM DARK spike rate vs theta\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
                 unitfig_darksrth.set_ylim(0,np.nanmax(tuning[:]*1.2))
-                newdf.at[row['index'], darkfm+'_spike_rate_vs_theta_modind_neg'] = modind[0]; newdf.at[row['index'], darkfm+'_spike_rate_vs_theta_modind_pos'] = modind[1]
+                newdf.at[index, darkfm+'_spike_rate_vs_theta_modind_neg'] = modind[0]; newdf.at[index, darkfm+'_spike_rate_vs_theta_modind_pos'] = modind[1]
             except:
                 pass
             try:
@@ -767,7 +769,7 @@ def make_unit_summary(df, savepath):
                 unitfig_fm1srphi.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_fm1srphi.set_title('FM DARK spike rate vs phi\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
                 unitfig_fm1srphi.set_ylim(0,np.nanmax(tuning[:]*1.2))
-                newdf.at[row['index'], 'fm1_spike_rate_vs_phi_modind_neg'] = modind[0]; newdf.at[row['index'], 'fm1_spike_rate_vs_phi_modind_pos'] = modind[1]
+                newdf.at[index, 'fm1_spike_rate_vs_phi_modind_neg'] = modind[0]; newdf.at[index, 'fm1_spike_rate_vs_phi_modind_pos'] = modind[1]
             except:
                 pass
             try:
@@ -780,7 +782,7 @@ def make_unit_summary(df, savepath):
                 unitfig_fm1srroll.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_fm1srroll.set_title('FM DARK spike rate vs roll\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
                 unitfig_fm1srroll.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srroll.set_xlim(-30,30)
-                newdf.at[row['index'], darkfm+'_spike_rate_vs_roll_modind_neg'] = modind[0]; newdf.at[row['index'], darkfm+'_spike_rate_vs_roll_modind_pos'] = modind[1]
+                newdf.at[index, darkfm+'_spike_rate_vs_roll_modind_neg'] = modind[0]; newdf.at[index, darkfm+'_spike_rate_vs_roll_modind_pos'] = modind[1]
             except:
                 pass
             try:
@@ -793,7 +795,7 @@ def make_unit_summary(df, savepath):
                 unitfig_fm1srpitch.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
                 unitfig_fm1srpitch.set_title('FM1 spike rate vs pitch\nmod.ind.='+str(modind[0])+'/'+str(modind[1]), fontsize=20)
                 unitfig_fm1srpitch.set_ylim(0,np.nanmax(tuning[:]*1.2)); unitfig_fm1srpitch.set_xlim(-30,30)
-                newdf.at[row['index'], darkfm+'_spike_rate_vs_pitch_modind_neg'] = modind[0]; newdf.at[row['index'], darkfm+'_spike_rate_vs_pitch_modind_pos'] = modind[1]
+                newdf.at[index, darkfm+'_spike_rate_vs_pitch_modind_neg'] = modind[0]; newdf.at[index, darkfm+'_spike_rate_vs_pitch_modind_pos'] = modind[1]
             except:
                 pass
 
@@ -1055,7 +1057,7 @@ def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along
     # plt.rcParams.update({'font.size': 22})
     fig = plt.subplot(n[0],n[1],n[2])
     if force_range is None:
-        force_range = np.arange(-0.3,0.305,0.05)
+        force_range = np.arange(0,0.310,0.05)
     for km in range(2):
         if km == 0:
             c = 'g'
@@ -1086,12 +1088,12 @@ def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along
         tuning_err = bin_std / np.sqrt(hist)
         plt.plot(x, y, c+'.')
         if along_y == False:
-            plt.plot(bin_edges[:-1], bin_means, c+'-')
+            plt.plot(bin_edges[:-1], bin_means, c+'-', markersize=2)
             plt.fill_between(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
             num_outliers = len([i for i in x if i>np.max(force_range) or i<np.min(force_range)])
             plt.xlim([np.min(force_range), np.max(force_range)])
         elif along_y == True:
-            plt.plot(bin_means, bin_edges[:-1], c+'-')
+            plt.plot(bin_means, bin_edges[:-1], c+'-', markersize=2)
             plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
             num_outliers = len([i for i in y if i>np.max(force_range) or i<np.min(force_range)])
             plt.gca().invert_yaxis()
@@ -1169,7 +1171,7 @@ def find_nearest(array, value):
 
 def var_around_saccade(df1, movement):
     sessions = [i for i in df1['session'].unique() if type(i) != float]
-    n_sessions = 9
+    n_sessions = 10
     trange = np.arange(-1,1.1,0.025)
     fig = plt.subplots(n_sessions,4, figsize=(20,30))
     count = 1
@@ -1202,11 +1204,12 @@ def var_around_saccade(df1, movement):
                 rightsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
                 leftsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
 
-            deye_mov_right = np.zeros([len(rightsacc), len(trange)])
-            deye_mov_left = np.zeros([len(leftsacc), len(trange)])
-            dgz_mov_right = np.zeros([len(rightsacc), len(trange)])
-            dgz_mov_left = np.zeros([len(leftsacc), len(trange)])
+            deye_mov_right = np.zeros([len(rightsacc), len(trange)]); deye_mov_left = np.zeros([len(leftsacc), len(trange)])
+            dgz_mov_right = np.zeros([len(rightsacc), len(trange)]); dgz_mov_left = np.zeros([len(leftsacc), len(trange)])
+            dhead_mov_right = np.zeros([len(rightsacc), len(trange)]); dhead_mov_left = np.zeros([len(leftsacc), len(trange)])
             
+            dhead = dhead(eyeT[0:-1])
+
             for sind in range(len(rightsacc)):
                 s = rightsacc[sind]
                 mov_ind = np.where([eyeT==find_nearest(eyeT, s)])[1]
@@ -1215,6 +1218,8 @@ def var_around_saccade(df1, movement):
                     deye_mov_right[sind,:] = dEye[np.array(trange_inds)]
                 if np.max(trange_inds) < len(dgz):
                     dgz_mov_right[sind,:] = dgz[np.array(trange_inds)]
+                if np.max(trange_inds) < len(dhead):
+                    dhead_mov_right[sind,:] = dhead[np.array(trange_inds)]
             for sind in range(len(leftsacc)):
                 s = leftsacc[sind]
                 mov_ind = np.where([eyeT==find_nearest(eyeT, s)])[1]
@@ -1223,6 +1228,8 @@ def var_around_saccade(df1, movement):
                     deye_mov_left[sind,:] = dEye[np.array(trange_inds)]
                 if np.max(trange_inds) < len(dgz):
                     dgz_mov_left[sind,:] = dgz[np.array(trange_inds)]
+                if np.max(trange_inds) < len(dhead):
+                    dhead_mov_left[sind,:] = dhead[np.array(trange_inds)]
             
             plt.subplot(n_sessions,4, count)
             count += 1
@@ -1237,17 +1244,23 @@ def var_around_saccade(df1, movement):
             plt.ylabel('cumulative deye')
             plt.subplot(n_sessions,4, count)
             count += 1
-            plt.plot(np.nanmean(dgz_mov_right,0), color='#1f77b4')
-            plt.plot(np.nanmean(dgz_mov_left,0), color='r')
+            plt.plot(np.nanmean(dhead_mov_right,0), color='#1f77b4')
+            plt.plot(np.nanmean(dhead_mov_left,0), color='r')
             plt.ylabel('dhead')
             plt.subplot(n_sessions,4, count)
             count += 1
-            plt.plot(np.nancumsum(np.nanmean(dgz_mov_right,0)), color='#1f77b4')
-            plt.plot(np.nancumsum(np.nanmean(dgz_mov_left,0)), color='r')
+            plt.plot(np.nancumsum(np.nanmean(dhead_mov_right,0)), color='#1f77b4')
+            plt.plot(np.nancumsum(np.nanmean(dhead_mov_left,0)), color='r')
             plt.ylabel('cumulative dhead')
 
     plt.tight_layout()
     return fig
+
+def len_without_nan(x_list):
+    count = []
+    for x in x_list:
+        count.append(len(x[~np.isnan(x)]))
+    return np.sum(count)
 
 def make_population_summary(df1, savepath):
     """
@@ -1367,12 +1380,14 @@ def make_population_summary(df1, savepath):
             df1.at[ind, 'responsive_to_contrast'] = np.abs(tuning[-2] - tuning[1]) > 1
         else:
             df1.at[ind, 'responsive_to_contrast'] = False
-    depth_range = [np.max(df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True]), np.min(df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True])]
+    depth_range = [np.max(df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True])+50, np.min(df1['hf1_wn_depth_from_layer5'][df1['responsive_to_contrast']==True])+50]
 
     ### contrast
     crfs0 = np.zeros([len(df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==0]),11])
     crfs1 = np.zeros([len(df1['hf1_wn_crf_tuning'][df1['waveform_km_label']==1]),11])
     for i, x in df1['hf1_wn_crf_tuning'].iteritems():
+        if type(x) == str:
+            x = np.array([np.nan if i=='nan' else i for i in list(x.split(' ')[1:-2])])
         if type(x) != float:
             df1.at[i, 'hf1_wn_spont_rate'] = x[0]
             df1.at[i, 'hf1_wn_max_contrast_rate'] = x[-1]
@@ -1392,6 +1407,15 @@ def make_population_summary(df1, savepath):
         except:
             pass
 
+    # plt.figure()
+    # for i in range(np.size(crfs0, 0)):
+    #     plt.plot(crfs0[i,:], alpha=0.5)
+    # plt.tight_layout(); pdf.savefig(); plt.close()
+    # plt.figure()
+    # for i in range(np.size(crfs1, 0)):
+    #     plt.plot(crfs1[i,:], alpha=0.5)
+    # plt.tight_layout(); pdf.savefig(); plt.close()
+
     plt.subplots(2,3, figsize=(15,10))
     n = 1
 
@@ -1402,13 +1426,12 @@ def make_population_summary(df1, savepath):
     n += 1
     plt.subplot(2,3,n)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast spont rate (sp/sec)')
-    plt.plot(crfs0[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.')
-    plt.plot(crfs1[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.'); plt.ylim(depth_range)
-    stat2use = 'mean'
-    force_range = np.arange(-650,650,100)
+    plt.plot(df1['hf1_wn_spont_rate'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.', markersize=1)
+    plt.plot(df1['hf1_wn_spont_rate'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.', markersize=1); plt.ylim(depth_range)
+    stat2use = 'median'
+    force_range = np.arange(-650,750,100)
     for count in range(2):
-        crf = [crfs0, crfs1][count]
-        x = crf[:,0]
+        x = df1['hf1_wn_spont_rate'][df1['waveform_km_label']==count]
         y = df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==count]
         c = ['g','b'][count]
         bin_means, bin_edges, bin_number = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
@@ -1417,17 +1440,16 @@ def make_population_summary(df1, savepath):
         tuning_err = bin_std / np.sqrt(hist)
         plt.plot(bin_means, bin_edges[:-1], c+'-')
         plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
-    plt.xlim([-5,30])
-    plt.title('pts in data='+str(len(crfs0[:,0])+len(crfs1[:,0])))
+    # plt.xlim([-5,30])
+    plt.title('pts in data='+str(len_without_nan([crfs0[:,0], crfs1[:,0]])))
     n += 1
     plt.subplot(2,3,n)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('max contrast rate (sp/sec)')
-    plt.plot(crfs0[:,-1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.')
-    plt.plot(crfs1[:,-1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.'); plt.ylim(depth_range)
-    stat2use = 'mean'
+    plt.plot(df1['hf1_wn_max_contrast_rate'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.', markersize=1)
+    plt.plot(df1['hf1_wn_max_contrast_rate'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.', markersize=1); plt.ylim(depth_range)
+    stat2use = 'median'
     for count in range(2):
-        crf = [crfs0, crfs1][count]
-        x = crf[:,-1]
+        x = df1['hf1_wn_max_contrast_rate'][df1['waveform_km_label']==count]
         y = df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==count]
         c = ['g','b'][count]
         bin_means, bin_edges, bin_number = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
@@ -1436,17 +1458,16 @@ def make_population_summary(df1, savepath):
         tuning_err = bin_std / np.sqrt(hist)
         plt.plot(bin_means, bin_edges[:-1], c+'-')
         plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
-    plt.xlim([-5,30])
-    plt.title('pts in data='+str(len(crfs0[:,0])+len(crfs1[:,0])))
+    # plt.xlim([-5,50])
+    plt.title('pts in data='+str(len_without_nan([crfs0[:,-1], crfs1[:,-1]])))
     n += 1
     plt.subplot(2,3,n)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast evoked rate (sp/sec)')
-    plt.plot(crfs0[:,-1]-crfs0[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.')
-    plt.plot(crfs1[:,-1]-crfs1[:,0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.'); plt.ylim(depth_range)
-    stat2use = 'mean'
+    plt.plot(df1['hf1_wn_evoked_rate'][df1['waveform_km_label']==0], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==0], 'g.', markersize=1)
+    plt.plot(df1['hf1_wn_evoked_rate'][df1['waveform_km_label']==1], df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==1], 'b.', markersize=1); plt.ylim(depth_range)
+    stat2use = 'median'
     for count in range(2):
-        crf = [crfs0, crfs1][count]
-        x = crf[:,-1] - crf[:,0]
+        x = df1['hf1_wn_evoked_rate'][df1['waveform_km_label']==count]
         y = df1['hf1_wn_depth_from_layer5'][df1['waveform_km_label']==count]
         c = ['g','b'][count]
         bin_means, bin_edges, bin_number = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=stat2use, bins=force_range)
@@ -1455,11 +1476,11 @@ def make_population_summary(df1, savepath):
         tuning_err = bin_std / np.sqrt(hist)
         plt.plot(bin_means, bin_edges[:-1], c+'-')
         plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
-    plt.xlim([-15,30])
-    plt.title('pts in data='+str(len(crfs0[:,-1] - crfs0[:,0])+len(crfs1[:,-1] - crfs1[:,0])))
+    # plt.xlim([-10,30])
+    plt.title('pts in data='+str(len_without_nan([crfs0[:,-1] - crfs0[:,0], crfs1[:,-1] - crfs1[:,0]])))
     
     n += 1
-    fig = plot_var_vs_var(df1, 'hf1_wn_crf_modind', 'hf1_wn_depth_from_layer5', (2,3,n), filter_for={'responsive_to_contrast':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'hf1_wn_crf_modind', 'hf1_wn_depth_from_layer5', (2,3,n), filter_for={'responsive_to_contrast':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('wn contrast modulation index'); plt.legend(handles=[bluepatch, greenpatch]); plt.gca().invert_yaxis()
 
     plt.tight_layout(); pdf.savefig(); plt.close()
@@ -1496,10 +1517,15 @@ def make_population_summary(df1, savepath):
         try:
             mean_for_sf = np.array([np.mean(df1.at[ind,'norm_ori_tuning_low']), np.mean(df1.at[ind,'norm_ori_tuning_mid']), np.mean(df1.at[ind,'norm_ori_tuning_high'])])
             mean_for_sf[mean_for_sf<0] = 0
-            df1.at[ind, 'hf3_gratings_evoked_rate'] = np.max(mean_for_sf)
+            df1.at[ind, 'hf3_gratings_evoked_rate'] = np.max(mean_for_sf) - row['hf3_gratings_drift_spont']
         except:
             pass
 
+    for ind, row in df1.iterrows():
+        if type(row['hf3_gratings_ori_tuning_tf']) == str:
+            df1.at[ind, 'hf3_gratings_ori_tuning_tf'] = np.array(ast.literal_eval(row['hf3_gratings_ori_tuning_tf'].replace('   ',' ').replace('  ',' ').replace('[ ','[').replace(' ]',']').replace(' ', ',').replace(',,',',')))
+        if type(row['hf3_gratings_ori_tuning']) == str:
+            df1.at[ind, 'hf3_gratings_ori_tuning'] = np.array(ast.literal_eval(row['hf3_gratings_ori_tuning'].replace('   ',' ').replace('  ',' ').replace('[ ','[').replace(' ]',']').replace(' ', ',').replace(',,',',')))
     for ind, row in df1.iterrows():
         if type(row['hf3_gratings_ori_tuning_tf']) != float:
             tuning = np.nanmean(row['hf3_gratings_ori_tuning'],1)
@@ -1516,12 +1542,12 @@ def make_population_summary(df1, savepath):
     plt.title('fraction responsive to gratings'); plt.ylim([0,1])
 
     n += 1
-    fig = plot_var_vs_var(df1, 'hf3_gratings_drift_spont', 'hf1_wn_depth_from_layer5', (3,11,n), force_range=np.arange(-650,650,100), along_y=True, use_median=True)
+    fig = plot_var_vs_var(df1, 'hf3_gratings_drift_spont', 'hf1_wn_depth_from_layer5', (3,11,n), force_range=np.arange(-650,750,100), along_y=True, use_median=True)
     plt.ylabel('depth relative to layer 5'); plt.xlabel('grat spont rate'); plt.gca().invert_yaxis()
 
     n += 1
-    fig = plot_var_vs_var(df1, 'hf3_gratings_evoked_rate', 'hf1_wn_depth_from_layer5', (3,11,n), force_range=np.arange(-650,650,100), along_y=True, use_median=True)
-    plt.ylabel('depth relative to layer 5'); plt.xlabel('grat spont rate'); plt.gca().invert_yaxis()
+    fig = plot_var_vs_var(df1, 'hf3_gratings_evoked_rate', 'hf1_wn_depth_from_layer5', (3,11,n), force_range=np.arange(-650,750,100), along_y=True, use_median=True)
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('grat evoked rate'); plt.gca().invert_yaxis()
 
     n += 1
     plt.subplot(3,11,n)
@@ -1536,7 +1562,7 @@ def make_population_summary(df1, savepath):
     plt.xlabel('prefered temporal frequency'); plt.ylabel('unit count')
 
     n += 1
-    fig = plot_var_vs_var(df1, 'osi_for_sf_pref', 'hf1_wn_depth_from_layer5', (3,11,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, use_median=True, abs=True)
+    fig = plot_var_vs_var(df1, 'osi_for_sf_pref', 'hf1_wn_depth_from_layer5', (3,11,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,750,100), along_y=True, use_median=True, abs=True)
     plt.xlabel('orientation selectivity index for prefered sf'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
 
@@ -1621,12 +1647,12 @@ def make_population_summary(df1, savepath):
     plt.ylabel('direction selectivity index for prefered sf'); plt.xlabel('head pitch negative-direction modulation index')
 
     n += 1
-    fig = plot_var_vs_var(df1, 'dsi_for_sf_pref', 'hf1_wn_depth_from_layer5', (3,11,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'dsi_for_sf_pref', 'hf1_wn_depth_from_layer5', (3,11,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('direction selectivity index for prefered sf'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
 
     n += 1
-    fig = plot_var_vs_var(df1, 'sf_pref', 'hf1_wn_depth_from_layer5', (3,11,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'sf_pref', 'hf1_wn_depth_from_layer5', (3,11,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('prefered spatial frequency'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
 
@@ -1642,14 +1668,25 @@ def make_population_summary(df1, savepath):
     plt.subplots(2,2,figsize=(24,10))
     ax = plt.subplot(2,2,1)
     for ind, row in df1.iterrows():
+        if type(row['fm1_spikeT']) == str:
+            df1.at[ind,'fm1_spikeT'] = ast.literal_eval(row['fm1_spikeT'].replace('   ',' ').replace('  ',' ').replace('[ ','[').replace(' ]',']').replace(' ', ',').replace(',,',','))
+        if type(row['hf3_gratings_spikeT']) == str:
+            df1.at[ind,'hf3_gratings_spikeT'] = ast.literal_eval(row['hf3_gratings_spikeT'].replace('   ',' ').replace('  ',' ').replace('[ ','[').replace(' ]',']').replace(' ', ',').replace(',,',','))
+        if type(row['fm_dark_spikeT']) == str:
+            df1.at[ind,'fm_dark_spikeT'] = ast.literal_eval(row['fm_dark_spikeT'].replace('   ',' ').replace('  ',' ').replace('[ ','[').replace(' ]',']').replace(' ', ',').replace(',,',','))
+        if type(row['hf1_wn_spikeT']) == str:
+            df1.at[ind,'hf1_wn_spikeT'] = ast.literal_eval(row['hf1_wn_spikeT'].replace('   ',' ').replace('  ',' ').replace('[ ','[').replace(' ]',']').replace(' ', ',').replace(',,',','))
+
+    for ind, row in df1.iterrows():
         if type(row['fm1_spikeT']) != float:
             df1.at[ind,'fm1_rec_rate'] = len(row['fm1_spikeT']) / (row['fm1_spikeT'][-1] - row['fm1_spikeT'][0])
-        if type(row['hf3_gratings_spikeT']) != float:
-            df1.at[ind,'hf3_gratings_rec_rate'] = len(row['hf3_gratings_spikeT']) / (row['hf3_gratings_spikeT'][-1] - row['hf3_gratings_spikeT'][0])
         if type(row['fm_dark_spikeT']) != float:
             df1.at[ind,'fm_dark_rec_rate'] = len(row['fm_dark_spikeT']) / (row['fm_dark_spikeT'][-1] - row['fm_dark_spikeT'][0])
+        if type(row['hf3_gratings_spikeT']) != float:
+            df1.at[ind,'hf3_gratings_rec_rate'] = len(row['hf3_gratings_spikeT']) / (row['hf3_gratings_spikeT'][-1] - row['hf3_gratings_spikeT'][0])
         if type(row['hf1_wn_spikeT']) != float:
             df1.at[ind,'hf1_wn_rec_rate'] = len(row['hf1_wn_spikeT']) / (row['hf1_wn_spikeT'][-1] - row['hf1_wn_spikeT'][0])
+    
     labels = ['grat', 'wn', 'fm light', 'fm dark']
     x = np.arange(len(labels))
     width = 0.35; a = 1
@@ -1754,38 +1791,44 @@ def make_population_summary(df1, savepath):
 
     plt.tight_layout(); pdf.savefig(); plt.close()
 
+    for ind, row in df1.iterrows():
+        if type(row['fm1_spikeT']) != float:
+            df1.at[ind, 'fires_2sp_sec'] = (True if (len(row['fm1_spikeT'])/np.nanmax(row['fm1_eyeT']))>2 else False)
+        else:
+            df1.at[ind, 'fires_2sp_sec'] = False
+
     ### movement signals along depth
     plt.subplots(2,4, figsize=(20,10))
     n = 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_roll_modind_pos', 'hf1_wn_depth_from_layer5', (3,4,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_roll_modind_pos', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'fires_2sp_sec':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('spike rate modulation with positive head roll'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_roll_modind_neg', 'hf1_wn_depth_from_layer5', (3,4,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_roll_modind_neg', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'fires_2sp_sec':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('spike rate modulation with negative head roll'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_pos', 'hf1_wn_depth_from_layer5', (3,4,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_pos', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'fires_2sp_sec':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('spike rate modulation with positive head pitch'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
-    n = 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_neg', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    n +=1
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_pitch_modind_neg', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'fires_2sp_sec':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('spike rate modulation with negative head pitch'); plt.ylabel('depth relative to layer 5'); plt.legend(handles=[bluepatch, greenpatch])
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_theta_modind_pos', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_theta_modind_pos', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'fires_2sp_sec':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('spike rate modulation with positive eye theta'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_theta_modind_neg', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_theta_modind_neg', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'fires_2sp_sec':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('spike rate modulation with negative eye theta'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_phi_modind_pos', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_phi_modind_pos', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'fires_2sp_sec':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('spike rate modulation with positive eye phi'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     n += 1
-    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_phi_modind_neg', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'responsive_to_gratings':True}, force_range=np.arange(-650,650,100), along_y=True, abs=True)
+    fig = plot_var_vs_var(df1, 'fm1_spike_rate_vs_phi_modind_neg', 'hf1_wn_depth_from_layer5', (2,4,n), filter_for={'fires_2sp_sec':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
     plt.xlabel('spike rate modulation with negative eye phi'); plt.ylabel('depth relative to layer 5')
     plt.gca().invert_yaxis()
     plt.tight_layout(); pdf.savefig(); plt.close()
@@ -1862,8 +1905,13 @@ def make_population_summary(df1, savepath):
                     plt.plot(excitatory.T, 'b')
                 else:
                     excitatory = np.nan
-                if type(inhibitory) != float and type(excitatory) != float:
-                    all_units = np.nanmean(np.concatenate([inhibitory, excitatory], axis=0), axis=0)
+                if type(inhibitory) != float or type(excitatory) != float:
+                    if type(inhibitory) != float and type(excitatory) != float:
+                        all_units = np.nanmean(np.concatenate([inhibitory, excitatory], axis=0), axis=0)
+                    elif type(inhibitory) != float and type(excitatory) == float:
+                        all_units = np.nanmean(inhibitory, axis=0)
+                    elif type(inhibitory) == float and type(excitatory) != float:
+                        all_units = np.nanmean(excitatory, axis=0)
                     mean_cluster.append(all_units)
                     plt.plot(all_units, 'y', linewidth=10)
                 else:
@@ -2005,6 +2053,7 @@ def make_population_summary(df1, savepath):
 
     print('saving population summary pdf')
     pdf.close()
+    df1.to_pickle(os.path.join(savepath, 'pooled_ephys_population_update_'+datetime.today().strftime('%m%d%y')+'.pickle'))
 
     print('done')
 
@@ -2051,8 +2100,8 @@ def population_analysis(config):
     df.to_pickle(path_out)
     print('writing session summary')
     make_session_summary(df, config['population']['save_path'])
-    # print('writing unit summary')
-    # unit_df = make_unit_summary(df, config['population']['save_path'])
-    # del df
-    # print('starting unit population analysis')
-    # make_population_summary(unit_df, config['population']['save_path'])
+    print('writing unit summary')
+    unit_df = make_unit_summary(df, config['population']['save_path'])
+    del df
+    print('starting unit population analysis')
+    make_population_summary(unit_df, config['population']['save_path'])

@@ -8,15 +8,13 @@ from tqdm import tqdm
 from utils.paths import find
 
 def get_checkerboard_calib(checker_vid_path, savepath):
-    """
-    get calibration parameters for a camera using a video of the checkerboard pattern
+    """ Get calibration parameters for a camera using a video of the checkerboard pattern
     requires both a path to read the checkerboard video from and a save path
-    INPUTS
-        checkerboard_vid_path: file path (not a directory)
-        savepath: specific file path, including the file name, that the data will be saved to
-    OUTPUTS
-        None
     camera properties will be saved to file as a .npz using the provided savepath
+
+    Parameters:
+    checkerboard_vid_path (str): file path (not a directory)
+    savepath (str): specific file path, including the file name, that the data will be saved to
     """
     # arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space

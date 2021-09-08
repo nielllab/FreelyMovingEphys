@@ -7,26 +7,30 @@ import deeplabcut
 
 from utils.paths import find
 
-# given a list of videos, run them all on the same DLC config file
 def runDLCbatch(vid_list, config_path, config):
-    if isinstance(vid_list, list):
-        for vid in vid_list:
-            print('analyzing ' + vid)
-            if config['pose_estimation']['crop_for_dlc'] is True:
-                deeplabcut.cropimagesandlabels(config_path, size=(400, 400), userfeedback=False)
-            deeplabcut.analyze_videos(config_path, [vid])
-            if config['pose_estimation']['filter_dlc_predictions'] is True:
-                deeplabcut.filterpredictions(config_path, vid)
-    else:
-        print('analyzing ' + vid_list)
+    """ Given a list of videos, run them through the same DLC network.
+    
+    Parameters:
+    vidlist (list or str): list of video filepaths, otherwise, a single video as a str
+    config_path (str): path to DLC config.yaml
+    config (dict): options dictionary
+    """
+    if ~isinstance(vid_list, list):
+        vid_list = [vid_list]
+    for vid in vid_list:
+        print('analyzing ' + vid)
         if config['pose_estimation']['crop_for_dlc'] is True:
             deeplabcut.cropimagesandlabels(config_path, size=(400, 400), userfeedback=False)
-        deeplabcut.analyze_videos(config_path, [vid_list])
+        deeplabcut.analyze_videos(config_path, [vid])
         if config['pose_estimation']['filter_dlc_predictions'] is True:
-                deeplabcut.filterpredictions(config_path, vid_list)
+            deeplabcut.filterpredictions(config_path, vid)
 
-# find files and organize them by which DLC config file they are associated with
 def run_DLC_analysis(config):
+    """ Find files and organize them by which DLC config file they are assocaited with.
+    
+    Parameters:
+    config (dict): options dictionary
+    """
     # get each camera type's entry
     for cam in config['pose_estimation']['projects']:
         # there's an entry for the name of the camera to be used
@@ -65,7 +69,3 @@ def run_DLC_analysis(config):
             # this gives the function a list of files that it will iterate over with the same DLC config file
             vids2run = [vid for vid in vids_this_cam if 'plot' not in vid]
             runDLCbatch(vids2run, cam_config, config)
-            print('done analyzing ' + str(len(vids_this_cam)) + ' ' + cam_key + ' videos')
-
-def run_DLC_on_LED(dlc_config,vids2run):
-    runDLCbatch(vids2run, dlc_config, {'pose_estimation':{'crop_for_dlc':False, 'filter_dlc_predictions':False}})

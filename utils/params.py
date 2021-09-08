@@ -12,12 +12,10 @@ from utils.sidecam import side_angle, side_tracking
 from utils.imu import read_8ch_imu
 
 def get_params(config):
-    """
-    get parameters out of video, optical mouse, IMU, etc.
-    INPUTS
-        config: options dict
-    OUTPUTS
-        None
+    """ Get parameters out of video, optical mouse, IMU, etc.
+
+    Parameters:
+    config (dict): options
     """
     # get the path to each recording directory
     recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i]

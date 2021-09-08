@@ -413,18 +413,19 @@ class IMU_Orientation():
 
 
 def read_8ch_imu(imupath, timepath, config):
-    """
-    read an 8-channel binary file of variable length
-    INPUTS:
-        imupath -- imu binary file
-        timepath -- timestamp csv file to imu data
-        config -- options dict
-    OUTPUTS:
-        imu_out -- xarray of IMU data
+    """ Read an 8-channel binary file of variable length
     only channels 0-3, 4-7 will be saved out, channels, 3 and 7 are thrown out
     expected binary channel order: acc first, empty channel, then gyro, then empty channel
     returns a dataarray of constructed timestamps and imu readings from -5V to 5V
     dataarray values are downsampled by value in input dictionary config
+    
+    Parameters:
+    imupath (str): imu binary file
+    timepath (str): timestamp csv file to imu data
+    config (dict): options
+    
+    Returns:
+    imu_out (xr.DataArray): xarray of IMU data
     """
     # set up datatypes and names for each channel
     dtypes = np.dtype([
@@ -475,17 +476,3 @@ def read_8ch_imu(imupath, timepath, config):
     imu_out = imu_out.assign_coords({'sample':newtime})
     
     return imu_out
-  
-if __name__ == '__main__':
-    config_path = '/home/niell_lab/data/freely_moving_ephys/ephys_recordings/061621/dylan/config.yaml'
-    with open(config_path, 'r') as infile:
-        config = yaml.load(infile, Loader=yaml.FullLoader)
-    recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i or 'imu_test' in i]
-    recording_paths = [os.path.join(config['animal_dir'], recording_name) for recording_name in recording_names]
-    recordings_dict = dict(zip(recording_names, recording_paths))
-    config['recording_path'] = recordings_dict['imu_test']
-    recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', config['recording_path']) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze'])][0])[1])[0].split('_')[:-1])
-    trial_imu_csv = os.path.join(config['recording_path'],recording_name+'_Ephys_BonsaiBoardTS.csv') # use ephys timestamps
-    trial_imu_bin = find(('*IMU.bin'), config['recording_path'])
-    imu_data = read_8ch_imu(trial_imu_bin[0], trial_imu_csv, config); imu_data.name = 'IMU_data'
-    imu_data.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_imu.nc')))

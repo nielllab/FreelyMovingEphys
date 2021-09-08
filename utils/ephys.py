@@ -1331,7 +1331,7 @@ def run_ephys_analysis(file_dict):
     print('preparing worldcam video')
     if free_move and file_dict['stim_type'] != 'dark_arena':
         print('estimating eye-world calibration')
-        fig, xmap, ymap = eye_shift_estimation(th, phi, eyeT, world_vid,worldT,60*60)
+        fig, xmap, ymap = eye_shift_estimation(th, phi, eyeT, world_vid, worldT, 60*60)
         xcorrection = xmap.copy()
         ycorrection = ymap.copy()
         print('shifting worldcam for eyes')
@@ -1351,7 +1351,7 @@ def run_ephys_analysis(file_dict):
     # worldcam contrast
     contrast = np.empty(worldT.size)
     for i in range(worldT.size):
-        contrast[i] = np.std(img_norm[i,:,:])
+        contrast[i] = np.nanstd(img_norm[i,:,:])
     plt.plot(contrast[2000:3000])
     plt.xlabel('time')
     plt.ylabel('contrast')
@@ -2795,9 +2795,10 @@ def load_ephys(csv_filepath):
         # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
         try:
             manual_depth_entry = layer5_depth_for_goodsessions[ind]
-            num_auto_depth_entries = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[-1])
-            if type(manual_depth_entry) != np.nan and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != 'FALSE':
-                session_data['hf1_wn_lfp_layer5_centers'] = list(np.ones(num_auto_depth_entries).astype(int)*int(manual_depth_entry))
+            num_sh = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[0])
+            if type(manual_depth_entry) != np.nan and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != 'FALSE' and manual_depth_entry != False:
+                for i, row in session_data.iterrows():
+                    session_data.at[i, 'hf1_wn_lfp_layer5_centers'] = list(np.ones([num_sh]).astype(int)*int(manual_depth_entry))
         except Exception as e:
             print('error with overwriting depth for ', rec_data['session'].unique())
             print(e)
@@ -2818,6 +2819,8 @@ def load_ephys(csv_filepath):
         all_data[col] = all_data[col].iloc[:,0].combine_first(all_data[col].iloc[:,1])
     # and drop the duplicates that have only partial data (all the data will now be in another column)
     all_data = all_data.loc[:,~all_data.columns.duplicated()]
+    # drop anywhere with NaN for session name
+    all_data = all_data[~pd.isnull(all_data['session'])]
     return all_data
 
 def session_ephys_analysis(config):
