@@ -26,14 +26,15 @@ from utils.paths import find
 from utils.aux_funcs import nanxcorr
 
 def fit_ellipse(x, y):
-    """
-    finds the best fit to an ellipse for the given set of points in a single frame
-    INPUTS
-        x: x values of points around pupil as two numpy arrays
-        y: y values of points around pupil as two numpy arrays
-    RETURNS
-        ellipse_dict: dictionary of ellipse parameters for a single frame
+    """ Find the best fit to an ellipse for the given set of points around the pupil in a single frame.
     adapted from /niell-lab-analysis/freely moving/fit_ellipse2.m
+
+    Parameters:
+    x (np.array): x values of points around pupil
+    y (np.array): y values of points around pupil
+
+    Returns:
+    ellipse_dict (dict): ellipse parameters for a single frame
     """
     # remove bias of the ellipse
     meanX = np.mean(x)
@@ -97,17 +98,17 @@ def fit_ellipse(x, y):
     return ellipse_dict
 
 def eye_tracking(eye_data, config, trial_name, eye_side):
-    """
-    get the ellipse parameters from DeepLabCut points and save into an xarray
-    INPUTS
-        eye_data: xarray of eye point positions and likelihood
-        config: dictionary of options
-        trial_name: str, e.g. '010121_subject_...'
-        eye_side: str, e.g. 'REYE'
-    OUTPUTS
-        ellipse_out: xarray DataArray of ellipse parameters
-    also saves to file a pdf of diagnostic figures
+    """ Get the ellipse parameters from DeepLabCut points and save into an xarray
     adapted from /niell-lab-analysis/freely moving/EyeCameraCalc1.m
+
+    Parameters:
+    eye_data (xr.DataArray): eye point positions and likelihood
+    config (dict): options
+    trial_name (str): e.g. '010121_subject_...'
+    eye_side (str): e.g. 'REYE'
+    
+    Returns:
+    ellipse_out (xr.DataArray): ellipse parameters
     """
     # set up the pdf to be saved out with diagnostic figures
     if config['parameters']['outputs_and_visualization']['save_figs'] is True:
@@ -148,9 +149,6 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         x_vals = x_vals.iloc[:,:-5].subtract(spot_xcent, axis=0)
         y_vals = y_vals.iloc[:,:-5].subtract(spot_ycent, axis=0)
     elif config['pose_estimation']['has_ir_spot_labeled'] is True and config['parameters']['eyes']['spot_subtract'] is False:
-        spot_xvals = x_vals.iloc[:,-5:]
-        spot_yvals = y_vals.iloc[:,-5:]
-        spot_likelihood = likelihood_in[:,-5:]
         x_vals = x_vals.iloc[:,:-5]
         y_vals = y_vals.iloc[:,:-5]
         likelihood = likelihood_in[:,:-5]
@@ -338,18 +336,15 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     return ellipse_out
 
 def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
-    """
-    plot the ellipse and dlc points on the video frames
-    then, save the video out as an .avi file
-    INPUTS
-        vid_path: file path of existing .avi video (should be deinterlaced and calibrated, i.e. what ran through DeepLabCut)
-        dlc_data: xarray of dlc data (this should be before pts and ell params are merged into one)
-        ell_data: ellipse fit xarray
-        config: dict of options
-        trial_name: str, e.g. '010121_subject_...'
-        eye_letter: str, e.g. 'R'
-    OUTPUTS
-        None
+    """ Plot the ellipse and dlc points on the video frames
+
+    Parameters
+    vid_path (str): file path of existing .avi video (should be deinterlaced and calibrated, i.e. what ran through DeepLabCut)
+    dlc_data (str): dlc data (this should be before pts and ell params are merged into one)
+    ell_data (xr.DataArray) ellipse fit data
+    config (dict): options
+    trial_name (str): e.g. '010121_subject_...'
+    eye_letter (str): e.g. 'R'
     """
     # read in video
     # setup the file to save out
@@ -408,14 +403,12 @@ def plot_eye_vid(vid_path, dlc_data, ell_data, config, trial_name, eye_letter):
     out_vid.release()
 
 def curve_func(xval, a, b, c):
-    """
-    sigmoid function for pupil rotation
+    """ Sigmoid function for pupil rotation
     """
     return a+(b-a)/(1+10**((c-xval)*2))
 
 def sigm_fit_mp(d):
-    """
-    multiprocessing-ready fit to sigmoid function
+    """ Multiprocessing-ready fit to sigmoid function
     """
     try:
         popt, pcov = curve_fit(curve_func, xdata=range(1,len(d)+1), ydata=d,
@@ -427,17 +420,18 @@ def sigm_fit_mp(d):
     return (popt, ci)
 
 def find_pupil_rotation(eye_ell_params, config, trial_name, side_letter='REYE'):
-    """
-    find the cyclotorsion (pupil rotation) using eye videos
-    INPUTS
-        eye_ell_params: eye theta, phi, etc. xarray
-        config: options dict
-        trial_name: str, e.g. '010121_subject_...'
-        side_letter: str, side name, default = 'REYE'
-    OUTPUTS
-        rfit_xr: pupil radius as xarray (at each of 360deg)
-        rfit_conv_xr: convolved radius of pupil as xarray (at each of 360deg)
-        shift: shift in pxls needed to get best correlation with template 
+    """ Find the cyclotorsion (pupil rotation) using eye videos
+    
+    Parameters:
+    eye_ell_params (xarray): eye theta, phi, etc.
+    config (dict): options
+    trial_name (str): e.g. '010121_subject_...'
+    side_letter (str): side name, default = 'REYE'
+    
+    Returns:
+    rfit_xr (xr.DataArray): pupil radius as xarray (at each of 360deg)
+    rfit_conv_xr (xr.DataArray): convolved radius of pupil as xarray (at each of 360deg)
+    shift (xr.DataArray): shift in pxls needed to get best correlation with template 
     """
 
     eyevidpath = find((trial_name + '*' + side_letter + 'deinter.avi'), config['recording_path'])[0]

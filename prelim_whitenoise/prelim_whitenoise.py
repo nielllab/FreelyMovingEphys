@@ -188,7 +188,7 @@ def main(whitenoise_directory, probe):
         pdf.savefig()
         plt.close()
         print('getting spike-triggered variance')
-        _, STV_fig = plot_STV(goodcells, t, movInterp, img_norm)
+        _, STV_fig = plot_STV(goodcells, movInterp, img_norm, worldT)
         pdf.savefig()
         plt.close()
         print('closing pdf')

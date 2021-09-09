@@ -7,19 +7,19 @@ import xarray as xr
 from scipy.interpolate import interp1d
 
 from utils.time import open_time1
+from utils.aux_funcs import smooth_convolve
 
-def find_previous_neighbor(sparse_time, arange_time, data, win=.30):
-    """
-    search timestamps with gaps between data for times in consistant timestamps
-    then set up an array of data which matches the timebase of consistant timestamps
-    and where zeros are filled in for each timestamp missing data from the sparse timestamps
-    INPUTS
-        sparse_time: timestamps (in seconds) for samples do not exist when there was no change in data
-        arange_time: timestamps (in seconds) with a constant step size, where start and end match sparse_time
-        data: array of values that match the timebase of sparse_time
-        win: seconds, window in which a previous timestamp in sparse_time must fall, otherwise a zero will be filled in
-    OUTPUTS
-        data_out: data with constant time step size and with zeros filled in where both data and sparse_time previously had no values
+def sparse_to_constant_timebase(sparse_time, arange_time, data, win=.30):
+    """ Adjust optical mouse data to match timestamps with constat time base, filling zeros for steps in time with no recorded sample.
+    
+    Parameters:
+    sparse_time (np.array): timestamps (in seconds) for samples do not exist when there was no change in data
+    arange_time: (np.array) timestamps (in seconds) with a constant step size, where start and end match sparse_time
+    data (np.array): array of values that match the timebase of sparse_time
+    win (float): seconds, window in which a previous timestamp in sparse_time must fall, otherwise a zero will be filled in (default 0.30)
+    
+    Returns:
+    data_out (np.array): data with constant time step size and with zeros filled in where both data and sparse_time previously had no values
     """
     data_out = np.zeros(len(arange_time))
     for t in sparse_time:
@@ -27,11 +27,6 @@ def find_previous_neighbor(sparse_time, arange_time, data, win=.30):
         if ind < len(arange_time):
             data_out[ind] = (data[ind] if t >= (arange_time[ind]-win) and t <= arange_time[ind] else 0)
     return data_out
-
-def smooth_vals(y, box_pts=10):
-    box = np.ones(box_pts)/box_pts
-    y_smooth = np.convolve(y, box, mode='same')
-    return y_smooth
 
 def ball_tracking(csv_path, config):
     """
@@ -59,13 +54,13 @@ def ball_tracking(csv_path, config):
     xinterp = interp1d(time, x_pos, bounds_error=False, kind='nearest')(arange_time)
     yinterp = interp1d(time, y_pos, bounds_error=False, kind='nearest')(arange_time)
     # if no timestamp within 30ms, set interpolated val to 0
-    full_x = find_previous_neighbor(time, arange_time, xinterp, win=.030)
-    full_y = find_previous_neighbor(time, arange_time, yinterp, win=.030)
+    full_x = sparse_to_constant_timebase(time, arange_time, xinterp, win=0.030)
+    full_y = sparse_to_constant_timebase(time, arange_time, yinterp, win=0.030)
     # cm per second
     xpersec = full_x[:-1] / np.diff(arange_time)
     ypersec = full_y[:-1] / np.diff(arange_time)
     # speed
-    speed = smooth_vals(np.sqrt(xpersec**2 + ypersec**2), 10)
+    speed = smooth_convolve(np.sqrt(xpersec**2 + ypersec**2), 10)
     # collect all data
     all_data = pd.DataFrame([time, full_x, full_y, xpersec, ypersec, speed]).T
     all_data.columns = ['timestamps','cm_x','cm_y','x_persec','y_persec','speed_cmpersec']

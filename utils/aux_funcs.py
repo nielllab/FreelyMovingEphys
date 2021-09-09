@@ -5,16 +5,16 @@ import pandas as pd
 import numpy as np
 
 def nanxcorr(x, y, maxlag=25):
-    """
-    calculates xcorr ignoring NaNs without altering timing
-    adapted from /niell-lab-analysis/freely moving/nanxcorr.m
-    INPUTS
-        x: np array
-        y: p array (should be arrays of same length as x)
-        maxlag: number of lags to shift y prior to testing correlation
-    OUTPUTS
-        cc_out: cross correlation
-        lags: lag vector
+    """ Cross correlation ignoring NaNs.
+
+    Parameters:
+    x (np.array): array of values
+    y (np.array): array of values to shift, must be same length as x
+    maxlag (int): number of lags to shift y prior to testing correlation (default 25)
+    
+    Returns:
+    cc_out (np.array): cross correlation
+    lags (range): lag vector
     """
     lags = range(-maxlag, maxlag)
     cc = []
@@ -34,3 +34,17 @@ def nanxcorr(x, y, maxlag=25):
     cc_out = np.hstack(np.stack(cc))
     
     return cc_out, lags
+
+def smooth_convolve(y, box_pts=10):
+    """ Smooth values in an array using a convolutional window.
+
+    Parameters:
+    y (np.array): array to smooth
+    box_pts (int): window size to use for convolution
+    
+    Returns
+    y_smooth (np.array): smoothed y values
+    """
+    box = np.ones(box_pts)/box_pts
+    y_smooth = np.convolve(y, box, mode='same')
+    return y_smooth

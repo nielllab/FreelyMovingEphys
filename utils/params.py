@@ -12,12 +12,10 @@ from utils.sidecam import side_angle, side_tracking
 from utils.imu import read_8ch_imu
 
 def get_params(config):
-    """
-    get parameters out of video, optical mouse, IMU, etc.
-    INPUTS
-        config: options dict
-    OUTPUTS
-        None
+    """ Get parameters out of video, optical mouse, IMU, etc.
+
+    Parameters:
+    config (dict): options
     """
     # get the path to each recording directory
     recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i]
@@ -125,7 +123,7 @@ def get_params(config):
             else:
                 eye_sides = []
             for eye_side in eye_sides:
-                print('tracking ' + eye_side + 'for ' + recording_name)
+                print('tracking ' + eye_side + ' for ' + recording_name)
                 # filter the list of files for the current trial to get the eye of this side
                 if config['parameters']['follow_strict_naming'] is True:
                     eye_h5 = [i for i in trial_cam_h5 if eye_side in i and 'deinter' in i][0]

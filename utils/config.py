@@ -3,12 +3,13 @@ config.py
 """
 
 def str_to_bool(value):
-    """
-    parse strings to read argparse flag entries in as True/False
-    INPUTS:
-        value: input value
-    OUTPUTS:
-        either True, False, or raises error
+    """ Parse strings to read argparse flag entries in as bool.
+    
+    Parameters:
+    value (str): input value
+    
+    Returns:
+    bool
     """
     if isinstance(value, bool):
         return value

@@ -10,15 +10,14 @@ from utils.paths import find
 from utils.time import open_time
 
 def deinterlace_data(config, vid_list=None, time_list=None):
-    """
-    deinterlace videos and shift times to suit the new video frame count
-    will deinterlace data either searching subdirectories automaticlly or using a list of files that are of specific interest
-    INPUTS
-        config: options dict
-        vid_list: list of .avi file paths (optional)
-        time_list: list of .csv file paths (optional)
-    OUTPUTS
-        None
+    """ Deinterlace videos, shift times to match the new video frame count.
+    Searches subdirectories if vid_list and time_list are both None.
+    If lists of files are provided, it will not search subdirectories and instead analyze items in those lists.
+
+    Parameters:
+    config (dict): options dict
+    vid_list (list): .avi file paths for videos to deinterlace (optional)
+    time_list (list): .csv file paths of timestamps matching videos to deinterlace (optional)
     """
     # get paths out of the config dictionary
     data_path = config['animal_dir']
@@ -38,7 +37,6 @@ def deinterlace_data(config, vid_list=None, time_list=None):
         vid_name = os.path.split(this_avi)[1]
         key_pieces = vid_name.split('.')[:-1]
         key = '.'.join(key_pieces)
-        print('running on ' + key)
         # then, find those other pieces of the trial using the key
         try:
             this_csv = [i for i in csv_list if key in i][0]
@@ -77,5 +75,3 @@ def deinterlace_data(config, vid_list=None, time_list=None):
                 csv_out.to_csv(csv_out_path, index=False)
         else:
             print('frame rate not 30 or 60 for ' + key)
-
-    print('done with ' + str(len(avi_list) + len(csv_list)) + ' items')

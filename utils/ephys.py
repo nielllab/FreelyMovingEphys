@@ -30,7 +30,6 @@ import wavio
 from matplotlib.animation import FFMpegWriter
 from matplotlib.backends.backend_pdf import PdfPages
 from numpy import nan
-from scipy.interpolate import interp1d
 from sklearn.linear_model import LinearRegression
 import scipy.signal
 from scipy.io import loadmat
@@ -555,31 +554,51 @@ def plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title
             plt.tight_layout()
         return fig
 
-def plot_STV(goodcells, t, movInterp, img_norm):
+def plot_STV(goodcells, movInterp, img_norm, worldT):
     """
     plot spike-triggererd varaince
     INPUTS
         goodcells: ephys dataframe
-        t: timebase from worldT
         movInterp: interpolator for worldcam movie
         img_norm: normalized worldcam video
+        worldT: world timestamps
     OUTPUTS
         stvAll: spike triggered variance for all units
         fig: figure
     """
     n_units = len(goodcells)
-    stvAll = np.zeros((n_units,np.shape(img_norm)[1],np.shape(img_norm)[2]))
-    sta = 0
-    lag = 0.125
+    # model setup
+    model_dt = 0.025
+    model_t = np.arange(0, np.max(worldT), model_dt)
+    model_nsp = np.zeros((n_units, len(model_t)))
+    # get binned spike rate
+    bins = np.append(model_t, model_t[-1]+model_dt)
+    for i, ind in enumerate(goodcells.index):
+        model_nsp[i,:], bins = np.histogram(goodcells.at[ind,'spikeT'], bins)
+    # settting up video
+    nks = np.shape(img_norm[0,:,:])
+    nk = nks[0]*nks[1]
+    model_vid = np.zeros((len(model_t),nk))
+    for i in range(len(model_t)):
+        model_vid[i,:] = np.reshape(movInterp(model_t[i]+model_dt/2), nk)
+    lag = 2
+    stvAll = np.zeros((n_units, np.shape(img_norm)[1], np.shape(img_norm)[2]))
     fig = plt.subplots(int(np.ceil(n_units/10)),10,figsize=(20,np.int(np.ceil(n_units/3))),dpi=50)
     for c, ind in enumerate(goodcells.index):
-        r = goodcells.at[ind,'rate']
-        sta = 0
-        for i in range(5, t.size-10):
-            sta = sta+r[i]*(movInterp(t[i]-lag))**2
+        sp = model_nsp[c,:].copy()
+        sp = np.roll(sp, -lag)
+        sta = np.nan_to_num(model_vid,0).T @ sp
+        sta = np.reshape(sta, nks)
+        nsp = np.sum(sp)
         plt.subplot(int(np.ceil(n_units/10)), 10, c+1)
-        sta = sta/np.sum(r)
-        plt.imshow(sta - np.mean(img_norm**2,axis=0), vmin=-1, vmax=1)
+        if nsp > 0:
+            sta = sta / nsp
+        else:
+            sta = np.nan
+        if pd.isna(sta) is True:
+            plt.imshow(np.zeros([120,160]))
+        else:
+            plt.imshow(sta - np.mean(img_norm**2,axis=0), vmin=-1, vmax=1)
         stvAll[c,:,:] = sta - np.mean(img_norm**2, axis=0)
         plt.axis('off')
     plt.tight_layout()
@@ -733,7 +752,7 @@ def plot_saccade_locked(goodcells, upsacc, downsacc, trange):
             hist, edges = np.histogram(goodcells.at[ind,'spikeT']-s, trange)
             upsacc_avg[i,:] = upsacc_avg[i,:] + hist / (upsacc.size*np.diff(trange))
         for s in np.array(downsacc):
-            hist,edges = np.histogram(goodcells.at[ind,'spikeT']-s,trange)
+            hist, edges = np.histogram(goodcells.at[ind,'spikeT']-s,trange)
             downsacc_avg[i,:] = downsacc_avg[i,:]+ hist/(downsacc.size*np.diff(trange))
         plt.subplot(np.ceil(n_units/7).astype('int'),7,i+1)
         plt.plot(0.5*(trange[0:-1] + trange[1:]), upsacc_avg[i,:])
@@ -768,7 +787,9 @@ def fit_glm_vid(model_vid, model_nsp, model_dt, use, nks):
     # subtract mean and renormalize -- necessary? 
     mn_img = np.mean(x[use,:],axis=0)
     x = x-mn_img
-    x = x/np.std(x[use,:],axis =0)
+    img_std = np.std(x[use,:],axis=0)
+    x[:,img_std==0] = 0
+    x = np.nan_to_num(x/img_std,0)
     x = np.append(x,np.ones((nT,1)), axis = 1) # append column of ones
     x = x[use,:]
     # set up prior matrix (regularizer)
@@ -876,44 +897,54 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
     # set up figure
     fig = plt.figure(figsize = (10,16))
     gs = fig.add_gridspec(12,6)
-    axEye = fig.add_subplot(gs[0:2,0:2])
-    axWorld = fig.add_subplot(gs[0:2,2:4])
-    axTopdown = fig.add_subplot(gs[0:2,4:6])
+    if top_vid is not None:
+        axEye = fig.add_subplot(gs[0:2,0:2])
+        axWorld = fig.add_subplot(gs[0:2,2:4])
+        axTopdown = fig.add_subplot(gs[0:2,4:6])
+    else:
+        axEye = fig.add_subplot(gs[0:2,0:3])
+        axWorld = fig.add_subplot(gs[0:2,3:6])
     axRad = fig.add_subplot(gs[2,:])
     axTh = fig.add_subplot(gs[3,:])
-    axGyro = fig.add_subplot(gs[4,:])
-    axR = fig.add_subplot(gs[5:12,:])
+    if top_vid is not None:
+        axGyro = fig.add_subplot(gs[4,:])
+        axR = fig.add_subplot(gs[5:12,:])
+    else:
+        axR = fig.add_subplot(gs[4:12,:])
 
     # timerange and center frame (only)
     tr = [7, 7+15]
     fr = np.mean(tr) # time for frame
     eyeFr = np.abs(eyeT-fr).argmin(dim = "frame")
     worldFr = np.abs(worldT-fr).argmin(dim = "frame")
-    topFr = np.abs(topT-fr).argmin(dim = "frame")
+    if top_vid is not None:
+        topFr = np.abs(topT-fr).argmin(dim = "frame")
 
     axEye.cla(); axEye.axis('off')
     axEye.imshow(eye_vid[eyeFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
 
     axWorld.cla();  axWorld.axis('off'); 
     axWorld.imshow(world_vid[worldFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
-
-    axTopdown.cla();  axTopdown.axis('off'); 
-    axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
+    
+    if top_vid is not None:
+        axTopdown.cla();  axTopdown.axis('off'); 
+        axTopdown.imshow(top_vid[topFr,:,:],'gray',vmin=0,vmax=255,aspect = "equal")
     
     axTh.cla()
     axTh.plot(eyeT,th)
     axTh.set_xlim(tr[0],tr[1]); 
-    axTh.set_ylabel('theta (deg)'); axTh.set_ylim(-50,0)
+    axTh.set_ylabel('theta (deg)')#; axTh.set_ylim(-50,0)
 
     axRad.cla()
     axRad.plot(eyeT,eye_params.sel(ellipse_params='longaxis'))
     axRad.set_xlim(tr[0],tr[1])
     axRad.set_ylabel('pupil radius')
     
-    # plot gyro
-    axGyro.plot(accT,gz)
-    axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(-500,500)
-    axGyro.set_ylabel('gyro z (deg/s)')    
+    if top_vid is not None:
+        # plot gyro
+        axGyro.plot(accT,gz)
+        axGyro.set_xlim(tr[0],tr[1]); axGyro.set_ylim(-500,500)
+        axGyro.set_ylabel('gyro z (deg/s)')    
   
     # plot spikes
     axR.fontsize = 20
@@ -929,7 +960,7 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
     for i, ind in enumerate(goodcells.index):
         i = full_raster[i]
         axR.vlines(goodcells.at[ind,'spikeT'],i-0.25,i+0.25,'k',linewidth=0.5)
-    axR.vlines(goodcells.at[units[this_unit],'spikeT'],this_unit-0.25,this_unit+0.25,'k',linewidth=0.5) # this unit
+    axR.vlines(goodcells.at[units[this_unit],'spikeT'], full_raster[this_unit+1]-0.25, full_raster[this_unit+1]+0.25,'b',linewidth=0.5) # this unit
     
     n_units = len(goodcells)
     axR.set_ylim(n_units,-.5)
@@ -942,15 +973,16 @@ def make_movie(file_dict, eyeT, worldT, eye_vid, world_vid, contrast, eye_params
 
     # animate
     writer = FFMpegWriter(fps=30, extra_args=['-vf','scale=800:-2'])
-    with writer.saving(fig, vidfile, 100):
+    with writer.saving(fig, vidfile, dpi=100):
         for t in np.arange(tr[0],tr[1],1/30):
             # show eye and world frames
-            axEye.cla(); axEye.axis('off'); 
+            axEye.cla(); axEye.axis('off')
             axEye.imshow(eyeInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
             axWorld.cla(); axWorld.axis('off'); 
             axWorld.imshow(worldInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
-            axTopdown.cla(); axTopdown.axis('off'); 
-            axTopdown.imshow(topInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
+            if top_vid is not None:
+                axTopdown.cla(); axTopdown.axis('off')
+                axTopdown.imshow(topInterp(t),'gray',vmin=0,vmax=255,aspect = "equal")
             # plot line for time, then remove
             ln = axR.vlines(t,-0.5,n_units,'b')
             writer.grab_frame()
@@ -969,7 +1001,7 @@ def make_sound(file_dict, ephys_data, units, this_unit):
         audfile: filepath to .wav file
     """
     # timerange
-    tr = [15, 30]
+    tr = [7, 7+15]
     # generate wav file
     sp = np.array(ephys_data.at[units[this_unit],'spikeT'])-tr[0]
     sp = sp[sp>0]
@@ -1299,7 +1331,7 @@ def run_ephys_analysis(file_dict):
     print('preparing worldcam video')
     if free_move and file_dict['stim_type'] != 'dark_arena':
         print('estimating eye-world calibration')
-        fig, xmap, ymap = eye_shift_estimation(th, phi, eyeT, world_vid,worldT,60*60)
+        fig, xmap, ymap = eye_shift_estimation(th, phi, eyeT, world_vid, worldT, 60*60)
         xcorrection = xmap.copy()
         ycorrection = ymap.copy()
         print('shifting worldcam for eyes')
@@ -1310,8 +1342,8 @@ def run_ephys_analysis(file_dict):
         for f in tqdm(range(np.shape(world_vid)[0])):
             world_vid[f,:,:] = imshift(world_vid[f,:,:],(-np.int8(thInterp(worldT[f])*ycorrection[0] + phiInterp(worldT[f])*ycorrection[1]),
                                                          -np.int8(thInterp(worldT[f])*xcorrection[0] + phiInterp(worldT[f])*xcorrection[1])))
-        print('saving worldcam video corrected for eye movements')
-        np.save(file=os.path.join(file_dict['save'], 'corrected_worldcam.npy'), arr=world_vid)
+        # print('saving worldcam video corrected for eye movements')
+        # np.save(file=os.path.join(file_dict['save'], 'corrected_worldcam.npy'), arr=world_vid)
     std_im = np.std(world_vid,axis=0)
     img_norm = (world_vid-np.mean(world_vid,axis=0))/std_im
     std_im[std_im<20] = 0
@@ -1319,7 +1351,7 @@ def run_ephys_analysis(file_dict):
     # worldcam contrast
     contrast = np.empty(worldT.size)
     for i in range(worldT.size):
-        contrast[i] = np.std(img_norm[i,:,:])
+        contrast[i] = np.nanstd(img_norm[i,:,:])
     plt.plot(contrast[2000:3000])
     plt.xlabel('time')
     plt.ylabel('contrast')
@@ -1346,16 +1378,16 @@ def run_ephys_analysis(file_dict):
         if file_dict['imu'] is not None:
             print('making video figure')
             vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=accT, gz=gz_deg)
-        # elif file_dict['speed'] is not None:
-        #     print('making video figure')
-        #     vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, speedT=speedT, spd=spd)
-            print('making audio figure')
             audfile = make_sound(file_dict, ephys_data, units, this_unit)
-            print('merging videos with sound')
-            # main video
             merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
             subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
-    
+        elif file_dict['speed'] is not None:
+            print('making video figure')
+            vidfile = make_movie(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid=None, topT=None, topInterp=None, th=th, phi=phi, top_speed=None, speedT=speedT, spd=spd)
+            audfile = make_sound(file_dict, ephys_data, units, this_unit)
+            merge_mp4_name = os.path.join(file_dict['save'], (file_dict['name']+'_unit'+str(this_unit)+'_merge.mp4'))
+            subprocess.call(['ffmpeg', '-i', vidfile, '-i', audfile, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+
     if free_move is True and file_dict['imu'] is not None:
         plt.figure()
         plt.plot(eyeT[0:-1],np.diff(th),label = 'dTheta')
@@ -1856,7 +1888,7 @@ def run_ephys_analysis(file_dict):
     plt.close()
     print('getting STV')
     # calculate spike-triggered variance
-    st_var, fig = plot_STV(goodcells, t, movInterp, img_norm_sm)
+    st_var, fig = plot_STV(goodcells, movInterp, img_norm_sm, worldT)
     detail_pdf.savefig()
     plt.close()
 
@@ -1888,22 +1920,20 @@ def run_ephys_analysis(file_dict):
             model_active = np.convolve(np.abs(model_gz),np.ones(np.int(1/model_dt)),'same')
             use = np.where((np.abs(model_th)<10) & (np.abs(model_phi)<10)& (model_active>40) )[0]
         else:
-            use = np.where((np.abs(model_th)<10) & (np.abs(model_phi)<10))[0]
+            use = np.array([True for i in range(len(model_th))])
         # get video ready for GLM
+        print('setting up video')
         downsamp = 0.25
-        print('setting up video') 
-        movInterp = None; model_vid_sm = 0
-        movInterp = interp1d(worldT,img_norm,'nearest',axis = 0,bounds_error = False) 
-        testimg = movInterp(model_t[0])
+        testimg = img_norm[0,:,:]
         testimg = cv2.resize(testimg,(int(np.shape(testimg)[1]*downsamp), int(np.shape(testimg)[0]*downsamp)))
-        testimg = testimg[5:-5,5:-5]; #remove area affected by eye movement correction
-        model_vid_sm = np.zeros((len(model_t),np.int(np.shape(testimg)[0]*np.shape(testimg)[1])))
-        for i in tqdm(range(len(model_t))):
-            model_vid = movInterp(model_t[i] + model_dt/2)
-            smallvid = cv2.resize(model_vid,(np.int(np.shape(img_norm)[2]*downsamp),np.int(np.shape(img_norm)[1]*downsamp)),interpolation = cv2.INTER_AREA)
+        testimg = testimg[5:-5,5:-5]; # remove area affected by eye movement correction
+        resize_img_norm = np.zeros([np.size(img_norm,0), np.int(np.shape(testimg)[0]*np.shape(testimg)[1])])
+        for i in tqdm(range(np.size(img_norm,0))):
+            smallvid = cv2.resize(img_norm[i,:,:], (np.int(np.shape(img_norm)[2]*downsamp), np.int(np.shape(img_norm)[1]*downsamp)), interpolation=cv2.INTER_LINEAR_EXACT)
             smallvid = smallvid[5:-5,5:-5]
-            #smallvid = smallvid - np.mean(smallvid)
-            model_vid_sm[i,:] = np.reshape(smallvid,np.shape(smallvid)[0]*np.shape(smallvid)[1])
+            resize_img_norm[i,:] = np.reshape(smallvid,np.shape(smallvid)[0]*np.shape(smallvid)[1])
+        movInterp = interp1d(worldT, resize_img_norm, 'nearest', axis=0, bounds_error=False)
+        model_vid_sm = movInterp(model_t)
         nks = np.shape(smallvid); nk = nks[0]*nks[1]
         model_vid_sm[np.isnan(model_vid_sm)]=0
         del movInterp
@@ -1977,7 +2007,7 @@ def run_ephys_analysis(file_dict):
 
     if free_move is True:
         # plot gaze shifting eye movements
-        sthresh = 3
+        sthresh = 5
         upsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
         downsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
         upsacc_avg_gaze_shift_dEye, downsacc_avg_gaze_shift_dEye, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
@@ -1994,7 +2024,7 @@ def run_ephys_analysis(file_dict):
         downsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
         upsacc_avg_gaze_shift_dHead, downsacc_avg_gaze_shift_dHead, saccade_lock_fig = plot_saccade_locked(goodcells, upsacc,  downsacc, trange)
         plt.title('gaze shift dhead') ; detail_pdf.savefig() ;  plt.close()
-        # plot compensatory eye movements    
+        # plot compensatory head movements
         sthresh = 3
         upsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
         downsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
@@ -2698,8 +2728,11 @@ def load_ephys(csv_filepath):
         all_data: DataFrame of all units marked for pooled analysis, with each index representing a unit across all recordings of a session
     """
     # open the csv file of metadata and pull out all of the desired data paths
-    csv = pd.read_csv(csv_filepath)
-    for_data_pool = csv[csv['load_for_data_pool'] == any(['TRUE' or True or 'True'])]
+    if type(csv_filepath) == str:
+        csv = pd.read_csv(csv_filepath)
+        for_data_pool = csv[csv['load_for_data_pool'] == any(['TRUE' or True or 'True'])]
+    elif type(csv_filepath) == pd.Series:
+        for_data_pool = csv_filepath
     goodsessions = []
     probenames_for_goodsessions = []
     layer5_depth_for_goodsessions = []
@@ -2724,26 +2757,29 @@ def load_ephys(csv_filepath):
     for session in sessions:
         session_data = pd.DataFrame([])
         for recording in session:
-            rec_data = pd.read_hdf(recording)
-            # get name of the current recording (i.e. 'fm' or 'hf1_wn')
-            rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
-            # rename spike time columns so that data is retained for each of the seperate trials
-            rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
-            # add a column for which fm recording should be prefered
-            for key,val in goodlightrecs.items():
-                if key in rec_data['session'].iloc[0]:
-                    rec_data['best_light_fm'] = val
-            for key,val in gooddarkrecs.items():
-                if key in rec_data['session'].iloc[0]:
-                    rec_data['best_dark_fm'] = val
-            # get column names
-            column_names = list(session_data.columns.values) + list(rec_data.columns.values)
-            # new columns for same unit within a session
-            session_data = pd.concat([session_data, rec_data],axis=1,ignore_index=True)
-            # add the list of column names from all sessions plus the current recording
-            session_data.columns = column_names
-            # remove duplicate columns (i.e. shared metadata)
-            session_data = session_data.loc[:,~session_data.columns.duplicated()]
+            try:
+                rec_data = pd.read_hdf(recording)
+                # get name of the current recording (i.e. 'fm' or 'hf1_wn')
+                rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
+                # rename spike time columns so that data is retained for each of the seperate trials
+                rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
+                # add a column for which fm recording should be prefered
+                for key,val in goodlightrecs.items():
+                    if key in rec_data['session'].iloc[0]:
+                        rec_data['best_light_fm'] = val
+                for key,val in gooddarkrecs.items():
+                    if key in rec_data['session'].iloc[0]:
+                        rec_data['best_dark_fm'] = val
+                # get column names
+                column_names = list(session_data.columns.values) + list(rec_data.columns.values)
+                # new columns for same unit within a session
+                session_data = pd.concat([session_data, rec_data],axis=1,ignore_index=True)
+                # add the list of column names from all sessions plus the current recording
+                session_data.columns = column_names
+                # remove duplicate columns (i.e. shared metadata)
+                session_data = session_data.loc[:,~session_data.columns.duplicated()]
+            except AttributeError:
+                pass
         # add probe name as new col
         animal = goodsessions[ind]
         ellipse_json_path = find('*fm_eyecameracalc_props.json', animal)
@@ -2759,11 +2795,12 @@ def load_ephys(csv_filepath):
         # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
         try:
             manual_depth_entry = layer5_depth_for_goodsessions[ind]
-            num_auto_depth_entries = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[-1])
-            if type(manual_depth_entry) != np.nan and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != 'FALSE':
-                session_data['hf1_wn_lfp_layer5_centers'] = list(np.ones(num_auto_depth_entries).astype(int)*int(manual_depth_entry))
+            num_sh = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[0])
+            if type(manual_depth_entry) != np.nan and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != 'FALSE' and manual_depth_entry != False:
+                for i, row in session_data.iterrows():
+                    session_data.at[i, 'hf1_wn_lfp_layer5_centers'] = list(np.ones([num_sh]).astype(int)*int(manual_depth_entry))
         except Exception as e:
-            print('error with overwriting depth for ', rec_data['session'])
+            print('error with overwriting depth for ', rec_data['session'].unique())
             print(e)
         ind += 1
         # new rows for units from different mice or sessions
@@ -2782,6 +2819,8 @@ def load_ephys(csv_filepath):
         all_data[col] = all_data[col].iloc[:,0].combine_first(all_data[col].iloc[:,1])
     # and drop the duplicates that have only partial data (all the data will now be in another column)
     all_data = all_data.loc[:,~all_data.columns.duplicated()]
+    # drop anywhere with NaN for session name
+    all_data = all_data[~pd.isnull(all_data['session'])]
     return all_data
 
 def session_ephys_analysis(config):

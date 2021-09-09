@@ -10,13 +10,14 @@ from tqdm import tqdm
 from utils.time import open_time
 
 def open_h5(path):
-    """
-    read in .h5 DLC files and manage column names
-    INPUTS
-        path: filepath to .h5 file outputs by DLC
-    OUTPUTS
-        pts: pandas dataframe of points
-        pt_loc_names: list of column names in pts
+    """ Read in .h5 DLC files and manage column names
+
+    Parameters:
+    path (str): filepath to .h5 file outputs by DLC
+
+    Returns:
+    pts (pd.DataFrame): values for position
+    pt_loc_names (list): column names
     """
     try:
         # read the .hf file when there is no key
@@ -31,12 +32,13 @@ def open_h5(path):
     return pts, pt_loc_names
 
 def open_ma_h5(path):
-    """
-    open .h5 file of a multianimal DLC project
-    INPUTS
-        path: filepath to .h5 file outputs by DLC
-    OUTPUTS
-        pts: pandas dataframe of points
+    """ Open .h5 file of a multianimal DLC project
+
+    Parameters:
+    path (str): filepath to .h5 file outputs by DLC
+
+    Returns:
+    pts (Pd.DataFrame): pandas dataframe of points
     """
     pts = pd.read_hdf(path)
     # flatten columns from MultiIndex 
@@ -44,13 +46,14 @@ def open_ma_h5(path):
     return pts
 
 def format_frames(vid_path, config):
-    """
-    add videos to xarray
-    INPUTS
-        vid_path:path to an avi
-        config:options dict
-    OUTPUTS
-        formatted_frames:xarray DataArray of video as b/w int8
+    """ Add videos to xarray
+
+    Parameters:
+    vid_path (str): path to an avi
+    config (dict): options
+
+    Returns:
+    formatted_frames (xr.DataArray): of video as b/w int8
     """
     # open the .avi file
     vidread = cv2.VideoCapture(vid_path)
@@ -80,15 +83,15 @@ def format_frames(vid_path, config):
     return formatted_frames
 
 def h5_to_xr(pt_path, time_path, view, config):
-    """
-    build an xarray DataArray of the a single camera's dlc point .h5 files and .csv timestamp
-    works for any camera type
-    INPUTS
-        pt_path:filepath to the .h5
-        time_path:filepath to a .csv
-        view:str of camera name (i.e. REYE)
-    OUTPUTS
-        xrpts:pose estimate xarray
+    """ Build an xarray DataArray of the a single camera's dlc point .h5 files and .csv timestamp
+
+    Parameters:
+    pt_path (str): filepath to the .h5
+    time_path (str): filepath to a .csv
+    view (str): camera name (i.e. REYE)
+    
+    Returns:
+    xrpts (xr.DataArray): pose estimate
     """
     # check that pt_path exists
     if pt_path is not None and pt_path != [] and time_path is not None:
@@ -156,16 +159,17 @@ def h5_to_xr(pt_path, time_path, view, config):
     return xrpts
 
 def split_xyl(names, data, thresh):
-    """
-    convert xarray DataArray of DLC x and y positions and likelihood values into separate pandas data structures
-    INPUTS
-        names: list of names of points
-        data: xarray DataArray of data
-        thresh: likelihood threshold
-    OUTPUTS
-        x_vals: pandas dataframe of x positions
-        y_vals: pandas dataframe of y positions
-        likeli_pts: pandas dataframe of likelihoods
+    """ Convert xarray DataArray of DLC x and y positions and likelihood values into separate pandas data structures
+    
+    Parameters:
+    names (list): names of points
+    data (xr.DataArray): position data
+    thresh (float): likelihood threshold
+    
+    Returns:
+    x_vals (pd.DataFrame): x positions
+    y_vals (pd.DataFrame): y positions
+    likeli_pts (pd.DataFrame): likelihoods
     """
     x_locs = []
     y_locs = []
@@ -213,14 +217,15 @@ def split_xyl(names, data, thresh):
 
 # 
 def safe_xr_merge(obj_list, dim_name='frame'):
-    """
-    safely merge list of xarray dataarrays, even when their lengths do not match
-    INPUTS
-        obj_list: xarray DataArrays to merge as a list (objects should all have a shared dim)
-        dim_name: name of xr dimension to merge along, default='frame'
-    OUTPUTS
-        merge_objs: merged xarray of all objects in input list, even if lengths do not match
-    this is only a good idea if expected length differences will be minimal
+    """ Safely merge list of xarray dataarrays, even when their lengths do not match
+    This is only a good idea if expected length differences will be minimal
+
+    Parameters:
+    obj_list (list of two or more xr.DataArray): DataArrays to merge as a list (objects should all have a shared dim)
+    dim_name (str): name of xr dimension to merge along, default='frame'
+    
+    Returns:
+    merge_objs (xr.DataArray): merged xarray of all objects in input list, even if lengths do not match
     """
     max_lens = []
     # iterate through objects
