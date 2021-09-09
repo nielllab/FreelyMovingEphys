@@ -581,6 +581,7 @@ def plot_STV(goodcells, movInterp, img_norm, worldT):
     model_vid = np.zeros((len(model_t),nk))
     for i in range(len(model_t)):
         model_vid[i,:] = np.reshape(movInterp(model_t[i]+model_dt/2), nk)
+    model_vid = model_vid**2
     lag = 2
     stvAll = np.zeros((n_units, np.shape(img_norm)[1], np.shape(img_norm)[2]))
     fig = plt.subplots(int(np.ceil(n_units/10)),10,figsize=(20,np.int(np.ceil(n_units/3))),dpi=50)
