@@ -1086,18 +1086,19 @@ def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along
             bin_std, _, _ = stats.binned_statistic(y[~np.isnan(x) & ~np.isnan(y)], x[~np.isnan(x) & ~np.isnan(y)], statistic=np.nanstd, bins=force_range)
             hist, _ = np.histogram(y[~np.isnan(x) & ~np.isnan(y)], bins=force_range)
         tuning_err = bin_std / np.sqrt(hist)
-        plt.plot(x, y, c+'.')
         if along_y == False:
-            plt.plot(bin_edges[:-1], bin_means, c+'-', markersize=2)
+            plt.plot(x, y, c+'.')
+            plt.plot(bin_edges[:-1], bin_means, c+'-')
             plt.fill_between(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
             num_outliers = len([i for i in x if i>np.max(force_range) or i<np.min(force_range)])
             plt.xlim([np.min(force_range), np.max(force_range)])
         elif along_y == True:
-            plt.plot(bin_means, bin_edges[:-1], c+'-', markersize=2)
+            plt.plot(x, y, c+'.', markersize=2)
+            plt.plot(bin_means, bin_edges[:-1], c+'-')
             plt.fill_betweenx(bin_edges[:-1], bin_means-tuning_err, bin_means+tuning_err, color=c, alpha=0.3)
             num_outliers = len([i for i in y if i>np.max(force_range) or i<np.min(force_range)])
             plt.gca().invert_yaxis()
-    plt.title('excluded='+str(num_outliers)+' pts in data='+str(len(y[~np.isnan(x) & ~np.isnan(y)]))+' abs='+str(abs))
+    plt.title('excluded='+str(num_outliers)+' pts in data='+str(np.sum(~pd.isnull(df1[xvar]) & ~pd.isnull(df1[yvar])))+' abs='+str(abs))
     return fig
 
 def get_peak_trough(wv, baseline):
