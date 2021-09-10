@@ -15,10 +15,9 @@ def runDLCbatch(vid_list, config_path, config):
     config_path (str): path to DLC config.yaml
     config (dict): options dictionary
     """
-    if ~isinstance(vid_list, list):
+    if isinstance(vid_list, str):
         vid_list = [vid_list]
     for vid in vid_list:
-        print('analyzing ' + vid)
         if config['pose_estimation']['crop_for_dlc'] is True:
             deeplabcut.cropimagesandlabels(config_path, size=(400, 400), userfeedback=False)
         deeplabcut.analyze_videos(config_path, [vid])
