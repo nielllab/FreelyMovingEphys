@@ -1172,7 +1172,7 @@ def find_nearest(array, value):
 
 def var_around_saccade(df1, movement):
     sessions = [i for i in df1['session'].unique() if type(i) != float]
-    n_sessions = 10
+    n_sessions = len(df1['session'].unique())
     trange = np.arange(-1,1.1,0.025)
     fig = plt.subplots(n_sessions,4, figsize=(20,30))
     count = 1
@@ -2077,14 +2077,10 @@ def population_analysis(config):
     for c in shcols:
         new_col = str(c.replace('gratingssh', 'gratings'))
         df = df.rename(columns={str(c): new_col})
-    # remove empty data which has no session name
-    for ind, row in df.iterrows():
-        if type(row['session']) != str:
-            df = df.drop(ind, axis=0)
     # remove fm2, hf5-8 recordings
     cols = df.columns.values; badcols = []
     for c in cols:
-        if any(s in c for s in ['fm2','hf5','hf6','hf7','hf8']):
+        if any(s in c for s in ['hf5','hf6','hf7','hf8']):
             badcols.append(c)
     df = df.drop(labels=badcols, axis=1)
     # drop duplicate columns

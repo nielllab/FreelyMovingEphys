@@ -2794,15 +2794,11 @@ def load_ephys(csv_filepath):
         # add probe name
         session_data['probe_name'] = probenames_for_goodsessions[ind]
         # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
-        try:
-            manual_depth_entry = layer5_depth_for_goodsessions[ind]
+        manual_depth_entry = layer5_depth_for_goodsessions[ind]
+        if type(session_data['hf1_wn_lfp_layer5_centers'].iloc[0]) != float and type(manual_depth_entry) != np.nan and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != 'FALSE' and manual_depth_entry != False:
             num_sh = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[0])
-            if type(manual_depth_entry) != np.nan and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != 'FALSE' and manual_depth_entry != False:
-                for i, row in session_data.iterrows():
-                    session_data.at[i, 'hf1_wn_lfp_layer5_centers'] = list(np.ones([num_sh]).astype(int)*int(manual_depth_entry))
-        except Exception as e:
-            print('error with overwriting depth for ', rec_data['session'].unique())
-            print(e)
+            for i, row in session_data.iterrows():
+                session_data.at[i, 'hf1_wn_lfp_layer5_centers'] = list(np.ones([num_sh]).astype(int)*int(manual_depth_entry))
         ind += 1
         # new rows for units from different mice or sessions
         all_data = pd.concat([all_data, session_data], axis=0)
@@ -2811,7 +2807,7 @@ def load_ephys(csv_filepath):
     dark_dict = dict(zip(fm1_dark, [i.replace('fm1_dark', 'fm_dark') for i in fm1_dark]))
     light_dict = dict(zip(fm2_light, [i.replace('fm2_light_', 'fm1_') for i in fm2_light]))
     all_data = all_data.rename(dark_dict, axis=1).rename(light_dict, axis=1)
-    # drop data without session name
+    # drop empty data without session name
     for ind, row in all_data.iterrows():
         if type(row['session']) != str:
             all_data = all_data.drop(ind, axis=0)
@@ -2820,8 +2816,6 @@ def load_ephys(csv_filepath):
         all_data[col] = all_data[col].iloc[:,0].combine_first(all_data[col].iloc[:,1])
     # and drop the duplicates that have only partial data (all the data will now be in another column)
     all_data = all_data.loc[:,~all_data.columns.duplicated()]
-    # drop anywhere with NaN for session name
-    all_data = all_data[~pd.isnull(all_data['session'])]
     return all_data
 
 def session_ephys_analysis(config):
