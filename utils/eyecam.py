@@ -136,6 +136,8 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
             existing_camera_calib_props = None
     elif 'fm' in trial_name:
         existing_camera_calib_props = None
+    else:
+        existing_camera_calib_props = None
     # names of the different points
     pt_names = list(eye_data['point_loc'].values)
     x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['parameters']['lik_thresh'])
@@ -153,10 +155,14 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         y_vals = y_vals.iloc[:,:-5]
         likelihood = likelihood_in[:,:-5]
     # drop tear/outer
-    if config['pose_estimation']['has_tear_labeled'] is True:
+    if config['pose_estimation']['has_ir_spot_labeled'] and config['pose_estimation']['has_tear_labeled']:
         x_vals = x_vals.iloc[:,:-2]
         y_vals = y_vals.iloc[:,:-2]
         likelihood = likelihood[:,:-2]
+    if not config['pose_estimation']['has_ir_spot_labeled'] and config['pose_estimation']['has_tear_labeled']:
+        x_vals = x_vals.iloc[:,:-2]
+        y_vals = y_vals.iloc[:,:-2]
+        likelihood = likelihood_in[:,:-2]
     # get bools of when a frame is usable with the right number of points above threshold
     if config['parameters']['eyes']['spot_subtract'] is True:
         # if spot subtraction is being done, we should only include frames where all five pts marked around the ir spot are good (centroid would be off otherwise)

@@ -18,9 +18,9 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.animation import FFMpegWriter
 from tqdm import tqdm
 # module imports
-from util.paths import find
-from util.aux_funcs import nanxcorr
-from util.time import find_start_end
+from utils.paths import find
+from utils.aux_funcs import nanxcorr
+from utils.time import find_start_end
 
 # get figures and process data for individual jump recordings
 def jump_cc(REye_ds, LEye_ds, top_ds, side_ds, time, meta, config):

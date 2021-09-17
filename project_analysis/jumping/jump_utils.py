@@ -14,21 +14,18 @@ from matplotlib.animation import FFMpegWriter
 from tqdm import tqdm
 import traceback
 
-from util.log import log
-from util.paths import find
-from util.aux_funcs import nanxcorr
+from utils.log import log
+from utils.paths import find
+from utils.aux_funcs import nanxcorr
 from project_analysis.jumping.Dec2020.analyze_jump import jump_gaze_trace, animated_gaze_plot
 
-def organize_dirs(jump_config_path):
+def organize_dirs(config):
     """
     first func to run
     organize directories to match expected structure of freely moving ephys preprocessing
     """
-    # open config file
-    with open(jump_config_path, 'r') as fp:
-        config = json.load(fp)
     # set arguments as variables
-    path_in = config['path_to_raw_data']
+    path_in = config['data_path']
     path_out = config['analysis_save_dir']
     # get all the video and timestamp paths
     file_list = find('*.avi', path_in) + find('*.csv', path_in)

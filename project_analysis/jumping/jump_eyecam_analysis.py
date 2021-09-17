@@ -5,7 +5,7 @@ import argparse, os, json, sys
 
 sys.path.insert(0, '/home/niell_lab/Documents/github/FreelyMovingEphys')
 
-from manual_preprocessing import main as preprocessing_main
+from session_analysis.session_analysis import main as preprocessing_main
 from project_analysis.jumping.jump_utils import *
 
 def get_args():
