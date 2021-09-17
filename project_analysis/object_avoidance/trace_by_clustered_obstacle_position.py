@@ -59,7 +59,7 @@ def main(args):
             c = list(mcolors.TABLEAU_COLORS)[label]
             obstacles = kmeans_input[:,i]
             plt.plot(obstacles[0],obstacles[1],'*',color=c)
-            plt.ylim([0,356]); plt.xlim([0,592])
+            plt.ylim([356,0]); plt.xlim([0,592])
         pdf.savefig(); plt.close()
 
         df1['obstacle_cluster'] = labels
@@ -91,13 +91,22 @@ def main(args):
                             np.median(row['obstaclewBR_y'],0),
                             np.median(row['obstaclewBL_y'],0),
                             np.median(row['obstaclewTL_y'],0)],'k-')
+                    plt.plot([np.median(row['arenaTL_x'],0),
+                            np.median(row['arenaTR_x'],0),
+                            np.median(row['arenaBR_x'],0),
+                            np.median(row['arenaBL_x'],0),
+                            np.median(row['arenaTL_x'],0)],
+                            [np.median(row['arenaTL_y'],0),
+                            np.median(row['arenaTR_y'],0),
+                            np.median(row['arenaBR_y'],0),
+                            np.median(row['arenaBL_y'],0),
+                            np.median(row['arenaTL_y'],0)],'k-')
                     plt.plot(row['nose_x'], row['nose_y'], '-', color=colors[ind])
                     plt.plot(row['leftportT_x'], row['leftportT_y'],'.',color=leftcolor)
                     plt.plot(row['rightportT_x'], row['rightportT_y'],'.',color=rightcolor)
                 plt.ylim([356,0]); plt.xlim([0,592])
             direction_count += 1
             plt.tight_layout()
-            plt.show()
             pdf.savefig(); plt.close()
     
         pdf.close()

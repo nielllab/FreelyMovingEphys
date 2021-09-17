@@ -41,9 +41,9 @@ def make_oa_df(directory_path, dates):
     return df
 
 def filter_likelihood(da, thresh=0.99):
-    x_cols = [i for i in da.columns.values if '_x' in i]
-    y_cols = [i for i in da.columns.values if '_y' in i]
-    l_cols = [i for i in da.columns.values if '_likelihood' in i]
+    x_cols = [i for i in da.columns.values if '_x' in i and 'arena' not in i]
+    y_cols = [i for i in da.columns.values if '_y' in i and 'arena' not in i]
+    l_cols = [i for i in da.columns.values if '_likelihood' in i and 'arena' not in i]
     for i in range(len(x_cols)):
         x = da.loc[:,x_cols[i]]; y = da.loc[:,y_cols[i]]; l = da.loc[:,l_cols[i]]
         x[l<thresh] = np.nan; y[l<thresh] = np.nan
