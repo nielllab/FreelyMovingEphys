@@ -81,3 +81,11 @@ def make_task_df(df, index, dlc_h5):
             df1.at[count, 'len'] = start_stop_inds[1] - start_stop_inds[0]
     df1['animal'] = row['animal']; df1['date'] = row['date']; df1['task'] = row['task']
     return df1
+
+def convert_pxls_to_dist(da, pxls2cm):
+    x_cols = [i for i in da.columns.values if '_x' in i]
+    y_cols = [i for i in da.columns.values if '_y' in i]
+    for i in range(len(x_cols)):
+        da[x_cols[i]+'_cm'] = da.loc[:,x_cols[i]]/pxls2cm
+        da[y_cols[i]+'_cm'] = da.loc[:,y_cols[i]]/pxls2cm
+    return da
