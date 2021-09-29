@@ -33,7 +33,11 @@ mpl.rcParams.update({'font.size':         24,
                     })
 def get_args():
     parser = argparse.ArgumentParser()
+<<<<<<< Updated upstream
     parser.add_argument('--csv_path', type=str, default='T:\BinocOptoPreyCapture\csv_today.csv')
+=======
+    parser.add_argument('--csv_path', type=str, default='csv_testing.csv')
+>>>>>>> Stashed changes
     args = parser.parse_args()
     return args
 
@@ -132,7 +136,7 @@ def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=15):
     approachEnds = np.where(np.diff(approach)<0)
     if np.size(approachStarts) != 0:
         firstApproach = np.min(approachStarts)
-        dist_at_fapproach = dist[firstApproach]
+        dist_at_approach = dist[approachStarts]
         timetoapproach = t[firstApproach] # return this
     else:
         firstApproach = np.nan
@@ -163,7 +167,7 @@ def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=15):
     else:
         print('no capture')
     
-    return timetoapproach, freqapproach, prob_inter, prob_capture, dist_at_fapproach
+    return timetoapproach, freqapproach, prob_inter, prob_capture, dist_at_approach
 
 def calc_params(config):
     recording_names = [i for i in list_subdirs(config['animal_dir'])]
@@ -176,7 +180,7 @@ def calc_params(config):
         topfile = os.path.join(recordings_dict[dir_name], recording_name + '_TOP1.nc')
 
         az, spd, dist, mouse_xy, Cricket_xy, t, movieT, captureT = calc_basic_param_from_file(topfile)
-        timetoapproach, freqapproach, prob_inter, prob_capture, dist_at_fapproach = calc_prob(az, spd, dist, mouse_xy, Cricket_xy, t, movieT)
+        timetoapproach, freqapproach, prob_inter, prob_capture, dist_at_approach = calc_prob(az, spd, dist, mouse_xy, Cricket_xy, t, movieT)
 
 
         df = pd.DataFrame({'Angle': az,
@@ -195,7 +199,7 @@ def calc_params(config):
             'FreqApproach': freqapproach,
             'ProbInter': prob_inter,
             'ProbCapture': prob_capture,
-            'dist_at_fapproach': dist_at_fapproach,
+            'dist_at_approach': dist_at_approach,
         }
         
         ##### Save Data into h5 file #####
@@ -220,14 +224,14 @@ def calc_params(config):
 
             fig, ax = plt.subplots(figsize=(10,8))
             plot_min, plot_max = np.nanmin(df[['Mouse_x','Mouse_y','Cricket_x','Cricket_y']].to_numpy()), np.nanmax(df[['Mouse_x','Mouse_y','Cricket_x','Cricket_y']].to_numpy())
-            ax.plot(df['Mouse_y'], df['Mouse_x'],c='k')
-            ax.plot(df['Cricket_y'], df['Cricket_x'],c='r')
+            ax.plot(df['Mouse_x'], df['Mouse_y'],c='k')
+            ax.plot(df['Cricket_x'], df['Cricket_y'],c='r')
             ax.set_xlim([plot_min-1,plot_max+1])
             ax.set_ylim([plot_min-1,plot_max+1])
             ax.set_title('DLC Tracking')
             ax.legend(['Mouse', 'Cricket'],bbox_to_anchor=(1.01, 1), fontsize=10)
-            ax.set_aspect('equal', 'box')
             ax.set_ylim(ax.get_ylim()[::-1])        # invert the axis
+            ax.set_aspect('equal', 'box')
             plt.tight_layout()
             pdf.savefig()  # saves the current figure into a pdf page
             plt.close()
@@ -269,7 +273,7 @@ if __name__ == '__main__':
     else:
         base_path = Path('T:/BinocOptoPreyCapture').expanduser()
         print('Running on Windows')
-    csv_filepath = os.path.normpath(args.csv_path)
+    csv_filepath = base_path / 'csv_testing.csv'
     csv = pd.read_csv(csv_filepath)
     csv['experiment_date'] = pd.to_datetime(csv['experiment_date'],infer_datetime_format=True,format='%m%d%Y').dt.strftime('%m%d%y')
     csv = csv.loc[(csv['run_preprocessing'] == True)|(csv['run_ephys_analysis'] == True)]
@@ -288,14 +292,14 @@ if __name__ == '__main__':
                 csv2 = csv2.append(row[:-4].append(pd.Series([n,False],index=['Trial','LaserOn'])),ignore_index=True)
     inds, labels = csv2['Environment'].factorize()
 
-    n = 3
+    n = 0
     row = csv2.iloc[n]
-    topfile=glob.glob((os.path.normpath(os.path.join(row['drive']+':/','BinocOptoPreyCapture',row['experiment_date'],row['animal_name'],f'{n}','*TOP1.nc'))))[0]# Top nc file
-    # imufile=glob.glob((os.path.normpath(os.path.join(row['drive']+':/','BinocOptoPreyCapture',row['experiment_date'],row['animal_name'],f'{n}','*imu.nc'))))[0]# IMU nc File
-    
-    animal_dir = (os.path.normpath(os.path.join(row['drive']+':/','BinocOptoPreyCapture',row['experiment_date'],row['animal_name'])))
-    config_path = os.path.normpath(os.getcwd()+'\project_analysis\prey_capture\config.yaml')
+    topfile = str(list((base_path /row['experiment_date'] / row['animal_name'] /'{:d}'.format(row['Trial'])).glob('*TOP1.nc'))[0])
+    imufile = str(list((base_path /row['experiment_date'] / row['animal_name'] /'{:d}'.format(row['Trial'])).glob('*imu.nc'))[0])
+
+    animal_dir = base_path/row['experiment_date']/row['animal_name']
+    config_path = Path.cwd()/'config.yaml'
     with open(config_path, 'r') as infile:
         config = yaml.load(infile, Loader=yaml.FullLoader)
-    config['animal_dir'] = animal_dir
+    config['animal_dir'] = animal_dir.as_posix()
     calc_params(config)
