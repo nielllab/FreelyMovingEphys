@@ -12,6 +12,7 @@ import os
 import platform
 import pandas as pd
 import logging
+import numpy as np
 from pathlib import Path
 
 from util.params import extract_params
@@ -75,13 +76,16 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
     cols.append('LaserOn')
     csv2 = pd.DataFrame(columns=cols)
     for ind, row in csv.iterrows():
-        for n in range(1, 5):
-            if '*' in row['{:d}'.format(n)]:
-                csv2 = csv2.append(
-                    row[:-4].append(pd.Series([n, True], index=['Trial', 'LaserOn'])), ignore_index=True)
-            else:
-                csv2 = csv2.append(
-                    row[:-4].append(pd.Series([n, False], index=['Trial', 'LaserOn'])), ignore_index=True)
+        for n in range(1, 6):
+            if np.isnan(row['excluded_trials'])==True:
+                if '*' in row['{:d}'.format(n)]:
+                    csv2 = csv2.append(
+                        row[:-4].append(pd.Series([n, True], index=['Trial', 'LaserOn'])), ignore_index=True)
+                else:
+                    csv2 = csv2.append(
+                        row[:-4].append(pd.Series([n, False], index=['Trial', 'LaserOn'])), ignore_index=True)
+            elif n in np.array(row['excluded_trials']):
+                pass
     inds, labels = csv2['Environment'].factorize()
     # delete existing DLC .h5 files so that there will be only one in the directory
     # needed in case a different DLC network is being used

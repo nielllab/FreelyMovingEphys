@@ -33,7 +33,7 @@ mpl.rcParams.update({'font.size':         24,
                     })
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--csv_path', type=str, default='T:\BinocOptoPreyCapture\csv_testing.csv')
+    parser.add_argument('--csv_path', type=str, default='T:\BinocOptoPreyCapture\csv_today.csv')
     args = parser.parse_args()
     return args
 

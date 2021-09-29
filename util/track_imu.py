@@ -192,7 +192,19 @@ def read_8ch_imu(imupath, timepath, config):
     imu_out = imu_out.assign_coords({'sample':newtime})
     
     return imu_out
-  
+
+def get_laser_onoff(fname,laser_ksize=3):
+    imu_data = xr.open_dataset(fname)
+    LaserT = imu_data.IMU_data.sample.data # imu timestamps
+    LaserT0 = LaserT[0]
+    LaserT = LaserT - LaserT0
+    laser = imu_data.IMU_data.sel(channel='acc_x_raw').data # imu dample data
+    dlaser = np.diff(medfilt(laser, kernel_size=laser_ksize),append=0)
+    l_inds = np.where((np.abs(dlaser)>1.5))[0]
+    LOn_ind = l_inds[0]
+    LOff_ind = l_inds[-1]
+    return LOn_ind, LOff_ind
+
 if __name__ == '__main__':
     config_path = '/home/niell_lab/data/freely_moving_ephys/ephys_recordings/061621/dylan/config.yaml'
     with open(config_path, 'r') as infile:
