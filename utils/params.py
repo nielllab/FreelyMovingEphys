@@ -18,11 +18,11 @@ def get_params(config):
     config (dict): options
     """
     # get the path to each recording directory
-    if config['parameters']['follow_strict_naming']:
+    if config['parameters']['follow_strict_directory_naming']:
         recording_names = [i for i in list_subdirs(config['animal_dir']) if 'hf' in i or 'fm' in i]
-    if not config['parameters']['follow_strict_naming']:
+    if not config['parameters']['follow_strict_directory_naming']:
         recording_names = list_subdirs(config['animal_dir'])
-    if config['parameters']['follow_strict_naming'] and config['parameters']['recording_list'] != []:
+    if config['parameters']['follow_strict_directory_naming'] and config['parameters']['recording_list'] != []:
         recording_names = [i for i in recording_names if i in config['parameters']['recording_list']]
     recording_paths = [os.path.join(config['animal_dir'], recording_name) for recording_name in recording_names]
     recordings_dict = dict(zip(recording_names, recording_paths))

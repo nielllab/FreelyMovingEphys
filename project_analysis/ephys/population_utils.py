@@ -14,13 +14,14 @@ from datetime import datetime
 from scipy import stats
 import warnings
 warnings.filterwarnings('ignore')
-from sklearn.cluster import KMeans, SpectralClustering
+from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.decomposition import PCA
 from scipy.signal import find_peaks
 import matplotlib.patches as mpatches
 import itertools
 
 from utils.ephys import load_ephys
+from utils.format_data import flatten_series
 
 def modulation_index(tuning, zerocent=True, lbound=1, ubound=-2):
     """
@@ -1050,7 +1051,7 @@ def plot_pop_vars(df1, varX, varY):
     plt.ylabel(varY); plt.xlabel(varX)
     return fig
 
-def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along_y=False, use_median=False, abs=False):
+def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along_y=False, use_median=False, abs=False, xpos_to_index=None):
     """
     filter_for: dict of value to require for a column of the dataframe
     """
@@ -1064,6 +1065,9 @@ def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along
         elif km == 1:
             c = 'b'
         x = df1[xvar][df1['waveform_km_label']==km]
+        if xpos_to_index is not None:
+            for ind, row in x.iteritems():
+                x.at[ind] = row[xpos_to_index]
         if abs==True:
             x = np.abs(x)
         y = df1[yvar][df1['waveform_km_label']==km]
@@ -1104,8 +1108,8 @@ def plot_var_vs_var(df1, xvar, yvar, n, filter_for=None, force_range=None, along
 def get_peak_trough(wv, baseline):
     wv = [i-baseline for i in wv]
     wv_flip = [-i for i in wv]
-    peaks, peak_props = find_peaks(wv, height=3)
-    troughs, trough_props = find_peaks(wv_flip, height=3)
+    peaks, peak_props = find_peaks(wv, height=0.1)
+    troughs, trough_props = find_peaks(wv_flip, height=0.1)
     if len(peaks) > 1:
         peaks = peaks[np.argmax(peak_props['peak_heights'])]
     if len(troughs) > 1:
@@ -1150,10 +1154,10 @@ def plot_cluster_prop(df1, cluster_prop, waveform_keys, filter_for=None):
     if filter_for is not None:
         for key, val in filter_for.items():
             y = y[df1[key]==val]
-    fig = plt.subplots(2,4,figsize=(25,12))
+    fig = plt.subplots(1,4,figsize=(12,6))
     count = 1
     for key in waveform_keys:
-        plt.subplot(2,4,count)
+        plt.subplot(1,4,count)
         plt.title(key)
         for labelnum in range(5):
             label = ['biphasic','negative','early','late','unresponsive'][labelnum]
@@ -1234,24 +1238,24 @@ def var_around_saccade(df1, movement):
             
             plt.subplot(n_sessions,4, count)
             count += 1
-            plt.plot(np.nanmean(deye_mov_right,0), color='#1f77b4')
-            plt.plot(np.nanmean(deye_mov_left,0), color='r')
+            plt.plot(trange*2, np.nanmean(deye_mov_right,0), color='#1f77b4')
+            plt.plot(trange*2, np.nanmean(deye_mov_left,0), color='r')
             plt.title(session + movement)
             plt.ylabel('deye')
             plt.subplot(n_sessions,4, count)
             count += 1
-            plt.plot(np.nancumsum(np.nanmean(deye_mov_right,0)), color='#1f77b4')
-            plt.plot(np.nancumsum(np.nanmean(deye_mov_left,0)), color='r')
+            plt.plot(trange*2, np.nancumsum(np.nanmean(deye_mov_right,0)), color='#1f77b4')
+            plt.plot(trange*2, np.nancumsum(np.nanmean(deye_mov_left,0)), color='r')
             plt.ylabel('cumulative deye')
             plt.subplot(n_sessions,4, count)
             count += 1
-            plt.plot(np.nanmean(dhead_mov_right,0), color='#1f77b4')
-            plt.plot(np.nanmean(dhead_mov_left,0), color='r')
+            plt.plot(trange*2, np.nanmean(dhead_mov_right,0), color='#1f77b4')
+            plt.plot(trange*2, np.nanmean(dhead_mov_left,0), color='r')
             plt.ylabel('dhead')
             plt.subplot(n_sessions,4, count)
             count += 1
-            plt.plot(np.nancumsum(np.nanmean(dhead_mov_right,0)), color='#1f77b4')
-            plt.plot(np.nancumsum(np.nanmean(dhead_mov_left,0)), color='r')
+            plt.plot(trange*2, np.nancumsum(np.nanmean(dhead_mov_right,0)), color='#1f77b4')
+            plt.plot(trange*2, np.nancumsum(np.nanmean(dhead_mov_left,0)), color='r')
             plt.ylabel('cumulative dhead')
 
     plt.tight_layout()
@@ -1262,6 +1266,21 @@ def len_without_nan(x_list):
     for x in x_list:
         count.append(len(x[~np.isnan(x)]))
     return np.sum(count)
+
+def gratings_polar_plot(df, attr, labels, num_bins=8):
+    fig = plt.subplots(3,int(np.ceil((len(labels)+1)/3)),figsize=(15,15))
+    ax = plt.subplot(3,int(np.ceil((len(labels)+1)/3)),1,projection='polar')
+    s = df[attr]
+    ax.bar(np.linspace(0,(2*np.pi)-np.deg2rad(45),8), np.histogram(s, bins=8)[0], width=(2*np.pi)/8, bottom=0, alpha=0.5, color='tab:gray')
+    plt.title('all')
+    for count, label in enumerate(labels):
+        s = df[attr][df['movement_psth_type']==label]
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        ax = plt.subplot(3,int(np.ceil((len(labels)+1)/3)),count+2,projection='polar')
+        ax.bar(np.linspace(0,(2*np.pi)-np.deg2rad(45),8), np.histogram(s, bins=8)[0], width=(2*np.pi)/8, bottom=0, alpha=0.5, color=tempcolor)
+        plt.title(label+' (cells='+str(len(s))+')')
+    plt.tight_layout()
+    return fig
 
 def make_population_summary(df1, savepath):
     """
@@ -1348,28 +1367,6 @@ def make_population_summary(df1, savepath):
     plt.axis('off')
 
     plt.tight_layout(); pdf.savefig(); plt.close()
-
-    # print('pca')
-    # plt.subplot(2,5,8)
-    # pca_in = np.zeros([379,61])
-    # for i in range(len(df1['norm_waveform'][df1['waveform_peak'] < 0])):
-    #     try:
-    #         pca_in[i,:] = df1['norm_waveform'][df1['waveform_peak'] < 0][i]
-    #     except:
-    #         pass
-    # pca = PCA(n_components=2)
-    # fit = pca.fit_transform(pca_in.T)
-    # components = pca.components_
-    # pca_ref = df1[df1['waveform_peak'] < 0].copy()
-    # i = 0
-    # for ind, row in pca_ref.iterrows():
-    #     if i < 61:
-    #         if row['waveform_km_label']==0:
-    #             plt.plot(components[0,i].T,components[1,i],'g.')
-    #         elif row['waveform_km_label']==1:
-    #             plt.plot(components[0,i],components[1,i],'b.')
-    #         i += 1
-    # plt.ylabel('PCA1'); plt.xlabel('PCA0')
 
     print('panels of osi vs variable')
     ### osi figure
@@ -1701,6 +1698,7 @@ def make_population_summary(df1, savepath):
     plt.ylabel('sp/sec')
     plt.title('median spike rate across full recording')
 
+    active_time_by_session = dict()
     sessions = [x for x in df1['session'].unique() if str(x) != 'nan']
     for session in sessions:
         session_data = df1[df1['session']==session]
@@ -1719,7 +1717,6 @@ def make_population_summary(df1, savepath):
             n_units = len(session_data)
             light_model_nsp = np.zeros((n_units, len(light_model_t)))
             bins = np.append(light_model_t, light_model_t[-1]+model_dt)
-            duration = np.nanmax(fm_light_eyeT)
             i = 0
             for ind, row in session_data.iterrows():
                 light_model_nsp[i,:], bins = np.histogram(row['fm1_spikeT'], bins)
@@ -1728,6 +1725,8 @@ def make_population_summary(df1, savepath):
                 df1.at[ind,'fm1_active_rec_rate'] = np.sum(unit_active_spikes) / (len(unit_active_spikes)*model_dt)
                 df1.at[ind,'fm1_stationary_rec_rate'] = np.sum(unit_stationary_spikes) / (len(unit_stationary_spikes)*model_dt)
                 i += 1
+
+            active_time_by_session.setdefault('light', {})[session] = np.sum(light_active) / len(light_active)
 
         if type(session_data['fm_dark_eyeT'].iloc[0]) != float:
             del unit_active_spikes, unit_stationary_spikes
@@ -1745,7 +1744,6 @@ def make_population_summary(df1, savepath):
             n_units = len(session_data)
             dark_model_nsp = np.zeros((n_units, len(dark_model_t)))
             bins = np.append(dark_model_t, dark_model_t[-1]+model_dt)
-            duration = np.nanmax(fm_dark_eyeT)
             i = 0
             for ind, row in session_data.iterrows():
                 dark_model_nsp[i,:], bins = np.histogram(row['fm_dark_spikeT'], bins)
@@ -1754,6 +1752,9 @@ def make_population_summary(df1, savepath):
                 df1.at[ind,'fm_dark_active_rec_rate'] = np.sum(unit_active_spikes) / (len(unit_active_spikes)*model_dt)
                 df1.at[ind,'fm_dark_stationary_rec_rate'] = np.sum(unit_stationary_spikes) / (len(unit_stationary_spikes)*model_dt)
                 i += 1
+
+            active_time_by_session.setdefault('dark', {})[session] = np.sum(dark_active) / len(dark_active)
+
 
     ax = plt.subplot(2,2,2)
     labels = ['active light','stationary light','active dark','stationary dark']
@@ -1790,6 +1791,21 @@ def make_population_summary(df1, savepath):
     plt.legend()
     plt.ylabel('sp/sec')
 
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    light = np.array([val for key,val in active_time_by_session['light'].items()])
+    light_err = np.std(light) / np.sqrt(len(light))
+    dark = np.array([val for key,val in active_time_by_session['dark'].items()])
+    dark_err = np.std(dark) / np.sqrt(len(dark))
+    fig, ax = plt.subplots(1,1,figsize=(3,5))
+    plt.bar(0, np.mean(light), yerr=light_err, width=0.5, color='yellow')
+    plt.plot(np.zeros(len(light)), light, 'o', color='tab:gray')
+    plt.bar(1, np.mean(dark), yerr=dark_err, width=0.5, color='cadetblue')
+    plt.plot(np.ones(len(dark)), dark, 'o', color='tab:gray')
+    ax.set_xticks([0,1])
+    ax.set_xticklabels(['light','dark'])
+    plt.ylim([0,1])
+    plt.ylabel('fraction of time spent active')
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     for ind, row in df1.iterrows():
@@ -1835,222 +1851,570 @@ def make_population_summary(df1, savepath):
     plt.tight_layout(); pdf.savefig(); plt.close()
 
     ### waveform clustering figures
-    waveform_keys1 = ['fm1_upsacc_avg_gaze_shift_dEye', 'fm1_downsacc_avg_gaze_shift_dEye', 'fm1_upsacc_avg_gaze_shift_dHead', 'fm1_downsacc_avg_gaze_shift_dHead',
-                    'fm_dark_upsacc_avg_gaze_shift_dEye', 'fm_dark_downsacc_avg_gaze_shift_dEye', 'fm_dark_upsacc_avg_gaze_shift_dHead', 'fm_dark_downsacc_avg_gaze_shift_dHead']
-    waveform_keys2 = ['fm1_upsacc_avg_comp_dEye', 'fm1_downsacc_avg_comp_dEye', 'fm1_upsacc_avg_comp_dHead', 'fm1_downsacc_avg_comp_dHead',
-                    'fm_dark_upsacc_avg_comp_dEye', 'fm_dark_downsacc_avg_comp_dEye', 'fm_dark_upsacc_avg_comp_dHead', 'fm_dark_downsacc_avg_comp_dHead']
-    all_waveform_keys = [waveform_keys1, waveform_keys2]
-    for waveform_keys in all_waveform_keys:
-        print('clustering waveforms')
-        waveforms = df1[waveform_keys].values.flatten()
-        wv_inds = list(np.floor(np.arange(0, len(df1[waveform_keys].values), 1/len(waveform_keys))).astype(int))
-        baselines = np.zeros([len(waveforms), 1])
-        nested_waveforms = np.zeros([len(waveforms), 20])
-        for ind in range(len(waveforms)):
-            wv = waveforms[ind]
-            if type(wv) == np.ndarray:
-                baseline = np.mean(wv[:25])
-                cent_wv = [i-baseline for i in wv]
-                nested_waveforms[ind] = cent_wv[35:55]
-                baselines[ind] = baseline
+    for ind, row in df1.iterrows():
+        # direction preference
+        left_deflection = row['fm1_downsacc_avg_gaze_shift_dEye']
+        right_deflection = row['fm1_upsacc_avg_gaze_shift_dEye']
+        left_right_zscores = [(np.max(np.abs(left_deflection))-np.mean(left_deflection)) / np.std(left_deflection), (np.max(np.abs(right_deflection))-np.mean(right_deflection)) / np.std(right_deflection)]
+        left_right_index = np.argmax(np.abs(left_right_zscores))
+        saccade_direction_pref = ['L','R'][left_right_index]
+        df1.at[ind, 'gaze_shift_direction_pref'] = saccade_direction_pref; df1.at[ind, 'gaze_shift_direction_pref_ind'] = left_right_index
+        # direction preference for compensatory movements
+        left_deflection = row['fm1_downsacc_avg_comp_dEye']
+        right_deflection = row['fm1_upsacc_avg_comp_dEye']
+        left_right_zscores = [(np.max(np.abs(left_deflection))-np.mean(left_deflection)) / np.std(left_deflection), (np.max(np.abs(right_deflection))-np.mean(right_deflection)) / np.std(right_deflection)]
+        left_right_index = np.argmax(np.abs(left_right_zscores))
+        saccade_direction_pref = ['L','R'][left_right_index]
+        df1.at[ind, 'comp_direction_pref'] = saccade_direction_pref; df1.at[ind, 'comp_direction_pref_ind'] = left_right_index
+    for ind, row in df1.iterrows():
+        # more compensatory or more gaze-shifting?
+        comp_deflection = [row['fm1_downsacc_avg_comp_dEye'],row['fm1_upsacc_avg_comp_dEye']][int(row['comp_direction_pref_ind'])]
+        gazeshift_deflection = [row['fm1_downsacc_avg_gaze_shift_dEye'],row['fm1_upsacc_avg_gaze_shift_dEye']][int(row['gaze_shift_direction_pref_ind'])]
+        comp_gazeshift_zscores = [(np.max(np.abs(comp_deflection))-np.mean(comp_deflection)) / np.std(comp_deflection), (np.max(np.abs(gazeshift_deflection))-np.mean(gazeshift_deflection)) / np.std(gazeshift_deflection)]
+        comp_gazeshift_index = np.argmax(np.abs(comp_gazeshift_zscores))
+        comp_gazeshift_pref = ['comp','gaze_shift'][comp_gazeshift_index]
+        df1.at[ind, 'comp_gazeshift_pref'] = comp_gazeshift_pref
+    df1['dark_gaze_shift_using_light_direction_pref'] = np.array(np.nan).astype(object)
+    df1['dark_comp_using_light_direction_pref'] = np.array(np.nan).astype(object)
+    df1['dark_gaze_shift_using_light_direction_opp'] = np.array(np.nan).astype(object)
+    df1['dark_comp_using_light_direction_opp'] = np.array(np.nan).astype(object)
+    for ind, row in df1.iterrows():
+        deflection_at_pref_direction = [row['fm1_downsacc_avg_gaze_shift_dEye'],row['fm1_upsacc_avg_gaze_shift_dEye']][int(row['gaze_shift_direction_pref_ind'])]
+        norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(deflection_at_pref_direction))
+        df1.at[ind, 'norm_deflection_at_pref_direction'] = norm_deflection.astype(object)
+        
+        deflection_at_pref_direction = [row['fm1_downsacc_avg_comp_dEye'],row['fm1_upsacc_avg_comp_dEye']][int(row['gaze_shift_direction_pref_ind'])]
+        norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(deflection_at_pref_direction))
+        df1.at[ind, 'norm_deflection_at_pref_direction_comp'] = norm_comp_deflection.astype(object)
+
+        deflection_at_pref_direction = [row['fm1_downsacc_avg_gaze_shift_dEye'],row['fm1_upsacc_avg_gaze_shift_dEye']][1-int(row['gaze_shift_direction_pref_ind'])]
+        norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(deflection_at_pref_direction))
+        df1.at[ind, 'norm_deflection_at_opp_direction'] = norm_deflection.astype(object)
+        
+        deflection_at_pref_direction = [row['fm1_downsacc_avg_comp_dEye'],row['fm1_upsacc_avg_comp_dEye']][1-int(row['gaze_shift_direction_pref_ind'])]
+        norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(deflection_at_pref_direction))
+        df1.at[ind, 'norm_deflection_at_opp_direction_comp'] = norm_comp_deflection.astype(object)
+        
+        dark_gaze_shift = [row['fm_dark_downsacc_avg_gaze_shift_dEye'],row['fm_dark_upsacc_avg_gaze_shift_dEye']][int(row['gaze_shift_direction_pref_ind'])]
+        dark_gaze_shift_norm = ((dark_gaze_shift-np.nanmean(dark_gaze_shift)) / np.nanmax(np.abs(dark_gaze_shift)))
+        dark_comp = [row['fm_dark_downsacc_avg_comp_dEye'],row['fm_dark_upsacc_avg_comp_dEye']][int(row['gaze_shift_direction_pref_ind'])]
+        dark_comp_norm = ((dark_comp-np.nanmean(dark_comp)) / np.nanmax(np.abs(dark_comp)))
+
+        dark_gaze_shift_opp = [row['fm_dark_downsacc_avg_gaze_shift_dEye'],row['fm_dark_upsacc_avg_gaze_shift_dEye']][1-int(row['gaze_shift_direction_pref_ind'])]
+        dark_gaze_shift_norm_opp = ((dark_gaze_shift_opp-np.nanmean(dark_gaze_shift_opp)) / np.nanmax(np.abs(dark_gaze_shift_opp)))
+        dark_comp_opp = [row['fm_dark_downsacc_avg_comp_dEye'],row['fm_dark_upsacc_avg_comp_dEye']][1-int(row['gaze_shift_direction_pref_ind'])]
+        dark_comp_norm_opp = ((dark_comp_opp-np.nanmean(dark_comp_opp)) / np.nanmax(np.abs(dark_comp_opp)))
+        
+        if type(dark_comp_norm) != float and type(dark_gaze_shift_norm) != float and type(dark_gaze_shift_norm_opp) != float and type(dark_comp_norm_opp) != float:
+            df1.at[ind, 'dark_gaze_shift_using_light_direction_pref'] = dark_gaze_shift_norm.astype(object)
+            df1.at[ind, 'dark_comp_using_light_direction_pref'] = dark_comp_norm.astype(object)
+            df1.at[ind, 'dark_gaze_shift_using_light_direction_opp'] = dark_gaze_shift_norm_opp.astype(object)
+            df1.at[ind, 'dark_comp_using_light_direction_opp'] = dark_comp_norm_opp.astype(object)
+
+    norm_deflection = flatten_series(df1['norm_deflection_at_pref_direction'])
+    agg = AgglomerativeClustering(n_clusters=5)
+    agg.fit(norm_deflection)
+    print('visualizing with pca')
+    reduced_data = PCA(n_components=2).fit_transform(norm_deflection)
+    h = .02
+    plt.figure()
+    Z = agg.labels_
+    plt.scatter(reduced_data[:,0],reduced_data[:,1],c=Z,s=5)
+    plt.tight_layout(); pdf.savefig(); plt.close()
+    df1['gauss_clust'] = Z
+    print('plotting clusters')
+    trange = np.arange(-1,1.1,0.025)
+    plt.subplots(2,3, figsize=(15,10))
+    count = 1
+    mean_cluster = dict()
+    for label in range(5):
+        plt.subplot(2,3,count)
+        plt.title(str(label)+' count='+str(len(df1['norm_deflection_at_pref_direction'][df1['gauss_clust']==label].dropna())))
+        inhibitory_nested = df1['norm_deflection_at_pref_direction'][df1['gauss_clust']==label][df1['waveform_km_label']==0].ravel()
+        sz1 = (np.size(inhibitory_nested, 0) if type(inhibitory_nested) != np.float else 0)
+        for i in range(sz1):
+            temp_sz0 = (len(inhibitory_nested[i]) if type(inhibitory_nested[i]) != np.float else 0)
+            if temp_sz0 > 0:
+                sz0 = temp_sz0
+        if sz0 > 0 and sz1 > 0:
+            inhibitory = np.zeros([sz1,sz0])
+            for i in range(sz1):
+                inhibitory[i,:] = inhibitory_nested[i]
+            plt.plot(0.5*(trange[0:-1] + trange[1:]), inhibitory.T, 'g', alpha=0.1)
+        else:
+            inhibitory = np.nan
+        excitatory_nested = df1['norm_deflection_at_pref_direction'][df1['gauss_clust']==label][df1['waveform_km_label']==1].ravel()
+        sz1 = (np.size(excitatory_nested, 0) if type(excitatory_nested) != np.float else 0)
+        for i in range(sz1):
+            temp_sz0 = (len(excitatory_nested[i]) if type(excitatory_nested[i]) != np.float else 0)
+            if temp_sz0 > 0:
+                sz0 = temp_sz0
+        if sz0 > 0 and sz1 > 0:
+            excitatory = np.zeros([sz1,sz0])
+            for i in range(sz1):
+                excitatory[i,:] = excitatory_nested[i]
+            plt.plot(0.5*(trange[0:-1] + trange[1:]), excitatory.T, 'b', alpha=0.1)
+        else:
+            excitatory = np.nan
+        if type(inhibitory) != float or type(excitatory) != float:
+            if type(inhibitory) != float and type(excitatory) != float:
+                all_units = np.nanmean(np.concatenate([inhibitory, excitatory], axis=0), axis=0)
+            elif type(inhibitory) != float and type(excitatory) == float:
+                all_units = np.nanmean(inhibitory, axis=0)
+            elif type(inhibitory) == float and type(excitatory) != float:
+                all_units = np.nanmean(excitatory, axis=0)
+            mean_cluster[label] = all_units
+            plt.plot(0.5*(trange[0:-1] + trange[1:]), all_units, 'k', linewidth=5)
+        else:
+            mean_cluster[label] = np.nan
+        count += 1
+        plt.xlim([-0.5,0.75])
+    plt.legend(handles=[bluepatch, greenpatch])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+    print('relabeling based on peak finding')
+    cluster_to_cell_type = dict()
+    for cluster_num, orig_cluster in mean_cluster.items():
+        cluster = flatten_series(df1['norm_deflection_at_pref_direction'][df1['gauss_clust']==cluster_num])
+        cluster_mean = np.nanmean(cluster, 0)
+        baseline = np.nanmean(cluster_mean[:30])
+        p, t = get_peak_trough(cluster_mean[38:50], baseline)
+        cluster_to_cell_type[cluster_num] = get_cluster_props(p, t)
+    for ind, row in df1.iterrows():
+        df1.at[ind, 'movement_psth_type_simple'] = cluster_to_cell_type[row['gauss_clust']]
+    
+    early = flatten_series(df1['norm_deflection_at_opp_direction_comp'][df1['movement_psth_type_simple']=='early'])
+    early_cluster_km_labels = KMeans(n_clusters=2).fit(early).labels_
+    early0mean = np.nanmean(early[early_cluster_km_labels==0], 0)
+    early1mean = np.nanmean(early[early_cluster_km_labels==1], 0)
+    comp_responsive_early_cluster = np.argmax([(np.max(np.abs(early0mean))-np.mean(early0mean)) / np.std(early0mean), (np.max(np.abs(early1mean))-np.mean(early1mean)) / np.std(early1mean)])
+    plt.subplots(2,1,figsize=(6,10))
+    plt.subplot(2,1,1)
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), early[early_cluster_km_labels==0].T, color='tab:purple', alpha=0.4)
+    plt.ylim([-0.8,0.8]); plt.xlim([-0.25,0.5])
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), early0mean, 'k')
+    plt.subplot(2,1,2)
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), early[early_cluster_km_labels==1].T, color='tab:purple', alpha=0.4)
+    plt.ylim([-0.8,0.8]); plt.xlim([-0.25,0.5])
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), early1mean, 'k')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+    early_inds = df1['norm_deflection_at_opp_direction_comp'][df1['movement_psth_type_simple']=='early'].index.values
+    for i in range(np.size(early, 0)):
+        real_ind = early_inds[i]
+        df1.at[real_ind, 'early_comp_responsive'] = (True if early_cluster_km_labels[i]==comp_responsive_early_cluster else False)
+
+    late = flatten_series(df1['norm_deflection_at_opp_direction_comp'][df1['movement_psth_type_simple']=='late'])
+    late_cluster_km_labels = KMeans(n_clusters=2).fit(late).labels_
+    late0mean = np.nanmean(late[late_cluster_km_labels==0], 0)
+    late1mean = np.nanmean(late[late_cluster_km_labels==1], 0)
+    comp_responsive_late_cluster = np.argmax([(np.max(np.abs(late0mean))-np.mean(late0mean)) / np.std(late0mean), (np.max(np.abs(late1mean))-np.mean(late1mean)) / np.std(late1mean)])
+    trange = np.arange(-1,1.1,0.025)
+    plt.subplots(2,1,figsize=(6,10))
+    plt.subplot(2,1,1)
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), late[late_cluster_km_labels==0].T, color='tab:blue', alpha=0.4)
+    plt.ylim([-0.8,0.8]); plt.xlim([-0.25,0.5])
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), late0mean, 'k')
+    plt.subplot(2,1,2)
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), late[late_cluster_km_labels==1].T, color='tab:cyan', alpha=0.4)
+    plt.ylim([-0.8,0.8]); plt.xlim([-0.25,0.5])
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), late1mean, 'k')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+    late_inds = df1['norm_deflection_at_opp_direction_comp'][df1['movement_psth_type_simple']=='late'].index.values
+    for i in range(np.size(late, 0)):
+        real_ind = late_inds[i]
+        df1.at[real_ind, 'late_comp_responsive'] = (True if late_cluster_km_labels[i]==comp_responsive_late_cluster else False)
+
+    for ind, row in df1.iterrows():
+        if row['movement_psth_type_simple'] == 'late':
+            if row['late_comp_responsive']:
+                df1.at[ind, 'movement_psth_type'] = 'late positive and compensatory responsive'
+            elif not row['late_comp_responsive']:
+                df1.at[ind, 'movement_psth_type'] = 'late positive'
+        elif row['movement_psth_type_simple'] != 'early':
+            df1.at[ind, 'movement_psth_type'] = row['movement_psth_type_simple']
+        elif row['movement_psth_type_simple'] == 'early':
+            df1.at[ind, 'movement_psth_type'] = 'early positive'
+            # if row['early_comp_responsive']:
+            #     df1.at[ind, 'movement_psth_type'] = 'early positive and compensatory responsive'
+            # elif not row['early_comp_responsive']:
+            #     df1.at[ind, 'movement_psth_type'] = 'early positive'
+    
+    print('plotting clusters')
+    plt.subplots(2,3, figsize=(14,9))
+    trange = np.arange(-1,1.1,0.025)
+    labels = sorted(df1['movement_psth_type'].unique())
+    for count, label in enumerate(labels):
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        cluster = df1[df1['movement_psth_type']==label]
+        plt.subplot(2,3,count+1)
+        for ind, row in cluster.iterrows():
+            plt.plot(0.5*(trange[0:-1] + trange[1:]), row['norm_deflection_at_pref_direction'], color=tempcolor, alpha=0.2)
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), np.mean(cluster['norm_deflection_at_pref_direction'], 0), 'k')
+        plt.xlim([-0.25,0.5])
+        plt.title(label+' -- gaze shift')
+        plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+        plt.ylim([-0.8,0.8])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    print('plotting clusters when compensatory')
+    plt.subplots(2,3, figsize=(14,9))
+    trange = np.arange(-1,1.1,0.025)
+    labels = sorted(df1['movement_psth_type'].unique())
+    for count, label in enumerate(labels):
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        cluster = df1[df1['movement_psth_type']==label]
+        plt.subplot(2,3,count+1)
+        for ind, row in cluster.iterrows():
+            plt.plot(0.5*(trange[0:-1] + trange[1:]), row['norm_deflection_at_pref_direction_comp'], color=tempcolor, alpha=0.2)
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), np.mean(cluster['norm_deflection_at_pref_direction_comp'], 0), 'k')
+        plt.xlim([-0.25,0.5])
+        plt.title(label+' -- same comp')
+        plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+        plt.ylim([-0.8,0.8])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    plt.subplots(2,3, figsize=(14,9))
+    trange = np.arange(-1,1.1,0.025)
+    labels = sorted(df1['movement_psth_type'].unique())
+    for count, label in enumerate(labels):
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        cluster = df1[df1['movement_psth_type']==label]
+        plt.subplot(2,3,count+1)
+        for ind, row in cluster.iterrows():
+            plt.plot(0.5*(trange[0:-1] + trange[1:]), row['norm_deflection_at_opp_direction'], color=tempcolor, alpha=0.2)
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), np.mean(cluster['norm_deflection_at_opp_direction'], 0), 'k')
+        plt.xlim([-0.25,0.5])
+        plt.title(label+' -- opposite gaze shift')
+        plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+        plt.ylim([-0.8,0.8])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    plt.subplots(2,3, figsize=(14,9))
+    trange = np.arange(-1,1.1,0.025)
+    labels = sorted(df1['movement_psth_type'].unique())
+    for count, label in enumerate(labels):
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        cluster = df1[df1['movement_psth_type']==label]
+        plt.subplot(2,3,count+1)
+        for ind, row in cluster.iterrows():
+            plt.plot(0.5*(trange[0:-1] + trange[1:]), row['norm_deflection_at_opp_direction_comp'], color=tempcolor, alpha=0.2)
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), np.mean(cluster['norm_deflection_at_opp_direction_comp'], 0), 'k')
+        plt.xlim([-0.25,0.5])
+        plt.title(label+' -- opposite comp')
+        plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+        plt.ylim([-0.8,0.8])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+    
+    plt.figure(figsize=(8,6))
+    for count, label in enumerate(labels):
+        cluster = flatten_series(df1['norm_deflection_at_pref_direction'][df1['movement_psth_type']==label])
+        cluster_mean = np.nanmean(cluster, 0)
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), cluster_mean, color=tempcolor, label=label, linewidth=5)
+        plt.legend()
+        plt.xlim([-0.25,0.5])
+        plt.vlines(0,-0.5,0.5,linestyles='dotted',colors='k')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    plt.subplots(2,3, figsize=(14,9))
+    for count, label in enumerate(labels):
+        plt.subplot(2,3,count+1)
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        plt.hist(df1['hf1_wn_depth_from_layer5'][df1['movement_psth_type']==label],bins=list(np.arange(-650,650+100,100)),orientation='horizontal',color=tempcolor)
+        plt.title(label)
+        plt.gca().invert_yaxis()
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    props = ['dsi_for_sf_pref', 'osi_for_sf_pref', 'hf1_wn_crf_modind', 'sf_pref', 'tf_pref']
+    prop_labels = ['direction selectivity','orientation selectivity','contrast response','prefered spatial frequency','prefered temporal frequency']
+    plt.subplots(5,1,figsize=(16,25))
+    for fig_count, prop in enumerate(props):
+        ax = plt.subplot(5,1,fig_count+1)
+        for label_count, label in enumerate(labels):
+            s = df1[prop][df1['movement_psth_type']==label].dropna()
+            s_mean = np.nanmean(s)
+            stderr = np.nanstd(s) / np.sqrt(np.size(s,0))
+            lbound = label_count-0.2; ubound = label_count+0.2
+            x_jitter = np.random.uniform(lbound, ubound, np.size(s,0))
+            tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][label_count]
+            plt.plot(x_jitter, np.array(s), '.', color=tempcolor)
+            plt.hlines(s_mean, lbound, ubound, color=tempcolor, linewidth=5)
+            plt.vlines(label_count, s_mean-stderr, s_mean+stderr, color=tempcolor, linewidth=5)
+        ax.set_xticks(np.arange(len(labels)))
+        ax.set_xticklabels(labels)
+        plt.ylabel(prop_labels[fig_count])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    for ind, row in df1.iterrows():
+        ori_tuning = np.mean(row['hf3_gratings_ori_tuning'],2) # [orientation, sf, tf]
+        drift_spont = row['hf3_gratings_drift_spont']
+        tuning = ori_tuning - drift_spont # subtract off spont rate
+        tuning[tuning < 0] = 0 # set to 0 when tuning goes negative (i.e. when firing rate is below spontanious rate)
+        th_pref = np.nanargmax(tuning,0) # get position of highest firing rate
+        prefered_direction = np.zeros(3)
+        prefered_orientation = np.zeros(3)
+        best_tuning_for_sf = np.zeros(3)
+        for sf in range(3):
+            R_pref = (tuning[th_pref[sf], sf] + (tuning[(th_pref[sf]+4)%8, sf])) * 0.5 # get that firing rate (avg between peaks)
+            th_ortho = (th_pref[sf]+2)%8 # get ortho position
+            R_ortho = (tuning[th_ortho, sf] + (tuning[(th_ortho+4)%8, sf])) * 0.5  # ortho firing rate (average between two peaks)
+            th_null = (th_pref[sf]+4)%8 # get other direction of same orientation
+            R_null = tuning[th_null, sf] # tuning value at that peak
+            prefered_direction[sf] = (np.arange(8)*45)[th_null]
+            prefered_orientation[sf] = (np.arange(8)*45)[th_pref[sf]]
+            best_tuning_for_sf[sf] = R_pref
+        best_sf_ind = np.argmax(best_tuning_for_sf)
+        df1.at[ind, 'best_direction'] = prefered_direction[best_sf_ind]
+        df1.at[ind, 'best_orientation'] = prefered_orientation[best_sf_ind]
+    plt.subplots(4,2, figsize=(16,9))
+    plt.subplot(4,2,1)
+    plt.hist(df1['best_orientation'], bins=8, density=True, color='tab:gray')
+    plt.title('all')
+    for count, label in enumerate(labels):
+        plt.subplot(4,2,count+2)
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        plt.hist(df1['best_orientation'][df1['movement_psth_type']==label], bins=8, density=True, color=tempcolor)
+        plt.title(label +' count='+str(len(df1['best_orientation'][df1['movement_psth_type']==label])))
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    gratings_polar_fig = gratings_polar_plot(df1,'best_orientation',labels)
+    pdf.savefig(); plt.close()
+
+    key_data = np.zeros([len(labels),2])
+    label_count = 0
+    for label in labels:
+        num_inh = len(df1[df1['movement_psth_type']==label][df1['waveform_km_label']==0])
+        num_exc = len(df1[df1['movement_psth_type']==label][df1['waveform_km_label']==1])
+        if num_inh > 0:
+            key_data[label_count, 0] = num_inh / len(df1[df1['waveform_km_label']==0])
+        if num_exc > 0:
+            key_data[label_count, 1] = num_exc / len(df1[df1['waveform_km_label']==1])
+        label_count += 1
+    fig, ax = plt.subplots(1,1, figsize=(17,6))
+    x = np.arange(len(labels))
+    width = 0.35
+    plt.bar(x - width/2, key_data[:,0], width=width, label='inhibitory', color='g')
+    plt.bar(x + width/2, key_data[:,1], width=width, label='excitatory', color='b')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.legend()
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    df1['has_dark'] = ~pd.isnull(df1['dark_gaze_shift_using_light_direction_pref'])
+
+    plt.subplots(2,3, figsize=(14,9))
+    trange = np.arange(-1,1.1,0.025)
+    labels = sorted(df1['movement_psth_type'].unique())
+    for count, label in enumerate(labels):
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        cluster = df1[df1['movement_psth_type']==label]
+        plt.subplot(2,3,count+1)
+        for ind, row in cluster.iterrows():
+            if row['has_dark']:
+                plt.plot(0.5*(trange[0:-1] + trange[1:]), row['dark_gaze_shift_using_light_direction_pref'], color=tempcolor, alpha=0.2)
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(cluster['dark_gaze_shift_using_light_direction_pref'][cluster['has_dark']]), 0), 'k')
+        plt.xlim([-0.25,0.5])
+        plt.title(label+' -- dark same gaze shift')
+        plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+        plt.ylim([-0.8,0.8])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    plt.subplots(2,3, figsize=(14,9))
+    trange = np.arange(-1,1.1,0.025)
+    labels = sorted(df1['movement_psth_type'].unique())
+    for count, label in enumerate(labels):
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        cluster = df1[df1['movement_psth_type']==label]
+        plt.subplot(2,3,count+1)
+        for ind, row in cluster.iterrows():
+            if row['has_dark']:
+                plt.plot(0.5*(trange[0:-1] + trange[1:]), row['dark_comp_using_light_direction_pref'], color=tempcolor, alpha=0.2)
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(cluster['dark_comp_using_light_direction_pref'][cluster['has_dark']]), 0), 'k')
+        plt.xlim([-0.25,0.5])
+        plt.title(label+' -- dark same comp')
+        plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+        plt.ylim([-0.8,0.8])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    plt.subplots(2,3, figsize=(14,9))
+    trange = np.arange(-1,1.1,0.025)
+    labels = sorted(df1['movement_psth_type'].unique())
+    for count, label in enumerate(labels):
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        cluster = df1[df1['movement_psth_type']==label]
+        plt.subplot(2,3,count+1)
+        for ind, row in cluster.iterrows():
+            if row['has_dark']:
+                plt.plot(0.5*(trange[0:-1] + trange[1:]), row['dark_gaze_shift_using_light_direction_opp'], color=tempcolor, alpha=0.2)
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(cluster['dark_gaze_shift_using_light_direction_opp'][cluster['has_dark']]), 0), 'k')
+        plt.xlim([-0.25,0.5])
+        plt.title(label+' -- dark opposite gaze shift')
+        plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+        plt.ylim([-0.8,0.8])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    plt.subplots(2,3, figsize=(14,9))
+    trange = np.arange(-1,1.1,0.025)
+    labels = sorted(df1['movement_psth_type'].unique())
+    for count, label in enumerate(labels):
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][count]
+        cluster = df1[df1['movement_psth_type']==label]
+        plt.subplot(2,3,count+1)
+        for ind, row in cluster.iterrows():
+            if row['has_dark']:
+                plt.plot(0.5*(trange[0:-1] + trange[1:]), row['dark_comp_using_light_direction_opp'], color=tempcolor, alpha=0.2)
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(cluster['dark_comp_using_light_direction_opp'][cluster['has_dark']]), 0), 'k')
+        plt.xlim([-0.25,0.5])
+        plt.title(label+' -- dark opposite comp')
+        plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+        plt.ylim([-0.8,0.8])
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    plt.subplots(2,2,figsize=(12,12))
+    plt.subplot(2,2,1)
+    plt.title('late positive, light'); plt.xlim([-0.25,0.5]); plt.ylim([-0.8,0.8])
+    for ind, row in df1['norm_deflection_at_pref_direction_comp'][df1['movement_psth_type']=='late positive'].iteritems():
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), row, color='tab:pink', alpha=0.2)
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(df1['norm_deflection_at_pref_direction_comp'][df1['movement_psth_type']=='late positive']),0),'k')
+    plt.subplot(2,2,2)
+    plt.title('late positive, dark'); plt.xlim([-0.25,0.5]); plt.ylim([-0.8,0.8])
+    for ind, row in df1['dark_comp_using_light_direction_pref'][df1['movement_psth_type']=='late positive'][df1['has_dark']].iteritems():
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), row, color='tab:pink', alpha=0.2)
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(df1['dark_comp_using_light_direction_pref'][df1['movement_psth_type']=='late positive'][df1['has_dark']]),0),'k')
+    plt.subplot(2,2,3)
+    plt.title('late positive with comp response, light'); plt.xlim([-0.25,0.5]); plt.ylim([-0.8,0.8])
+    for ind, row in df1['norm_deflection_at_pref_direction_comp'][df1['movement_psth_type']=='late positive and compensatory responsive'].iteritems():
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), row, color='tab:purple', alpha=0.2)
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(df1['norm_deflection_at_pref_direction_comp'][df1['movement_psth_type']=='late positive and compensatory responsive']),0),'k')
+    plt.subplot(2,2,4)
+    plt.title('late positive with comp response, dark'); plt.xlim([-0.25,0.5]); plt.ylim([-0.8,0.8])
+    for ind, row in df1['dark_comp_using_light_direction_pref'][df1['movement_psth_type']=='late positive and compensatory responsive'][df1['has_dark']].iteritems():
+        plt.plot(0.5*(trange[0:-1] + trange[1:]), row, color='tab:purple', alpha=0.2)
+    plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(df1['dark_comp_using_light_direction_pref'][df1['movement_psth_type']=='late positive and compensatory responsive'][df1['has_dark']]),0),'k')
+    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    labels = sorted(df1['movement_psth_type'].unique())
+    stims = ['norm_deflection_at_pref_direction','norm_deflection_at_pref_direction_comp','norm_deflection_at_opp_direction','norm_deflection_at_opp_direction_comp',
+            'dark_gaze_shift_using_light_direction_pref','dark_comp_using_light_direction_pref','dark_gaze_shift_using_light_direction_opp','dark_comp_using_light_direction_opp']
+    stim_titles = ['pref gaze shift','pref comp','opp gaze shift','opp comp','dark pref gaze shift','dark pref comp','dark opp gaze shift','dark opp comp']
+    for label_count, label in enumerate(labels):
+        tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][label_count]
+        cluster = df1[df1['movement_psth_type']==label]
+        plt.subplots(2,4,figsize=(14,9))
+        for stim_count in range(8):
+            stim = stims[stim_count]; stim_name = stim_titles[stim_count]
+            if 'dark' in stim_name:
+                usecluster = cluster[cluster['has_dark']]
             else:
-                baselines[ind] = np.nan
-        wvlen = len(nested_waveforms[0])
-        flat_waveforms = np.zeros([len(nested_waveforms), wvlen])
-        unnorm_waveforms = np.zeros([len(nested_waveforms), wvlen])
-        for i in range(len(nested_waveforms)):
-            if ~np.isnan(nested_waveforms[i]).all():
-                if (np.max(np.abs(nested_waveforms[i]))/baselines[i]) > 0.1 and np.max(np.abs(nested_waveforms[i]))>4:
-                    flat_waveforms[i,:] = nested_waveforms[i] / np.max(np.abs(nested_waveforms[i]))
-                unnorm_waveforms[i,:] = nested_waveforms[i]
-        km_labels = KMeans(n_clusters=5).fit(flat_waveforms[~np.isnan(flat_waveforms).any(axis=1)]).labels_
-        km_labels = np.nan_to_num(km_labels, 0)
-        for ind, row in df1.iterrows():
-            unit_clusters = km_labels[[i for i, x in enumerate(wv_inds) if x == ind]]
-            if unit_clusters != []:
-                for keynum in range(len(waveform_keys)):
-                    df1.at[ind, waveform_keys[keynum]+'_cluster'] = unit_clusters[keynum]
-        print('plotting clusters')
-        plt.subplots(8,5, figsize=(35,45))
-        count = 1
-        mean_cluster_all_keys = {}
-        colors = plt.cm.jet(np.arange(-650,650))
-        for key in waveform_keys:
-            mean_cluster = []
-            for label in range(5):
-                plt.subplot(8,5,count)
-                plt.title('key='+str(key)+' cluster='+str(label)+' count='+str(len(df1[key][df1[key+'_cluster']==label].dropna())))
-                inhibitory_nested = df1[key][df1[key+'_cluster']==label][df1['waveform_km_label']==0].ravel()
-                sz1 = (np.size(inhibitory_nested, 0) if type(inhibitory_nested) != np.float else 0)
-                for i in range(sz1):
-                    temp_sz0 = (len(inhibitory_nested[i]) if type(inhibitory_nested[i]) != np.float else 0)
-                    if temp_sz0 > 0:
-                        sz0 = temp_sz0
-                if sz0 > 0 and sz1 > 0:
-                    inhibitory = np.zeros([sz1,sz0])
-                    for i in range(sz1):
-                        inhibitory[i,:] = inhibitory_nested[i]
-                    plt.plot(inhibitory.T, 'g')
-                else:
-                    inhibitory = np.nan
-                excitatory_nested = df1[key][df1[key+'_cluster']==label][df1['waveform_km_label']==1].ravel()
-                sz1 = (np.size(excitatory_nested, 0) if type(excitatory_nested) != np.float else 0)
-                for i in range(sz1):
-                    temp_sz0 = (len(excitatory_nested[i]) if type(excitatory_nested[i]) != np.float else 0)
-                    if temp_sz0 > 0:
-                        sz0 = temp_sz0
-                if sz0 > 0 and sz1 > 0:
-                    excitatory = np.zeros([sz1,sz0])
-                    for i in range(sz1):
-                        excitatory[i,:] = excitatory_nested[i]
-                    plt.plot(excitatory.T, 'b')
-                else:
-                    excitatory = np.nan
-                if type(inhibitory) != float or type(excitatory) != float:
-                    if type(inhibitory) != float and type(excitatory) != float:
-                        all_units = np.nanmean(np.concatenate([inhibitory, excitatory], axis=0), axis=0)
-                    elif type(inhibitory) != float and type(excitatory) == float:
-                        all_units = np.nanmean(inhibitory, axis=0)
-                    elif type(inhibitory) == float and type(excitatory) != float:
-                        all_units = np.nanmean(excitatory, axis=0)
-                    mean_cluster.append(all_units)
-                    plt.plot(all_units, 'y', linewidth=10)
-                else:
-                    mean_cluster.append(np.nan)
-                count += 1
-                plt.xlim([35,55])
-            mean_cluster_all_keys[key] = mean_cluster
-        plt.legend(handles=[bluepatch, greenpatch])
-        plt.tight_layout(); pdf.savefig(); plt.close()
-        print('relabeling based on peak finding')
-        cluster_types = {}
-        count = 1
-        plt.subplots(4,2,figsize=(24,10))
-        for key, old_clusters in mean_cluster_all_keys.items():
-            this_key = []
-            plt.subplot(4,2,count)
-            for label in range(5):
-                if type(old_clusters[label]) != float:
-                    baseline = np.nanmean(old_clusters[label][:30])
-                    p, t = get_peak_trough(old_clusters[label][38:48], baseline)
-                    plt.plot(old_clusters[label] - baseline, '-', label=label)
-                    plt.title(key+' '+str(label))
-                    this_cluster = get_cluster_props(p, t)
-                    this_key.append(this_cluster)
-                    plt.legend()
-                else:
-                    this_key.append(np.nan)
-            cluster_types[key] = this_key
-            count += 1
-        plt.tight_layout(); pdf.savefig(); plt.close()
-        print('plotting histograms of cluster depths')
-        for ind, row in df1.iterrows():
-            for key in waveform_keys:
-                if ~np.isnan(row[key+'_cluster']):
-                    if type(row[key]) != float:
-                        df1.at[ind, key+'_cluster_type'] = cluster_types[key][int(row[key+'_cluster'])]
-                    else:
-                        df1.at[ind, key+'_cluster_type'] = np.isnan
-
-        plt.subplots(8,5,figsize=(24,45))
-        count = 1
-        for key in waveform_keys:
-            for label in ['biphasic','negative','early','late','unresponsive']:
-                plt.subplot(8,5,count)
-                plt.hist(df1['hf1_wn_depth_from_layer5'][df1[key+'_cluster_type']==label],bins=list(np.arange(-650,650+100,100)),orientation='horizontal')
-                plt.title(key+' cluster= '+label)
-                count += 1
-                plt.gca().invert_yaxis()
-        plt.tight_layout(); pdf.savefig(); plt.close()
-        print('plotting boxplots of cluster properties')
-        fig = plot_cluster_prop(df1, 'dsi_for_sf_pref', waveform_keys, filter_for={'responsive_to_gratings':True})
+                usecluster = cluster
+            plt.subplot(2,4,stim_count+1)
+            for ind, row in usecluster.iterrows():
+                plt.plot(0.5*(trange[0:-1] + trange[1:]), usecluster.loc[ind, stim], color=tempcolor, alpha=0.2)
+            plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(usecluster[stim]), 0), 'k')
+            plt.xlim([-0.25,0.5])
+            plt.title(stim_name)
+            plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+            plt.ylim([-0.8,0.8])
         plt.tight_layout(); pdf.savefig(); plt.close()
 
-        fig = plot_cluster_prop(df1, 'osi_for_sf_pref', waveform_keys, filter_for={'responsive_to_gratings':True})
-        plt.tight_layout(); pdf.savefig(); plt.close()
-
-        fig = plot_cluster_prop(df1, 'hf1_wn_crf_modind', waveform_keys, filter_for={'responsive_to_contrast':True})
-        plt.tight_layout(); pdf.savefig(); plt.close()
-
-        fig = plot_cluster_prop(df1, 'sf_pref', waveform_keys, filter_for={'responsive_to_gratings':True})
-        plt.tight_layout(); pdf.savefig(); plt.close()
-
-        fig = plot_cluster_prop(df1, 'tf_pref', waveform_keys, filter_for={'responsive_to_gratings':True})
-        plt.tight_layout(); pdf.savefig(); plt.close()
-
-        waveform_key_pairs = sorted(list(itertools.combinations(waveform_keys, 2)))
-        print('matrix of cluster changes between movement types')
-        count = 1
-        fig, axes = plt.subplots(4,7,figsize=(45,25))
-        for this_key_pair in waveform_key_pairs:
-            count_matrix = np.zeros([5,5])
-            cluster_dict = {'biphasic':0, 'negative':1, 'early':2, 'late':3, 'unresponsive':4}
-            key0 = this_key_pair[0]
-            key1 = this_key_pair[1]
-            for ind, row in df1.iterrows():
-                if type(row[key0+'_cluster_type'])==str and type(row[key1+'_cluster_type'])==str:
-                    first_cluster = row[key0+'_cluster_type']
-                    second_cluster = row[key1+'_cluster_type']
-                    pos0 = cluster_dict[first_cluster]
-                    pos1 = cluster_dict[second_cluster]
-                    count_matrix[pos0, pos1] = count_matrix[pos0, pos1] + 1
-            for i in range(4,5):
-                count_matrix[i,i] = np.nan
-            ax = plt.subplot(4,7,count)
-            im = plt.imshow(count_matrix, cmap='Blues', vmin=0, vmax=28)
-            ax.set_xticks(np.arange(5))
-            ax.set_xticklabels(['biphasic','negative','early','late','unresponsive'])
-            ax.set_yticks(np.arange(5))
-            ax.set_yticklabels(['biphasic','negative','early','late','unresponsive'])
-            plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-                    rotation_mode="anchor")
-            plt.ylabel(key0); plt.xlabel(key1)
-            count += 1
-            plt.colorbar(im)
-        plt.tight_layout(); pdf.savefig(); plt.close()
-
-        # fraction of all inhibitory and excitatory units are in each cluster
-        fig, axes = plt.subplots(2,4,figsize=(25,12))
-        count = 0
-        for waveform_key in waveform_keys:
-            key_data = np.zeros([5,2])
-            count += 1
-            for labelnum in range(5):
-                label = ['biphasic','negative','early','late','unresponsive'][labelnum]
-                num_inh = len(df1[waveform_key][df1[waveform_key+'_cluster_type']==label][df1['waveform_km_label']==0].dropna())
-                num_exc = len(df1[waveform_key][df1[waveform_key+'_cluster_type']==label][df1['waveform_km_label']==1].dropna())
-                if num_inh > 0:
-                    key_data[labelnum, 0] = num_inh / len(df1[waveform_key][df1['waveform_km_label']==0].dropna())
-                else:
-                    key_data[labelnum, 0] = 0
-                if num_exc > 0:
-                    key_data[labelnum, 1] = num_exc / len(df1[waveform_key][df1['waveform_km_label']==1].dropna())
-                else:
-                    key_data[labelnum, 1] = 0
-            labels = ['biphasic','negative','early','late','unresponsive']
-            ax = plt.subplot(2,4,count)
-            x = np.arange(len(labels))
-            width = 0.35
-            plt.bar(x - width/2, key_data[:,0], width=width, label='inhibitory')
-            plt.bar(x + width/2, key_data[:,1], width=width, label='excitatory')
-            ax.set_xticks(x)
-            ax.set_xticklabels(labels)
-            ax.legend()
-            plt.title(waveform_key)
-        plt.tight_layout(); pdf.savefig(); plt.close()
-
-    print('dhead and deye around time of gaze shifting eye movements')
-    var_around_saccade_fig = var_around_saccade(df1, 'eye_gaze_shifting')
+    props = [['fm_dark_spike_rate_vs_theta_modind_neg','fm_dark_spike_rate_vs_theta_modind_pos'],
+        ['fm_dark_spike_rate_vs_roll_modind_neg','fm_dark_spike_rate_vs_roll_modind_pos'],
+         ['fm_dark_spike_rate_vs_pitch_modind_neg','fm_dark_spike_rate_vs_pitch_modind_pos'],
+         ['fm1_spike_rate_vs_theta_modind_neg','fm1_spike_rate_vs_theta_modind_pos'],
+         ['fm1_spike_rate_vs_phi_modind_neg','fm1_spike_rate_vs_phi_modind_pos'],
+         ['fm1_spike_rate_vs_roll_modind_neg','fm1_spike_rate_vs_roll_modind_pos'],
+         ['fm1_spike_rate_vs_pitch_modind_neg','fm1_spike_rate_vs_pitch_modind_pos'],
+         ['fm1_spike_rate_vs_gz_modind_neg','fm1_spike_rate_vs_gz_modind_pos'],
+        ['fm1_spike_rate_vs_gx_modind_neg','fm1_spike_rate_vs_gx_modind_pos'],
+        ['fm1_spike_rate_vs_gy_modind_neg','fm1_spike_rate_vs_gy_modind_pos'],
+        ['fm_dark_wn_spike_rate_vs_gz_modind_neg','fm_dark_spike_rate_vs_gz_modind_pos'],
+        ['fm_dark_spike_rate_vs_gx_modind_neg','fm_dark_spike_rate_vs_gx_modind_neg'],
+        ['fm_dark_spike_rate_vs_gy_modind_pos','fm1_spike_rate_vs_gy_modind_pos']]
+    prop_labels = ['dark theta','dark roll','dark pitch','light theta','light phi','light roll','light pitch',
+               'light gyro z','light gyro x','light gyro y','dark gyro z','dark gyro x','dark gyro y']
+    labels = sorted(df1['movement_psth_type'].unique())
+    plt.subplots(13,1,figsize=(19,70))
+    for fig_count, prop in enumerate(props):
+        ax = plt.subplot(13,1,fig_count+1)
+        for label_count, label in enumerate(labels):
+            s0 = df1[prop[0]][df1['movement_psth_type']==label].dropna()
+            s1 = df1[prop[1]][df1['movement_psth_type']==label].dropna()
+            s = np.abs(pd.concat([s0,s1]))
+            s_mean = np.nanmean(s)
+            stderr = np.nanstd(s) / np.sqrt(np.size(s,0))
+            lbound = label_count-0.2; ubound = label_count+0.2
+            x_jitter = np.random.uniform(lbound, ubound, np.size(s,0))
+            tempcolor = ['tab:orange','tab:purple','tab:blue', 'tab:cyan', 'tab:green', 'tab:red'][label_count]
+            plt.plot(x_jitter, np.array(s), '.', color=tempcolor)
+            plt.hlines(s_mean, lbound, ubound, color=tempcolor, linewidth=5)
+            plt.vlines(label_count, s_mean-stderr, s_mean+stderr, color=tempcolor, linewidth=5)
+        ax.set_xticks(np.arange(len(labels)))
+        ax.set_xticklabels(labels)
+        plt.ylabel(prop_labels[fig_count])
+        plt.ylim([0,1])
     plt.tight_layout(); pdf.savefig(); plt.close()
-    print('dhead and deye around time of compesatory eye movements')
-    var_around_saccade_fig = var_around_saccade(df1, 'eye_comp')
-    plt.tight_layout(); pdf.savefig(); plt.close()
-    print('dhead and deye around time of gaze shifting head movements')
-    var_around_saccade_fig = var_around_saccade(df1, 'head_gaze_shifting')
-    plt.tight_layout(); pdf.savefig(); plt.close()
-    print('dhead and deye around time of compensatory head movements')
-    var_around_saccade_fig = var_around_saccade(df1, 'head_comp')
-    plt.tight_layout(); pdf.savefig(); plt.close()
+
+    # plt.subplots(2,2,figsize=(12,12))
+    # plt.subplot(2,2,1)
+    # plt.title('early positive, light'); plt.xlim([-0.25,0.5]); plt.ylim([-0.8,0.8])
+    # for ind, row in df1['norm_deflection_at_pref_direction_comp'][df1['movement_psth_type']=='early positive'].iteritems():
+    #     plt.plot(0.5*(trange[0:-1] + trange[1:]), row, color='tab:blue', alpha=0.2)
+    # plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(df1['norm_deflection_at_pref_direction_comp'][df1['movement_psth_type']=='early positive']),0),'k')
+    # plt.subplot(2,2,2)
+    # plt.title('early positive, dark'); plt.xlim([-0.25,0.5]); plt.ylim([-0.8,0.8])
+    # for ind, row in df1['dark_comp_using_light_direction_pref'][df1['movement_psth_type']=='early positive'][df1['has_dark']].iteritems():
+    #     plt.plot(0.5*(trange[0:-1] + trange[1:]), row, color='tab:blue', alpha=0.2)
+    # plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(df1['dark_comp_using_light_direction_pref'][df1['movement_psth_type']=='early positive'][df1['has_dark']]),0),'k')
+    # plt.subplot(2,2,3)
+    # plt.title('early positive with comp response, light'); plt.xlim([-0.25,0.5]); plt.ylim([-0.8,0.8])
+    # for ind, row in df1['norm_deflection_at_pref_direction_comp'][df1['movement_psth_type']=='early positive and compensatory responsive'].iteritems():
+    #     plt.plot(0.5*(trange[0:-1] + trange[1:]), row, color='tab:cyan', alpha=0.2)
+    # plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(df1['norm_deflection_at_pref_direction_comp'][df1['movement_psth_type']=='early positive and compensatory responsive']),0),'k')
+    # plt.subplot(2,2,4)
+    # plt.title('early positive with comp response, dark'); plt.xlim([-0.25,0.5]); plt.ylim([-0.8,0.8])
+    # for ind, row in df1['dark_comp_using_light_direction_pref'][df1['movement_psth_type']=='early positive and compensatory responsive'][df1['has_dark']].iteritems():
+    #     plt.plot(0.5*(trange[0:-1] + trange[1:]), row, color='tab:cyan', alpha=0.2)
+    # plt.plot(0.5*(trange[0:-1] + trange[1:]), np.nanmean(flatten_series(df1['dark_comp_using_light_direction_pref'][df1['movement_psth_type']=='early positive and compensatory responsive'][df1['has_dark']]),0),'k')
+    # plt.tight_layout(); pdf.savefig(); plt.close()
+
+    # print('matrix of cluster changes between movement types')
+    # fig, axes = plt.subplots(1,1,figsize=(12,12))
+    # for this_key_pair in waveform_key_pairs:
+    #     count_matrix = np.zeros([5,5])
+    #     cluster_dict = {'biphasic':0, 'negative':1, 'early':2, 'late':3, 'unresponsive':4}
+    #     key0 = this_key_pair[0]
+    #     key1 = this_key_pair[1]
+    #     for ind, row in df1.iterrows():
+    #         if type(row[key0+'_cluster_type'])==str and type(row[key1+'_cluster_type'])==str:
+    #             first_cluster = row[key0+'_cluster_type']
+    #             second_cluster = row[key1+'_cluster_type']
+    #             pos0 = cluster_dict[first_cluster]
+    #             pos1 = cluster_dict[second_cluster]
+    #             count_matrix[pos0, pos1] = count_matrix[pos0, pos1] + 1
+    #     for i in range(4,5):
+    #         count_matrix[i,i] = np.nan
+    #     ax = plt.subplot(3,2,count)
+    #     im = plt.imshow(count_matrix/np.nanmax(count_matrix), cmap='Blues', vmin=0, vmax=1)
+    #     ax.set_xticks(np.arange(5))
+    #     ax.set_xticklabels(['biphasic','negative','early','late','unresponsive'])
+    #     ax.set_yticks(np.arange(5))
+    #     ax.set_yticklabels(['biphasic','negative','early','late','unresponsive'])
+    #     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+    #     plt.ylabel(key0); plt.xlabel(key1)
+    #     plt.colorbar(im)
+    # plt.tight_layout(); pdf.savefig(); plt.close()
+
+    # print('dhead and deye around time of gaze shifting eye movements')
+    # var_around_saccade_fig = var_around_saccade(df1, 'eye_gaze_shifting')
+    # plt.tight_layout(); pdf.savefig(); plt.close()
+    # print('dhead and deye around time of compesatory eye movements')
+    # var_around_saccade_fig = var_around_saccade(df1, 'eye_comp')
+    # plt.tight_layout(); pdf.savefig(); plt.close()
+    # print('dhead and deye around time of gaze shifting head movements')
+    # var_around_saccade_fig = var_around_saccade(df1, 'head_gaze_shifting')
+    # plt.tight_layout(); pdf.savefig(); plt.close()
+    # print('dhead and deye around time of compensatory head movements')
+    # var_around_saccade_fig = var_around_saccade(df1, 'head_comp')
+    # plt.tight_layout(); pdf.savefig(); plt.close()
 
     print('saving population summary pdf')
     pdf.close()

@@ -2755,32 +2755,30 @@ def load_ephys(csv_filepath):
     # read the data in and append them into one shared df
     all_data = pd.DataFrame([])
     ind = 0
-    for session in sessions:
+    sessions = [i for i in sessions if i != []]
+    for session in tqdm(sessions):
         session_data = pd.DataFrame([])
         for recording in session:
-            try:
-                rec_data = pd.read_hdf(recording)
-                # get name of the current recording (i.e. 'fm' or 'hf1_wn')
-                rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
-                # rename spike time columns so that data is retained for each of the seperate trials
-                rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
-                # add a column for which fm recording should be prefered
-                for key,val in goodlightrecs.items():
-                    if key in rec_data['session'].iloc[0]:
-                        rec_data['best_light_fm'] = val
-                for key,val in gooddarkrecs.items():
-                    if key in rec_data['session'].iloc[0]:
-                        rec_data['best_dark_fm'] = val
-                # get column names
-                column_names = list(session_data.columns.values) + list(rec_data.columns.values)
-                # new columns for same unit within a session
-                session_data = pd.concat([session_data, rec_data],axis=1,ignore_index=True)
-                # add the list of column names from all sessions plus the current recording
-                session_data.columns = column_names
-                # remove duplicate columns (i.e. shared metadata)
-                session_data = session_data.loc[:,~session_data.columns.duplicated()]
-            except AttributeError:
-                pass
+            rec_data = pd.read_hdf(recording)
+            # get name of the current recording (i.e. 'fm' or 'hf1_wn')
+            rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
+            # rename spike time columns so that data is retained for each of the seperate trials
+            rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
+            # add a column for which fm recording should be prefered
+            for key,val in goodlightrecs.items():
+                if key in rec_data['session'].iloc[0]:
+                    rec_data['best_light_fm'] = val
+            for key,val in gooddarkrecs.items():
+                if key in rec_data['session'].iloc[0]:
+                    rec_data['best_dark_fm'] = val
+            # get column names
+            column_names = list(session_data.columns.values) + list(rec_data.columns.values)
+            # new columns for same unit within a session
+            session_data = pd.concat([session_data, rec_data],axis=1,ignore_index=True)
+            # add the list of column names from all sessions plus the current recording
+            session_data.columns = column_names
+            # remove duplicate columns (i.e. shared metadata)
+            session_data = session_data.loc[:,~session_data.columns.duplicated()]
         # add probe name as new col
         animal = goodsessions[ind]
         ellipse_json_path = find('*fm_eyecameracalc_props.json', animal)
@@ -2790,15 +2788,16 @@ def load_ephys(csv_filepath):
             session_data['best_ellipse_fit_m'] = ellipse_fit_params['regression_m']
             session_data['best_ellipse_fit_r'] = ellipse_fit_params['regression_r']
         else:
-            print(ellipse_json_path)
+            pass
         # add probe name
         session_data['probe_name'] = probenames_for_goodsessions[ind]
         # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
         manual_depth_entry = layer5_depth_for_goodsessions[ind]
-        if type(session_data['hf1_wn_lfp_layer5_centers'].iloc[0]) != float and type(manual_depth_entry) != np.nan and manual_depth_entry != '?' and manual_depth_entry != '' and manual_depth_entry != 'FALSE' and manual_depth_entry != False:
-            num_sh = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[0])
-            for i, row in session_data.iterrows():
-                session_data.at[i, 'hf1_wn_lfp_layer5_centers'] = list(np.ones([num_sh]).astype(int)*int(manual_depth_entry))
+        if 'hf1_wn_lfp_layer5_centers' in session_data.columns.values:
+            if type(session_data['hf1_wn_lfp_layer5_centers'].iloc[0]) != float and type(manual_depth_entry) != float and manual_depth_entry not in ['?','','FALSE',False]:
+                num_sh = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[0])
+                for i, row in session_data.iterrows():
+                    session_data.at[i, 'hf1_wn_lfp_layer5_centers'] = list(np.ones([num_sh]).astype(int)*int(manual_depth_entry))
         ind += 1
         # new rows for units from different mice or sessions
         all_data = pd.concat([all_data, session_data], axis=0)

@@ -113,9 +113,9 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
     # set up the pdf to be saved out with diagnostic figures
     if config['parameters']['outputs_and_visualization']['save_figs'] is True:
         pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(config['recording_path'], (trial_name + '_' + eye_side + '_tracking_figs.pdf')))
-    # ge tout downsample rate
+    # get downsample rate
     fig_dwnsmpl = config['parameters']['outputs_and_visualization']['eye_fig_pts_dwnspl']
-    # if this is a hf recoridng, read in existing fm camera center, scale, etc.
+    # if this is a hf recording, read in existing fm camera center, scale, etc.
     # it should run all fm recordings first, so it will be possible to read in fm camera calibration parameters for every hf recording
     if 'hf' in trial_name:
         path_to_existing_props = sorted(find('*fm_eyecameracalc_props.json', config['animal_dir'])) # should always go for fm1 before fm2
@@ -134,10 +134,14 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         elif path_to_existing_props is None:
             # if a json of paramters can't be found, though, we'll get these values for the hf recording
             existing_camera_calib_props = None
-    elif 'fm' in trial_name:
+    elif 'fm' in trial_name or config['parameters']['follow_strict_directory_naming']:
         existing_camera_calib_props = None
     else:
         existing_camera_calib_props = None
+    if config['parameters']['force_eyecam_calibration_params'] == 'self':
+        calibration_param_file = [i for i in find('*fm_eyecameracalc_props.json', config['recording_path']) if eye_side in i][0]
+        with open(calibration_param_file, 'r') as fp:
+            existing_camera_calib_props = json.load(fp)
     # names of the different points
     pt_names = list(eye_data['point_loc'].values)
     x_vals, y_vals, likeli_vals = split_xyl(pt_names, eye_data, config['parameters']['lik_thresh'])
@@ -271,8 +275,9 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
             plt.ylabel('deg'); plt.xlabel('every 10th frame')
             pdf.savefig()
             plt.close()
-        except:
-            print('figure error')
+        except Exception as e:
+            print('figure error for plots of theta, phi')
+            print(e)
     # organize data to return as an xarray of most essential parameters
     ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,5]), 'shortaxis':list(ellipse_params[:,6]),
                                'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12]), 'ellipse_phi':list(ellipse_params[:,7])})
@@ -298,8 +303,9 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
             plt.title('eye axes relative to center')
             pdf.savefig()
             plt.close()
-        except:
-            print('figure error')
+        except Exception as e:
+            print('figure error in plots of ellipticity and axes relative to center')
+            print(e)
         # check calibration
         try:
             xvals = np.linalg.norm(ellipse_params[usegood_req8, 11:13].T - cam_cent, axis=0)
@@ -309,9 +315,10 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
         except ValueError:
             print('no good frames that meet criteria... check DLC tracking!')
         # save out camera center and scale as np array (but only if this is a freely moving recording)
-        if 'fm' in trial_name:
+        if 'fm' in trial_name or config['parameters']['follow_strict_directory_naming'] is False:
             calib_props_dict = {'cam_cent_x':float(cam_cent[0]), 'cam_cent_y':float(cam_cent[1]), 'scale':float(scale), 'regression_r':float(r_value), 'regression_m':float(slope)}
             calib_props_dict_savepath = os.path.join(config['recording_path'], str(trial_name+eye_side+'_fm_eyecameracalc_props.json'))
+            print('saving calibration parameters to '+calib_props_dict_savepath)
             with open(calib_props_dict_savepath, 'w') as f:
                 json.dump(calib_props_dict, f)
         try:
@@ -336,8 +343,9 @@ def eye_tracking(eye_data, config, trial_name, eye_side):
             plt.legend('all points','list points')
             pdf.savefig()
             plt.close()
-        except:
-            print('figure error')
+        except Exception as e:
+            print('figure error in plots of scale and camera center')
+            print(e)
         pdf.close()
     return ellipse_out
 

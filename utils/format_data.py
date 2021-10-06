@@ -45,7 +45,7 @@ def open_ma_h5(path):
     pts.columns = ['_'.join(col[:][1:]).strip() for col in pts.columns.values]
     return pts
 
-def format_frames(vid_path, config):
+def format_frames(vid_path, config, keep_size=False, use_xr=True):
     """ Add videos to xarray
 
     Parameters:
@@ -55,6 +55,15 @@ def format_frames(vid_path, config):
     Returns:
     formatted_frames (xr.DataArray): of video as b/w int8
     """
+    if keep_size:
+        config = {
+            'parameters':{
+                'outputs_and_visualization':{
+                    'dwnsmpl': 1
+                }
+            }
+        }
+
     # open the .avi file
     vidread = cv2.VideoCapture(vid_path)
     # empty array that is the target shape
@@ -74,6 +83,8 @@ def format_frames(vid_path, config):
         sframe = cv2.resize(frame, (0,0), fx=config['parameters']['outputs_and_visualization']['dwnsmpl'], fy=config['parameters']['outputs_and_visualization']['dwnsmpl'], interpolation=cv2.INTER_NEAREST)
         # add the downsampled frame to all_frames as int8
         all_frames[frame_num,:,:] = sframe.astype(np.int8)
+    if not use_xr:
+        return all_frames
     # store the combined video frames in an xarray
     formatted_frames = xr.DataArray(all_frames.astype(np.int8), dims=['frame', 'height', 'width'])
     # label frame numbers in the xarray
@@ -215,7 +226,6 @@ def split_xyl(names, data, thresh):
     likeli_pts = xr.DataArray.to_pandas(likeli_pts).T
     return x_vals, y_vals, likeli_pts
 
-# 
 def safe_xr_merge(obj_list, dim_name='frame'):
     """ Safely merge list of xarray dataarrays, even when their lengths do not match
     This is only a good idea if expected length differences will be minimal
@@ -256,3 +266,11 @@ def safe_xr_merge(obj_list, dim_name='frame'):
     # do the merge with the lengths all matching along provided dimension
     merge_objs = xr.merge(out_objs)
     return merge_objs
+
+def flatten_series(s):
+    a = np.zeros([np.size(s,0), len(s.iloc[0])])
+    count = 0
+    for ind, data in s.iteritems():
+        a[count,:] = data
+        count += 1
+    return a

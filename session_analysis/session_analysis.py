@@ -5,7 +5,7 @@ import yaml, os
 
 from utils.params import get_params
 from utils.dlc import run_DLC_analysis
-from utils.deinterlace import deinterlace_data
+from utils.deinterlace import deinterlace_data, flip_video
 from utils.worldcam import track_LED
 from utils.video_correction import get_calibration_params, calibrate_new_world_vids, auto_contrast
 from utils.ephys import session_ephys_analysis
@@ -32,6 +32,8 @@ def main(config_path, clear_dlc=False, force_probe_name=None, force_flip_gx_gy=N
         config['parameters']['drop_slow_frames'] = drop_slow_frames
     if config['deinterlace']['run_deinter']:
         deinterlace_data(config)
+    elif not config['deinterlace']['run_deinter'] and config['rotate_only']['run_flips']:
+        flip_video(config)
     if config['img_correction']['run_img_correction']:
         auto_contrast(config)
     if config['calibration']['run_cam_calibration']:

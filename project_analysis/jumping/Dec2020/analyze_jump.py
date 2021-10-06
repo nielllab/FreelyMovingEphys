@@ -447,14 +447,14 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
                     center_xy = (int(td_pts_x), int(td_pts_y))
                     TOP_frame = cv2.circle(TOP_frame, center_xy, 6, (255,0,0), -1) # topdown pts in blue
 
-                    # backX = TOP_pts_now.sel(point_loc='BackNeck_x').values
-                    # backY = TOP_pts_now.sel(point_loc='BackNeck_y').values
+                    backX = TOP_pts_now.sel(point_loc='BackNeck_x').values
+                    backY = TOP_pts_now.sel(point_loc='BackNeck_y').values
 
-                    # head_x1 = (backX).astype(int)
-                    # head_y1 = (backY).astype(int)
-                    # head_x2 = (backX + 30 * np.cos(float(TOP_head_th_now))).astype(int)
-                    # head_y2 = (backY + 30 * np.sin(float(TOP_head_th_now))).astype(int)
-                    # TOP_frame = cv2.line(TOP_frame, (head_x1,head_y1), (head_x2,head_y2), (0,0,0), thickness=4) # line for head angle in black
+                    head_x1 = (backX).astype(int)
+                    head_y1 = (backY).astype(int)
+                    head_x2 = (backX + 30 * np.cos(float(TOP_head_th_now))).astype(int)
+                    head_y2 = (backY + 30 * np.sin(float(TOP_head_th_now))).astype(int)
+                    TOP_frame = cv2.line(TOP_frame, (head_x1,head_y1), (head_x2,head_y2), (0,0,0), thickness=4) # line for head angle in black
 
                     backX = TOP_pts_now.sel(point_loc='MidSpine2_x').values
                     backY = TOP_pts_now.sel(point_loc='MidSpine2_y').values
@@ -478,7 +478,7 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
         # pitch = (180 + pitch)
 
         # eye divergence (theta)
-        div = (RTheta - LTheta) * 0.5
+        div = (RTheta - LTheta)
         # gaze (mean theta of eyes)
         gaze_th = (RTheta + LTheta) * 0.5
         # gaze (mean phi of eyes)
@@ -488,26 +488,26 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
         for i in range(0,20):
             frame_before = frame_num - i
             if frame_before >= 0:
-                head_x = Side_pts.sel(point_loc='LEye_x', frame=frame_before).values
-                head_y = Side_pts.sel(point_loc='LEye_y', frame=frame_before).values
+                head_x = Side_pts.sel(point_loc='LCam_x', frame=frame_before).values
+                head_y = Side_pts.sel(point_loc='LCam_y', frame=frame_before).values
                 try:
                     SIDE_frame = cv2.circle(SIDE_frame, (int(head_x),int(head_y)), 2, (255,0,0), -1)
                 except ValueError:
                     pass
 
         # blue circle over the current position of the eye
-        eyecent_x = SIDE_pts_now.sel(point_loc='LEye_x').values
-        eyecent_y = SIDE_pts_now.sel(point_loc='LEye_y').values
+        eyecent_x = SIDE_pts_now.sel(point_loc='LCam_x').values
+        eyecent_y = SIDE_pts_now.sel(point_loc='LCam_y').values
         try:
             SIDE_frame = cv2.circle(SIDE_frame, (int(eyecent_x),int(eyecent_y)), 4, (255,0,0), -1)
         except ValueError:
             pass
 
         # calculate and plot head vector
-        headV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
-        headV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
-        headV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values + 200 * np.cos(np.deg2rad(pitch))
-        headV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values + 200 * np.sin(np.deg2rad(pitch))
+        headV_x1 = SIDE_pts_now.sel(point_loc='LCam_x').values
+        headV_y1 = SIDE_pts_now.sel(point_loc='LCam_y').values
+        headV_x2 = SIDE_pts_now.sel(point_loc='LCam_x').values + 200 * np.cos(np.deg2rad(pitch))
+        headV_y2 = SIDE_pts_now.sel(point_loc='LCam_y').values + 200 * np.sin(np.deg2rad(pitch))
         # black line of the head vector
         try:
             SIDE_frame = cv2.line(SIDE_frame, (int(headV_x1),int(headV_y1)), (int(headV_x2),int(headV_y2)), (0,0,0), thickness=2)
@@ -515,12 +515,12 @@ def animated_gaze_plot(REye, LEye, Top, SIDE, Side_vid_path, LEye_vid_path, REye
             pass
 
         # calculate gaze direction (head and eyes)
-        gaze_direc = np.deg2rad(pitch) + div
+        gaze_direc = np.deg2rad(pitch) - div
         # rth = (th - div) + np.pi/8
-        gazeV_x1 = SIDE_pts_now.sel(point_loc='LEye_x').values
-        gazeV_y1 = SIDE_pts_now.sel(point_loc='LEye_y').values
-        gazeV_x2 = SIDE_pts_now.sel(point_loc='LEye_x').values + 200 * np.cos(gaze_direc)
-        gazeV_y2 = SIDE_pts_now.sel(point_loc='LEye_y').values + 200 * np.sin(gaze_direc)
+        gazeV_x1 = SIDE_pts_now.sel(point_loc='LCam_x').values
+        gazeV_y1 = SIDE_pts_now.sel(point_loc='LCam_y').values
+        gazeV_x2 = SIDE_pts_now.sel(point_loc='LCam_x').values + 200 * np.cos(gaze_direc)
+        gazeV_y2 = SIDE_pts_now.sel(point_loc='LCam_y').values + 200 * np.sin(gaze_direc)
         # cyan line of gaze direction
         try:
             SIDE_frame = cv2.line(SIDE_frame, (int(gazeV_x1),int(gazeV_y1)), (int(gazeV_x2),int(gazeV_y2)), (255,255,0), thickness=2)

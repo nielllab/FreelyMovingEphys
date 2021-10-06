@@ -19,9 +19,9 @@ from scipy.interpolate import interp1d
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--directory_path', type=str, default='/home/niell_lab/data/object_avoidance/recordings/')
-    parser.add_argument('--metadata_path', type=str, default='/home/niell_lab/data/object_avoidance/recordings/oa_metadata1.json')
+    parser.add_argument('--metadata_path', type=str, default='/home/niell_lab/data/object_avoidance/recordings/oa_metadata.json')
     parser.add_argument('--dist_across_arena', type=float, default=30.48)
-    parser.add_argument('--make_videos', type=bool, default=False)
+    parser.add_argument('--make_videos', type=bool, default=True)
     args = parser.parse_args()
     return args
 

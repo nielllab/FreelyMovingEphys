@@ -75,3 +75,18 @@ def deinterlace_data(config, vid_list=None, time_list=None):
                 csv_out.to_csv(csv_out_path, index=False)
         else:
             print('frame rate not 30 or 60 for ' + key)
+
+def flip_video(config):
+    vid_list = find('*EYE.avi', config['animal_dir'])
+    for this_avi in vid_list:
+        vid_name = os.path.split(this_avi)[1]
+        key_pieces = vid_name.split('.')[:-1]
+        key = '.'.join(key_pieces)
+        print(key)
+        avi_out_path = os.path.join(os.path.split(this_avi)[0], (key + 'deinter.avi'))
+        if config['rotate_only']['flip_x'] and not config['rotate_only']['flip_y']:
+            subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'hflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
+        elif not config['rotate_only']['flip_x'] and config['rotate_only']['flip_y']:
+            subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'vflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
+        elif config['rotate_only']['flip_x'] and config['rotate_only']['flip_y']:
+            subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'vflip, hflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
