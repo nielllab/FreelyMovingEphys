@@ -18,6 +18,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from pathlib import Path
 sys.path.append(str(Path('.').absolute()))
 from util.paths import find, list_subdirs
+from tqdm import tqdm
 
 import matplotlib as mpl
 mpl.rcParams.update({'font.size':         24,
@@ -33,11 +34,7 @@ mpl.rcParams.update({'font.size':         24,
                     })
 def get_args():
     parser = argparse.ArgumentParser()
-<<<<<<< Updated upstream
-    parser.add_argument('--csv_path', type=str, default='T:\BinocOptoPreyCapture\csv_today.csv')
-=======
     parser.add_argument('--csv_path', type=str, default='csv_testing.csv')
->>>>>>> Stashed changes
     args = parser.parse_args()
     return args
 
@@ -118,7 +115,7 @@ def calc_basic_param_from_file(f, pixpercm = 14.5, thresh = 0.99,framerate = 60)
 
 
 def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=15):
-# find the start and end of each approach
+    # find the start and end of each approach
     # approach = []
     # paired = list(zip(az,spd))
     approach  = (np.abs(az) < 30) & (spd > 5)
@@ -140,16 +137,17 @@ def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=15):
         timetoapproach = t[firstApproach] # return this
     else:
         firstApproach = np.nan
-        dist_at_fapproach = np.nan
+        dist_at_approach = np.nan
         timetoapproach = np.nan
+
     freqapproach= np.size(approachStarts) / movieT # return this
     
     # find instances of intercept given an approach (end of approach range <2cm); index dist using approachEnds, if range value <2, then call an intercept
-    intercept = []
     maybeIntercept = np.take(dist, approachEnds) # uses approachEnds to index dist
     maybeIntercept = maybeIntercept[0] # np.take returns tuple, first value are the ones you one
-    maybeIntercept[-1] = 0 # assuming last approach is intercept/capture, makes things werk
-    
+    if np.size(maybeIntercept)>0:
+        maybeIntercept[-1] = 0 # assuming last approach is intercept/capture, makes things werk
+    intercept = []
     for i in maybeIntercept:
         if i < 5:
             intercept.append(1)
@@ -159,12 +157,14 @@ def calc_prob (az, spd, dist, mouse_xy, Cricket_xy, t, movieT, med_filt_win=15):
     # calculate probability of intercept given approach
     tot_approach = np.size(approachEnds)
     tot_intercept = sum(intercept)
-    prob_inter = tot_intercept / tot_approach
     
     # calculate the probability of capture given contact - 1/number of intercepts
     if tot_intercept>0:
+        prob_inter = tot_intercept / tot_approach
         prob_capture = 1 / tot_intercept
     else:
+        prob_inter = 0
+        prob_capture = 0
         print('no capture')
     
     return timetoapproach, freqapproach, prob_inter, prob_capture, dist_at_approach
@@ -284,22 +284,27 @@ if __name__ == '__main__':
     cols.append('Trial')
     cols.append('LaserOn')
     csv2 = pd.DataFrame(columns=cols)
-    for ind,row in csv.iterrows():
-        for n in range(1,5): # Trials 1-5
-            if '*' in row['{:d}'.format(n)]:
-                csv2 = csv2.append(row[:-4].append(pd.Series([n,True],index=['Trial','LaserOn'])),ignore_index=True)
-            else:
-                csv2 = csv2.append(row[:-4].append(pd.Series([n,False],index=['Trial','LaserOn'])),ignore_index=True)
+    for ind, row in csv.iterrows():
+        for n in range(1, 6):
+            if np.isnan(row['excluded_trials'])==True:
+                if '*' in row['{:d}'.format(n)]:
+                    csv2 = csv2.append(row[:-4].append(pd.Series([n, True], index=['Trial', 'LaserOn'])), ignore_index=True)
+                else:
+                    csv2 = csv2.append(row[:-4].append(pd.Series([n, False], index=['Trial', 'LaserOn'])), ignore_index=True)
+            elif n in np.array(row['excluded_trials']):
+                pass
     inds, labels = csv2['Environment'].factorize()
 
-    n = 0
-    row = csv2.iloc[n]
-    topfile = str(list((base_path /row['experiment_date'] / row['animal_name'] /'{:d}'.format(row['Trial'])).glob('*TOP1.nc'))[0])
-    imufile = str(list((base_path /row['experiment_date'] / row['animal_name'] /'{:d}'.format(row['Trial'])).glob('*imu.nc'))[0])
+    # n = 0
+    # row = csv2.iloc[n]
+    for ind, row in tqdm(csv2.iterrows()):
+        topfile = str(list((base_path /row['experiment_date'] / row['animal_name'] /'{:d}'.format(row['Trial'])).glob('*TOP1.nc'))[0])
+        if (row['experiment_date'] != '091521') & (row['experiment_date'] != '091621'):
+            imufile = str(list((base_path /row['experiment_date'] / row['animal_name'] /'{:d}'.format(row['Trial'])).glob('*imu.nc'))[0])
 
-    animal_dir = base_path/row['experiment_date']/row['animal_name']
-    config_path = Path.cwd()/'config.yaml'
-    with open(config_path, 'r') as infile:
-        config = yaml.load(infile, Loader=yaml.FullLoader)
-    config['animal_dir'] = animal_dir.as_posix()
-    calc_params(config)
+        animal_dir = base_path/row['experiment_date']/row['animal_name']
+        config_path = Path.cwd() / 'project_analysis/prey_capture/config.yaml'
+        with open(config_path, 'r') as infile:
+            config = yaml.load(infile, Loader=yaml.FullLoader)
+        config['animal_dir'] = animal_dir.as_posix()
+        calc_params(config)
