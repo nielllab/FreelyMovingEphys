@@ -21,6 +21,7 @@ from util.Kalman import Kalman
 
 class IMU_Orientation():
     """
+    Adapted from Jonny Saunders NEEDS LINK 2021
     Compute absolute orientation (roll, pitch) from accelerometer and gyroscope measurements
     (eg from :class:`.hardware.i2c.I2C_9DOF` )
 
