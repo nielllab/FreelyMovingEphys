@@ -1,3 +1,4 @@
+import ray
 from ray.actor import ActorHandle
 from typing import Tuple
 from asyncio import Event
@@ -9,7 +10,6 @@ import yaml
 import glob
 import cv2
 import time
-import ray
 import logging
 import itertools
 import numpy as np
@@ -17,10 +17,12 @@ import xarray as xr
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt 
-
+import gc
 
 from matplotlib.backends.backend_pdf import PdfPages
-from tqdm.notebook import tqdm, trange
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import matplotlib.patches as mpatches
+from tqdm.auto import tqdm, trange
 from scipy import interpolate 
 from scipy import signal
 from scipy.signal import medfilt
@@ -230,7 +232,7 @@ url = ray.init(  # address='auto',
     include_dashboard=True,
     ignore_reinit_error=True,
     logging_level=logging.ERROR,)
-url
+print(url)
 
 def discrete_cmap(N, base_cmap=None):
     """Create an N-bin discrete colormap from the specified input map"""
@@ -272,12 +274,12 @@ def get_laser_onoff(imufile,laser_ksize=3):
     return LOn_ind, LOff_ind, LaserT
 
 
-SavePath = check_path(Path('~/Research/PreyCapture/').expanduser(),'Data')
+SavePath = check_path(base_path.expanduser(),'Data')
 df_meta = pd.read_feather(SavePath/'df_meta.feather')
 df_all = pd.read_feather(SavePath/'df_all.feather')
 df_all = df_all.set_index(['experiment_date','animal_name','Trial'])
 df = df_all.dropna()
-FigPath = check_path(Path('~/Research/PreyCapture/').expanduser(),'Figures/')
+FigPath = check_path(base_path.expanduser(),'Figures/')
 blue_patch = mpatches.Patch(color='blue', label='Angle')
 black_patch = mpatches.Patch(color='black', label='Speed')
 m_patch = mpatches.Patch(color='m', label='Dist')
@@ -288,6 +290,7 @@ order=['Wno','Lno','Hno','Wsw','Wlb','Wsb','Lsb','Hsb',]
 
 
 ##### Histogram data #####
+print('2d Historgrams')
 h2dbins=10
 hist_data_all = np.zeros((h2dbins,h2dbins,2,2,perms.shape[0],len(order)))# (bin x bin x Exp x LaserOn x Comb x Env)
 xedges_all = np.zeros((h2dbins+1,2,2,perms.shape[0],len(order)))# (bin x Exp x LaserOn x Comb x Env)
@@ -384,6 +387,7 @@ for n,row, in df_meta.iterrows():
     pts_xy = np.stack((pts.iloc[:, ::3]*downsamp, pts.iloc[:, 1::3]*downsamp))
 
     # Put data into shared memory for parallization
+    print('Making Animation {}'.format(fname.split('/')[-1][:-9]))
     start = time.time()
     num_ticks = (tvid.shape[0])
     pb = ProgressBar(num_ticks)
@@ -395,7 +399,6 @@ for n,row, in df_meta.iterrows():
     Vid_r = ray.put(Vid)
     pts_r = ray.put(pts_xy)
     df_r = ray.put(df)
-    hist_data_all_r = ray.put(hist_data_all)
     asd_r = ray.put(asd)
     result_ids = []
     # Loop over parameters appending process ids
@@ -409,10 +412,10 @@ for n,row, in df_meta.iterrows():
 
     ##### Gather Data and Find Max CC Model #####
     images = np.stack([results_p[i] for i in range(len(results_p))])
-
     # Example Frames Video
     aniname = fname.split('/')[-1][:-4] + '_summary.mp4'
     vid_name = FigPath / aniname
+    print('Writing Video: {}'.format(vid_name))
     FPS = 60
     out = cv2.VideoWriter(vid_name.as_posix(), cv2.VideoWriter_fourcc(
         *'mp4v'), FPS, (images.shape[-2], images.shape[-3]))
@@ -420,5 +423,6 @@ for n,row, in df_meta.iterrows():
     for fm in tqdm(range(images.shape[0])):
         out.write(images[fm])
     out.release()
-
     print('Animation: ', time.time()-start)
+    del results_p, ang_norm_r, spd_norm_r, dist_norm_r, Vid_r, pts_r, df_r, asd_r, 
+    gc.collect()
