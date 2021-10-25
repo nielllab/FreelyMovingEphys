@@ -137,8 +137,7 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
                     analyze_session(
                         config, clear_dlc=clear_dlc, force_probe_name=None, force_flip_gx_gy=False, batch=True)
             except Exception as e:
-                logf.log([row['experiment_date'] + '_' +
-                         row['animal_name'], traceback.format_exc()], PRINT=False)
+                logf.log([row['experiment_date'] + '_' +row['animal_name'], traceback.format_exc()], PRINT=False)
                 # logging.error(e,exc_info=True)
         if config['population']['pool_h5_files']:
             population_analysis(config)

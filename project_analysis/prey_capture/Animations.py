@@ -2,12 +2,7 @@ import ray
 from ray.actor import ActorHandle
 from typing import Tuple
 from asyncio import Event
-import os
-import argparse
-import glob
 import sys 
-import yaml 
-import glob
 import cv2
 import time
 import logging
@@ -15,26 +10,24 @@ import itertools
 import numpy as np
 import xarray as xr
 import pandas as pd
-import seaborn as sns
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt 
 import gc
 
-from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.patches as mpatches
 from tqdm.auto import tqdm, trange
-from scipy import interpolate 
-from scipy import signal
 from scipy.signal import medfilt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as mpatches
-from celluloid import Camera
 
 from pathlib import Path
 sys.path.append(str(Path('.').absolute().parent.parent))
 # sys.path.append(str(Path('~/Research/MyRepos/SensoryMotorPred/PredCoding/').expanduser()))
 # from util.paths import find, list_subdirs
 # import io_dict_to_hdf5 as ioh5
+from util.log import log
 
 
 
@@ -60,6 +53,16 @@ if platform.system() == 'Linux':
 else:
     base_path = Path('T:/BinocOptoPreyCapture').expanduser()
     print('Running on Windows')
+
+log_path = base_path/'batch_log.txt'
+logf = log(log_path, name=['recording'])
+logging.basicConfig(filename=log_path, level=logging.DEBUG)
+
+url = ray.init(  # address='auto',
+    include_dashboard=True,
+    ignore_reinit_error=True,
+    logging_level=logging.ERROR,)
+print(url)
 
 # ProgressBar
 @ray.remote
@@ -174,7 +177,7 @@ def make_plt_im(tvid, ang_norm, spd_norm, dist_norm, patches, Vid, pts, clim, me
     axs2 = fig2.add_subplot(spec2[1:3, :])
     axs3 = np.array([fig2.add_subplot(spec2[3, n]) for n in range(3)])
     width, height = fig2.get_size_inches() * fig2.get_dpi()
-    canvas = FigureCanvas(fig2)
+    # canvas = FigureCanvas(fig2)
     # Plotting Angle, Speed, Dist
     p1 = axs1.scatter(tvid, ang_norm, 3, c='b',)
     p2 = axs1.plot(tvid, spd_norm, c='k')
@@ -206,10 +209,8 @@ def make_plt_im(tvid, ang_norm, spd_norm, dist_norm, patches, Vid, pts, clim, me
                 asd[perms[n, 1], t], ybins_on)]+np.mean(np.diff(ybins_on))/2
             axs3[n].scatter(xpt, ypt, 200, 'r')
     plt.tight_layout()
-    canvas.draw()       # draw the canvas, cache the renderer
-
-    images = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(
-        int(height), int(width), 3)
+    fig2.canvas.draw()       # draw the canvas, cache the renderer
+    images = np.frombuffer(fig2.canvas.tostring_rgb(), dtype='uint8').reshape(int(height), int(width), 3)
     plt.close()
     pbar.update.remote(1)
     return images
@@ -227,12 +228,6 @@ def check_path(basepath, path):
     else:
         return (basepath / path)
 
-
-url = ray.init(  # address='auto',
-    include_dashboard=True,
-    ignore_reinit_error=True,
-    logging_level=logging.ERROR,)
-print(url)
 
 def discrete_cmap(N, base_cmap=None):
     """Create an N-bin discrete colormap from the specified input map"""
@@ -280,6 +275,7 @@ df_all = pd.read_feather(SavePath/'df_all.feather')
 df_all = df_all.set_index(['experiment_date','animal_name','Trial'])
 df = df_all.dropna()
 FigPath = check_path(base_path.expanduser(),'Figures/')
+print(FigPath)
 blue_patch = mpatches.Patch(color='blue', label='Angle')
 black_patch = mpatches.Patch(color='black', label='Speed')
 m_patch = mpatches.Patch(color='m', label='Dist')
@@ -295,7 +291,7 @@ h2dbins=10
 hist_data_all = np.zeros((h2dbins,h2dbins,2,2,perms.shape[0],len(order)))# (bin x bin x Exp x LaserOn x Comb x Env)
 xedges_all = np.zeros((h2dbins+1,2,2,perms.shape[0],len(order)))# (bin x Exp x LaserOn x Comb x Env)
 yedges_all = np.zeros((h2dbins+1,2,2,perms.shape[0],len(order)))# (bin x Exp x LaserOn x Comb x Env)
-for en, env in enumerate(tqdm(order)):
+for en, env in enumerate(tqdm(order, leave=False)):
     for n in range(perms.shape[0]):
         for m, Exp in enumerate([True,False]):
             hist_data_Lon =df[['Angle','Speed','Dist','Environment','LaserOn']][(df['ExpAni']==Exp) & (df['LaserOn']==True) & (df['Environment']==env)].reset_index()
@@ -309,7 +305,7 @@ for en, env in enumerate(tqdm(order)):
             yedges_all[:,0,m,n,en] = yedges_on
             yedges_all[:,1,m,n,en] = yedges_off
 
-for n,row, in df_meta.iterrows():
+for n in tqdm(np.arange(6,df_meta.shape[0])):
     ##### Extract Values from DataFrames #####
     trial = df_meta['Trial'].iloc[n]
     date = df_meta['experiment_date'].iloc[n]
@@ -334,23 +330,19 @@ for n,row, in df_meta.iterrows():
 
     # df_trial[['animal_name','experiment_date','Trial','CaptureT','MovieT','LaserOnT','LaserOffT','LaserOn','Environment','Exp_Ctrl','Capture','Cap_dur_laser']]
     ##### Grab Video and h5 files #####
-    fname = str(list((base_path / df_trial['experiment_date'] /
-                df_trial['animal_name'] / '{:d}'.format(df_trial['Trial'])).glob('*TOP1.avi'))[0])
-    fname_h5 = str(list((base_path / df_trial['experiment_date'] /
-                df_trial['animal_name'] / '{:d}'.format(df_trial['Trial'])).glob('*TOP1*.h5'))[0])
+    fname = str(list((base_path / df_trial['experiment_date'] / df_trial['animal_name'] / '{:d}'.format(df_trial['Trial'])).glob('*TOP1.avi'))[0])
+    fname_h5 = str(list((base_path / df_trial['experiment_date'] / df_trial['animal_name'] / '{:d}'.format(df_trial['Trial'])).glob('*TOP1*.h5'))[0])
 
     ##### Read h5 DLC Points #####
     pts = pd.read_hdf(fname_h5)
     pts.columns = [' '.join(col[:][1:3]).strip() for col in pts.columns.values]
-    pts = pts.rename(columns={pts.columns[n]: pts.columns[n].replace(
-        ' ', '_') for n in range(len(pts.columns))})
+    pts = pts.rename(columns={pts.columns[n]: pts.columns[n].replace(' ', '_') for n in range(len(pts.columns))})
     pt_loc_names = pts.columns.values
     npts = len(pts.iloc[0, ::3])
     cmap = mpl.cm.get_cmap('jet', npts)    # 16 discrete colors
 
     ##### Nan out low LL points #####
     thresh = .99
-    npts = len(pts.iloc[0, ::3])
     for n, key in enumerate(list(pts.keys()[2::3])):
         lowLL = (pts[key] < .99)
         pts[key.split('_')[0] + '_x'].loc[pts[key] < thresh] = np.nan
@@ -370,7 +362,7 @@ for n,row, in df_meta.iterrows():
         print("Error opening video stream or file: " + fname)
 
     # Read until video is completed
-    for t in tqdm(np.arange(0, totalframes)):
+    for t in tqdm(np.arange(0, totalframes),leave=False):
         # Capture frame-by-frame
         ret, frame_temp = cap.read()
         Vid[t, :, :] = cv2.resize(cv2.cvtColor(
@@ -380,10 +372,8 @@ for n,row, in df_meta.iterrows():
     cap.release()
 
     en = np.where(Env in order)[0]
-    clim = np.vstack([(hist_data_all[:, :, :, :, n, :].min(
-    ), hist_data_all[:, :, :, :, n, :].max()) for n in range(perms.shape[0])])
-    hist_data_Lon = df[['Angle', 'Speed', 'Dist', 'Environment', 'LaserOn']][(
-        df['ExpAni'] == Exp) & (df['LaserOn'] == LaserOn) & (df['Environment'] == Env)].reset_index()
+    clim = np.vstack([(hist_data_all[:, :, :, :, n, :].min(), hist_data_all[:, :, :, :, n, :].max()) for n in range(perms.shape[0])])
+    hist_data_Lon = df[['Angle', 'Speed', 'Dist', 'Environment', 'LaserOn']][(df['ExpAni'] == Exp) & (df['LaserOn'] == LaserOn) & (df['Environment'] == Env)].reset_index()
     pts_xy = np.stack((pts.iloc[:, ::3]*downsamp, pts.iloc[:, 1::3]*downsamp))
 
     # Put data into shared memory for parallization
@@ -403,8 +393,7 @@ for n,row, in df_meta.iterrows():
     result_ids = []
     # Loop over parameters appending process ids
     for t in range(tvid.shape[0]):
-        result_ids.append(make_plt_im.remote(tvid_r, ang_norm_r, spd_norm_r, dist_norm_r,
-                        patches, Vid_r, pts_r, clim, metrics, asd_r, t, fname.split('/')[-1][:-9], actor))
+        result_ids.append(make_plt_im.remote(tvid_r, ang_norm_r, spd_norm_r, dist_norm_r,patches, Vid_r, pts_r, clim, metrics, asd_r, t, fname.split('/')[-1][:-9], actor))
 
     print('N_proc:', len(result_ids))
     pb.print_until_done()
@@ -414,15 +403,16 @@ for n,row, in df_meta.iterrows():
     images = np.stack([results_p[i] for i in range(len(results_p))])
     # Example Frames Video
     aniname = fname.split('/')[-1][:-4] + '_summary.mp4'
+    print(aniname)
     vid_name = FigPath / aniname
     print('Writing Video: {}'.format(vid_name))
     FPS = 60
     out = cv2.VideoWriter(vid_name.as_posix(), cv2.VideoWriter_fourcc(
         *'mp4v'), FPS, (images.shape[-2], images.shape[-3]))
 
-    for fm in tqdm(range(images.shape[0])):
-        out.write(images[fm])
+    for fm in tqdm(range(images.shape[0]), leave=False):
+        out.write(cv2.cvtColor(images[fm], cv2.COLOR_BGR2RGB))
     out.release()
     print('Animation: ', time.time()-start)
-    del results_p, ang_norm_r, spd_norm_r, dist_norm_r, Vid_r, pts_r, df_r, asd_r, 
+    del results_p, tvid_r, ang_norm_r, spd_norm_r, dist_norm_r, Vid_r, pts_r, df_r, asd_r, pb, actor, images
     gc.collect()
