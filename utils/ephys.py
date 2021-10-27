@@ -1369,9 +1369,9 @@ def run_ephys_analysis(file_dict):
     # set up interpolators for eye and world videos
     eyeInterp = interp1d(eyeT, eye_vid, axis=0, bounds_error=False)
     worldInterp = interp1d(worldT, world_vid_raw, axis=0, bounds_error=False)
-    if free_move:
+    if free_move and file_dict['mp4']:
         topInterp = interp1d(topT, top_vid, axis=0,bounds_error=False)
-    if file_dict['imu'] is not None:
+    if file_dict['imu'] is not None and file_dict['mp4']:
         fig = make_summary_panels(file_dict, eyeT, worldT, eye_vid, world_vid_raw, contrast, eye_params, dEye, goodcells, units, this_unit, eyeInterp, worldInterp, top_vid, topT, topInterp, th, phi, top_speed, accT=accT, gz=gz_deg)
         detail_pdf.savefig()
         plt.close()
