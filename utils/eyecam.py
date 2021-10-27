@@ -1,3 +1,386 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+from utils.aux_funcs import find, list_subdirs
+from utils.exceptions import *
+
+from utils.base import Camera
+
+class Eyecam(Camera):
+    def __init__(self, config, camname):
+        super().__init__(config, camname)
+
+    def fit_ellipse(self, x, y):
+        # remove bias of the ellipse
+        meanX = np.mean(x)
+        meanY = np.mean(y)
+        x = x - meanX
+        y = y - meanY
+        # estimation of the conic equation
+        X = np.array([x**2, x*y, y**2, x, y])
+        X = np.stack(X).T
+        a = dot(np.sum(X, axis=0), linalg.pinv(np.matmul(X.T,X)))
+        # extract parameters from the conic equation
+        a, b, c, d, e = a[0], a[1], a[2], a[3], a[4]
+        # eigen decomp
+        Q = np.array([[a, b/2],[b/2, c]])
+        eig_val, eig_vec = eig(Q)
+        # get angle to long axis
+        if eig_val[0] < eig_val[1]:
+            angle_to_x = np.arctan2(eig_vec[1,0], eig_vec[0,0])
+        else:
+            angle_to_x = np.arctan2(eig_vec[1,1], eig_vec[0,1])
+        angle_from_x = angle_to_x
+        orientation_rad = 0.5 * np.arctan2(b, (c-a))
+        cos_phi = np.cos(orientation_rad)
+        sin_phi = np.sin(orientation_rad)
+        a, b, c, d, e = [a*cos_phi**2 - b*cos_phi*sin_phi + c*sin_phi**2,
+                        0,
+                        a*sin_phi**2 + b*cos_phi*sin_phi + c*cos_phi**2,
+                        d*cos_phi - e*sin_phi,
+                        d*sin_phi + e*cos_phi]
+        meanX, meanY = [cos_phi*meanX - sin_phi*meanY,
+                        sin_phi*meanX + cos_phi*meanY]
+        # check if conc expression represents an ellipse
+        test = a*c
+        if test > 0:
+            # make sure coefficients are positive as required
+            if a<0:
+                a, c, d, e = [-a, -c, -d, -e]
+            # final ellipse parameters
+            X0 = meanX - d/2/a
+            Y0 = meanY - e/2/c
+            F = 1 + (d**2)/(4*a) + (e**2)/(4*c)
+            a = np.sqrt(F/a)
+            b = np.sqrt(F/c)
+            long_axis = 2*np.maximum(a,b)
+            short_axis = 2*np.minimum(a,b)
+            # rotate axes backwards to find center point of original tilted ellipse
+            R = np.array([[cos_phi, sin_phi], [-sin_phi, cos_phi]])
+            P_in = R @ np.array([[X0],[Y0]])
+            X0_in = P_in[0][0]
+            Y0_in = P_in[1][0]
+            # organize parameters in dictionary to return
+            # makes some final modifications to values here, maybe those should be done above for cleanliness
+            ellipse_dict = {'X0':X0, 'Y0':Y0, 'F':F, 'a':a, 'b':b, 'long_axis':long_axis/2, 'short_axis':short_axis/2,
+                            'angle_to_x':angle_to_x, 'angle_from_x':angle_from_x, 'cos_phi':cos_phi, 'sin_phi':sin_phi,
+                            'X0_in':X0_in, 'Y0_in':Y0_in, 'phi':orientation_rad}
+        else:
+            # if the conic equation didn't return an ellipse, don't return any real values and fill the dictionary with NaNs
+            ellipse_dict = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
+                            'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
+                            'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
+        return ellipse_dict
+
+    def get_horizontal_vertical_rotation(self):
+        # set up the pdf to be saved out with diagnostic figures
+        if self.config['parameters']['outputs_and_visualization']['save_figs'] is True:
+            pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(self.recording_path, (self.recording_name + '_' + self.camname + '_tracking_figs.pdf')))
+        # get downsample rate
+        fig_dwnsmpl = self.config['parameters']['outputs_and_visualization']['eye_fig_pts_dwnspl']
+        # if this is a hf recording, read in existing fm camera center, scale, etc.
+        # it should run all fm recordings first, so it will be possible to read in fm camera calibration parameters for every hf recording
+        if self.config['parameters']['force_eyecam_calibration_params'] == 'auto':
+            if 'hf' in self.camname:
+                path_to_existing_props = sorted(find('*fm_eyecameracalc_props.json', self.config['animal_directory'])) # should always go for fm1 before fm2
+                if len(path_to_existing_props) == 0:
+                    print('found no existing camera calibration properties from freely moving recording')
+                    path_to_existing_props = None
+                elif len(path_to_existing_props) == 1:
+                    print('found one existing file of camera calirbation properties from freely moving recording')
+                    path_to_existing_props = path_to_existing_props[0]
+                elif len(path_to_existing_props) > 1:
+                    print('found multiple existing files of camera calibration properties from freely moving recordings -- using first option from sorted list')
+                    print(path_to_existing_props[0])
+                    path_to_existing_props = path_to_existing_props[0]
+                if path_to_existing_props is not None:
+                    with open(path_to_existing_props, 'r') as fp:
+                        existing_camera_calib_props = json.load(fp)
+                elif path_to_existing_props is None:
+                    # if a json of paramters can't be found, though, we'll get these values for the hf recording
+                    existing_camera_calib_props = None
+            elif 'fm' in self.recording_name or self.config['parameters']['follow_strict_directory_naming']:
+                existing_camera_calib_props = None
+            else:
+                existing_camera_calib_props = None
+        elif self.config['parameters']['force_eyecam_calibration_params'] == 'self':
+            calibration_param_file = next(i for i in find('*fm_eyecameracalc_props.json', self.config['recording_path']) if self.camname in i)
+            with open(calibration_param_file, 'r') as fp:
+                existing_camera_calib_props = json.load(fp)
+        # names of the different points
+        eye_data = self.xrpts
+        x_vals, y_vals, likeli_vals = self.split_xyl()
+        likelihood_in = likeli_vals.values
+        # subtract center of IR light reflection from all other pts
+        if self.config['pose_estimation']['has_ir_spot_labeled'] and self.config['parameters']['eyes']['subtract_reflection_position']:
+            spot_xcent = np.mean(x_vals.iloc[:,-5:], 1)
+            spot_ycent = np.mean(y_vals.iloc[:,-5:], 1)
+            spot_likelihood = likelihood_in[:,-5:].copy()
+            likelihood = likelihood_in[:,:-5]
+            x_vals = x_vals.iloc[:,:-5].subtract(spot_xcent, axis=0)
+            y_vals = y_vals.iloc[:,:-5].subtract(spot_ycent, axis=0)
+        elif self.config['pose_estimation']['has_ir_spot_labeled'] and not self.config['parameters']['eyes']['subtract_reflection_position']:
+            x_vals = x_vals.iloc[:,:-5]
+            y_vals = y_vals.iloc[:,:-5]
+            likelihood = likelihood_in[:,:-5]
+        # drop tear/outer
+        if self.config['pose_estimation']['has_ir_spot_labeled'] and self.config['pose_estimation']['has_tear_labeled']:
+            x_vals = x_vals.iloc[:,:-2]
+            y_vals = y_vals.iloc[:,:-2]
+            likelihood = likelihood[:,:-2]
+        if not self.config['pose_estimation']['has_ir_spot_labeled'] and self.config['pose_estimation']['has_tear_labeled']:
+            x_vals = x_vals.iloc[:,:-2]
+            y_vals = y_vals.iloc[:,:-2]
+            likelihood = likelihood_in[:,:-2]
+        # get bools of when a frame is usable with the right number of points above threshold
+        if self.config['parameters']['eyes']['subtract_reflection_position'] is True:
+            # if spot subtraction is being done, we should only include frames where all five pts marked around the ir spot are good (centroid would be off otherwise)
+            usegood_req5 = (np.sum(likelihood >= self.config['parameters']['likelihood_thresh'], 1) >= self.config['parameters']['eyes']['num_ellipse_pts_needed']) & (np.sum(spot_likelihood >= self.config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+            usegood_req8 = (np.sum(likelihood >= self.config['parameters']['likelihood_thresh'], 1) >= self.config['parameters']['eyes']['calib_ellipse_pts_needed']) & (np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+            spot_usegood = (np.sum(spot_likelihood >= self.config['parameters']['likelihood_thresh'], 1) >= config['parameters']['eyes']['num_ir_spot_pts_needed'])
+        else:
+            usegood_req5 = np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['num_ellipse_pts_needed']
+            usegood_req8 = np.sum(likelihood >= config['parameters']['lik_thresh'], 1) >= config['parameters']['eyes']['calib_ellipse_pts_needed']
+        # plot all good timepoints
+        if config['parameters']['outputs_and_visualization']['save_figs'] is True:
+            if config['parameters']['eyes']['spot_subtract'] is True:
+                plt.figure()
+                plt.plot(np.sum(spot_likelihood >= config['parameters']['lik_thresh'], 1)[0:-1:10])
+                plt.title(str(np.round(np.mean(spot_usegood), 3)) + ' good (req5) for IR spot; thresh= ' + str(config['parameters']['lik_thresh']))
+                plt.ylabel('num good IR spot points'); plt.xlabel('every 10th frame')
+                pdf.savefig()
+                plt.close()
+            plt.figure()
+            plt.plot(np.sum(likelihood >= config['parameters']['lik_thresh'], 1)[0:-1:10])
+            plt.title(str(np.round(np.mean(usegood_req5), 3)) + ' good (req7); thresh= ' + str(config['parameters']['lik_thresh']))
+            plt.ylabel('num good pupil points'); plt.xlabel('every 10th frame')
+            pdf.savefig()
+            plt.close()
+            plt.figure()
+            plt.hist(np.sum(likelihood >= config['parameters']['lik_thresh'], 1),bins=9, range = (0,9), density=True)
+            plt.xlabel('num good eye points'); plt.ylabel('fraction of frames')
+            pdf.savefig()
+            plt.close()
+        # threshold out pts more than a given distance away from nanmean of that point
+        std_thresh_x = np.empty(np.shape(x_vals))
+        for point_loc in range(0,np.size(x_vals, 1)):
+            std_thresh_x[:,point_loc] = (np.absolute(np.nanmean(x_vals.iloc[:,point_loc]) - x_vals.iloc[:,point_loc]) / config['parameters']['eyes']['eyecam_pxl_per_cm']) > config['parameters']['eyes']['eye_dist_thresh_cm']
+        std_thresh_y = np.empty(np.shape(y_vals))
+        for point_loc in range(0,np.size(x_vals, 1)):
+            std_thresh_y[:,point_loc] = (np.absolute(np.nanmean(y_vals.iloc[:,point_loc]) - y_vals.iloc[:,point_loc]) / config['parameters']['eyes']['eyecam_pxl_per_cm']) > config['parameters']['eyes']['eye_dist_thresh_cm']
+        std_thresh_x = np.nanmean(std_thresh_x, 1)
+        std_thresh_y = np.nanmean(std_thresh_y, 1)
+        x_vals[std_thresh_x > 0] = np.nan
+        y_vals[std_thresh_y > 0] = np.nan
+        ellipse_params = np.empty([len(usegood_req5), 14])
+        # step through each frame, fit an ellipse to points, and
+        # add ellipse parameters to array with data for all frames together
+        linalgerror = 0
+        for step in tqdm(range(0,len(usegood_req5))):
+            if usegood_req5[step] == True:
+                try:
+                    e_t = fit_ellipse(x_vals.iloc[step].values, y_vals.iloc[step].values)
+                    ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
+                                            e_t['long_axis'], e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
+                                            e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
+                except np.linalg.LinAlgError as e:
+                    linalgerror = linalgerror + 1
+                    e_t = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
+                                'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
+                                'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
+                    ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
+                                        e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
+                                        e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
+            elif usegood_req5[step] == False:
+                e_t = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
+                                'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
+                                'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
+                ellipse_params[step] = [e_t['X0'], e_t['Y0'], e_t['F'], e_t['a'], e_t['b'],
+                                        e_t['long_axis'] ,e_t['short_axis'], e_t['angle_to_x'], e_t['angle_from_x'],
+                                        e_t['cos_phi'], e_t['sin_phi'], e_t['X0_in'], e_t['Y0_in'], e_t['phi']]
+        print('lin alg error count = ' + str(linalgerror))
+        # list of all places where the ellipse meets threshold
+        R = np.linspace(0,2*np.pi, 100)
+        usegood_ellipcalb = np.where((usegood_req8 == True) & ((ellipse_params[:,6] / ellipse_params[:,5]) < config['parameters']['eyes']['ell_thresh'])) # short axis / long axis
+        # this limits the number of frames used for the calibration
+        if np.size(usegood_ellipcalb,1) > 50000:
+            shortlist = sorted(np.random.choice(usegood_ellipcalb[0],size=50000, replace=False))
+        else:
+            shortlist = usegood_ellipcalb
+        # find camera center
+        A = np.vstack([np.cos(ellipse_params[shortlist,7]),np.sin(ellipse_params[shortlist,7])])
+        b = np.expand_dims(np.diag(A.T@np.squeeze(ellipse_params[shortlist,11:13].T)),axis=1)
+        if existing_camera_calib_props is None:
+            cam_cent = np.linalg.inv(A@A.T)@A@b
+        elif existing_camera_calib_props is not None:
+            cam_cent = np.array([[float(existing_camera_calib_props['cam_cent_x'])],[float(existing_camera_calib_props['cam_cent_y'])]])
+        # ellipticity and scale
+        ellipticity = (ellipse_params[shortlist,6] / ellipse_params[shortlist,5]).T
+        if existing_camera_calib_props is None:
+            try:
+                scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[shortlist,11:13]-cam_cent.T,axis=0)))/np.sum(1-(ellipticity)**2)
+            except ValueError:
+                scale = np.nansum(np.sqrt(1-(ellipticity)**2)*(np.linalg.norm(ellipse_params[shortlist,11:13]-cam_cent.T,axis=1)))/np.sum(1-(ellipticity)**2)
+        elif existing_camera_calib_props is not None:
+            scale = float(existing_camera_calib_props['scale'])
+        # angles
+        theta = np.arcsin((ellipse_params[:,11]-cam_cent[0])/scale)
+        phi = np.arcsin((ellipse_params[:,12]-cam_cent[1])/np.cos(theta)/scale)
+        if config['parameters']['outputs_and_visualization']['save_figs'] is True:
+            try:
+                plt.figure()
+                plt.plot(np.rad2deg(phi)[0:-1:10])
+                plt.title('phi')
+                plt.ylabel('deg'); plt.xlabel('every 10th frame')
+                pdf.savefig()
+                plt.close()
+                plt.figure()
+                plt.plot(np.rad2deg(theta)[0:-1:10])
+                plt.title('theta')
+                plt.ylabel('deg'); plt.xlabel('every 10th frame')
+                pdf.savefig()
+                plt.close()
+            except Exception as e:
+                print('figure error for plots of theta, phi')
+                print(e)
+        # organize data to return as an xarray of most essential parameters
+        ellipse_df = pd.DataFrame({'theta':list(theta), 'phi':list(phi), 'longaxis':list(ellipse_params[:,5]), 'shortaxis':list(ellipse_params[:,6]),
+                                'X0':list(ellipse_params[:,11]), 'Y0':list(ellipse_params[:,12]), 'ellipse_phi':list(ellipse_params[:,7])})
+        ellipse_param_names = ['theta', 'phi', 'longaxis', 'shortaxis', 'X0', 'Y0', 'ellipse_phi']
+        ellipse_out = xr.DataArray(ellipse_df, coords=[('frame', range(0, len(ellipse_df))), ('ellipse_params', ellipse_param_names)], dims=['frame', 'ellipse_params'])
+        ellipse_out.attrs['cam_center_x'] = cam_cent[0,0]
+        ellipse_out.attrs['cam_center_y'] = cam_cent[1,0]
+        # ellipticity histogram
+        if config['parameters']['outputs_and_visualization']['save_figs'] is True:
+            try:
+                plt.figure()
+                plt.hist(ellipticity, density=True)
+                plt.title('ellipticity; thresh= ' + str(config['parameters']['eyes']['ell_thresh']))
+                plt.ylabel('num good eye points'); plt.xlabel('frame')
+                pdf.savefig()
+                plt.close()
+                w = ellipse_params[:,7]
+                # eye axes relative to center
+                plt.figure()
+                for i in range(0,len(usegood_ellipcalb)):
+                    plt.plot((ellipse_params[usegood_ellipcalb[i::fig_dwnsmpl],11] + [-5*np.cos(w[usegood_ellipcalb[i::fig_dwnsmpl]]), 5*np.cos(w[usegood_ellipcalb[i::fig_dwnsmpl]])]), (ellipse_params[usegood_ellipcalb[i::fig_dwnsmpl],12] + [-5*np.sin(w[usegood_ellipcalb[i::fig_dwnsmpl]]), 5*np.sin(w[usegood_ellipcalb[i::fig_dwnsmpl]])]))
+                plt.plot(cam_cent[0],cam_cent[1],'r*')
+                plt.title('eye axes relative to center')
+                pdf.savefig()
+                plt.close()
+            except Exception as e:
+                print('figure error in plots of ellipticity and axes relative to center')
+                print(e)
+            # check calibration
+            try:
+                xvals = np.linalg.norm(ellipse_params[usegood_req8, 11:13].T - cam_cent, axis=0)
+                yvals = scale * np.sqrt(1-(ellipse_params[usegood_req8,6]/ellipse_params[usegood_req8,5])**2)
+                calib_mask = ~np.isnan(xvals) & ~np.isnan(yvals)
+                slope, intercept, r_value, p_value, std_err = stats.linregress(xvals[calib_mask], yvals[calib_mask].T)
+            except ValueError:
+                print('no good frames that meet criteria... check DLC tracking!')
+            # save out camera center and scale as np array (but only if this is a freely moving recording)
+            if 'fm' in trial_name or config['parameters']['follow_strict_directory_naming'] is False:
+                calib_props_dict = {'cam_cent_x':float(cam_cent[0]), 'cam_cent_y':float(cam_cent[1]), 'scale':float(scale), 'regression_r':float(r_value), 'regression_m':float(slope)}
+                calib_props_dict_savepath = os.path.join(config['recording_path'], str(trial_name+eye_side+'_fm_eyecameracalc_props.json'))
+                print('saving calibration parameters to '+calib_props_dict_savepath)
+                with open(calib_props_dict_savepath, 'w') as f:
+                    json.dump(calib_props_dict, f)
+            try:
+                plt.figure()
+                plt.plot(xvals[::fig_dwnsmpl], yvals[::fig_dwnsmpl], '.', markersize=1)
+                plt.plot(np.linspace(0,50),np.linspace(0,50),'r')
+                plt.title('scale=' + str(np.round(scale, 1)) + ' r=' + str(np.round(r_value, 1)) + ' m=' + str(np.round(slope, 1)))
+                plt.xlabel('pupil camera dist'); plt.ylabel('scale * ellipticity')
+                pdf.savefig()
+                plt.close()
+                # calibration of camera center
+                delta = (cam_cent - ellipse_params[:,11:13].T)
+                short_usegood_req8 = usegood_req8[::fig_dwnsmpl]
+                sq_ellipcalib = np.squeeze(usegood_ellipcalb)
+                short_list3 = sq_ellipcalib[::fig_dwnsmpl]
+                plt.figure()
+                plt.plot(np.linalg.norm(delta[:,short_usegood_req8],2,axis=0), ((delta[0,short_usegood_req8].T * np.cos(ellipse_params[short_usegood_req8,7])) + (delta[1,short_usegood_req8].T * np.sin(ellipse_params[short_usegood_req8, 7]))) / np.linalg.norm(delta[:, short_usegood_req8],2,axis=0).T, 'y.', markersize=1)
+                plt.plot(np.linalg.norm(delta[:,short_list3],2,axis=0), ((delta[0,short_list3].T * np.cos(ellipse_params[short_list3,7])) + (delta[1,short_list3].T * np.sin(ellipse_params[short_list3, 7]))) / np.linalg.norm(delta[:, short_list3],2,axis=0).T, 'r.', markersize=1)
+                plt.title('camera center calibration')
+                plt.ylabel('abs([PC-EC]).[cosw;sinw]')
+                plt.xlabel('abs(PC-EC)')
+                plt.legend('all points','list points')
+                pdf.savefig()
+                plt.close()
+            except Exception as e:
+                print('figure error in plots of scale and camera center')
+                print(e)
+            pdf.close()
+        return ellipse_out
+
+    def eye_diagnostic_video(self):
+
+    def sigmoid_curve(xval, a, b, c):
+        return a+(b-a)/(1+10**((c-xval)*2))
+
+    def sigmoid_fit(d):
+        try:
+            popt, pcov = sigmoid_curve(self.sigmoid_curve, xdata=range(1,len(d)+1),
+                                    ydata=d, p0=[100.0,200.0,len(d)/2],
+                                    method='lm', xtol=10**-3, ftol=10**-3)
+            ci = np.sqrt(np.diagonal(pcov))
+        except RuntimeError:
+            popt = np.nan*np.zeros(4)
+            ci = np.nan*np.zeros(4)
+        return (popt, ci)
+
+    def get_torsion_from_ridges(self):
+
+    def get_torsion_from_markers(self):
+        raise NotImplementedError
+
+    def process():
+        if self.config['main']['deinterlace'] and not self.config['internals']['flip_headcams']['run']:
+            self.deinterlace()
+        if not self.config['main']['deinterlace'] and self.config['internals']['flip_headcams']['run']:
+            self.flip_headcams()
+        elif self.config['main']['deinterlace'] and self.config['internals']['flip_headcams']['run']:
+            raise UserInputError('Config options deinterlace and flip_headcams are both True, which conflict with each other.')
+        if self.config['internals']['apply_gamma_to_eyecam']:
+            self.auto_contrast()
+        if 
+        
+    def save():
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 """
 eyecam.py
 """
@@ -25,77 +408,6 @@ from utils.time import open_time
 from utils.paths import find
 from utils.aux_funcs import nanxcorr
 
-def fit_ellipse(x, y):
-    """ Find the best fit to an ellipse for the given set of points around the pupil in a single frame.
-    adapted from /niell-lab-analysis/freely moving/fit_ellipse2.m
-
-    Parameters:
-    x (np.array): x values of points around pupil
-    y (np.array): y values of points around pupil
-
-    Returns:
-    ellipse_dict (dict): ellipse parameters for a single frame
-    """
-    # remove bias of the ellipse
-    meanX = np.mean(x)
-    meanY = np.mean(y)
-    x = x - meanX
-    y = y - meanY
-    # estimation of the conic equation
-    X = np.array([x**2, x*y, y**2, x, y])
-    X = np.stack(X).T
-    a = dot(np.sum(X, axis=0), linalg.pinv(np.matmul(X.T,X)))
-    # extract parameters from the conic equation
-    a, b, c, d, e = a[0], a[1], a[2], a[3], a[4]
-    # eigen decomp
-    Q = np.array([[a, b/2],[b/2, c]])
-    eig_val, eig_vec = eig(Q)
-    # get angle to long axis
-    if eig_val[0] < eig_val[1]:
-      angle_to_x = np.arctan2(eig_vec[1,0], eig_vec[0,0])
-    else:
-      angle_to_x = np.arctan2(eig_vec[1,1], eig_vec[0,1])
-    angle_from_x = angle_to_x
-    orientation_rad = 0.5 * np.arctan2(b, (c-a))
-    cos_phi = np.cos(orientation_rad)
-    sin_phi = np.sin(orientation_rad)
-    a, b, c, d, e = [a*cos_phi**2 - b*cos_phi*sin_phi + c*sin_phi**2,
-                     0,
-                     a*sin_phi**2 + b*cos_phi*sin_phi + c*cos_phi**2,
-                     d*cos_phi - e*sin_phi,
-                     d*sin_phi + e*cos_phi]
-    meanX, meanY = [cos_phi*meanX - sin_phi*meanY,
-                    sin_phi*meanX + cos_phi*meanY]
-    # check if conc expression represents an ellipse
-    test = a*c
-    if test > 0:
-        # make sure coefficients are positive as required
-        if a<0:
-            a, c, d, e = [-a, -c, -d, -e]
-        # final ellipse parameters
-        X0 = meanX - d/2/a
-        Y0 = meanY - e/2/c
-        F = 1 + (d**2)/(4*a) + (e**2)/(4*c)
-        a = np.sqrt(F/a)
-        b = np.sqrt(F/c)
-        long_axis = 2*np.maximum(a,b)
-        short_axis = 2*np.minimum(a,b)
-        # rotate axes backwards to find center point of original tilted ellipse
-        R = np.array([[cos_phi, sin_phi], [-sin_phi, cos_phi]])
-        P_in = R @ np.array([[X0],[Y0]])
-        X0_in = P_in[0][0]
-        Y0_in = P_in[1][0]
-        # organize parameters in dictionary to return
-        # makes some final modifications to values here, maybe those should be done above for cleanliness
-        ellipse_dict = {'X0':X0, 'Y0':Y0, 'F':F, 'a':a, 'b':b, 'long_axis':long_axis/2, 'short_axis':short_axis/2,
-                        'angle_to_x':angle_to_x, 'angle_from_x':angle_from_x, 'cos_phi':cos_phi, 'sin_phi':sin_phi,
-                        'X0_in':X0_in, 'Y0_in':Y0_in, 'phi':orientation_rad}
-    else:
-        # if the conic equation didn't return an ellipse, don't return any real values and fill the dictionary with NaNs
-        ellipse_dict = {'X0':np.nan, 'Y0':np.nan, 'F':np.nan, 'a':np.nan, 'b':np.nan, 'long_axis':np.nan, 'short_axis':np.nan,
-                        'angle_to_x':np.nan, 'angle_from_x':np.nan, 'cos_phi':np.nan, 'sin_phi':np.nan,
-                        'X0_in':np.nan, 'Y0_in':np.nan, 'phi':np.nan}
-    return ellipse_dict
 
 def eye_tracking(eye_data, config, trial_name, eye_side):
     """ Get the ellipse parameters from DeepLabCut points and save into an xarray

@@ -266,11 +266,3 @@ def safe_xr_merge(obj_list, dim_name='frame'):
     # do the merge with the lengths all matching along provided dimension
     merge_objs = xr.merge(out_objs)
     return merge_objs
-
-def flatten_series(s):
-    a = np.zeros([np.size(s,0), len(s.iloc[0])])
-    count = 0
-    for ind, data in s.iteritems():
-        a[count,:] = data
-        count += 1
-    return a

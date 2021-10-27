@@ -1,3 +1,25 @@
+class Worldcam(Camera):
+    def __init__(self):
+        super().__init__()
+        
+    def process(self):
+        self.pack_position_data()
+        if not self.config['preycapture_analysis']['cricket_worldcam']:
+            self.xrpts.name = 'WORLD_times'
+        elif self.config['preycapture_analysis']['cricket_worldcam']:
+            self.xpts.name = 'WORLD_pts'
+        if self.config['parameters']['outputs_and_visualization']['save_nc_vids']
+            self.pack_video_frames()
+
+    def save(self):
+        if self.onfig['parameters']['outputs_and_visualization']['save_nc_vids']:
+            trial_world_data = self.safe_merge([self.xrpts, self.xrframes])
+        elif not self.onfig['parameters']['outputs_and_visualization']['save_nc_vids']:
+            worlddlc.to_netcdf(os.path.join(config['recording_path'], str(recording_name+'_world.nc')))
+
+
+
+
 """
 track_world.py
 """
@@ -10,11 +32,8 @@ from tqdm import tqdm
 
 from utils.paths import find
 from utils.format_data import h5_to_xr
-
-def smooth_tracking(y, box_pts=3):
-    box = np.ones(box_pts)/box_pts
-    y_smooth = np.convolve(y, box, mode='same')
-    return y_smooth
+from utils.aux_funcs import smooth_convolve
+# from utils.dlc import runDLCbatch
 
 def track_LED(config):
     # DLC tracking
@@ -35,8 +54,8 @@ def track_LED(config):
     world_csv = [i for i in led_dir_csv if 'WORLD' in i and 'formatted' in i][0]
     world_avi = [i for i in led_dir_avi if 'WORLD' in i and 'calib' in i][0]
     # generate .h5 files
-    # run_DLC_on_LED(dlc_config_world, world_avi)
-    # run_DLC_on_LED(dlc_config_eye, eye_avi)
+    # runDLCbatch(world_avi, dlc_config_world, {'pose_estimation':{'crop_for_dlc':False, 'filter_dlc_predictions':False}})
+    # runDLCbatch(eye_avi, dlc_config_eye, {'pose_estimation':{'crop_for_dlc':False, 'filter_dlc_predictions':False}})
     # then, get the h5 files for this trial that were just written to file
     led_dir_h5 = find('*IR*.h5', led_dir)
     if led_dir_h5 == []:
@@ -112,9 +131,9 @@ def track_LED(config):
         plt.close()
 
         # apply a smoothing convolution
-        eye_x = smooth_tracking(eye_x); eye_y = smooth_tracking(eye_y)
-        world_x = smooth_tracking(world_x); world_y = smooth_tracking(world_y)
-
+        eye_x = smooth_convolve(eye_x); eye_y = smooth_convolve(eye_y)
+        world_x = smooth_convolve(world_x); world_y = smooth_convolve(world_y)
+        
         plt.figure()
         plt.plot(eye_x); plt.title('light x position in eye (conv applied)')
         plt.ylabel('eye x'); plt.xlabel('frame')

@@ -105,7 +105,7 @@ def make_unit_summary(df, savepath):
             unitfig_crf.set_title('WN CRF\nmod.ind.='+str(modind), fontsize=20)
             unitfig_crf.set_xlabel('contrast a.u.'); unitfig_crf.set_ylabel('sp/sec')
             unitfig_crf.set_ylim(0,np.nanmax(tuning[:]*1.2))#; unitfig_crf.set_xlim([0,1])
-            newdf.at[row['index'], 'hf1_wn_crf_modind'] = modind
+            newdf.at[index, 'hf1_wn_crf_modind'] = modind
         except:
             pass
         try:
@@ -157,27 +157,27 @@ def make_unit_summary(df, savepath):
                 ch_spacing = 25
             if shank_num == 0:
                 position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][0][row['ch']])
-                newdf.at[row['index'], 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
+                newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
                 depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
-                newdf.at[row['index'], 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
+                newdf.at[index, 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
                 unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(position_of_ch)+'\ndist2layer4='+str(depth_from_surface), fontsize=20)
             elif shank_num == 1:
                 position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']-32])
-                newdf.at[row['index'], 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
+                newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
                 depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
-                newdf.at[row['index'], 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
+                newdf.at[index, 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
                 unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(position_of_ch)+'\ndist2layer4='+str(depth_from_surface), fontsize=20)
             elif shank_num == 2:
                 position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']-64])
-                newdf.at[row['index'], 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
+                newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
                 depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
-                newdf.at[row['index'], 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
+                newdf.at[index, 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
                 unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(position_of_ch)+'\ndist2layer4='+str(depth_from_surface), fontsize=20)
             elif shank_num == 3:
                 position_of_ch = int(row['hf4_revchecker_lfp_rel_depth'][1][row['ch']-96])
-                newdf.at[row['index'], 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
+                newdf.at[index, 'hf4_revchecker_ch_lfp_relative_depth'] = position_of_ch
                 depth_from_surface = int(depth_to_layer4 + (ch_spacing * position_of_ch))
-                newdf.at[row['index'], 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
+                newdf.at[index, 'hf4_revchecker_depth_from_layer4'] = depth_from_surface
                 unitfig_lfp.set_title('ch='+str(row['ch'])+'\npos='+str(position_of_ch)+'\ndist2layer4='+str(depth_from_surface), fontsize=20)
             unitfig_lfp.legend(); unitfig_lfp.axvline(x=(0.1*30000), color='k', linewidth=1)
             unitfig_lfp.set_xticks(np.arange(0,18000,18000/8))
@@ -1479,7 +1479,7 @@ def make_population_summary(df1, savepath):
     
     n += 1
     fig = plot_var_vs_var(df1, 'hf1_wn_crf_modind', 'hf1_wn_depth_from_layer5', (2,3,n), filter_for={'responsive_to_contrast':True}, force_range=np.arange(-650,750,100), along_y=True, abs=True)
-    plt.ylabel('depth relative to layer 5'); plt.xlabel('wn contrast modulation index'); plt.legend(handles=[bluepatch, greenpatch]); plt.gca().invert_yaxis()
+    plt.ylabel('depth relative to layer 5'); plt.xlabel('wn contrast modulation index'); plt.legend(handles=[bluepatch, greenpatch])
 
     plt.tight_layout(); pdf.savefig(); plt.close()
 

@@ -1,173 +1,82 @@
 # FreelyMovingEphys
-# preprocessing and analysis config file
 
 # path to animal directory
 animal_directory: /path/to/animal/
 
-deinterlace:
-  # deinterlace eye and world cameras
-  # optionally, this can also rotate eye and world videos by 180deg
+main:
   deinterlace: true
-  # rotate eye camera by 180deg?
-  rotate_eyecam: true
-  # rotate world camera by 180deg?
-  rotate_worldcam: true
-
-flip_eyecam:
-  # flip eyecam videos without deinterlacing
-  # this cannot be run if deinterlacing is set to true
-  flip_eyecam: false
-  # flip eyecam in x (horizontally)
-  hflip: false
-  # flip eyecam in y (vertically)
-  vflip: false
-
-img_correction:
-  # apply image corrections
-  # img_correction does not apply changes but allows other options to be turned on when true
-  img_correction: false
-  # apply an automatic contrast correction to the eyecam videos, getting a gamma value frame-by-frame
-  # good for a dark, low-contrast video (but slow!)
-  apply_auto_gamma: false
-
-calibration:
-  # calculate needed correction for worldcam and topcam, which only needs to be done once for a camera (default=false)
-  get_camera_properties: false
-  # apply correction to novel videos (default=true)
-  undistort_worldcam: true
-  # the .avi with which to calculate calibration properties of the world camera (should be a recording of checkerboard being moved)
-  world_checker_vid: E:/freely_moving_ephys/camera_calibration_params/betafpv_checkerboard.avi
-  # both the read and write path for an .npz file of calibration properties of the world camera
-  # when get_camera_properties is true, this .npz will be written or overwritten
-  # when undistort_worldcam is true, this .npz will be read
-  world_checker_npz: E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz
-
-pose_estimation:
-  # using a DeepLabCut trained in advance, get pose estimation for each frame
+  undistort: true
   pose_estimation: true
-  # for each camera name (i.e. Side, TOP1, REYE, etc.) give the path to the DLC project config file
-  projects:
+  parameters: true
+  ephys: true
+  preycapture: true
+  object_avoidance: false
+
+paths:
+  # worldcam video of checkerboard
+  worldcam_checkerboard: E:/freely_moving_ephys/camera_calibration_params/betafpv_checkerboard.avi
+  # npz of worldcam properties
+  # if define_worldcam_distortion is True, this file will be written (and possibly overwritten)
+  # if undistort is True, this file will be read
+  worldcam_mtx: E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz
+  # paths to dlc project config.yaml files
+  dlc_projects:
     REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams7-dylan-2021-09-13/config.yaml
     TOP1: E:/freely_moving_ephys/deeplabcut_projects/EphysTopDark-dylan-2021-02-13/config.yaml
-  # crop videos prior to pose estimation
-  crop_for_dlc: false
-  # apply median filter to dlc outputs
-  filter_dlc_predictions: false
-  # are there two points labeled on a cricket in the topdown view?
-  has_cricket_labeled: false
-  # are there five points labeled around the reflection of the eyecam's ir led?
-  has_reflection_labeled: true
-  # are there two points labeled at the tear duct and outer edge of the eye?
-  has_eye_edges_labeled: true
-  # is the topdown camera's dlc network a multianimal project?
-  multianimal_top_project: false
+  # channel maps json
+  channel_map_path: C:/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys/probes/channel_maps.json
 
-parameters:
-  # calculate parameters from video and DLC points
-  # save out .nc files contaning these parameters and the videos as arrays
-  parameters: true
-  # points below this value will be dropped, should be between 0 and 1
-  likelihood_thresh: 0.99
-  # list of recordings to include in analysis, or give an empty list to analyze all found recording subdirectories
+options:
+  # list of recordings to process
+  # if the list is empty, all subdirectories will be processed
   recording_list: []
-  ephys:
-    # sample rate of electrophysiology (Hz)
-    ephys_sample_rate: 30000
-  eyes:
-    # whether or not to subtract the center of the ir spot's reflection on the eye from the labeled points around the eye
-    subtract_reflection_position: true
-    # whether or not to calculate pupil rotation for each frame, which is very slow
-    compute_rotation_from_ridges: false
-    # maximum ratio of ellipse shortaxis to longaxis during ellipse fit of pupil
-    ellipticity_threshold: 0.85
-    # maximum acceptable distance in cm that each frame's point can be from the mean position of that eye point across the recording
-    eye_dist_thresh_cm: 4.1
-    # scale factor for camera from pixels to cm on eye
-    eyecam_pxl_per_cm: 24
-    # only use eyecam frames for camera calibration which have this number of good points around the eye
-    calib_ellipse_pts_needed: 8
-    # drop eyecam frames that don't have this number of ellipse points above the likelihood threshold
-    num_ellipse_pts_needed: 7
-    # drop eyecam frames that don't have this number of eyecam ir reflection points above the likelihood threshold
-    num_ir_spot_pts_needed: 5
-    # maximum acceptable number of pixels for radius of the pupil
-    pxl_thresh: 50
-  imu:
-    # get roll/pitch orientation from imu
-    orientation: true
-    # factor by which to downsample the imu data
-    imu_dwnsmpl: 100
-    # sample rate of the imu
-    imu_sample_rate: 30000
-    # this should be false unless the imu was accidently mounted at a 90deg rotation
-    flip_gx_gy: false
-  outputs_and_visualization:
-    # whether or not to save pdfs of diagnostic and summary figures
-    save_figs: true
-    # factor by which to downsample the number of points plotted in eyecam diagnostic figures
-    scatter_dwnsmpl: 100
-    # whether or not to save diagnostic .avi
-    save_avi_vids: true
-    # factor by which to downsample videos before packing into .nc
-    dwnsmpl: 0.25
-    # number of frames to write to dianostic .avi
-    num_save_frames: 3600
-    # whether or not to package videos into nc files of parameters
-    save_nc_vids: true
-  running_wheel:
-    # pixel to cm conversion factor for optical mouse of running ball
-    optical_mouse_pix2cm: 2840
-    # optical mouse sample rate in ms
-    optical_mouse_sample_rate_ms: 200
-    # coordinates that the optical mouse resets to in x and y
-    optical_mouse_screen_center:
-      x: 960
-      y: 540
-  topdown:
-    # whether or not to calculate head and body angle using the top camera
-    get_top_thetas: false
-  # switch off analysis for all video inputs (only run analysis on addtl inputs e.g. imu, ball rotation)
-  ignore_avis: false
+  # ephys unit to highlight
+  neuron_to_highlight: 0
+  # ephys probe type
+  # options = [default16, NN_H16, default64, NN_H64-LP, DB_P64-3, DB_P64-8, DB_P128-6])
+  probe: default16
+  # write ephys videos
+  ephys_videos: true
+
+internals:
+  # delete existing .h5 and .pickle files saved out from previous DLC analysis
+  clear_dlc: false
+  # flip eye and world cameras without deinterlacing
+  # can only be used if deinterlace is false
+  flip_headcams:
+    run: false
+    hflip: true
+    vlip: true
+  # apply an automatic contrast correction to the eyecam videos, getting a gamma value frame-by-frame
+  # good for a dark, low-contrast video (slow)
+  apply_gamma_to_eyecam: false
+  # dlc top network has a cricket labeled?
+  topcam_has_cricket: false
+  # worldcam has cricket
+  worldcam_has_cricket: false
+  # dlc eyecam network has the reflection of the ir light labeled?
+  eye_has_reflection: true
+  # dlc eyecam network has both corners of the eye (tear duct) labeled?
+  eye_has_corners: true
+  # calculate the needed correction for worldcam videos
+  # this only needs to be run once for a given camera
+  define_worldcam_distortion: true
+  # whether or not to subtract the center of the ir spot's reflection on the eye from the labeled points around the eye
+  subtract_reflection_position: true
+  # pupil cyclotorsion
+  get_torsion_from_ridges: false
+  get_torsion_from_markers: false
+  # whether or not to calculate head and body angle using the top camera
+  top_properties: false
   # excise frames surrounding gaps in eye and world timestamps (win size +/- 3 frames) to accomodate dropped data
-  drop_slow_frames: false
+  drop_window_around_missing_data: false
   # only use animal subdirectories that contain fm or hf
-  # if false, all subdirectories will be searhed for files
+  # if false, all subdirectories will be processed
   follow_strict_directory_naming: false
   # use exact file nomenclature
   # if false, requirements will be relaxed but multiple files may be returned when looking (i.e. deinterlaced and raw videos may be confused)
   follow_strict_naming: true
   # change behavior for eyecam calibration parameter use
   # if auto, fm will write calibration values and hf recordings will read calibration values from fm for the same session
-  # if self, all recordings will use their own values for calibration
+  # if self, all recordings will use and save their own values for calibration
   force_eyecam_calibration_params: auto
-
-ir_light_mapping:
-  # get position of ir light being moved through space in front of animal
-  ir_light_mapping: false
-  # paths to the project config file for DLC projects to track IR light and reflection
-  LED_eye_view_config: E:/freely_moving_ephys/deeplabcut_projects/LED_eye_view2-dylan-2021-01-10/config.yaml
-  LED_world_view_config: E:/freely_moving_ephys/deeplabcut_projects/LED_world_view2-dylan-2021-01-09/config.yaml
-  # name of the directory that the ir spot moving through space was saved to
-  ir_spot_in_space_dir_name: IRspot
-  # a more strict likelihood threshold than would be used in calculating parameters
-  lik_thresh_strict: 0.9999
-
-ephys_analysis:
-  ephys_analysis: true
-  # list of recordings to include in analysis, or give an empty list to analyze all found recording subdirectories
-  recording_list: []
-  # unit to highlight in figures and videos
-  unit_to_highlight: 0                   
-  # probe remapping to read from /probes/channel_maps.json
-  # options = [default16, NN_H16, default64, NN_H64-LP, DB_P64-3, DB_P64-8, DB_P128-6])
-  probe_type: default16
-  # write mp4 videos
-  write_videos: true
-
-population_analysis:
-  # pool data from all 'good' recordings listed in csv file
-  population_analysis: false
-  # path to metadata .csv file
-  population_metadata: /path/to/completed_experiment_pool.csv
-  # save directory for 
-  population_savepath: /path/
