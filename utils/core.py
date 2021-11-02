@@ -1,6 +1,7 @@
 
 
 import yaml, os
+import pandas as pd
 
 from utils.exceptions import *
 from utils.aux_funcs import find, list_subdirs
@@ -10,9 +11,9 @@ from utils.eyecam import Eyecam
 from utils.topcam import Topcam
 from utils.worldcam import Worldcam
 from utils.sidecam import Sidecam
-from utils.freelymoving import FreelyMovingLight, FreelyMovingDark, FreelyMovingPreyCapture
+from utils.freelymoving import FreelyMovingLight, FreelyMovingDark
 from utils.headfixed import HeadFixedGratings, HeadFixedWhiteNoise, HeadFixedReversingCheckboard, HeadFixedSparseNoise
-from utils.preycapture import OptoPreyCapture, PreyCapture
+from utils.preycapture import PreyCapture
 from utils.object_avoidance import ObjectAvoidance
 
 class Session:
@@ -104,7 +105,8 @@ class Session:
         # get list of recordings from config file, or search subdirectories if none listed
         self.get_session_recordings()
         # iterate through recordings in the session
-        for recording_name, recording_path in self.recordings_dict.items():
+        for _, recording_path in self.recordings_dict.items():
+            recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', recording_path) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
             # get a list of cameras in the current recording
             recording_cams = []
             for p in ['REYE','LEYE','Side','SIDE','TOP1','TOP2','TOP3','WORLD','World']:
@@ -132,16 +134,17 @@ class Session:
 
     def ephys_analysis(self):
         self.get_session_recordings()
-        for recording_name, recording_path in self.recordings_dict.items():
+        for _, recording_path in self.recordings_dict.items():
+            recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', recording_path) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
             if ('fm' in recording_name and 'light' in recording_name) or ('fm' in recording_name and 'light' not in recording_name and 'dark' not in recording_name):
                 ephys = FreelyMovingLight(self.config, recording_name, recording_path)
-                ephys.process().save()
+                ephys.process().save().save_glm()
             elif 'fm' in recording_name and 'dark' in recording_name:
                 ephys = FreelyMovingDark(self.config, recording_name, recording_path)
-                ephys.process().save()
+                ephys.process().save().save_glm()
             elif 'wn' in recording_name:
                 ephys = HeadFixedWhiteNoise(self.config, recording_name, recording_path)
-                ephys.process().save()
+                ephys.process().save().save_glm()
             elif 'grat' in recording_name:
                 ephys = HeadFixedGratings(self.config, recording_name, recording_path)
                 ephys.process().save()
@@ -154,14 +157,16 @@ class Session:
 
     def preycapture_analysis(self):
         self.get_session_recordings()
-        for recording_name, recording_path in self.recordings_dict.items():
+        for _, recording_path in self.recordings_dict.items():
+            recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', recording_path) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
             if 'preycap' in recording_name:
                 pc = PreyCapture(self.config)
                 pc.process().save()
 
     def object_avoidance_analysis(self):
         self.get_session_recordings()
-        for recording_name, recording_path in self.recordings_dict.items():
+        for _, recording_path in self.recordings_dict.items():
+            recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', recording_path) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
             if 'oa' in recording_name:
                 oa = ObjectAvoidance(self.config, recording_name, recording_path)
                 oa.process().save()
@@ -198,19 +203,3 @@ class Batch(Session):
 
 
     def process_batch(self):
-
-        
-
-class PrelimDepth:
-    def __init__(self, ephys_bin_path, probe):
-        self.ephys_bin_path = ephys_bin_path
-        self.probe = probe
-
-    def process(self)
-
-class PrelimWhiteNoise:
-
-
-class PrelimRawWhiteNoise:
-    def __init__(self):
-        self.

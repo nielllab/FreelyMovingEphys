@@ -7,8 +7,9 @@ from utils.exceptions import *
 from utils.base import Camera
 
 class Eyecam(Camera):
-    def __init__(self, config, camname):
-        super().__init__(config, camname)
+    def __init__(self, config, recording_name, recording_path, camname):
+        super.__init__(self, config, recording_name, recording_path)
+        self.camname = camname
 
     def fit_ellipse(self, x, y):
         # remove bias of the ellipse

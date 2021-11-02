@@ -39,6 +39,9 @@ options:
   ephys_videos: true
 
 internals:
+  # threshold for allowed brightness in a darkness stimulus
+  # if lights were switched on, set this to true and frames with the lights on will be ignored
+  set_darkness_thresh: true
   # delete existing .h5 and .pickle files saved out from previous DLC analysis
   clear_dlc: false
   # flip eye and world cameras without deinterlacing
@@ -66,8 +69,6 @@ internals:
   # pupil cyclotorsion
   get_torsion_from_ridges: false
   get_torsion_from_markers: false
-  # whether or not to calculate head and body angle using the top camera
-  top_properties: false
   # excise frames surrounding gaps in eye and world timestamps (win size +/- 3 frames) to accomodate dropped data
   drop_window_around_missing_data: false
   # only use animal subdirectories that contain fm or hf
@@ -80,3 +81,5 @@ internals:
   # if auto, fm will write calibration values and hf recordings will read calibration values from fm for the same session
   # if self, all recordings will use and save their own values for calibration
   force_eyecam_calibration_params: auto
+  # save diagnostic videos out of preprocessing?
+  diagnostic_preprocessing_videos: true

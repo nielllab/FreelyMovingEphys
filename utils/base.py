@@ -224,7 +224,7 @@ class Camera(BaseInput):
                 out_vid.write(undist_frame)
             out_vid.release()
 
-    def internals(self):
+    def auto_contrast(self):
         if self.config['img_correction']['apply_gamma_to_eyecam']:
             input_list = find('*EYE.avi', self.config['animal_directory'])
             # iterate through input videos
@@ -381,10 +381,8 @@ class Camera(BaseInput):
             avi_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
             self.video_path = next(path for path in avi_paths if self.camname in path and 'plot' not in path)
 
-    def pack_video_frames(self, usexr=True, keepsize=False):
-        if keepsize:
-            dwsmpl = 1
-        elif not keepsize:
+    def pack_video_frames(self, usexr=True, dwsmpl=None):
+        if dwsmpl is None:
             dwsmpl = self.config['internals']['video_dwnsmpl']
         # open the .avi file
         vidread = cv2.VideoCapture(self.video_path)

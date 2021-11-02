@@ -1,24 +1,60 @@
 import os, cv2
+
+from tqdm import tqdm
+import io_dict_to_hdf5 as ioh5
+from scipy.signal import medfilt
+from sklearn.cluster import KMeans
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 from utils.ephys import Ephys
 
 class HeadFixedWhiteNoise(Ephys):
-    def __init__(self, config):
-        super.__init__(self, config)
+    def __init__(self, config, recording_name, recording_path):
+        super.__init__(self, config, recording_name, recording_path)
         
         self.fm = False
         self.stim = 'wn'
 
-    def summary_fig(self):
-
     def overview_fig(self):
+        plt.figure(figsize=(5, int(np.ceil(self.n_units/2))), dpi=50)
 
-    def 
+        for i, ind in enumerate(self.cells.index):
 
-    def save():
+            # plot waveform
+            plt.subplot(self.n_units, 4, i*4+1)
+            wv = self.cells.at[ind,'waveform']
+            plt.plot(np.arange(len(wv))*1000/self.ephys_samprate, wv)
+            plt.xlabel('msec'); plt.title(str(ind)+' '+self.cells.at[ind,'KSLabel']+' cont='+str(self.cells.at[ind,'ContamPct']))
+            
+            # plot contrast response function
+            plt.subplot(self.n_units, 4, i*4+2)
+            plt.errorbar(self.crf_cent, self.crf_tuning, yerr=self.crf_err)
+            plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec')
+            plt.ylim(0, np.nanmax(self.crf_tuning*1.2))
+
+            # plot sta
+            plt.subplot(self.n_units, 4, i*4+3)
+            sta = self.sta[i,:,:]
+            sta_range = np.nanmax(np.abs(sta))*1.2
+            if sta_range < 0.25:
+                sta_range = 0.25
+            plt.imshow(sta, vmin=-sta_range, vmax=sta_range, cmap='seismic')
+            
+            # plot eye movements
+            plt.subplot(self.n_units, 4, i*4+4)
+            plt.plot(self.trange_x, self.upsacc_avg[i,:], color='tab:blue',label='right')
+            plt.plot(self.trange_x, self.downsacc_avg[i,:],color='red',label='left')
+            maxval = np.max(np.maximum(self.rightavg[i,:], self.leftavg[i,:]))
+            plt.vlines(0, 0, maxval*1.5, linestyles='dotted', colors='k')
+            plt.ylim([0, maxval*1.2]); plt.ylabel('sp/sec'); plt.legend()
+        
+        plt.tight_layout()
+        plt.tight_layout(); self.overview_pdf.savefig(); plt.close()
+
+    def save(self):
         unit_data = pd.DataFrame([])
         stim = 'wn'
         for unit_num, ind in enumerate(self.cells.index):
@@ -82,14 +118,33 @@ class HeadFixedWhiteNoise(Ephys):
             unit_df.index = [ind]
             unit_df['session'] = self.session_name
             unit_data = pd.concat([unit_data, unit_df], axis=0)
+        data_out = pd.concat([self.cells, unit_data], axis=1)
+        data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
+
+    def glm_save(self):
+        """ Save a different h5 file out that has inputs needed for post-processing glm.
+        Just do this to avoid duplicating videos, etc. for all units, when the stim is shared.
+        """
+        glm_data = {
+            'model_t': self.model_t,
+            'model_glm_vid': self.glm_model_vid,
+            'model_nsp': self.model_nsp,
+            'model_theta': self.model_theta,
+            'model_phi': self.model_phi
+        }
+        ioh5.save(os.path.join(self.recording_path, 'glm_data.h5', glm_data))
 
     def process(self):
-    
+        # delete the existing h5 file, so that a new one can be written
+        if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
+            os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
+
+        self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
+        self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
+        self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
+
         print('starting ephys analysis')
         self.base_ephys_analysis()
-
-        print('running analysis for whitenoise stim')
-        
 
         print('making summary and overview figures')
         self.overview_fig()
@@ -100,14 +155,10 @@ class HeadFixedWhiteNoise(Ephys):
 
         print('organizing and saving data')
         self.save()
-        
-
-        
-
 
 class HeadFixedReversingCheckboard(Ephys):
-    def __init__(self, config):
-        super.__init__(self, config)
+    def __init__(self, config, recording_name, recording_path):
+        super.__init__(self, config, recording_name, recording_path)
 
         self.fm = False
         self.stim = 'rc'
@@ -117,7 +168,7 @@ class HeadFixedReversingCheckboard(Ephys):
 
     def revchecker_laminar_depth(self):
         # read in the binary file of ephys recording
-        lfp_ephys = self.read_ephys_bin()
+        lfp_ephys = self.read_binary_file()
         # subtract off average for each channel, then apply bandpass filter
         ephys_center_sub = lfp_ephys - np.mean(lfp_ephys, 0)
         filt_ephys = self.butter_bandpass(ephys_center_sub, order=6)
@@ -332,18 +383,26 @@ class HeadFixedReversingCheckboard(Ephys):
             unit_df.index = [ind]
             unit_df['session'] = self.session_name
             unit_data = pd.concat([unit_data, unit_df], axis=0)
+        data_out = pd.concat([self.cells, unit_data], axis=1)
+        data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
+    def process(self):
+        # delete the existing h5 file, so that a new one can be written
+        if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
+            os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
 
-    def process_stim(self):
-        self.prepare()
-        self.process()
+        self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
+        self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
+
+        print('starting ephys analysis')
+        self.base_ephys_analysis()
         
         print('getting depth from reversing checkboard stimulus')
         self.revchecker_laminar_depth()
 
 class HeadFixedSparseNoise(Ephys):
-    def __init__(self, config):
-        super.__init__(self, config)
+    def __init__(self, config, recording_name, recording_path):
+        super.__init__(self, config, recording_name, recording_path)
 
         self.fm = False
         self.stim = 'sn'
@@ -408,14 +467,30 @@ class HeadFixedSparseNoise(Ephys):
             unit_df.index = [ind]
             unit_df['session'] = self.session_name
             unit_data = pd.concat([unit_data, unit_df], axis=0)
+        data_out = pd.concat([self.cells, unit_data], axis=1)
+        data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
     def process(self):
-    
+        # delete the existing h5 file, so that a new one can be written
+        if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
+            os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
 
+        self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
+        self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
+        
+        print('starting ephys analysis')
+        self.base_ephys_analysis()
+
+        print('making summary and overview figures')
+        self.summary_fig()
+
+        print('closing pdfs')
+        self.detail_pdf.close(); self.diagnostic_pdf.close()
+        
+        
 class HeadFixedGratings(Ephys):
-    def __init__(self, config):
-        Ephys.__init__(self, config)
-
+    def __init__(self, config, recording_name, recording_path):
+        super.__init__(self, config, recording_name, recording_path)
         self.fm = False
         self.stim = 'gt'
 
@@ -486,24 +561,24 @@ class HeadFixedGratings(Ephys):
             v_mn[f]= np.mean(v[ycent-yrg:ycent+yrg, xcent-xrg:xcent+xrg]); 
             sx_mn[f] = np.mean(sx[ycent-yrg:ycent+yrg, xcent-xrg:xcent+xrg])
             sy_mn[f] = np.mean(sy[ycent-yrg:ycent+yrg, xcent-xrg:xcent+xrg])
-        scr_contrast = np.empty(eslf.worldT.size)
+        scr_contrast = np.empty(self.worldT.size)
         for i in range(self.worldT.size):
-            scr_contrast[i] = np.nanmean(np.abs(img_norm[i, ycent-25:ycent+25, xcent-40:xcent+40]))
-        scr_contrast = signal.medfilt(scr_contrast, 11)
+            scr_contrast[i] = np.nanmean(np.abs(self.img_norm[i, ycent-25:ycent+25, xcent-40:xcent+40]))
+        scr_contrast = medfilt(scr_contrast, 11)
         stimOn = np.double(scr_contrast>0.5)
-        self.stim_start = np.array(worldT[np.where(np.diff(stimOn)>0)])
+        self.stim_start = np.array(self.worldT[np.where(np.diff(stimOn)>0)])
         
         self.stim_psth()
 
-        stim_end = np.array(worldT[np.where(np.diff(stimOn)<0)])
-        stim_end = stim_end[stim_end>stim_start[0]]
-        stim_start = stim_start[stim_start<stim_end[-1]]
-        grating_th = np.zeros(len(stim_start))
-        grating_mag = np.zeros(len(stim_start))
-        grating_dir = np.zeros(len(stim_start))
-        dI = np.zeros(len(stim_start))
-        for i in range(len(stim_start)):
-            tpts = np.where((self.worldT>stim_start[i] + 0.025) & (self.worldT<stim_end[i]-0.025))
+        stim_end = np.array(self.worldT[np.where(np.diff(stimOn)<0)])
+        stim_end = stim_end[stim_end>self.stim_start[0]]
+        self.stim_start = self.stim_start[self.stim_start<stim_end[-1]]
+        grating_th = np.zeros(len(self.stim_start))
+        grating_mag = np.zeros(len(self.stim_start))
+        grating_dir = np.zeros(len(self.stim_start))
+        dI = np.zeros(len(self.stim_start))
+        for i in range(len(self.stim_start)):
+            tpts = np.where((self.worldT>self.stim_start[i] + 0.025) & (self.worldT<stim_end[i]-0.025))
             mag = np.sqrt(sx_mn[tpts]**2 + sy_mn[tpts]**2)
             this = np.where(mag[:,0] > np.percentile(mag,25))
             goodpts = np.array(tpts)[0,this]
@@ -518,7 +593,7 @@ class HeadFixedGratings(Ephys):
         self.grating_ori = grating_th.copy()
         self.grating_ori[grating_dir<0] = self.grating_ori[grating_dir<0] + np.pi
         self.grating_ori = self.grating_ori - np.min(self.grating_ori)
-        grating_tf = np.zeros(len(stim_start))
+        grating_tf = np.zeros(len(self.stim_start))
         grating_tf[dI>0.5] = 1;  # spatial frequencies: 0=low, 1=high
         ori_cat = np.floor((self.grating_ori+np.pi/16) / (np.pi/4))
         
@@ -551,18 +626,18 @@ class HeadFixedGratings(Ephys):
 
         # plotting grating orientation and tuning curves
         edge_win = 0.025
-        self.grating_rate = np.zeros((len(self.cells), len(stim_start)))
-        self.spont_rate = np.zeros((len(self.cells), len(stim_start)))
+        self.grating_rate = np.zeros((len(self.cells), len(self.stim_start)))
+        self.spont_rate = np.zeros((len(self.cells), len(self.stim_start)))
         self.ori_tuning = np.zeros((len(self.cells), 8, 3))
         self.ori_tuning_tf = np.zeros((len(self.cells), 8, 3, 2))
         self.drift_spont = np.zeros(len(self.cells))
         plt.figure(figsize=(12, self.n_units*2))
         for c, ind in enumerate(self.cells.index):
             sp = self.cells.at[ind,'spikeT'].copy()
-            for i in range(len(stim_start)):
-                self.grating_rate[c, i] = np.sum((sp > stim_start[i]+edge_win) & (sp < stim_end[i])) / (stim_end[i] - stim_start[i] - edge_win)
-            for i in range(len(stim_start)-1):
-                self.spont_rate[c, i] = np.sum((sp > stim_end[i]+edge_win) & (sp < stim_start[i+1])) / (stim_start[i+1] - stim_end[i] - edge_win)  
+            for i in range(len(self.stim_start)):
+                self.grating_rate[c, i] = np.sum((sp > self.stim_start[i]+edge_win) & (sp < stim_end[i])) / (stim_end[i] - self.stim_start[i] - edge_win)
+            for i in range(len(self.stim_start)-1):
+                self.spont_rate[c, i] = np.sum((sp > stim_end[i]+edge_win) & (sp < self.stim_start[i+1])) / (self.stim_start[i+1] - stim_end[i] - edge_win)  
             for ori in range(8):
                 for sf in range(3):
                     self.ori_tuning[c, ori, sf] = np.mean(self.grating_rate[c, (ori_cat==ori) & (sf_cat==sf)])
@@ -647,36 +722,6 @@ class HeadFixedGratings(Ephys):
         plt.tight_layout()
         plt.tight_layout(); self.overview_pdf.savefig(); plt.close()
 
-    def summary_fig(self, hist_dt=1):
-        hist_t = np.arange(0, np.max(self.worldT), hist_dt)
-
-        plt.subplots(self.n_units+3, 1,figsize=(12, int(np.ceil(self.n_units/2))))
-
-        # running speed
-        plt.subplot(self.n_units+3, 1, 1)
-        plt.plot(self.ballT, self.ball_speed, 'k')
-        plt.xlim(0, np.max(self.worldT)); plt.ylabel('cm/sec'); plt.title('running speed')
-        
-        # pupil diameter
-        plt.subplot(self.n_units+3, 1, 2)
-        plt.plot(self.eyeT, self.longaxis, 'k')
-        plt.xlim(0, np.max(self.worldT)); plt.ylabel('pxls'); plt.title('pupil radius')
-        
-        # worldcam contrast
-        plt.subplot(self.n_units+3, 1, 3)
-        plt.plot(self.worldT, self.contrast)
-        plt.xlim(0, np.max(self.worldT)); plt.ylabel('contrast a.u.'); plt.title('contrast')
-        
-        # raster
-        for i, ind in enumerate(self.cells.index):
-            rate, bins = np.histogram(self.cells.at[ind,'spikeT'], hist_t)
-            plt.subplot(self.n_units+3, 1, i+4)
-            plt.plot(bins[0:-1], rate, 'k')
-            plt.xlim(bins[0], bins[-1]); plt.ylabel('unit ' + str(ind))
-
-        plt.tight_layout(); self.detail_pdf.savefig(); plt.close()
-
-
     def save(self):
         unit_data = pd.DataFrame([])
         stim = 'gratings'
@@ -754,9 +799,18 @@ class HeadFixedGratings(Ephys):
             unit_df.index = [ind]
             unit_df['session'] = self.session_name
             unit_data = pd.concat([unit_data, unit_df], axis=0)
-
+        data_out = pd.concat([self.cells, unit_data], axis=1)
+        data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
     def process(self):
+        # delete the existing h5 file, so that a new one can be written
+        if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
+            os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
+
+        self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
+        self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
+        self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
+
         print('starting ephys analysis')
         self.base_ephys_analysis()
 
@@ -769,6 +823,3 @@ class HeadFixedGratings(Ephys):
 
         print('closing pdfs')
         self.overview_pdf.close(); self.detail_pdf.close(); self.diagnostic_pdf.close()
-
-        print('organizing and saving data')
-        self.save()
