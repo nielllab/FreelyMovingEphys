@@ -1,4 +1,5 @@
 {
+    "path": "/path/to/all/recordings/",
     "090121":{
         "G6CK3LT": {"oa": {"num_positions": 7}},
         "G6CK3RT": {"oa": {"num_positions": 7}}
