@@ -1306,7 +1306,11 @@ def run_ephys_analysis(file_dict):
         plt.close()
         del ccmax
         gc.collect()
-    if file_dict['imu'] is not None:
+	if np.isnan(offset).all:
+		found_good_offset = False
+	else:
+		found_good_offset = True
+    if file_dict['imu'] is not None and found_good_offset is True:
         print('fitting regression to timing drift')
         # fit regression to timing drift
         model = LinearRegression()
@@ -1319,7 +1323,7 @@ def run_ephys_analysis(file_dict):
         plt.close()
         del dataT
         gc.collect()
-    elif file_dict['speed'] is not None:
+    elif file_dict['speed'] is not None or found_good_offset is False:
         offset0 = 0.1
         drift_rate = -0.000114
     if file_dict['imu'] is not None:
