@@ -815,7 +815,7 @@ class Population:
             # find active times
             if type(session_data['fm1_eyeT'].iloc[0]) != float:
                 # light setup
-                fm_light_eyeT = session_data['fm1_eyeT'].iloc[0].values
+                fm_light_eyeT = np.array(session_data['fm1_eyeT'].iloc[0])
                 fm_light_gz = session_data['fm1_gz'].iloc[0]
                 fm_light_accT = session_data['fm1_accT'].iloc[0]
                 light_model_t = np.arange(0,np.nanmax(fm_light_eyeT),self.model_dt)
@@ -842,7 +842,7 @@ class Population:
                 del unit_active_spikes, unit_stationary_spikes
 
                 # dark setup
-                fm_dark_eyeT = session_data['fm_dark_eyeT'].iloc[0].values
+                fm_dark_eyeT = np.array(session_data['fm_dark_eyeT'].iloc[0])
                 fm_dark_gz = session_data['fm_dark_gz'].iloc[0]
                 fm_dark_accT = session_data['fm_dark_accT'].iloc[0]
                 dark_model_t = np.arange(0,np.nanmax(fm_dark_eyeT),self.model_dt)
@@ -955,7 +955,7 @@ class Population:
 
                     if type(row[base+'_eyeT']) != float and type(row[base+'_dEye']) != float and type(row[base+'_dHead']) != float:
 
-                        eyeT = row[base+'_eyeT'].values
+                        eyeT = np.array(row[base+'_eyeT'])
                         dEye = row[base+'_dEye']
                         dhead = row[base+'_dHead']
                         dgz = dEye + dhead(eyeT[0:-1])
@@ -2144,10 +2144,24 @@ class Population:
                 'light gyro x modulation','light gyro y modulation','light gyro z modulation']
         self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movement_psth_type_simple', self.deye_psth_cmap)
 
+        plt.figure()
+        plt.subplots(2,2)
+        labels = sorted(self.data['movement_psth_type_simple'].unique())
+        for count, name in enumerate(labels):
+            lower = -0.5; upper = 1.5; dt = 0.1
+            bins = np.arange(lower, upper+dt, dt)
+            all_psth = flatten_series(self.data['hf3_gratings_grating_psth'][self.data['movement_psth_type_simple'==name]])
+            mean_psth = np.nanmean(all_psth, 0)
+            plt.subplot(2,2,count+1)
+            plt.plot(bins[0:-1]+dt/2, mean_psth)
+            plt.title('gratings psth', fontsize=20)
+            plt.xlabel('time'); plt.ylabel('sp/sec')
+            plt.ylim([0, np.nanmax(mean_psth)*1.2])
+
     def position_around_saccade(self, movement):
         sessions = [i for i in self.data['session'].unique() if type(i) != float]
         n_sessions = len(self.data['session'].unique())
-        fig = plt.subplots(n_sessions,4,figsize=(20,30))
+        plt.subplots(n_sessions,4,figsize=(20,30))
         count = 1
         for session_num in tqdm(range(len(sessions))):
             session = sessions[session_num]
@@ -2156,7 +2170,7 @@ class Population:
             
             if type(row['fm1_eyeT']) != float and type(row['fm1_dEye']) != float and type(row['fm1_dHead']) != float:
                 
-                eyeT = row['fm1_eyeT'].values
+                eyeT = np.array(row['fm1_eyeT'])
                 dEye = row['fm1_dEye']
                 dhead = row['fm1_dHead']
                 dgz = dEye + dhead(eyeT[0:-1])
