@@ -1897,7 +1897,7 @@ def run_ephys_analysis(file_dict):
     detail_pdf.savefig()
     plt.close()
 
-    if (free_move is True and file_dict['stim_type']=='light_arena') | (file_dict['stim_type'] == 'white_noise'):
+    if (free_move is True and file_dict['stim_type']=='light_arena' and found_good_offset is True) | (file_dict['stim_type'] == 'white_noise'):
         print('doing GLM receptive field estimate')
         # simplified setup for GLM
         # these are general parameters (spike rates, eye position)
@@ -1948,7 +1948,7 @@ def run_ephys_analysis(file_dict):
         plt.close()
         del model_vid_sm
         gc.collect()
-    elif free_move is True and file_dict['stim_type']=='dark_arena':
+    elif free_move is True and (file_dict['stim_type']=='dark_arena' or found_good_offset is False):
         print('skipping GLM RFs; still getting active times')
         n_units = len(goodcells)
         model_dt = 0.025
