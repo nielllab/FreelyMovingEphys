@@ -2487,7 +2487,7 @@ def run_ephys_analysis(file_dict):
             unit_df.index = [ind]
             unit_df['session'] = session_name
             unit_data = pd.concat([unit_data, unit_df], axis=0)
-    elif free_move is True and file_dict['stim_type'] == 'light_arena':
+    elif free_move is True and file_dict['stim_type'] == 'light_arena' and found_good_offset is True:
         for unit_num, ind in enumerate(goodcells.index):
             cols = [stim+'_'+i for i in ['c_range',
                                         'crf_cent',
@@ -2603,7 +2603,7 @@ def run_ephys_analysis(file_dict):
             unit_df.index = [ind]
             unit_df['session'] = session_name
             unit_data = pd.concat([unit_data, unit_df], axis=0)
-    elif free_move is True and file_dict['stim_type'] == 'dark_arena':
+    elif free_move is True and (file_dict['stim_type'] == 'dark_arena' or found_good_offset is False):
         for unit_num, ind in enumerate(goodcells.index):
             cols = [stim+'_'+i for i in ['c_range',
                                         'crf_cent',
