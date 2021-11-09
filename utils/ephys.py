@@ -1778,7 +1778,7 @@ def run_ephys_analysis(file_dict):
         grating_mag = np.zeros(len(stim_start))
         grating_dir = np.zeros(len(stim_start))
         dI = np.zeros(len(stim_start))
-        for i in range(len(stim_start)):
+        for i in range(np.min([len(stim_start),len(stim_end)])):
             tpts = np.where((worldT>stim_start[i] + 0.025) & (worldT<stim_end[i]-0.025))
             mag = np.sqrt(sx_mn[tpts]**2 + sy_mn[tpts]**2)
             this = np.where(mag[:,0]>np.percentile(mag,25))
@@ -1828,9 +1828,9 @@ def run_ephys_analysis(file_dict):
         plt.figure(figsize = (12,n_units*2))
         for c, ind in enumerate(goodcells.index):
             sp = goodcells.at[ind,'spikeT'].copy()
-            for i in range(len(stim_start)):
+            for i in range(np.min([len(stim_start),len(stim_end)])):
                 grating_rate[c,i] = np.sum((sp> stim_start[i]+edge_win) & (sp<stim_end[i])) / (stim_end[i] - stim_start[i]- edge_win)
-            for i in range(len(stim_start)-1):
+            for i in range((np.min([len(stim_start),len(stim_end)]))-1):
                 spont_rate[c,i] = np.sum((sp> stim_end[i]+edge_win) & (sp<stim_start[i+1])) / (stim_start[i+1] - stim_end[i]- edge_win)  
             for ori in range(8):
                 for sf in range(3):
