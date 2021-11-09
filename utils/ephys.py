@@ -1306,7 +1306,7 @@ def run_ephys_analysis(file_dict):
         plt.close()
         del ccmax
         gc.collect()
-        if np.isnan(offset).all:
+        if np.isnan(offset).all():
             found_good_offset = False
         else:
             found_good_offset = True
