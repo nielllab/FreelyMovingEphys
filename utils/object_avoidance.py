@@ -12,7 +12,7 @@ import matplotlib.colors as mcolors
 
 from utils.base import BaseInput
 from utils.topcam import Topcam
-from utils.aux_funcs import find, list_subdirs
+from utils.aux_funcs import find, list_subdirs, list_subdirs_nonrecursive
 
 class AvoidanceTrial(BaseInput):
     def __init__(self, s_input, path_input, metadata_input):
@@ -20,7 +20,7 @@ class AvoidanceTrial(BaseInput):
         self.likelihood_thresh = 0.99
         self.dist_across_arena = 30.48 # cm between bottom-right and bottom-left pillar
         self.path = path_input
-        self.camname = 'TOP1'
+        self.camname = 'top1'
         self.shared_metadata = metadata_input
 
         self.num_clusters_to_use = self.shared_metadata[self.s['date']][self.s['animal']][str(self.s['task'])]['num_positions']
@@ -160,7 +160,7 @@ class AvoidanceTrial(BaseInput):
         self.trial_name = name
         self.trial_path = path
 
-    def object_avoidance(self):
+    def pillar_avoidance(self):
         self.make_task_df()
 
         dist_to_posts = np.median(self.data['arenaTR_x'].iloc[0],0) - np.median(self.data['arenaTL_x'].iloc[0],0)
@@ -441,7 +441,7 @@ class AvoidanceTrial(BaseInput):
             if seek_timestamp in row['trail_timestamps']:
                 return row
 
-    def plot_frame(vid_arr, timestamps, df, seek_frame, return_as_array=False):
+    def plot_frame(self, vid_arr, timestamps, df, seek_frame, return_as_array=False):
         seek_timestamp = timestamps[seek_frame]
         row = self.get_row_for_timestamp(df, seek_timestamp)
         if row is None:
@@ -492,13 +492,24 @@ class AvoidanceTrial(BaseInput):
         print('plotting video of traces')
         self.plot_all_trials(vid_arr, self.read_timestamp_file(time_path), self.data, vid_savepath)
 
+    # def gap_detection(self):
+    #     self.make_task_df()
+
+    #     dist_to_posts = np.median(self.data['arenaTR_x'].iloc[0],0) - np.median(self.data['arenaTL_x'].iloc[0],0)
+    #     self.pxls2cm = dist_to_posts/self.dist_across_arena
+    #     self.convert_pxls_to_dist()
+
+    #     self.get_head_angle()
+
+    #     pdf = PdfPages(os.path.join(self.trial_path, (self.data['animal'].iloc[0]+'_'+str(self.data['date'].iloc[0])+'_'+str(self.data['task'].iloc[0])+'_figs.pdf')))
+
 class AvoidanceSession(BaseInput):
     def __init__(self, metadata_path, task='oa'):
-        with open(metadata_path) as f:    
+        with open(metadata_path) as f:
             self.metadata = json.load(f)
 
         self.path = self.metadata['path']
-        self.dates_list = list(self.metadata.keys())
+        self.dates_list = [i for i in list(self.metadata.keys()) if i != 'path']
 
         if task=='oa':
             self.is_pillar_avoidance = True
@@ -512,7 +523,7 @@ class AvoidanceSession(BaseInput):
         elif self.is_gap_detection:
             self.dlc_project = '/home/niell_lab/Documents/deeplabcut_projects/gap_determination-Kana-2021-10-19/config.yaml'
 
-        self.camname = 'TOP1'
+        self.camname = 'top1'
         self.generic_camconfig = {
             'paths': {
                 'dlc_projects': {
@@ -520,19 +531,27 @@ class AvoidanceSession(BaseInput):
                 },
             },
             'internals': {
-                'follow_strict_naming': False
+                'follow_strict_naming': False,
+                'crop_for_dlc': False,
+                'filter_dlc_predictions': False,
+                'multianimal_top_project': False,
+                'likelihood_threshold': 0.99
             }
         }
 
-    def preprocess(self, name, path):
+    def preprocess(self):
         for date in self.dates_list:
-            date_dir = os.path.join(path, date)
-            for animal in list_subdirs(date_dir):
+            date_dir = os.path.join(self.path, date)
+            for animal in [i for i in list(self.metadata[date].keys())]:
+                print(date, animal)
                 animal_dir = os.path.join(date_dir, animal)
                 camconfig = self.generic_camconfig
                 camconfig['animal_directory'] = animal_dir
-                tc = Topcam(camconfig, name, path, self.camname)
-                tc.pose_estimation()
+                for recording_name in [k for k,v in self.metadata[date][animal].items()]:
+                    recording_dir = os.path.join(animal_dir, recording_name)
+                    name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', recording_dir) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-2])
+                    tc = Topcam(config=camconfig, recording_name=name, recording_path=recording_dir, camname=self.camname)
+                    tc.pose_estimation()
 
     def gather_all_sessions(self):
         data_dict = {'date': [],
@@ -548,7 +567,7 @@ class AvoidanceSession(BaseInput):
         data_path = Path(self.path).expanduser()
         # populate dict with metadata and timestamps
         for date in self.dates_list:
-            for ani in os.listdir(data_path / date): 
+            for ani in os.listdir(data_path / date):
                 for task in os.listdir(data_path / date/ ani):
                     data_paths = list((data_path / date/ ani/ task).rglob('*.csv'))
                     if data_paths != []:
@@ -561,7 +580,7 @@ class AvoidanceSession(BaseInput):
                         data_dict[data_paths[ind].name.split('_')[5] +'_t0'].append(time[0])
         self.all_sessions = pd.DataFrame.from_dict(data_dict)
 
-    def pillar_avoidance(self):
+    def process(self):
         self.gather_all_sessions()
         for trial_ind, trial_row in tqdm(self.all_sessions.iterrows()):
             # analyze each trial
@@ -572,19 +591,12 @@ class AvoidanceSession(BaseInput):
             trial_path, _ = os.path.split(trial_path)
             trial_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', trial_path) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
             trial.add_tracking(dlc_h5, trial_name, trial_path)
-            trial.object_avoidance()
-        # make short diagnostic video
-        video = tc.pack_video_frames(usexr=False, dwnsmpl=1)
-
-    def gap_detection(self):
-        self.gather_all_sessions()
-        for trial_ind, trial_row in tqdm(self.all_sessions.iterrows()):
-
-    def process(self):
-        if self.is_pillar_avoidance:
-            self.pillar_avoidance()
-        elif self.is_gap_detection:
-            self.gap_detection()
+            if self.is_pillar_avoidance:
+                trial.pillar_avoidance()
+            elif self.is_gap_detection:
+                trial.gap_detection()
+            # make short diagnostic video
+            trial.make_videos()
 
         
 

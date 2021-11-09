@@ -74,7 +74,7 @@ class BaseInput:
 
 class Camera(BaseInput):
     def __init__(self, config, recording_name, recording_path, camname):
-        super.__init__(self, config, recording_name, recording_path)
+        BaseInput.__init__(self, config, recording_name, recording_path)
         self.camname = camname
 
     def deinterlace(self, videos=None, timestamps=None):

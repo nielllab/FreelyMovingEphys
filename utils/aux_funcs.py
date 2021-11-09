@@ -105,10 +105,20 @@ def check_path(basepath, path):
         return os.path.join(basepath, path)
 
 def list_subdirs(root_dir):
-    """ List subdirectories in a root directory
+    """ List paths of subdirectories in a root directory
     """
     dirnames = []
     for _, dirs, _ in os.walk(root_dir):
         for rec_dir in dirs:
             dirnames.append(rec_dir)
+    return dirnames
+
+def list_subdirs_nonrecursive(root_dir):
+    """ List names of subdirectories (not paths) in a root directory, non-recursively
+    """
+    dirnames = []
+    for _, _, filenames in os.walk(root_dir):
+        for name in filenames:
+            dirnames.append(name)
+        break
     return dirnames
