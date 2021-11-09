@@ -381,16 +381,16 @@ class Camera(BaseInput):
             avi_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
             self.video_path = next(path for path in avi_paths if self.camname in path and 'plot' not in path)
 
-    def pack_video_frames(self, usexr=True, dwsmpl=None):
-        if dwsmpl is None:
-            dwsmpl = self.config['internals']['video_dwnsmpl']
+    def pack_video_frames(self, usexr=True, dwnsmpl=None):
+        if dwnsmpl is None:
+            dwnsmpl = self.config['internals']['video_dwnsmpl']
         # open the .avi file
         vidread = cv2.VideoCapture(self.video_path)
         # empty array that is the target shape
         # should be number of frames x downsampled height x downsampled width
         all_frames = np.empty([int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)),
-                            int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*dwsmpl),
-                            int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*dwsmpl)], dtype=np.uint8)
+                            int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*dwnsmpl),
+                            int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*dwnsmpl)], dtype=np.uint8)
         # iterate through each frame
         for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
             # read the frame in and make sure it is read in correctly
@@ -400,7 +400,7 @@ class Camera(BaseInput):
             # convert to grayyscale
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             # downsample the frame by an amount specified in the config file
-            sframe = cv2.resize(frame, (0,0), fx=dwsmpl, fy=dwsmpl, interpolation=cv2.INTER_NEAREST)
+            sframe = cv2.resize(frame, (0,0), fx=dwnsmpl, fy=dwnsmpl, interpolation=cv2.INTER_NEAREST)
             # add the downsampled frame to all_frames as int8
             all_frames[frame_num,:,:] = sframe.astype(np.int8)
         if not usexr:
