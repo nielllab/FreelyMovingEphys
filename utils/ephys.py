@@ -360,7 +360,7 @@ def plot_regression_timing_fit(dataT, offset, offset0, drift_rate):
     plt.plot(dataT, offset,'.')
     plt.plot(dataT, offset0 + dataT*drift_rate)
     plt.xlabel('secs'); plt.ylabel('offset - secs')
-    plt.title('offset0 = '+str(np.round(offset0,3))+' drift_rate = '+str(np.round(drift_rate,3)))
+    plt.title('offset0 = '+str(np.round(offset0,3))+' drift_rate = '+str(np.round(drift_rate,8)))
     return fig
 
 def plot_saccade_and_fixate(eyeT, dEye, gInterp, th):
