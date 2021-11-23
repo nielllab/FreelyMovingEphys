@@ -11,8 +11,7 @@ from utils.base import Camera
 
 class Topcam(Camera):
     def __init__(self, config, recording_name, recording_path, camname):
-        super.__init__(self, config, recording_name, recording_path)
-        self.camname = camname
+        Camera.__init__(self, config, recording_name, recording_path, camname)
 
     def filter_likelihood(self):
         thresh = self.config['internals']['likelihood_threshold']
@@ -24,8 +23,8 @@ class Topcam(Camera):
             y = self.xrpts.sel(point_loc=y_cols[i])
             l = self.xrpts.sel(point_loc=l_cols[i])
             x[l<thresh] = np.nan; y[l<thresh] = np.nan
-            self.xrpts.loc[dict(point_loc=x_cols[i], frame=i)] = x
-            self.xrpts.loc[dict(point_loc=y_cols[i], frame=i)] = y
+            self.xrpts.loc[dict(point_loc=x_cols[i])] = x
+            self.xrpts.loc[dict(point_loc=y_cols[i])] = y
 
     def get_head_angle(self, pt_input, name1='Nose', name2='BackNeck'):
         """ Get body angle of mouse in topdown view.

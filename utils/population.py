@@ -35,12 +35,10 @@ class Population:
         # open the csv file of metadata and pull out all of the desired data paths
         if type(csv_filepath) == str:
             csv = pd.read_csv(csv_filepath)
-            for_data_pool = csv[csv['load_for_data_pool'] == any(['TRUE' or True or 'True'])]
+            for_data_pool = csv[csv['good_experiment'] == any(['TRUE' or True or 'True'])]
         elif type(csv_filepath) == pd.Series:
             for_data_pool = csv_filepath
-        goodsessions = []
-        probenames_for_goodsessions = []
-        layer5_depth_for_goodsessions = []
+        goodsessions = []; probenames_for_goodsessions = []; layer5_depth_for_goodsessions = []; use_in_dark_analysis = []
         # get all of the best freely moving recordings of a session into a dictionary
         goodlightrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else 'fm1' for i in for_data_pool['best_light_fm']]))
         gooddarkrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else None for i in for_data_pool['best_dark_fm']]))
@@ -53,6 +51,7 @@ class Population:
             goodsessions.append(row['animal_dirpath'])
             probenames_for_goodsessions.append(row['probe_name'])
             layer5_depth_for_goodsessions.append(row['overwrite_layer5center'])
+            use_in_dark_analysis.append(row['use_in_dark_analysis'])
         # get the .h5 files from each day
         # this will be a list of lists, where each list inside of the main list has all the data of a single session
         sessions = [find('*_ephys_props.h5',session) for session in goodsessions]
@@ -95,6 +94,7 @@ class Population:
                 pass
             # add probe name
             session_data['probe_name'] = probenames_for_goodsessions[ind]
+            session_data['use_in_dark_analysis'] = use_in_dark_analysis[ind]
             # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
             manual_depth_entry = layer5_depth_for_goodsessions[ind]
             if 'hf1_wn_lfp_layer5_centers' in session_data.columns.values:

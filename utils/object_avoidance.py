@@ -12,7 +12,7 @@ import matplotlib.colors as mcolors
 
 from utils.base import BaseInput
 from utils.topcam import Topcam
-from utils.aux_funcs import find, list_subdirs, list_subdirs_nonrecursive
+from utils.aux_funcs import find, list_subdirs, list_subdirs_nonrecursive, flatten_series
 
 class AvoidanceTrial(BaseInput):
     def __init__(self, s_input, path_input, metadata_input):
@@ -25,6 +25,13 @@ class AvoidanceTrial(BaseInput):
 
         self.num_clusters_to_use = self.shared_metadata[self.s['date']][self.s['animal']][str(self.s['task'])]['num_positions']
         self.trial_path = os.path.join(*[self.path, str(self.s['date']), self.s['animal'],str(self.s['task'])])
+
+        self.generic_camconfig = {
+            'internals': {
+                'follow_strict_naming': False,
+                'likelihood_threshold': 0.99
+            }
+        }
 
     def convert_pxls_to_dist(self):
         x_cols = [i for i in self.data.columns.values if '_x' in i]
@@ -45,7 +52,7 @@ class AvoidanceTrial(BaseInput):
             time = self.s['top1_ts']; time = time[time > df1.loc[count,'first_poke']]; time = time[time < df1.loc[count,'second_poke']]
             df1.at[count, 'trail_timestamps'] = time.astype(object)
             start_stop_inds = (int(np.where([self.s['top1_ts']==time[0]])[1]), int(np.where([self.s['top1_ts']==time[-1]])[1]))
-            for pos in self.positions:
+            for pos in list(self.positions['point_loc'].values):
                 df1.at[count, pos] = np.array(self.positions.loc[start_stop_inds[0]:start_stop_inds[1], pos]).astype(object)
             df1.at[count, 'len'] = start_stop_inds[1] - start_stop_inds[0]
             # even
@@ -56,7 +63,7 @@ class AvoidanceTrial(BaseInput):
                 time = self.s['top1_ts']; time = time[time > df1.loc[count,'first_poke']]; time = time[time < df1.loc[count,'second_poke']]
                 df1.at[count, 'trail_timestamps'] = time.astype(object)
                 start_stop_inds = (int(np.where([self.s['top1_ts']==time[0]])[1]), int(np.where([self.s['top1_ts']==time[-1]])[1]))
-                for pos in self.positions:
+                for pos in list(self.positions['point_loc'].values):
                     df1.at[count, pos] = np.array(self.positions.loc[start_stop_inds[0]:start_stop_inds[1], pos]).astype(object)
                 df1.at[count, 'len'] = start_stop_inds[1] - start_stop_inds[0]
         df1['animal'] = self.s['animal']; df1['date'] = self.s['date']; df1['task'] = self.s['task']
@@ -76,18 +83,26 @@ class AvoidanceTrial(BaseInput):
             df.at[ind,'median_x_cm'] = median_trace[0,:].astype(object); df.at[ind,'median_y_cm'] = median_trace[1,:].astype(object)
         return df
 
-    def distance_from_nose(self, row, target):
-        x_dist = np.abs(row[target+'_x_cm'] - row['nose_x_cm'])
-        y_dist = np.abs(row[target+'_y_cm'] - row['nose_y_cm'])
+    def distance_from_nose(self, row, target, xy_together=False):
+        if not xy_together:
+            x_dist = np.abs(row[target+'_x_cm'] - row['nose_x_cm'])
+            y_dist = np.abs(row[target+'_y_cm'] - row['nose_y_cm'])
+        elif xy_together:
+            x_dist = np.abs(row[target][0] - row['nose_x_cm'])
+            y_dist = np.abs(row[target][1] - row['nose_y_cm'])
         length = len(x_dist)
         dist = np.zeros([length])
         for i in range(length):
             dist[i] = np.sqrt(x_dist[i]**2 + y_dist[i]**2)
         return dist
 
-    def angle_from_nose(self, row, target):
-        x_dist = np.abs(row[target+'_x_cm'] - row['nose_x_cm'])
-        y_dist = np.abs(row[target+'_y_cm'] - row['nose_y_cm'])
+    def angle_from_nose(self, row, target, xy_together=False):
+        if not xy_together:
+            x_dist = np.abs(row[target+'_x_cm'] - row['nose_x_cm'])
+            y_dist = np.abs(row[target+'_y_cm'] - row['nose_y_cm'])
+        elif xy_together:
+            x_dist = np.abs(row[target][0] - row['nose_x_cm'])
+            y_dist = np.abs(row[target][1] - row['nose_y_cm'])
         length = len(x_dist)
         ang = np.zeros([length])
         for i in range(length):
@@ -152,11 +167,12 @@ class AvoidanceTrial(BaseInput):
             plt.close()
             return frame_as_array
 
-    def add_tracking(self, h5_path, name, path):
-        tc = Topcam({}, name, path, self.camname)
-        dlc_positions, _ = tc.pack_position_data(h5_path)
-        dlc_positions = tc.filter_likelihood(dlc_positions)
-        self.positions = dlc_positions
+    def add_tracking(self, name, path):
+        tc = Topcam(self.generic_camconfig, name, path, self.camname)
+        tc.gather_files()
+        tc.pack_position_data()
+        tc.filter_likelihood()
+        self.positions = tc.xrpts
         self.trial_name = name
         self.trial_path = path
 
@@ -174,10 +190,10 @@ class AvoidanceTrial(BaseInput):
         # get obstacle position for all times
         for ind, row in self.data.iterrows():
             for x in ['b','w']:
-                xvals = np.stack([row['obstacle'+x+'TL_x_cm'], row['obstacle'+x+'TR_x_cm'], row['obstacle'+x+'BL_x_cm'], row['obstacle'+x+'BL_x_cm']]).astype(float)
+                xvals = np.stack([row['obstacle'+x+'TL_x_cm'], row['obstacle'+x+'TR_x_cm'], row['obstacle'+x+'BL_x_cm'], row['obstacle'+x+'BR_x_cm']]).astype(float)
                 self.data.at[ind, x+'obstacle_x_cm'] = np.nanmean(xvals)
                 self.data.at[ind, x+'obstacle_x_std'] = np.mean(np.nanstd(xvals, axis=1))
-                yvals = np.stack([row['obstaclewTL_y_cm'], row['obstaclewTR_y_cm'], row['obstaclewBL_y_cm'], row['obstaclewBL_y_cm']]).astype(float)
+                yvals = np.stack([row['obstaclewTL_y_cm'], row['obstaclewTR_y_cm'], row['obstaclewBL_y_cm'], row['obstaclewBR_y_cm']]).astype(float)
                 self.data.at[ind, x+'obstacle_y_cm'] = np.nanmean(yvals)
                 self.data.at[ind, x+'obstacle_y_std'] = np.mean(np.nanstd(yvals, axis=1))
 
@@ -274,12 +290,14 @@ class AvoidanceTrial(BaseInput):
             pdf.savefig(); plt.close()
 
         # overlay of cluster medians
+        direction_count = 0
+        plt.subplots(1,2, figsize=(8,5))
         for direction_df in [odd, even]:
             if direction_count == 0:
                 leftcolor='g'; rightcolor='b'
             else:
                 leftcolor='b'; rightcolor='g'
-            plt.subplots(1,2, figsize=(8,5))
+            plt.subplot(1,2,direction_count+1)
             for c in range(9):
                 cluster_color = list(mcolors.TABLEAU_COLORS)[c]
                 this_cluster = direction_df[direction_df['obstacle_cluster']==c].copy().reset_index()
@@ -416,7 +434,7 @@ class AvoidanceTrial(BaseInput):
         pdf.close()
         self.data.to_hdf(os.path.join(self.trial_path, (self.data['animal'].iloc[0]+'_'+str(self.data['date'].iloc[0])+'_'+str(self.data['task'].iloc[0])+'.h5')), 'w')
 
-    def format_frames_oa(vid_path):
+    def format_frames_oa(self, vid_path):
         # open the .avi file
         vidread = cv2.VideoCapture(vid_path)
         # empty array that is the target shape
@@ -486,22 +504,286 @@ class AvoidanceTrial(BaseInput):
     def make_videos(self):
         vid_savepath = os.path.join(self.trial_path, (self.data['animal'].iloc[0]+'_'+str(self.data['date'].iloc[0])+'_'+str(self.data['task'].iloc[0])+'plot.avi'))
         vid_path = find('*'+str(self.s['date'])+'*'+self.s['animal']+'*'+str(self.s['task'])+'*.avi', self.trial_path)[0]
-        time_path = find('*'+str(self.s['date'])+'*'+self.s['animal']+'*'+str(self.s['task'])+'*_top1_BonsaiTS.csv', self.trial_path)[0]
+        self.timestamp_path = find('*'+str(self.s['date'])+'*'+self.s['animal']+'*'+str(self.s['task'])+'*_top1_BonsaiTS.csv', self.trial_path)[0]
         print('formating video frames as array')
         vid_arr = self.format_frames_oa(vid_path)
         print('plotting video of traces')
-        self.plot_all_trials(vid_arr, self.read_timestamp_file(time_path), self.data, vid_savepath)
+        self.plot_all_trials(vid_arr, self.read_timestamp_file(), self.data, vid_savepath)
 
-    # def gap_detection(self):
-    #     self.make_task_df()
+    def gap_detection(self):
 
-    #     dist_to_posts = np.median(self.data['arenaTR_x'].iloc[0],0) - np.median(self.data['arenaTL_x'].iloc[0],0)
-    #     self.pxls2cm = dist_to_posts/self.dist_across_arena
-    #     self.convert_pxls_to_dist()
+        self.make_task_df()
 
-    #     self.get_head_angle()
+        dist_to_posts = np.median(self.data['arenaTR_x'].iloc[0],0) - np.median(self.data['arenaTL_x'].iloc[0],0)
+        self.pxls2cm = dist_to_posts/self.dist_across_arena
+        self.convert_pxls_to_dist()
 
-    #     pdf = PdfPages(os.path.join(self.trial_path, (self.data['animal'].iloc[0]+'_'+str(self.data['date'].iloc[0])+'_'+str(self.data['task'].iloc[0])+'_figs.pdf')))
+        self.get_head_angle()
+
+        pdf = PdfPages(os.path.join(self.trial_path, (self.data['animal'].iloc[0]+'_'+str(self.data['date'].iloc[0])+'_'+str(self.data['task'].iloc[0])+'_figs.pdf')))
+
+        self.timestamp_path = find('*'+str(self.s['date'])+'*'+self.s['animal']+'*'+str(self.s['task'])+'*_top1_BonsaiTS.csv', self.trial_path)[0]
+
+        # get gap positions
+        sq_names = ['sBR','sBL','sTR','sTL','s2BR','s2BL','s2TR','s2TL']
+        tr_names = ['tBL','tTL','tM','t2BL','t2TL','t2M']
+        for ind, row in self.data.iterrows():
+            # first gap
+            sq_x_positions = np.zeros(8)
+            sq_y_positions = np.zeros(8)
+            sq_std = np.zeros(8)
+            for i, sq_name in enumerate(sq_names):
+                x_positions = row['obstacle'+sq_name+'_x_cm'].astype(float)
+                y_positions = row['obstacle'+sq_name+'_y_cm'].astype(float)
+                if ~np.isnan(x_positions).all() > 0 and ~np.isnan(y_positions).all() > 0:
+                    sq_x_positions[i] = np.nanmedian(x_positions)
+                    sq_y_positions[i] = np.nanmedian(y_positions)
+                    sq_std[i] = np.mean([np.nanstd(x_positions),np.nanstd(y_positions)])
+            self.data.at[ind, 'obs_sq_x_pos'] = sq_x_positions.astype(object)
+            self.data.at[ind, 'obs_sq_y_pos'] = sq_y_positions.astype(object)
+            self.data.at[ind, 'obs_sq_std'] = sq_std.astype(object)
+            
+            tr_x_positions = np.zeros(6)
+            tr_y_positions = np.zeros(6)
+            tr_std = np.zeros(6)
+            for i, tr_name in enumerate(tr_names):
+                x_positions = row['obstacle'+tr_name+'_x_cm'].astype(float)
+                y_positions = row['obstacle'+tr_name+'_y_cm'].astype(float)
+                if ~np.isnan(x_positions).all() > 0 and ~np.isnan(y_positions).all() > 0:
+                    tr_x_positions[i] = np.nanmedian(x_positions)
+                    tr_y_positions[i] = np.nanmedian(y_positions)
+                    tr_std[i] = np.mean([np.nanstd(x_positions),np.nanstd(y_positions)])
+            self.data.at[ind, 'obs_tr_x_pos'] = tr_x_positions.astype(object)
+            self.data.at[ind, 'obs_tr_y_pos'] = tr_y_positions.astype(object)
+            self.data.at[ind, 'obs_tr_std'] = tr_std.astype(object)
+            self.data.at[ind, 'might_be_bad'] = (True if (np.sum(~np.isnan(tr_x_positions[:4]))<3 or np.sum(~np.isnan(sq_x_positions[:5]))<4) else False)
+            has_both_doors = (True if (np.sum(~np.isnan(tr_x_positions))>3 and np.sum(~np.isnan(sq_x_positions))>4) else False)
+            door1 = np.array([np.nanmean(sq_x_positions[2:4]), np.nanmean(sq_y_positions[2:4]), np.nanmean(tr_x_positions[:2]), np.nanmean(tr_y_positions[:2])])
+            self.data.at[ind, 'door1'] = door1.astype(object)
+            self.data.at[ind, 'door1_cent'] = np.array([np.nanmean([door1[0], door1[2]]), np.nanmean([door1[1], door1[3]])]).astype(object)
+            if has_both_doors:
+                self.data.at[ind, 'has_door2'] = has_both_doors
+                door2 = np.array([np.nanmean(sq_x_positions[6:]), np.nanmean(sq_y_positions[6:]), np.nanmean(tr_x_positions[3:5]), np.nanmean(tr_y_positions[3:5])])
+                self.data.at[ind, 'door2'] = door2.astype(object)
+                self.data.at[ind, 'door2_cent'] = np.array([np.nanmean([door2[0], door2[2]]), np.nanmean([door2[1], door2[3]])]).astype(object)
+
+        # animal speed
+        for ind, row in self.data.iterrows():
+            temp_time = np.diff(row['trail_timestamps'])
+            x = np.diff(row['nose_x_cm']); y = np.diff(row['nose_y_cm'])
+            if len(x) == len(temp_time):
+                xspeed = list((x/temp_time)**2)
+            elif len(x) > len(temp_time):
+                xspeed = list((x[:len(temp_time)]/temp_time)**2)
+            elif len(x) < len(temp_time):
+                xspeed = list((x/temp_time[:len(x)])**2)
+            if len(y) == len(temp_time):
+                yspeed = list((y/temp_time)**2)
+            elif len(y) > len(temp_time):
+                yspeed = list((y[:len(temp_time)]/temp_time)**2)
+            elif len(y) < len(temp_time):
+                yspeed = list((y/temp_time[:len(y)])**2)
+            self.data.at[ind, 'speed'] = np.sqrt(xspeed + yspeed).astype(object)
+
+        kmeans_input = np.concatenate([flatten_series(self.data['obs_sq_x_pos']),
+                                       flatten_series(self.data['obs_sq_y_pos']),
+                                       flatten_series(self.data['obs_tr_x_pos']),
+                                       flatten_series(self.data['obs_tr_y_pos'])], axis=1)
+
+        kmeans_input[np.isnan(kmeans_input)] = 0
+        labels = KMeans(n_clusters=self.num_clusters_to_use).fit(kmeans_input).labels_
+        
+        plt.subplots(2,1)
+        plt.subplot(2,1,1)
+        plt.hist(labels)
+        plt.subplot(2,1,2)
+        plt.plot(labels)
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close()
+
+        plt.subplots(10,int(np.ceil(len(labels)/10)),figsize=(30,30))
+        sq_idx = [0,1,3,2,4]
+        for c, l in enumerate(labels):
+            plt.subplot(10,int(np.ceil(len(labels)/10)),c+1)
+            obstacles = kmeans_input[c,:]
+            obstacles[obstacles==0] = np.nan
+            plt.plot(np.append(obstacles[:4], obstacles[0])[sq_idx], np.append(obstacles[8:12], obstacles[8])[sq_idx], 'k-')
+            plt.plot(np.append(obstacles[4:8], obstacles[4])[sq_idx], np.append(obstacles[12:16], obstacles[12])[sq_idx], 'k-')
+            plt.plot(np.append(obstacles[16:19], obstacles[16]), np.append(obstacles[22:25], obstacles[22]), 'k-')
+            plt.plot(np.append(obstacles[19:22], obstacles[19]), np.append(obstacles[25:], obstacles[25]), 'k-')
+            door1 = self.data['door1'].iloc[c]
+            plt.plot([door1[0], door1[2]], [door1[1], door1[3]], 'g-', linewidth=6)
+            if self.data['has_door2'].iloc[c]:
+                door2 = self.data['door2'].iloc[c]
+                plt.plot([door2[0], door2[2]], [door2[1], door2[3]], 'g-', linewidth=6)
+            plt.title(l); plt.ylim([20.03,0]); plt.xlim([0,33.30])
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close()
+
+        self.data['obstacle_cluster'] = labels
+
+        plt.subplots(2,int(np.ceil(self.num_clusters_to_use/2)),figsize=(20,5))
+        for c in range(self.num_clusters_to_use):
+            plt.subplot(2,int(np.ceil(self.num_clusters_to_use/2)),c+1)
+            this_cluster = self.data[self.data['obstacle_cluster']==c].copy().reset_index()
+            colors = plt.cm.magma(np.linspace(0,1,len(this_cluster)))
+            mediantrace = self.get_median_trace(this_cluster)
+            for ind, row in this_cluster.iterrows():
+                plt.plot(mediantrace['nose_x_cm'].iloc[ind], mediantrace['nose_y_cm'].iloc[ind], '-', color=colors[ind])
+            door1 = np.nanmedian(flatten_series(this_cluster['door1']),0)
+            plt.plot([door1[0], door1[2]], [door1[1], door1[3]], 'g-', linewidth=6)
+            if this_cluster['has_door2'].iloc[0]:
+                door2 = np.nanmean(flatten_series(this_cluster['door2']),0)
+                plt.plot([door2[0], door2[2]], [door2[1], door2[3]], 'g-', linewidth=6)
+            plt.title(c)
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close()
+
+        # overlay of cluster medians
+        odd = self.data[self.data.index%2==0]
+        even = self.data[self.data.index%2==1]
+        direction_count = 0
+        plt.subplots(1,2, figsize=(8,5))
+        for direction_df in [odd, even]:
+            if direction_count == 0:
+                leftcolor='g'; rightcolor='b'
+            else:
+                leftcolor='b'; rightcolor='g'
+            plt.subplot(1,2,direction_count+1)
+            for c in range(self.num_clusters_to_use):
+                cluster_color = plt.cm.magma(np.linspace(0,1,self.num_clusters_to_use))[c]
+                this_cluster = direction_df[direction_df['obstacle_cluster']==c].copy().reset_index()
+                for ind, row in this_cluster.iterrows():
+                    door1 = np.nanmedian(flatten_series(this_cluster['door1']),0)
+                    plt.plot([door1[0], door1[2]], [door1[1], door1[3]], '-', linewidth=6, color=cluster_color)
+                    if this_cluster['has_door2'].iloc[0]:
+                        door2 = np.nanmean(flatten_series(this_cluster['door2']),0)
+                        plt.plot([door2[0], door2[2]], [door2[1], door2[3]], '-', linewidth=6, color=cluster_color)
+                    plt.plot(row['leftportT_x_cm'], row['leftportT_y_cm'], '.', color=leftcolor)
+                    plt.plot(row['rightportT_x_cm'], row['rightportT_y_cm'], '.', color=rightcolor)
+                plt.ylim([20.03,0]); plt.xlim([0,33.30])
+                if len(this_cluster) > 0:
+                    plt.plot(self.get_median_trace(this_cluster)['median_x_cm'].iloc[0], self.get_median_trace(this_cluster)['median_y_cm'].iloc[0], '-', color=cluster_color)
+            direction_count += 1
+            plt.tight_layout()
+            pdf.savefig(); plt.close()
+
+        # properties over time (e.g. time active, speed, etc.)
+        plt.subplots(2,3, figsize=(15,8))
+        median_speed = []; max_speed = []; time_active = []
+        for ind, row in self.data.iterrows():
+            median_speed.append(np.median(row['speed']))
+            max_speed.append(np.max(row['speed']))
+            time_active.append(np.sum(row['speed']>5)/60)
+        plt.subplot(2,3,1)
+        slow = self.data['speed'].iloc[np.nanargmin(median_speed)]
+        slowT = np.linspace(0,1,len(slow))
+        med = self.data['speed'].iloc[np.argsort(median_speed)[len(median_speed)//2]]
+        medT = np.linspace(0,1,len(med))
+        fast = self.data['speed'].iloc[np.nanargmax(median_speed)]
+        fastT = np.linspace(0,1,len(fast))
+        fake_time = np.linspace(0,1,100)
+        plt.plot(interp1d(slowT, slow, bounds_error=False)(fake_time))
+        plt.plot(interp1d(medT, med, bounds_error=False)(fake_time))
+        plt.plot(interp1d(fastT, fast, bounds_error=False)(fake_time))
+        plt.subplot(2,3,2)
+        plt.hist(median_speed); plt.xlabel('median speed (cm/sec)')
+        plt.subplot(2,3,3)
+        plt.hist(max_speed); plt.xlabel('max speed (cm/sec)')
+        plt.subplot(2,3,4)
+        plt.hist(time_active); plt.xlabel('time active (sec)')
+        plt.subplot(2,3,5)
+        plt.plot([i for i in max_speed if ~np.isnan(i)]); plt.xlabel('trial'); plt.ylabel('max speed (cm/sec)')
+        plt.subplot(2,3,6)
+        plt.plot([i for i in time_active if ~np.isnan(i)]); plt.xlabel('trial'); plt.ylabel('time active (sec)')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close()
+
+        plt.subplots(4,4,figsize=(20,18))
+        fake_time = np.linspace(0,1,100)
+        plt.subplot(4,4,1)
+        for ind, data in self.data['speed'].iteritems():
+            plt.plot(interp1d(np.linspace(0,1,len(data)), data, bounds_error=False)(fake_time), '-', alpha=0.2); plt.ylabel('speed'); plt.xlabel('time')
+        plt.subplot(4,4,2)
+        for ind, data in self.data['head_angle'].iteritems():
+            plt.plot(interp1d(np.linspace(0,1,len(data)), data, bounds_error=False)(fake_time), '-', alpha=0.2); plt.ylabel('angle to horizontal'); plt.xlabel('time')
+        odd = self.data[self.data.index%2==0]
+        even = self.data[self.data.index%2==1]
+        for direction_num in range(2):
+            plt.subplot(4,4,3+direction_num)
+            direction_df = [odd, even][direction_num]
+            for ind, row in direction_df.iterrows():
+                dist = self.distance_from_nose(row, 'leftportT')
+                plt.plot(interp1d(np.linspace(0,1,len(dist)), dist, bounds_error=False)(fake_time), alpha=0.2)
+                if self.approaching_target(dist) is True:
+                    plt.title('distance to target port (moving left)')
+                    direction_df.at[ind, 'approach'] = True
+                else:
+                    plt.title('distance to previous port (moving left)')
+                    direction_df.at[ind, 'approach'] = False
+                plt.plot(0,dist[0],'.',color='g')
+                plt.plot(100,dist[-1],'.',color='b')
+        for direction_num in range(2):
+            plt.subplot(4,4,5+direction_num)
+            direction_df = [odd, even][direction_num]
+            for ind, row in direction_df.iterrows():
+                dist = self.distance_from_nose(row, 'rightportT')
+                plt.plot(interp1d(np.linspace(0,1,len(dist)), dist, bounds_error=False)(fake_time), alpha=0.2)
+                if row['approach']:
+                    plt.title('distance to previous port (moving right)')
+                else:
+                    plt.title('distance to target port (moving right)')
+                plt.plot(0,dist[0],'.',color='g')
+                plt.plot(100,dist[-1],'.',color='b')
+        for direction_num in range(2):
+            plt.subplot(4,4,7+direction_num)
+            direction_df = [odd, even][direction_num]
+            for ind, row in direction_df.iterrows():
+                ang = self.angle_from_nose(row, 'leftportT')
+                plt.plot(interp1d(np.linspace(0,1,len(ang)), ang, bounds_error=False)(fake_time), alpha=0.2)
+                if row['approach']:
+                    plt.title('angle to target port (headed left')
+                else:
+                    plt.title('angle to previous port (headed left)')
+                plt.plot(0,ang[0],'.',color='g')
+                plt.plot(100,ang[-1],'.',color='b')
+        for direction_num in range(2):
+            plt.subplot(4,4,9+direction_num)
+            direction_df = [odd, even][direction_num]
+            for ind, row in direction_df.iterrows():
+                ang = self.angle_from_nose(row, 'rightportT')
+                plt.plot(interp1d(np.linspace(0,1,len(ang)), ang, bounds_error=False)(fake_time), alpha=0.2)
+                if row['approach']:
+                    plt.title('angle to target port')
+                else:
+                    plt.title('angle to previous port')
+                plt.plot(0,ang[0],'.',color='g')
+                plt.plot(100,ang[-1],'.',color='b')
+        for direction_num in range(2):
+            plt.subplot(4,4,11+direction_num)
+            direction_df = [odd, even][direction_num]
+            for ind, row in direction_df.iterrows():
+                dist = self.distance_from_nose(row, 'door1_cent', xy_together=True)
+                plt.plot(interp1d(np.linspace(0,1,len(dist)), dist, bounds_error=False)(fake_time), alpha=0.2)
+                plt.title('distance to door1')
+        for direction_num in range(2):
+            plt.subplot(4,4,13+direction_num)
+            direction_df = [odd, even][direction_num]
+            for ind, row in direction_df.iterrows():
+                if row['has_door2']:
+                    ang = self.angle_from_nose(row, 'door2_cent', xy_together=True)
+                    plt.plot(interp1d(np.linspace(0,1,len(ang)), ang, bounds_error=False)(fake_time), alpha=0.2)
+                    plt.title('angle to door2')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close()
+
+        pdf.close()
+        self.data.to_hdf(os.path.join(self.trial_path, (self.data['animal'].iloc[0]+'_'+str(self.data['date'].iloc[0])+'_'+str(self.data['task'].iloc[0])+'.h5')), 'w')
 
 class AvoidanceSession(BaseInput):
     def __init__(self, metadata_path, task='oa'):
@@ -543,7 +825,6 @@ class AvoidanceSession(BaseInput):
         for date in self.dates_list:
             date_dir = os.path.join(self.path, date)
             for animal in [i for i in list(self.metadata[date].keys())]:
-                print(date, animal)
                 animal_dir = os.path.join(date_dir, animal)
                 camconfig = self.generic_camconfig
                 camconfig['animal_directory'] = animal_dir
@@ -567,20 +848,27 @@ class AvoidanceSession(BaseInput):
         data_path = Path(self.path).expanduser()
         # populate dict with metadata and timestamps
         for date in self.dates_list:
-            for ani in os.listdir(data_path / date):
-                for task in os.listdir(data_path / date/ ani):
-                    data_paths = list((data_path / date/ ani/ task).rglob('*.csv'))
+            use_animals = [k for k,v in self.metadata[date].items()]
+            for ani in use_animals:
+                for task in os.listdir(data_path / date / ani):
+                    data_paths = [str(i) for i in list((data_path / date / ani/ task).rglob('*.csv'))]
+                    data_paths = [i for i in data_paths if 'spout' not in i]
                     if data_paths != []:
-                        data_dict['date'].append(data_paths[1].name.split('_')[0])
-                        data_dict['animal'].append(data_paths[1].name.split('_')[1])
-                        data_dict['task'].append(data_paths[1].name.split('_')[4])
+                        _, name = os.path.split(data_paths[1])
+                        split_name = name.split('_')
+                        data_dict['date'].append(split_name[0])
+                        data_dict['animal'].append(split_name[1])
+                        data_dict['task'].append(split_name[4])
                     for ind, csv in enumerate(data_paths):
-                        time = self.read_timestamp_file(csv)
-                        data_dict[data_paths[ind].name.split('_')[5] +'_ts'].append(time)
-                        data_dict[data_paths[ind].name.split('_')[5] +'_t0'].append(time[0])
+                        self.timestamp_path = csv
+                        time = self.read_timestamp_file()
+                        _, name = os.path.split(data_paths[ind])
+                        split_name = name.split('_')
+                        data_dict[split_name[5] +'_ts'].append(time)
+                        data_dict[split_name[5] +'_t0'].append(time[0])
         self.all_sessions = pd.DataFrame.from_dict(data_dict)
 
-    def process(self):
+    def process(self, videos=False):
         self.gather_all_sessions()
         for trial_ind, trial_row in tqdm(self.all_sessions.iterrows()):
             # analyze each trial
@@ -588,25 +876,16 @@ class AvoidanceSession(BaseInput):
             dlc_h5 = find('*'+str(trial_row['date'])+'*'+trial_row['animal']+'*'+str(trial_row['task'])+'*.h5', self.path)
             if dlc_h5 == []:
                 continue
-            trial_path, _ = os.path.split(trial_path)
+            trial_path, _ = os.path.split(dlc_h5[0])
             trial_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', trial_path) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
-            trial.add_tracking(dlc_h5, trial_name, trial_path)
+            trial.add_tracking(trial_name, trial_path)
             if self.is_pillar_avoidance:
                 trial.pillar_avoidance()
             elif self.is_gap_detection:
                 trial.gap_detection()
             # make short diagnostic video
-            trial.make_videos()
+            if videos:
+                trial.make_videos()
 
-        
-
-
-
-
-
-
-
-
-
-
+    # def summarize(self):
 

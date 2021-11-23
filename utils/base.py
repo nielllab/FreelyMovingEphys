@@ -380,6 +380,8 @@ class Camera(BaseInput):
         else:
             avi_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
             self.video_path = next(path for path in avi_paths if self.camname in path and 'plot' not in path)
+            csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
+            self.timestamp_path = next(i for i in csv_paths if self.camname in i)
 
     def pack_video_frames(self, usexr=True, dwnsmpl=None):
         if dwnsmpl is None:
@@ -424,7 +426,7 @@ class Camera(BaseInput):
                 pts = self.open_dlc_h5_multianimal()
             # otherwise, use regular h5 file read-in
             else:
-                pts, _ = self.open_dlc_h5()
+                pts, self.pt_names = self.open_dlc_h5()
             # read time file, pass length of points so that it will know if that length matches the length of the timestamps
             # if they don't match because time was not interpolated to match deinterlacing, the timestamps will be interpolated
             time = self.read_timestamp_file(len(pts))
@@ -473,7 +475,7 @@ class Camera(BaseInput):
                 pts = self.open_dlc_h5_multianimal()
             # otherwise, use regular h5 file read-in
             else:
-                pts, _ = self.open_dlc_h5()
+                pts, self.pt_names = self.open_dlc_h5()
             # label dimensions of the points dataarray
             xrpts = xr.DataArray(pts, dims=['frame', 'point_loc'])
             # label the camera view
