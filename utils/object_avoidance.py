@@ -678,6 +678,9 @@ class AvoidanceTrial(BaseInput):
             median_speed.append(np.median(row['speed']))
             max_speed.append(np.max(row['speed']))
             time_active.append(np.sum(row['speed']>5)/60)
+            self.data.at[ind, 'median_speed'] = np.median(row['speed'])
+            self.data.at[ind, 'max_speed'] = np.max(row['speed'])
+            self.data.at[ind, 'time_active'] = np.sum(row['speed']>5)/60
         plt.subplot(2,3,1)
         slow = self.data['speed'].iloc[np.nanargmin(median_speed)]
         slowT = np.linspace(0,1,len(slow))
@@ -703,6 +706,7 @@ class AvoidanceTrial(BaseInput):
         pdf.savefig()
         plt.close()
 
+
         plt.subplots(4,4,figsize=(20,18))
         fake_time = np.linspace(0,1,100)
         plt.subplot(4,4,1)
@@ -717,7 +721,7 @@ class AvoidanceTrial(BaseInput):
             plt.subplot(4,4,3+direction_num)
             direction_df = [odd, even][direction_num]
             for ind, row in direction_df.iterrows():
-                dist = self.distance_from_nose(row, 'leftportT')
+                dist = np.array(self.distance_from_nose(row, 'leftportT'))
                 plt.plot(interp1d(np.linspace(0,1,len(dist)), dist, bounds_error=False)(fake_time), alpha=0.2)
                 if self.approaching_target(dist) is True:
                     plt.title('distance to target port (moving left)')
@@ -727,23 +731,41 @@ class AvoidanceTrial(BaseInput):
                     direction_df.at[ind, 'approach'] = False
                 plt.plot(0,dist[0],'.',color='g')
                 plt.plot(100,dist[-1],'.',color='b')
+                if direction_num==0 and self.approaching_target(dist):
+                    savename = 'odd_dist_to_target_port'
+                elif direction_num==0 and not self.approaching_target(dist):
+                    savename = 'odd_dist_to_previous_port'
+                elif direction_num==1 and self.approaching_target(dist):
+                    savename = 'even_dist_to_target_port'
+                elif direction_num==1 and not self.approaching_target(dist):
+                    savename = 'even_dist_to_previous_port'
+                self.data.at[ind, savename] = dist.astype(object)
         for direction_num in range(2):
             plt.subplot(4,4,5+direction_num)
             direction_df = [odd, even][direction_num]
             for ind, row in direction_df.iterrows():
-                dist = self.distance_from_nose(row, 'rightportT')
+                dist = np.array(self.distance_from_nose(row, 'rightportT'))
                 plt.plot(interp1d(np.linspace(0,1,len(dist)), dist, bounds_error=False)(fake_time), alpha=0.2)
-                if row['approach']:
+                if self.approaching_target(dist):
                     plt.title('distance to previous port (moving right)')
                 else:
                     plt.title('distance to target port (moving right)')
                 plt.plot(0,dist[0],'.',color='g')
                 plt.plot(100,dist[-1],'.',color='b')
+                if direction_num==0 and self.approaching_target(dist):
+                    savename = 'odd_dist_to_target_port'
+                elif direction_num==0 and not self.approaching_target(dist):
+                    savename = 'odd_dist_to_previous_port'
+                elif direction_num==1 and self.approaching_target(dist):
+                    savename = 'even_dist_to_target_port'
+                elif direction_num==1 and not self.approaching_target(dist):
+                    savename = 'even_dist_to_previous_port'
+                self.data.at[ind, savename] = dist.astype(object)
         for direction_num in range(2):
             plt.subplot(4,4,7+direction_num)
             direction_df = [odd, even][direction_num]
             for ind, row in direction_df.iterrows():
-                ang = self.angle_from_nose(row, 'leftportT')
+                ang = np.array(self.angle_from_nose(row, 'leftportT'))
                 plt.plot(interp1d(np.linspace(0,1,len(ang)), ang, bounds_error=False)(fake_time), alpha=0.2)
                 if row['approach']:
                     plt.title('angle to target port (headed left')
@@ -751,11 +773,20 @@ class AvoidanceTrial(BaseInput):
                     plt.title('angle to previous port (headed left)')
                 plt.plot(0,ang[0],'.',color='g')
                 plt.plot(100,ang[-1],'.',color='b')
+                if direction_num==0 and row['approach']:
+                    savename = 'odd_ang_to_target_port'
+                elif direction_num==0 and not row['approach']:
+                    savename = 'odd_ang_to_previous_port'
+                elif direction_num==1 and row['approach']:
+                    savename = 'even_ang_to_target_port'
+                elif direction_num==1 and not row['approach']:
+                    savename = 'even_ang_to_previous_port'
+                self.data.at[ind, savename] = ang.astype(object)
         for direction_num in range(2):
             plt.subplot(4,4,9+direction_num)
             direction_df = [odd, even][direction_num]
             for ind, row in direction_df.iterrows():
-                ang = self.angle_from_nose(row, 'rightportT')
+                ang = np.array(self.angle_from_nose(row, 'rightportT'))
                 plt.plot(interp1d(np.linspace(0,1,len(ang)), ang, bounds_error=False)(fake_time), alpha=0.2)
                 if row['approach']:
                     plt.title('angle to target port')
@@ -763,21 +794,40 @@ class AvoidanceTrial(BaseInput):
                     plt.title('angle to previous port')
                 plt.plot(0,ang[0],'.',color='g')
                 plt.plot(100,ang[-1],'.',color='b')
+                if direction_num==0 and row['approach']:
+                    savename = 'odd_ang_to_target_port'
+                elif direction_num==0 and not row['approach']:
+                    savename = 'odd_ang_to_previous_port'
+                elif direction_num==1 and row['approach']:
+                    savename = 'even_ang_to_target_port'
+                elif direction_num==1 and not row['approach']:
+                    savename = 'even_ang_to_previous_port'
+                self.data.at[ind, savename] = ang.astype(object)
         for direction_num in range(2):
             plt.subplot(4,4,11+direction_num)
             direction_df = [odd, even][direction_num]
             for ind, row in direction_df.iterrows():
-                dist = self.distance_from_nose(row, 'door1_cent', xy_together=True)
+                dist = np.array(self.distance_from_nose(row, 'door1_cent', xy_together=True))
                 plt.plot(interp1d(np.linspace(0,1,len(dist)), dist, bounds_error=False)(fake_time), alpha=0.2)
                 plt.title('distance to door1')
+                if direction_num==0:
+                    savename = 'odd_dist_to_door1'
+                else:
+                    savename = 'even_dist_to_door1'
+                self.data.at[ind, savename] = dist.astype(object)
         for direction_num in range(2):
             plt.subplot(4,4,13+direction_num)
             direction_df = [odd, even][direction_num]
             for ind, row in direction_df.iterrows():
                 if row['has_door2']:
-                    ang = self.angle_from_nose(row, 'door2_cent', xy_together=True)
+                    ang = np.array(self.angle_from_nose(row, 'door1_cent', xy_together=True))
                     plt.plot(interp1d(np.linspace(0,1,len(ang)), ang, bounds_error=False)(fake_time), alpha=0.2)
-                    plt.title('angle to door2')
+                    plt.title('angle to door1')
+                    if direction_num==0:
+                        savename = 'odd_ang_to_door1'
+                    else:
+                        savename = 'even_ang_to_door1'
+                    self.data.at[ind, savename] = ang.astype(object)
         plt.tight_layout()
         pdf.savefig()
         plt.close()
