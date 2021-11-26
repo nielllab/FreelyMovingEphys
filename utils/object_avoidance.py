@@ -106,7 +106,10 @@ class AvoidanceTrial(BaseInput):
         length = len(x_dist)
         ang = np.zeros([length])
         for i in range(length):
-            ang[i] = (y_dist[i]/x_dist[i])
+            try:
+                ang[i] = (y_dist[i]/x_dist[i])
+            except ZeroDivisionError:
+                ang[i] = np.nan
         return ang%np.pi
 
     def get_head_angle(self):
