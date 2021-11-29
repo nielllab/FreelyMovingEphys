@@ -635,9 +635,10 @@ class AvoidanceTrial(BaseInput):
             mediantrace = self.get_median_trace(this_cluster)
             for ind, row in this_cluster.iterrows():
                 plt.plot(mediantrace['nose_x_cm'].iloc[ind], mediantrace['nose_y_cm'].iloc[ind], '-', color=colors[ind])
-            door1 = np.nanmedian(flatten_series(this_cluster['door1']),0)
-            plt.plot([door1[0], door1[2]], [door1[1], door1[3]], 'g-', linewidth=6)
-            if this_cluster['has_door2'].iloc[0]:
+            if len(this_cluster['door1']) > 1:
+                door1 = np.nanmedian(flatten_series(this_cluster['door1']),0)
+                plt.plot([door1[0], door1[2]], [door1[1], door1[3]], 'g-', linewidth=6)
+            if len(this_cluster['door1']) > 1 and this_cluster['has_door2'].iloc[0]:
                 door2 = np.nanmean(flatten_series(this_cluster['door2']),0)
                 plt.plot([door2[0], door2[2]], [door2[1], door2[3]], 'g-', linewidth=6)
             plt.title(c)
@@ -873,6 +874,9 @@ class AvoidanceSession(BaseInput):
                 'likelihood_threshold': 0.99
             }
         }
+
+    def change_dlc_project(self, project_path):
+        self.dlc_project = project_path
 
     def preprocess(self):
         for date in self.dates_list:
