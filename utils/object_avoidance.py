@@ -877,6 +877,7 @@ class AvoidanceSession(BaseInput):
 
     def change_dlc_project(self, project_path):
         self.dlc_project = project_path
+        self.generic_camconfig['paths']['dlc_projects'][self.camname] = self.dlc_project
 
     def preprocess(self):
         for date in self.dates_list:
