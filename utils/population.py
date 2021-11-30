@@ -880,31 +880,33 @@ class Population:
 
         active_time_by_session, light_len, dark_len = self.get_animal_activity()
 
-        # fraction active time: light vs dark
-        light = np.array([val for key,val in active_time_by_session['light'].items()])
-        light_err = np.std(light) / np.sqrt(len(light))
-        dark = np.array([val for key,val in active_time_by_session['dark'].items()])
-        dark_err = np.std(dark) / np.sqrt(len(dark))
-        fig, ax = plt.subplots(1,1,figsize=(3,5))
-        plt.bar(0, np.mean(light), yerr=light_err, width=0.5, color='yellow')
-        plt.plot(np.zeros(len(light)), light, 'o', color='tab:gray')
-        plt.bar(1, np.mean(dark), yerr=dark_err, width=0.5, color='cadetblue')
-        plt.plot(np.ones(len(dark)), dark, 'o', color='tab:gray')
-        ax.set_xticks([0,1])
-        ax.set_xticklabels(['light','dark'])
-        plt.ylim([0,1])
-        plt.ylabel('fraction of time spent active')
-        plt.tight_layout(); pdf.savefig(); plt.close()
+        if np.sum(self.data['has_dark']) > 0:
+            # fraction active time: light vs dark
+            light = np.array([val for key,val in active_time_by_session['light'].items()])
+            light_err = np.std(light) / np.sqrt(len(light))
+            dark = np.array([val for key,val in active_time_by_session['dark'].items()])
+            dark_err = np.std(dark) / np.sqrt(len(dark))
+            fig, ax = plt.subplots(1,1,figsize=(3,5))
+            plt.bar(0, np.mean(light), yerr=light_err, width=0.5, color='yellow')
+            plt.plot(np.zeros(len(light)), light, 'o', color='tab:gray')
+            plt.bar(1, np.mean(dark), yerr=dark_err, width=0.5, color='cadetblue')
+            plt.plot(np.ones(len(dark)), dark, 'o', color='tab:gray')
+            ax.set_xticks([0,1])
+            ax.set_xticklabels(['light','dark'])
+            plt.ylim([0,1])
+            plt.ylabel('fraction of time spent active')
+            plt.tight_layout(); pdf.savefig(); plt.close()
 
         # fraction active time: light vs dark (broken up by session)
-        dark_active_times = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
-        dark_session_names = [session for session, active_frac in active_time_by_session['dark'].items()]
-        fig, ax = plt.subplots(1,1, figsize=(5,10))
-        plt.bar(np.arange(0, len(dark_session_names)), dark_active_times, color='cadetblue')
-        ax.set_xticks(np.arange(0, len(dark_session_names)))
-        ax.set_xticklabels(dark_session_names, rotation=90)
-        plt.ylabel('frac active time')
-        plt.tight_layout(); pdf.savefig(); plt.close()
+        if np.sum(self.data['has_dark']) > 0:
+            dark_active_times = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
+            dark_session_names = [session for session, active_frac in active_time_by_session['dark'].items()]
+            fig, ax = plt.subplots(1,1, figsize=(5,10))
+            plt.bar(np.arange(0, len(dark_session_names)), dark_active_times, color='cadetblue')
+            ax.set_xticks(np.arange(0, len(dark_session_names)))
+            ax.set_xticklabels(dark_session_names, rotation=90)
+            plt.ylabel('frac active time')
+            plt.tight_layout(); pdf.savefig(); plt.close()
 
         light_active_times = [active_frac for session, active_frac in active_time_by_session['light'].items()]
         light_session_names = [session for session, active_frac in active_time_by_session['light'].items()]
@@ -930,19 +932,20 @@ class Population:
         plt.ylabel('recording time (min)')
         plt.tight_layout(); pdf.savefig(); plt.close()
 
-        total_min = [(i*self.model_dt)/60 for i in dark_len]
-        frac_active = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
-        dark_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
-        dark_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
-        dark_session_names = [session for session, active_frac in active_time_by_session['dark'].items()]
-        fig, ax = plt.subplots(1,1, figsize=(12,10))
-        plt.bar(np.arange(0, len(dark_session_names)), dark_active_min, color='salmon', label='active')
-        plt.bar(np.arange(0, len(dark_session_names)), dark_stationary_min, bottom=dark_active_min, color='gray', label='stationary')
-        ax.set_xticks(np.arange(len(dark_session_names)))
-        ax.set_xticklabels(dark_session_names, rotation=90)
-        plt.legend()
-        plt.ylabel('recording time (min)')
-        plt.tight_layout(); pdf.savefig(); plt.close()
+        if np.sum(self.data['has_dark']) > 0:
+            total_min = [(i*self.model_dt)/60 for i in dark_len]
+            frac_active = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
+            dark_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
+            dark_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
+            dark_session_names = [session for session, active_frac in active_time_by_session['dark'].items()]
+            fig, ax = plt.subplots(1,1, figsize=(12,10))
+            plt.bar(np.arange(0, len(dark_session_names)), dark_active_min, color='salmon', label='active')
+            plt.bar(np.arange(0, len(dark_session_names)), dark_stationary_min, bottom=dark_active_min, color='gray', label='stationary')
+            ax.set_xticks(np.arange(len(dark_session_names)))
+            ax.set_xticklabels(dark_session_names, rotation=90)
+            plt.legend()
+            plt.ylabel('recording time (min)')
+            plt.tight_layout(); pdf.savefig(); plt.close()
 
         movement_count_dict = dict()
         for base in ['fm1','fm_dark']:
@@ -1007,59 +1010,60 @@ class Population:
                         movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['right'] = len(rightsacc)
                         movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['left'] = len(leftsacc)
 
-        right_gaze = [val['right'] for key,val in movement_count_dict['fm1']['eye_gaze_shifting'].items()]
-        left_gaze = [val['left'] for key,val in movement_count_dict['fm1']['eye_gaze_shifting'].items()]
+        if np.sum(self.data['has_dark']) > 0:
+            right_gaze = [val['right'] for key,val in movement_count_dict['fm1']['eye_gaze_shifting'].items()]
+            left_gaze = [val['left'] for key,val in movement_count_dict['fm1']['eye_gaze_shifting'].items()]
 
-        right_comp = [val['right'] for key,val in movement_count_dict['fm1']['eye_comp'].items()]
-        left_comp = [val['left'] for key,val in movement_count_dict['fm1']['eye_comp'].items()]
+            right_comp = [val['right'] for key,val in movement_count_dict['fm1']['eye_comp'].items()]
+            left_comp = [val['left'] for key,val in movement_count_dict['fm1']['eye_comp'].items()]
 
-        right_gaze_dark = [val['right'] for key,val in movement_count_dict['fm_dark']['eye_gaze_shifting'].items()]
-        left_gaze_dark = [val['left'] for key,val in movement_count_dict['fm_dark']['eye_gaze_shifting'].items()]
+            right_gaze_dark = [val['right'] for key,val in movement_count_dict['fm_dark']['eye_gaze_shifting'].items()]
+            left_gaze_dark = [val['left'] for key,val in movement_count_dict['fm_dark']['eye_gaze_shifting'].items()]
 
-        right_comp_dark = [val['right'] for key,val in movement_count_dict['fm_dark']['eye_comp'].items()]
-        left_comp_dark = [val['left'] for key,val in movement_count_dict['fm_dark']['eye_comp'].items()]
+            right_comp_dark = [val['right'] for key,val in movement_count_dict['fm_dark']['eye_comp'].items()]
+            left_comp_dark = [val['left'] for key,val in movement_count_dict['fm_dark']['eye_comp'].items()]
 
-        # number of eye movements during recording: light vs dark (broken up by session)            
-        x = np.arange(len(['gaze-shifting', 'compensatory']))
-        width = 0.35
+            # number of eye movements during recording: light vs dark (broken up by session)            
+            x = np.arange(len(['gaze-shifting', 'compensatory']))
+            width = 0.35
 
-        fig, ax = plt.subplots(figsize=(4,7))
+            fig, ax = plt.subplots(figsize=(4,7))
 
-        ax.bar(x - width/2, np.mean(right_gaze), width, color='lightcoral')
-        ax.bar(x - width/2, np.mean(left_gaze), width, bottom=np.mean(right_gaze), color='lightsteelblue')
-        plt.plot(np.ones(len(right_gaze))*(0 - width/2), np.add(right_gaze, left_gaze), '.', color='gray')
+            ax.bar(x - width/2, np.mean(right_gaze), width, color='lightcoral')
+            ax.bar(x - width/2, np.mean(left_gaze), width, bottom=np.mean(right_gaze), color='lightsteelblue')
+            plt.plot(np.ones(len(right_gaze))*(0 - width/2), np.add(right_gaze, left_gaze), '.', color='gray')
 
-        ax.bar(x + width/2, np.mean(right_gaze_dark), width, color='lightcoral')
-        ax.bar(x + width/2, np.mean(left_gaze_dark), width, bottom=np.mean(right_gaze_dark), color='lightsteelblue')
-        plt.plot(np.ones(len(right_gaze_dark))*(0 + width/2), np.add(right_gaze_dark, left_gaze_dark), '.', color='gray')
+            ax.bar(x + width/2, np.mean(right_gaze_dark), width, color='lightcoral')
+            ax.bar(x + width/2, np.mean(left_gaze_dark), width, bottom=np.mean(right_gaze_dark), color='lightsteelblue')
+            plt.plot(np.ones(len(right_gaze_dark))*(0 + width/2), np.add(right_gaze_dark, left_gaze_dark), '.', color='gray')
 
-        ax.bar(x - width/2, np.mean(right_comp), width, color='lightcoral')
-        ax.bar(x - width/2, np.mean(left_comp), width, bottom=np.mean(right_comp), color='lightsteelblue')
-        plt.plot(np.ones(len(right_comp))*(1 - width/2), np.add(right_comp, left_comp), '.', color='gray')
+            ax.bar(x - width/2, np.mean(right_comp), width, color='lightcoral')
+            ax.bar(x - width/2, np.mean(left_comp), width, bottom=np.mean(right_comp), color='lightsteelblue')
+            plt.plot(np.ones(len(right_comp))*(1 - width/2), np.add(right_comp, left_comp), '.', color='gray')
 
-        ax.bar(x + width/2, np.mean(right_comp_dark), width, color='lightcoral')
-        ax.bar(x + width/2, np.mean(left_comp_dark), width, bottom=np.mean(right_comp_dark), color='lightsteelblue')
-        plt.plot(np.ones(len(right_comp_dark))*(1 + width/2), np.add(right_comp_dark, left_comp_dark), '.', color='gray')
+            ax.bar(x + width/2, np.mean(right_comp_dark), width, color='lightcoral')
+            ax.bar(x + width/2, np.mean(left_comp_dark), width, bottom=np.mean(right_comp_dark), color='lightsteelblue')
+            plt.plot(np.ones(len(right_comp_dark))*(1 + width/2), np.add(right_comp_dark, left_comp_dark), '.', color='gray')
 
-        ax.set_xticks(x)
-        ax.set_xticklabels(['gaze-shifting', 'compensatory'])
-        plt.ylim([0,3700]); plt.ylabel('number of eye movements')
-        plt.tight_layout(); pdf.savefig(); plt.close()
+            ax.set_xticks(x)
+            ax.set_xticklabels(['gaze-shifting', 'compensatory'])
+            plt.ylim([0,3700]); plt.ylabel('number of eye movements')
+            plt.tight_layout(); pdf.savefig(); plt.close()
 
-        total_min = [(i*self.model_dt)/60 for i in light_len]
-        frac_active = [active_frac for session, active_frac in active_time_by_session['light'].items()]
-        light_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
-        light_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
+            total_min = [(i*self.model_dt)/60 for i in light_len]
+            frac_active = [active_frac for session, active_frac in active_time_by_session['light'].items()]
+            light_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
+            light_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
 
-        # number of eye movements per minute of active time: light vs dark (broken up by session)
-        fig = plt.subplots(2,1,figsize=(10,15))
-        ax = plt.subplot(2,1,1)
-        ax.bar(light_session_names, np.add(right_gaze, left_gaze) / light_active_min)
-        ax.set_xticklabels(light_session_names, rotation=90); plt.ylim([0,220]); plt.ylabel('eye movements per min during active periods'); plt.title('light stim')
-        ax = plt.subplot(2,1,2)
-        ax.bar(dark_session_names, np.add(right_gaze_dark, left_gaze_dark) / dark_active_min, width=0.3)
-        ax.set_xticklabels(dark_session_names, rotation=90); plt.ylim([0,220]); plt.ylabel('eye movements per min during active periods'); plt.title('dark stim')
-        plt.tight_layout(); pdf.savefig(); plt.close()
+            # number of eye movements per minute of active time: light vs dark (broken up by session)
+            fig = plt.subplots(2,1,figsize=(10,15))
+            ax = plt.subplot(2,1,1)
+            ax.bar(light_session_names, np.add(right_gaze, left_gaze) / light_active_min)
+            ax.set_xticklabels(light_session_names, rotation=90); plt.ylim([0,220]); plt.ylabel('eye movements per min during active periods'); plt.title('light stim')
+            ax = plt.subplot(2,1,2)
+            ax.bar(dark_session_names, np.add(right_gaze_dark, left_gaze_dark) / dark_active_min, width=0.3)
+            ax.set_xticklabels(dark_session_names, rotation=90); plt.ylim([0,220]); plt.ylabel('eye movements per min during active periods'); plt.title('dark stim')
+            plt.tight_layout(); pdf.savefig(); plt.close()
 
         session_data = self.data.set_index('session')
         unique_inds = sorted(list(set(session_data.index.values)))
@@ -2271,6 +2275,12 @@ class Population:
             self.data[light_cols][self.data['session']==s] = np.nan
         for s in bad_dark:
             self.data[dark_cols][self.data['session']==s] = np.nan
+
+    def set_experiment(self, exptype):
+        if exptype=='hffm':
+            self.data = self.data[self.data['use_in_dark_analysis']==False]
+        elif exptype=='lightdark':
+            self.data = self.data[self.data['use_in_dark_analysis']==True]
 
     def summarize_population(self):
         print('applying activity thresholds')
