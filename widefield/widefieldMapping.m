@@ -762,54 +762,53 @@ n = 0;
 % files(n).label = 'camk2 gc6';
 % files(n).notes = 'good imaging session';
 
+% n=n+1;
+% files(n).subj = 'J563LT';
+% files(n).expt = '070521';
+% files(n).topox =  '070521_J563LT_RIG2_MAP\070521_J563LT_RIG2_MAP_TOPOX\070521_J563LT_RIG2_MAP_TOPOXmaps.mat';
+% files(n).topoxdata = '070521_J563LT_RIG2_MAP\070521_J563LT_RIG2_MAP_TOPOX\070521_J563LT_RIG2_MAP_TOPOX';
+% files(n).topoy =  '070521_J563LT_RIG2_MAP\070521_J563LT_RIG2_MAP_TOPOY\070521_J563LT_RIG2_MAP_TOPOYmaps.mat';
+% files(n).topoydata = '070521_J563LT_RIG2_MAP\070521_J563LT_RIG2_MAP_TOPOY\070521_J563LT_RIG2_MAP_TOPOY';
+% files(n).rignum = 'rig2'; %%% or 'rig1'
+% files(n).monitor = 'land'; %%% for topox and y
+% files(n).label = 'camk2 gc6';
+% files(n).notes = 'good imaging session';
+% 
+% n=n+1;
+% files(n).subj = 'J563NC';
+% files(n).expt = '070521';
+% files(n).topox =  '070521_J563NC_RIG2_MAP\070521_J563NC_RIG2_MAP_TOPOX\070521_J563NC_RIG2_MAP_TOPOXmaps.mat';
+% files(n).topoxdata = '070521_J563NC_RIG2_MAP\070521_J563NC_RIG2_MAP_TOPOX\070521_J563NC_RIG2_MAP_TOPOX';
+% files(n).topoy =  '070521_J563NC_RIG2_MAP\070521_J563NC_RIG2_MAP_TOPOY\070521_J563NC_RIG2_MAP_TOPOYmaps.mat';
+% files(n).topoydata = '070521_J563NC_RIG2_MAP\070521_J563NC_RIG2_MAP_TOPOY\070521_J563NC_RIG2_MAP_TOPOY';
+% files(n).rignum = 'rig2'; %%% or 'rig1'
+% files(n).monitor = 'land'; %%% for topox and y
+% files(n).label = 'camk2 gc6';
+% files(n).notes = 'good imaging session';
+% 
+% n=n+1;
+% files(n).subj = 'J563RT';
+% files(n).expt = '070521';
+% files(n).topox =  '070521_J563RT_RIG2_MAP\070521_J563RT_RIG2_MAP_TOPOX\070521_J563RT_RIG2_MAP_TOPOXmaps.mat';
+% files(n).topoxdata = '070521_J563RT_RIG2_MAP\070521_J563RT_RIG2_MAP_TOPOX\070521_J563RT_RIG2_MAP_TOPOX';
+% files(n).topoy =  '070521_J563RT_RIG2_MAP\070521_J563RT_RIG2_MAP_TOPOY\070521_J563RT_RIG2_MAP_TOPOYmaps.mat';
+% files(n).topoydata = '070521_J563RT_RIG2_MAP\070521_J563RT_RIG2_MAP_TOPOY\070521_J563RT_RIG2_MAP_TOPOY';
+% files(n).rignum = 'rig2'; %%% or 'rig1'
+% files(n).monitor = 'land'; %%% for topox and y
+% files(n).label = 'camk2 gc6';
+% files(n).notes = 'good imaging session';
+% 
 n=n+1;
-files(n).subj = 'J563LT';
-files(n).expt = '070521';
-files(n).topox =  '070521_J563LT_RIG2_MAP\070521_J563LT_RIG2_MAP_TOPOX\070521_J563LT_RIG2_MAP_TOPOXmaps.mat';
-files(n).topoxdata = '070521_J563LT_RIG2_MAP\070521_J563LT_RIG2_MAP_TOPOX\070521_J563LT_RIG2_MAP_TOPOX';
-files(n).topoy =  '070521_J563LT_RIG2_MAP\070521_J563LT_RIG2_MAP_TOPOY\070521_J563LT_RIG2_MAP_TOPOYmaps.mat';
-files(n).topoydata = '070521_J563LT_RIG2_MAP\070521_J563LT_RIG2_MAP_TOPOY\070521_J563LT_RIG2_MAP_TOPOY';
+files(n).subj = 'J581RT';
+files(n).expt = '120621';
+files(n).topox =  '120621_J581RT_RIG2_MAP\120621_J581RT_RIG2_MAP_TOPOX\120621_J581RT_RIG2_MAP_TOPOXmaps.mat';
+files(n).topoxdata = '120621_J581RT_RIG2_MAP\120621_J581RT_RIG2_MAP_TOPOX\120621_J581RT_RIG2_MAP_TOPOX';
+files(n).topoy =  '120621_J581RT_RIG2_MAP\120621_J581RT_RIG2_MAP_TOPOY\120621_J581RT_RIG2_MAP_TOPOYmaps.mat';
+files(n).topoydata = '120621_J581RT_RIG2_MAP\120621_J581RT_RIG2_MAP_TOPOY\120621_J581RT_RIG2_MAP_TOPOY';
 files(n).rignum = 'rig2'; %%% or 'rig1'
 files(n).monitor = 'land'; %%% for topox and y
 files(n).label = 'camk2 gc6';
 files(n).notes = 'good imaging session';
-
-n=n+1;
-files(n).subj = 'J563NC';
-files(n).expt = '070521';
-files(n).topox =  '070521_J563NC_RIG2_MAP\070521_J563NC_RIG2_MAP_TOPOX\070521_J563NC_RIG2_MAP_TOPOXmaps.mat';
-files(n).topoxdata = '070521_J563NC_RIG2_MAP\070521_J563NC_RIG2_MAP_TOPOX\070521_J563NC_RIG2_MAP_TOPOX';
-files(n).topoy =  '070521_J563NC_RIG2_MAP\070521_J563NC_RIG2_MAP_TOPOY\070521_J563NC_RIG2_MAP_TOPOYmaps.mat';
-files(n).topoydata = '070521_J563NC_RIG2_MAP\070521_J563NC_RIG2_MAP_TOPOY\070521_J563NC_RIG2_MAP_TOPOY';
-files(n).rignum = 'rig2'; %%% or 'rig1'
-files(n).monitor = 'land'; %%% for topox and y
-files(n).label = 'camk2 gc6';
-files(n).notes = 'good imaging session';
-
-n=n+1;
-files(n).subj = 'J563RT';
-files(n).expt = '070521';
-files(n).topox =  '070521_J563RT_RIG2_MAP\070521_J563RT_RIG2_MAP_TOPOX\070521_J563RT_RIG2_MAP_TOPOXmaps.mat';
-files(n).topoxdata = '070521_J563RT_RIG2_MAP\070521_J563RT_RIG2_MAP_TOPOX\070521_J563RT_RIG2_MAP_TOPOX';
-files(n).topoy =  '070521_J563RT_RIG2_MAP\070521_J563RT_RIG2_MAP_TOPOY\070521_J563RT_RIG2_MAP_TOPOYmaps.mat';
-files(n).topoydata = '070521_J563RT_RIG2_MAP\070521_J563RT_RIG2_MAP_TOPOY\070521_J563RT_RIG2_MAP_TOPOY';
-files(n).rignum = 'rig2'; %%% or 'rig1'
-files(n).monitor = 'land'; %%% for topox and y
-files(n).label = 'camk2 gc6';
-files(n).notes = 'good imaging session';
-
-n=n+1;
-files(n).subj = 'J563TT';
-files(n).expt = '070521';
-files(n).topox =  '070521_J563TT_RIG2_MAP\070521_J563TT_RIG2_MAP_TOPOX\070521_J563TT_RIG2_MAP_TOPOXmaps.mat';
-files(n).topoxdata = '070521_J563TT_RIG2_MAP\070521_J563TT_RIG2_MAP_TOPOX\070521_J563TT_RIG2_MAP_TOPOX';
-files(n).topoy =  '070521_J563TT_RIG2_MAP\070521_J563TT_RIG2_MAP_TOPOY\070521_J563TT_RIG2_MAP_TOPOYmaps.mat';
-files(n).topoydata = '070521_J563TT_RIG2_MAP\070521_J563TT_RIG2_MAP_TOPOY\070521_J563TT_RIG2_MAP_TOPOY';
-files(n).rignum = 'rig2'; %%% or 'rig1'
-files(n).monitor = 'land'; %%% for topox and y
-files(n).label = 'camk2 gc6';
-files(n).notes = 'good imaging session';
-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
