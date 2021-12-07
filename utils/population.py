@@ -94,7 +94,7 @@ class Population:
                 pass
             # add probe name
             session_data['probe_name'] = probenames_for_goodsessions[ind]
-            session_data['use_in_dark_analysis'] = use_in_dark_analysis[ind]
+            session_data['use_in_dark_analysis'] = use_in_dark_analysis[ind+1]
             # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
             manual_depth_entry = layer5_depth_for_goodsessions[ind]
             if 'hf1_wn_lfp_layer5_centers' in session_data.columns.values:
@@ -131,7 +131,7 @@ class Population:
             raise UserInputError('Not a valid stage to save.')
         if os.path.isfile(pickle_path):
             os.remove(pickle_path)
-        self.data = self.data.reset_index()
+        # self.data = self.data.reset_index()
         print('saving data to', pickle_path)
         self.data.to_pickle(pickle_path)
 
@@ -381,7 +381,7 @@ class Population:
             # gratings psth
             fig_grat_psth = self.figure.add_subplot(self.spec[0,3])
             if self.current_row['has_hf']:
-                self.grat_stim_tuning(panel=fig_grat_psth)
+                self.grat_psth(panel=fig_grat_psth)
             else:
                 fig_grat_psth.axis('off')
 
@@ -560,22 +560,22 @@ class Population:
             self.data.at[self.current_index, 'fm1_upsacc_avg_comp_dHead_modind_t100'] = fm1_comp_dHead_right_modind[1]
             self.data.at[self.current_index, 'fm1_downsacc_avg_comp_dHead_modind_t100'] = fm1_comp_dHead_left_modind[1]
 
+            fig_mean_grat_ori_tuning = self.figure.add_subplot(self.spec[6,0])
             if self.current_row['has_hf']:
-                fig_mean_grat_ori_tuning = self.figure.add_subplot(self.spec[6,0])
                 self.grat_stim_tuning(panel=fig_mean_grat_ori_tuning,
                                         tf_sel='mean')
             else:
                 fig_mean_grat_ori_tuning.axis('off')
-
+            
+            fig_low_grat_ori_tuning = self.figure.add_subplot(self.spec[6,1])
             if self.current_row['has_hf']:
-                fig_low_grat_ori_tuning = self.figure.add_subplot(self.spec[6,1])
                 self.grat_stim_tuning(panel=fig_low_grat_ori_tuning,
                                         tf_sel='low')
             else:
                 fig_low_grat_ori_tuning.axis('off')
 
+            fig_high_grat_ori_tuning = self.figure.add_subplot(self.spec[6,2])
             if self.current_row['has_hf']:
-                fig_high_grat_ori_tuning = self.figure.add_subplot(self.spec[6,2])
                 self.grat_stim_tuning(panel=fig_high_grat_ori_tuning,
                                         tf_sel='high')
             else:
@@ -875,8 +875,8 @@ class Population:
     def summarize_sessions(self):
         pdf = PdfPages(os.path.join(self.savepath, 'session_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
 
-        self.is_empty_index('fm_dark_theta', 'has_dark')
-        self.is_empty_index('hf1_wn_crf_tuning', 'has_hf')
+        self.data['has_dark'] = ~self.data['fm_dark_theta'].isna()
+        self.data['has_hf'] = ~self.data['hf1_wn_crf_tuning'].isna()
 
         active_time_by_session, light_len, dark_len = self.get_animal_activity()
 
@@ -1348,12 +1348,13 @@ class Population:
         plt.plot(self.data['waveform_trough_width'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], self.data['AHP'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], 'b.')
         plt.ylabel('AHP'); plt.xlabel('waveform trough width')
 
-        print('depth plot')
-        plt.subplot(2,4,7)
-        plt.hist(self.data['hf1_wn_depth_from_layer5'][self.data['exc_or_inh']=='inh'], color='g', bins=np.arange(-600,600,25), alpha=0.3, orientation='horizontal')
-        plt.hist(self.data['hf1_wn_depth_from_layer5'][self.data['exc_or_inh']=='exc'], color='b', bins=np.arange(-600,600,25), alpha=0.3, orientation='horizontal')
-        plt.xlabel('channels above or below center of layer 5')
-        plt.gca().invert_yaxis(); plt.plot([0,10],[0,0],'k')
+        if np.sum(self.data['has_hf'])>1:
+            print('depth plot')
+            plt.subplot(2,4,7)
+            plt.hist(self.data['hf1_wn_depth_from_layer5'][self.data['exc_or_inh']=='inh'], color='g', bins=np.arange(-600,600,25), alpha=0.3, orientation='horizontal')
+            plt.hist(self.data['hf1_wn_depth_from_layer5'][self.data['exc_or_inh']=='exc'], color='b', bins=np.arange(-600,600,25), alpha=0.3, orientation='horizontal')
+            plt.xlabel('channels above or below center of layer 5')
+            plt.gca().invert_yaxis(); plt.plot([0,10],[0,0],'k')
 
         plt.subplot(2,4,8)
         plt.axis('off')
@@ -1419,7 +1420,8 @@ class Population:
                 self.data.at[ind, 'responsive_to_contrast'] = np.abs(row['hf1_wn_crf_modind']) > 0.33
             else:
                 self.data.at[ind, 'responsive_to_contrast'] = False
-        self.depth_range = [np.max(self.data['hf1_wn_depth_from_layer5'][self.data['responsive_to_contrast']==True])+50, np.min(self.data['hf1_wn_depth_from_layer5'][self.data['responsive_to_contrast']==True])+50]
+        if np.sum(self.data['has_hf'])>1:
+            self.depth_range = [np.max(self.data['hf1_wn_depth_from_layer5'][self.data['responsive_to_contrast']==True])+50, np.min(self.data['hf1_wn_depth_from_layer5'][self.data['responsive_to_contrast']==True])+50]
 
         for i, x in self.data['hf1_wn_crf_tuning'].iteritems():
             if type(x) == str:
@@ -1442,21 +1444,22 @@ class Population:
         plt.bar(['responsive', 'not responsive'], height=[len(self.data[self.data['responsive_to_contrast']==True])/len(self.data), len(self.data[self.data['responsive_to_contrast']==False])/len(self.data)])
         plt.title('fraction responsive to contrast'); plt.ylim([0,1])
 
-        fig = self.plot_running_average('hf1_wn_spont_rate', 'hf1_wn_depth_from_layer5', (2,3,2), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=True)
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast spont rate (sp/sec)')
+        if np.sum(self.data['has_hf'])>1:
+            fig = self.plot_running_average('hf1_wn_spont_rate', 'hf1_wn_depth_from_layer5', (2,3,2), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=True, show_legend=True)
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast spont rate (sp/sec)')
 
-        fig = self.plot_running_average('hf1_wn_max_contrast_rate', 'hf1_wn_depth_from_layer5', (2,3,3), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=False)
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('max contrast rate (sp/sec)')
+            fig = self.plot_running_average('hf1_wn_max_contrast_rate', 'hf1_wn_depth_from_layer5', (2,3,3), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=True, show_legend=False)
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('max contrast rate (sp/sec)')
 
-        fig = self.plot_running_average('hf1_wn_evoked_rate', 'hf1_wn_depth_from_layer5', (2,3,4), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=False)
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast evoked rate (sp/sec)')
+            fig = self.plot_running_average('hf1_wn_evoked_rate', 'hf1_wn_depth_from_layer5', (2,3,4), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=True, show_legend=False)
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast evoked rate (sp/sec)')
 
-        fig = self.plot_running_average('hf1_wn_crf_modind', 'hf1_wn_depth_from_layer5', (2,3,5), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_contrast':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast modulation index')
+            fig = self.plot_running_average('hf1_wn_crf_modind', 'hf1_wn_depth_from_layer5', (2,3,5), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_contrast':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast modulation index')
 
         plt.subplot(2,3,6); plt.axis('off')
         
@@ -1516,13 +1519,14 @@ class Population:
         plt.bar(['responsive', 'not responsive'], height=[len(self.data[self.data['responsive_to_gratings']==True])/len(self.data), len(self.data[self.data['responsive_to_gratings']==False])/len(self.data)])
         plt.title('fraction responsive to gratings'); plt.ylim([0,1])
 
-        fig = self.plot_running_average('hf3_gratings_drift_spont', 'hf1_wn_depth_from_layer5', (6,6,2), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=False)
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('gratings spont rate')
+        if np.sum(self.data['has_hf'])>1:
+            fig = self.plot_running_average('hf3_gratings_drift_spont', 'hf1_wn_depth_from_layer5', (6,6,2), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=True, show_legend=False)
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('gratings spont rate')
 
-        fig = self.plot_running_average('hf3_gratings_evoked_rate', 'hf1_wn_depth_from_layer5', (6,6,3), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=False)
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('gratings evoked rate')
+            fig = self.plot_running_average('hf3_gratings_evoked_rate', 'hf1_wn_depth_from_layer5', (6,6,3), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=True, show_legend=False)
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('gratings evoked rate')
 
         plt.subplot(6,6,4)
         plt.hist(self.data['sf_pref'][self.data['responsive_to_gratings']==True][self.data['exc_or_inh']=='inh'], color='g', alpha=0.3, bins=np.arange(1,3.25,0.25))
@@ -1539,9 +1543,10 @@ class Population:
         self.data['grat_speed_dps'] = self.data['tf_pref_cps'] / self.data['sf_pref_cpd']
 
         ### orientation selectivity
-        fig = self.plot_running_average('osi_for_sf_pref', 'hf1_wn_depth_from_layer5', (6,6,6), force_range=np.arange(-650,750,100),
+        if np.sum(self.data['has_hf'])>1:
+            fig = self.plot_running_average('osi_for_sf_pref', 'hf1_wn_depth_from_layer5', (6,6,6), force_range=np.arange(-650,750,100),
                                         along_y=True, use_median=True, show_legend=True, filter_for={'responsive_to_gratings':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('osi for pref sf')
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('osi for pref sf')
 
         fig = self.plot_running_average('fm1_spike_rate_vs_gx_modind', 'osi_for_sf_pref', (6,6,7), filter_for={'responsive_to_gratings':True})
         plt.ylabel('osi for pref sf'); plt.xlabel('gyro x modulation')
@@ -1565,9 +1570,10 @@ class Population:
         plt.ylabel('osi for pref sf'); plt.xlabel('phi modulation')
 
         ### direction selectivity
-        fig = self.plot_running_average('dsi_for_sf_pref', 'hf1_wn_depth_from_layer5', (6,6,14), force_range=np.arange(-650,750,100),
+        if np.sum(self.data['has_hf'])>1:
+            fig = self.plot_running_average('dsi_for_sf_pref', 'hf1_wn_depth_from_layer5', (6,6,14), force_range=np.arange(-650,750,100),
                                         along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('dsi for pref sf')
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('dsi for pref sf')
 
         fig = self.plot_running_average('fm1_spike_rate_vs_gx_modind', 'dsi_for_sf_pref', (6,6,15), filter_for={'responsive_to_gratings':True})
         plt.ylabel('dsi for pref sf'); plt.xlabel('gyro x modulation')
@@ -1590,18 +1596,20 @@ class Population:
         fig = self.plot_running_average('fm1_spike_rate_vs_phi_modind', 'dsi_for_sf_pref', (6,6,21), filter_for={'responsive_to_gratings':True})
         plt.ylabel('dsi for pref sf'); plt.xlabel('phi modulation')
 
-        fig = self.plot_running_average('sf_pref', 'hf1_wn_depth_from_layer5', (6,6,22), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('sf pref')
+        if np.sum(self.data['has_hf'])>1:
+            fig = self.plot_running_average('sf_pref', 'hf1_wn_depth_from_layer5', (6,6,22), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('sf pref')
 
-        fig = self.plot_running_average('tf_pref', 'hf1_wn_depth_from_layer5', (6,6,23), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('tf pref')
+            fig = self.plot_running_average('tf_pref', 'hf1_wn_depth_from_layer5', (6,6,23), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('tf pref')
 
         ### gratings speed
-        fig = self.plot_running_average('grat_speed_dps', 'hf1_wn_depth_from_layer5', (6,6,24), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=True, filter_for={'responsive_to_gratings':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('grat speed (deg/sec)')
+        if np.sum(self.data['has_hf'])>1:
+            fig = self.plot_running_average('grat_speed_dps', 'hf1_wn_depth_from_layer5', (6,6,24), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=True, show_legend=True, filter_for={'responsive_to_gratings':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('grat speed (deg/sec)')
 
         fig = self.plot_running_average('fm1_spike_rate_vs_gx_modind', 'grat_speed_dps', (6,6,25), filter_for={'responsive_to_gratings':True})
         plt.ylabel('grat speed (deg/sec)'); plt.xlabel('gyro x modulation')
@@ -1669,62 +1677,63 @@ class Population:
             else:
                 self.data.at[ind, 'fires_2sp_sec'] = False
 
-        plt.subplots(4,6, figsize=(25,20))
-        fig = self.plot_running_average('fm1_spike_rate_vs_roll_modind', 'hf1_wn_depth_from_layer5', (4,6,1), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=True, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('light head roll modulation')
+        if np.sum(self.data['has_hf'])>1:
+            plt.subplots(4,6, figsize=(25,20))
+            fig = self.plot_running_average('fm1_spike_rate_vs_roll_modind', 'hf1_wn_depth_from_layer5', (4,6,1), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=True, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('light head roll modulation')
 
-        fig = self.plot_running_average('fm_dark_spike_rate_vs_roll_modind', 'hf1_wn_depth_from_layer5', (4,6,2), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head roll modulation')
+            fig = self.plot_running_average('fm_dark_spike_rate_vs_roll_modind', 'hf1_wn_depth_from_layer5', (4,6,2), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head roll modulation')
 
-        fig = self.plot_running_average('fm1_spike_rate_vs_pitch_modind', 'hf1_wn_depth_from_layer5', (4,6,3), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('light head pitch modulation')
+            fig = self.plot_running_average('fm1_spike_rate_vs_pitch_modind', 'hf1_wn_depth_from_layer5', (4,6,3), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('light head pitch modulation')
 
-        fig = self.plot_running_average('fm_dark_spike_rate_vs_pitch_modind', 'hf1_wn_depth_from_layer5', (4,6,4), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head pitch modulation')
+            fig = self.plot_running_average('fm_dark_spike_rate_vs_pitch_modind', 'hf1_wn_depth_from_layer5', (4,6,4), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head pitch modulation')
 
-        fig = self.plot_running_average('fm1_spike_rate_vs_theta_modind', 'hf1_wn_depth_from_layer5', (4,6,5), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('light head theta modulation')
+            fig = self.plot_running_average('fm1_spike_rate_vs_theta_modind', 'hf1_wn_depth_from_layer5', (4,6,5), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('light head theta modulation')
 
-        fig = self.plot_running_average('fm_dark_spike_rate_vs_theta_modind', 'hf1_wn_depth_from_layer5', (4,6,6), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head theta modulation')
+            fig = self.plot_running_average('fm_dark_spike_rate_vs_theta_modind', 'hf1_wn_depth_from_layer5', (4,6,6), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head theta modulation')
 
-        fig = self.plot_running_average('fm1_spike_rate_vs_phi_modind', 'hf1_wn_depth_from_layer5', (4,6,7), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('light head phi modulation')
+            fig = self.plot_running_average('fm1_spike_rate_vs_phi_modind', 'hf1_wn_depth_from_layer5', (4,6,7), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('light head phi modulation')
 
-        fig = self.plot_running_average('fm_dark_spike_rate_vs_phi_modind', 'hf1_wn_depth_from_layer5', (4,6,8), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head phi modulation')
+            fig = self.plot_running_average('fm_dark_spike_rate_vs_phi_modind', 'hf1_wn_depth_from_layer5', (4,6,8), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head phi modulation')
 
-        fig = self.plot_running_average('fm1_spike_rate_vs_gx_modind', 'hf1_wn_depth_from_layer5', (4,6,9), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro x modulation')
+            fig = self.plot_running_average('fm1_spike_rate_vs_gx_modind', 'hf1_wn_depth_from_layer5', (4,6,9), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro x modulation')
 
-        fig = self.plot_running_average('fm_dark_spike_rate_vs_gx_modind', 'hf1_wn_depth_from_layer5', (4,6,10), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro x modulation')
+            fig = self.plot_running_average('fm_dark_spike_rate_vs_gx_modind', 'hf1_wn_depth_from_layer5', (4,6,10), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro x modulation')
 
-        fig = self.plot_running_average('fm1_spike_rate_vs_gy_modind', 'hf1_wn_depth_from_layer5', (4,6,11), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro y modulation')
+            fig = self.plot_running_average('fm1_spike_rate_vs_gy_modind', 'hf1_wn_depth_from_layer5', (4,6,11), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro y modulation')
 
-        fig = self.plot_running_average('fm_dark_spike_rate_vs_gy_modind', 'hf1_wn_depth_from_layer5', (4,6,12), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro y modulation')
+            fig = self.plot_running_average('fm_dark_spike_rate_vs_gy_modind', 'hf1_wn_depth_from_layer5', (4,6,12), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro y modulation')
 
-        fig = self.plot_running_average('fm1_spike_rate_vs_gz_modind', 'hf1_wn_depth_from_layer5', (4,6,13), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro z modulation')
+            fig = self.plot_running_average('fm1_spike_rate_vs_gz_modind', 'hf1_wn_depth_from_layer5', (4,6,13), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro z modulation')
 
-        fig = self.plot_running_average('fm_dark_spike_rate_vs_gz_modind', 'hf1_wn_depth_from_layer5', (4,6,14), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-        plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro z modulation')
+            fig = self.plot_running_average('fm_dark_spike_rate_vs_gz_modind', 'hf1_wn_depth_from_layer5', (4,6,14), force_range=np.arange(-650,750,100),
+                                            along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro z modulation')
 
         plt.subplot(4,6,15)
         plt.plot(self.data['fm1_spike_rate_vs_roll_modind'], self.data['fm_dark_spike_rate_vs_roll_modind'], 'k.', markersize=3)
@@ -1766,8 +1775,8 @@ class Population:
     def get_peak_trough(self, wv, baseline):
         wv = [i-baseline for i in wv]
         wv_flip = [-i for i in wv]
-        peaks, peak_props = find_peaks(wv, height=0.1)
-        troughs, trough_props = find_peaks(wv_flip, height=0.1)
+        peaks, peak_props = find_peaks(wv, height=0.2)
+        troughs, trough_props = find_peaks(wv_flip, height=0.2)
         if len(peaks) > 1:
             peaks = peaks[np.argmax(peak_props['peak_heights'])]
         if len(troughs) > 1:
@@ -1799,9 +1808,9 @@ class Population:
             return 'biphasic'
         elif has_trough and ~has_peak:
             return 'negative'
-        elif peak_cent is not None and peak_cent <= (42-38):
+        elif peak_cent is not None and peak_cent <= 5.39:
             return 'early'
-        elif peak_cent is not None and peak_cent > (42-38):
+        elif peak_cent is not None and peak_cent > 5.39:
             return 'late'
         else:
             return 'unresponsive'
@@ -1866,10 +1875,13 @@ class Population:
         for fig_count, prop in enumerate(props):
             ax = plt.subplot(len(props),1,fig_count+1)
             for label_count, label in enumerate(labels):
-                if 'hf1_wn' in prop:
-                    s = self.data[prop][self.data['responsive_to_contrast']==True][self.data[data_key]==label].dropna()
+                if np.sum(self.data['has_hf'])==len(self.data):
+                    if 'hf1_wn' in prop:
+                        s = self.data[prop][self.data['responsive_to_contrast']==True][self.data[data_key]==label].dropna()
+                    else:
+                        s = self.data[prop][self.data['responsive_to_gratings']==True][self.data[data_key]==label].dropna()
                 else:
-                    s = self.data[prop][self.data['responsive_to_gratings']==True][self.data[data_key]==label].dropna()
+                        s = self.data[prop][self.data[data_key]==label].dropna()
                 s_mean = np.nanmean(s)
                 stderr = np.nanstd(s) / np.sqrt(np.size(s,0))
                 lbound = label_count-0.2; ubound = label_count+0.2
@@ -1941,17 +1953,17 @@ class Population:
             norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(deflection_at_pref_direction))
             self.data.at[ind, 'norm_deflection_at_opp_direction_comp'] = norm_comp_deflection.astype(object)
 
-            dark_gaze_shift = [row['fm_dark_downsacc_avg_gaze_shift_dEye'],row['fm_dark_upsacc_avg_gaze_shift_dEye']][int(row['gaze_shift_direction_pref_ind'])]
-            dark_gaze_shift_norm = ((dark_gaze_shift-np.nanmean(dark_gaze_shift)) / np.nanmax(np.abs(dark_gaze_shift)))
-            dark_comp = [row['fm_dark_downsacc_avg_comp_dEye'],row['fm_dark_upsacc_avg_comp_dEye']][int(row['gaze_shift_direction_pref_ind'])]
-            dark_comp_norm = ((dark_comp-np.nanmean(dark_comp)) / np.nanmax(np.abs(dark_comp)))
+            if np.sum(self.data['has_dark'])==len(self.data):
+                dark_gaze_shift = [row['fm_dark_downsacc_avg_gaze_shift_dEye'],row['fm_dark_upsacc_avg_gaze_shift_dEye']][int(row['gaze_shift_direction_pref_ind'])]
+                dark_gaze_shift_norm = ((dark_gaze_shift-np.nanmean(dark_gaze_shift)) / np.nanmax(np.abs(dark_gaze_shift)))
+                dark_comp = [row['fm_dark_downsacc_avg_comp_dEye'],row['fm_dark_upsacc_avg_comp_dEye']][int(row['gaze_shift_direction_pref_ind'])]
+                dark_comp_norm = ((dark_comp-np.nanmean(dark_comp)) / np.nanmax(np.abs(dark_comp)))
 
-            dark_gaze_shift_opp = [row['fm_dark_downsacc_avg_gaze_shift_dEye'],row['fm_dark_upsacc_avg_gaze_shift_dEye']][1-int(row['gaze_shift_direction_pref_ind'])]
-            dark_gaze_shift_norm_opp = ((dark_gaze_shift_opp-np.nanmean(dark_gaze_shift_opp)) / np.nanmax(np.abs(dark_gaze_shift_opp)))
-            dark_comp_opp = [row['fm_dark_downsacc_avg_comp_dEye'],row['fm_dark_upsacc_avg_comp_dEye']][1-int(row['gaze_shift_direction_pref_ind'])]
-            dark_comp_norm_opp = ((dark_comp_opp-np.nanmean(dark_comp_opp)) / np.nanmax(np.abs(dark_comp_opp)))
+                dark_gaze_shift_opp = [row['fm_dark_downsacc_avg_gaze_shift_dEye'],row['fm_dark_upsacc_avg_gaze_shift_dEye']][1-int(row['gaze_shift_direction_pref_ind'])]
+                dark_gaze_shift_norm_opp = ((dark_gaze_shift_opp-np.nanmean(dark_gaze_shift_opp)) / np.nanmax(np.abs(dark_gaze_shift_opp)))
+                dark_comp_opp = [row['fm_dark_downsacc_avg_comp_dEye'],row['fm_dark_upsacc_avg_comp_dEye']][1-int(row['gaze_shift_direction_pref_ind'])]
+                dark_comp_norm_opp = ((dark_comp_opp-np.nanmean(dark_comp_opp)) / np.nanmax(np.abs(dark_comp_opp)))
 
-            if type(dark_comp_norm) != float and type(dark_gaze_shift_norm) != float and type(dark_gaze_shift_norm_opp) != float and type(dark_comp_norm_opp) != float:
                 self.data.at[ind, 'dark_gaze_shift_using_light_direction_pref'] = dark_gaze_shift_norm.astype(object)
                 self.data.at[ind, 'dark_comp_using_light_direction_pref'] = dark_comp_norm.astype(object)
                 self.data.at[ind, 'dark_gaze_shift_using_light_direction_opp'] = dark_gaze_shift_norm_opp.astype(object)
@@ -2036,34 +2048,36 @@ class Population:
         self.deye_cluster_props(labels, 'movement_psth_type', 'norm_deflection_at_opp_direction', 'gaze-shift opposite', self.deye_psth_full_cmap)
         self.deye_cluster_props(labels, 'movement_psth_type', 'norm_deflection_at_opp_direction_comp', 'comp opposite', self.deye_psth_full_cmap)
 
-        plt.subplots(3,3, figsize=(14,14))
-        for count, label in enumerate(labels):
-            plt.subplot(3,3,count+1)
-            tempcolor = self.deye_psth_full_cmap[count]
-            plt.hist(self.data['hf1_wn_depth_from_layer5'][self.data['movement_psth_type']==label], bins=list(np.arange(-650,650+100,100)), orientation='horizontal', color=tempcolor)
-            plt.title(label); plt.ylabel('depth')
-            plt.gca().invert_yaxis()
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        if np.sum(self.data['has_hf'])>1:
+            plt.subplots(3,3, figsize=(14,14))
+            for count, label in enumerate(labels):
+                plt.subplot(3,3,count+1)
+                tempcolor = self.deye_psth_full_cmap[count]
+                plt.hist(self.data['hf1_wn_depth_from_layer5'][self.data['movement_psth_type']==label], bins=list(np.arange(-650,650+100,100)), orientation='horizontal', color=tempcolor)
+                plt.title(label); plt.ylabel('depth')
+                plt.gca().invert_yaxis()
+            plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
-        self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movement_psth_type', self.deye_psth_full_cmap)
+            self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movement_psth_type', self.deye_psth_full_cmap)
 
-        labels = sorted(self.data['movement_psth_type_simple'].unique())
-        self.deye_cluster_avg(labels, 'movement_psth_type_simple', self.deye_psth_cmap)
-        self.deye_cluster_props(labels, 'movement_psth_type_simple', 'norm_deflection_at_pref_direction', 'gaze-shift pref', self.deye_psth_cmap)
-        self.deye_cluster_props(labels, 'movement_psth_type_simple', 'norm_deflection_at_pref_direction_comp', 'comp pref', self.deye_psth_cmap)
-        self.deye_cluster_props(labels, 'movement_psth_type_simple', 'norm_deflection_at_opp_direction', 'gaze-shift opposite', self.deye_psth_cmap)
-        self.deye_cluster_props(labels, 'movement_psth_type_simple', 'norm_deflection_at_opp_direction_comp', 'comp opposite', self.deye_psth_cmap)
+            labels = sorted(self.data['movement_psth_type_simple'].unique())
+            self.deye_cluster_avg(labels, 'movement_psth_type_simple', self.deye_psth_cmap)
+            self.deye_cluster_props(labels, 'movement_psth_type_simple', 'norm_deflection_at_pref_direction', 'gaze-shift pref', self.deye_psth_cmap)
+            self.deye_cluster_props(labels, 'movement_psth_type_simple', 'norm_deflection_at_pref_direction_comp', 'comp pref', self.deye_psth_cmap)
+            self.deye_cluster_props(labels, 'movement_psth_type_simple', 'norm_deflection_at_opp_direction', 'gaze-shift opposite', self.deye_psth_cmap)
+            self.deye_cluster_props(labels, 'movement_psth_type_simple', 'norm_deflection_at_opp_direction_comp', 'comp opposite', self.deye_psth_cmap)
 
-        self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movement_psth_type_simple', self.deye_psth_cmap)
+            self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movement_psth_type_simple', self.deye_psth_cmap)
 
-        plt.subplots(3,3, figsize=(14,14))
-        for count, label in enumerate(labels):
-            plt.subplot(3,3,count+1)
-            tempcolor = self.deye_psth_cmap[count]
-            plt.hist(self.data['hf1_wn_depth_from_layer5'][self.data['movement_psth_type_simple']==label], bins=list(np.arange(-650,650+100,100)), orientation='horizontal', color=tempcolor)
-            plt.title(label); plt.ylabel('depth')
-            plt.gca().invert_yaxis()
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        if np.sum(self.data['has_hf'])>1:
+            plt.subplots(3,3, figsize=(14,14))
+            for count, label in enumerate(labels):
+                plt.subplot(3,3,count+1)
+                tempcolor = self.deye_psth_cmap[count]
+                plt.hist(self.data['hf1_wn_depth_from_layer5'][self.data['movement_psth_type_simple']==label], bins=list(np.arange(-650,650+100,100)), orientation='horizontal', color=tempcolor)
+                plt.title(label); plt.ylabel('depth')
+                plt.gca().invert_yaxis()
+            plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
         for ind, row in self.data[self.data['has_hf']].iterrows():
             ori_tuning = np.mean(row['hf3_gratings_ori_tuning'],2) # [orientation, sf, tf]
@@ -2086,8 +2100,9 @@ class Population:
             best_sf_ind = np.argmax(best_tuning_for_sf)
             self.data.at[ind, 'best_direction'] = prefered_direction[best_sf_ind]
             self.data.at[ind, 'best_orientation'] = prefered_orientation[best_sf_ind]
-
-        self.gratings_polar_plot('best_orientation', labels, self.deye_psth_cmap)
+        
+        if np.sum(self.data['has_hf'])>1:
+            self.gratings_polar_plot('best_orientation', labels, self.deye_psth_cmap)
 
         key_data = np.zeros([len(labels),2])
         for label_count, label in enumerate(labels):
@@ -2107,60 +2122,64 @@ class Population:
         ax.legend()
         plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
-        self.deye_cluster_props(labels, 'movement_psth_type_simple', 'dark_gaze_shift_using_light_direction_pref', 'dark gaze-shift pref', self.deye_psth_cmap, filter_has_dark=True)
-        self.deye_cluster_props(labels, 'movement_psth_type_simple', 'dark_comp_using_light_direction_pref', 'dark comp pref', self.deye_psth_cmap, filter_has_dark=True)
-        self.deye_cluster_props(labels, 'movement_psth_type_simple', 'dark_gaze_shift_using_light_direction_opp', 'dark gaze-shift opposite', self.deye_psth_cmap, filter_has_dark=True)
-        self.deye_cluster_props(labels, 'movement_psth_type_simple', 'dark_comp_using_light_direction_opp', 'dark comp opposite', self.deye_psth_cmap, filter_has_dark=True)
+        if np.sum(self.data['has_dark'])==len(self.data):
+            labels = sorted(self.data['movement_psth_type_simple'].unique())
+            self.deye_cluster_props(labels, 'movement_psth_type_simple', 'dark_gaze_shift_using_light_direction_pref', 'dark gaze-shift pref', self.deye_psth_cmap, filter_has_dark=True)
+            self.deye_cluster_props(labels, 'movement_psth_type_simple', 'dark_comp_using_light_direction_pref', 'dark comp pref', self.deye_psth_cmap, filter_has_dark=True)
+            self.deye_cluster_props(labels, 'movement_psth_type_simple', 'dark_gaze_shift_using_light_direction_opp', 'dark gaze-shift opposite', self.deye_psth_cmap, filter_has_dark=True)
+            self.deye_cluster_props(labels, 'movement_psth_type_simple', 'dark_comp_using_light_direction_opp', 'dark comp opposite', self.deye_psth_cmap, filter_has_dark=True)
 
-        labels = sorted(self.data['movement_psth_type_simple'].unique())
-        stims = ['norm_deflection_at_pref_direction','norm_deflection_at_pref_direction_comp','norm_deflection_at_opp_direction','norm_deflection_at_opp_direction_comp',
-                'dark_gaze_shift_using_light_direction_pref','dark_comp_using_light_direction_pref','dark_gaze_shift_using_light_direction_opp','dark_comp_using_light_direction_opp']
-        stim_titles = ['pref gaze shift','pref comp','opp gaze shift','opp comp','dark pref gaze shift','dark pref comp','dark opp gaze shift','dark opp comp']
-        for label_count, label in enumerate(labels):
-            tempcolor = self.deye_psth_cmap[label_count]
-            cluster = self.data[self.data['movement_psth_type_simple']==label]
-            plt.subplots(2,4,figsize=(14,9))
-            for stim_count in range(8):
-                stim = stims[stim_count]
-                stim_name = stim_titles[stim_count]
-                if 'dark' in stim_name:
-                    usecluster = cluster[cluster['has_dark']]
-                else:
-                    usecluster = cluster
-                plt.subplot(2,4,stim_count+1)
-                for ind, row in usecluster.iterrows():
-                    plt.plot(self.trange_x, usecluster.loc[ind, stim], color=tempcolor, alpha=0.2)
-                if len(usecluster[stim]) > 0:
-                    plt.plot(self.trange_x, np.nanmean(flatten_series(usecluster[stim]), 0), 'k')
-                plt.xlim([-0.25,0.5])
-                plt.title(stim_name)
-                plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
-                plt.ylim([-0.8,0.8])
+            labels = sorted(self.data['movement_psth_type_simple'].unique())
+            stims = ['norm_deflection_at_pref_direction','norm_deflection_at_pref_direction_comp','norm_deflection_at_opp_direction','norm_deflection_at_opp_direction_comp',
+                    'dark_gaze_shift_using_light_direction_pref','dark_comp_using_light_direction_pref','dark_gaze_shift_using_light_direction_opp','dark_comp_using_light_direction_opp']
+            stim_titles = ['pref gaze shift','pref comp','opp gaze shift','opp comp','dark pref gaze shift','dark pref comp','dark opp gaze shift','dark opp comp']
+            for label_count, label in enumerate(labels):
+                tempcolor = self.deye_psth_cmap[label_count]
+                cluster = self.data[self.data['movement_psth_type_simple']==label]
+                plt.subplots(2,4,figsize=(14,9))
+                for stim_count in range(8):
+                    stim = stims[stim_count]
+                    stim_name = stim_titles[stim_count]
+                    if 'dark' in stim_name:
+                        usecluster = cluster[cluster['has_dark']]
+                    else:
+                        usecluster = cluster
+                    plt.subplot(2,4,stim_count+1)
+                    for ind, row in usecluster.iterrows():
+                        plt.plot(self.trange_x, usecluster.loc[ind, stim], color=tempcolor, alpha=0.2)
+                    if len(usecluster[stim]) > 0:
+                        plt.plot(self.trange_x, np.nanmean(flatten_series(usecluster[stim]), 0), 'k')
+                    plt.xlim([-0.25,0.5])
+                    plt.title(stim_name)
+                    plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+                    plt.ylim([-0.8,0.8])
+                plt.tight_layout(); self.poppdf.savefig(); plt.close()
+
+            props = ['fm_dark_spike_rate_vs_theta_modind','fm_dark_spike_rate_vs_phi_modind','fm_dark_spike_rate_vs_roll_modind','fm_dark_spike_rate_vs_pitch_modind',
+                    'fm_dark_spike_rate_vs_gx_modind','fm_dark_spike_rate_vs_gy_modind','fm_dark_spike_rate_vs_gz_modind',
+                    'fm1_spike_rate_vs_theta_modind','fm1_spike_rate_vs_phi_modind','fm1_spike_rate_vs_roll_modind','fm1_spike_rate_vs_pitch_modind',
+                    'fm1_spike_rate_vs_gx_modind','fm1_spike_rate_vs_gy_modind','fm1_spike_rate_vs_gz_modind']
+            prop_labels = ['dark theta modulation','dark phi modulation','dark roll modulation','dark pitch modulation',
+                    'dark gyro x modulation','dark gyro y modulation','dark gyro z modulation',
+                    'light theta modulation','light phi modulation','light roll modulation','light pitch modulation',
+                    'light gyro x modulation','light gyro y modulation','light gyro z modulation']
+            self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movement_psth_type_simple', self.deye_psth_cmap)
+
+        if np.sum(self.data['has_hf'])>1:
+            plt.figure()
+            plt.subplots(2,2)
+            labels = sorted([i for i in self.data['movement_psth_type_simple'].unique() if i != 'unresponsive'])
+            for count, name in enumerate(labels):
+                lower = -0.5; upper = 1.5; dt = 0.1
+                bins = np.arange(lower, upper+dt, dt)
+                all_psth = flatten_series(self.data['hf3_gratings_grating_psth'][self.data['movement_psth_type_simple']==name])
+                mean_psth = np.nanmean(all_psth, 0)
+                plt.subplot(2,2,count+1)
+                plt.plot(bins[0:-1]+dt/2, mean_psth)
+                plt.title(name+' grat psth')
+                plt.xlabel('time'); plt.ylabel('sp/sec')
+                plt.ylim([0, np.nanmax(mean_psth)*1.2])
             plt.tight_layout(); self.poppdf.savefig(); plt.close()
-
-        props = ['fm_dark_spike_rate_vs_theta_modind','fm_dark_spike_rate_vs_phi_modind','fm_dark_spike_rate_vs_roll_modind','fm_dark_spike_rate_vs_pitch_modind',
-                'fm_dark_spike_rate_vs_gx_modind','fm_dark_spike_rate_vs_gy_modind','fm_dark_spike_rate_vs_gz_modind',
-                'fm1_spike_rate_vs_theta_modind','fm1_spike_rate_vs_phi_modind','fm1_spike_rate_vs_roll_modind','fm1_spike_rate_vs_pitch_modind',
-                'fm1_spike_rate_vs_gx_modind','fm1_spike_rate_vs_gy_modind','fm1_spike_rate_vs_gz_modind']
-        prop_labels = ['dark theta modulation','dark phi modulation','dark roll modulation','dark pitch modulation',
-                'dark gyro x modulation','dark gyro y modulation','dark gyro z modulation',
-                'light theta modulation','light phi modulation','light roll modulation','light pitch modulation',
-                'light gyro x modulation','light gyro y modulation','light gyro z modulation']
-        self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movement_psth_type_simple', self.deye_psth_cmap)
-
-        plt.figure()
-        plt.subplots(2,2)
-        labels = sorted(self.data['movement_psth_type_simple'].unique())
-        for count, name in enumerate(labels):
-            lower = -0.5; upper = 1.5; dt = 0.1
-            bins = np.arange(lower, upper+dt, dt)
-            all_psth = flatten_series(self.data['hf3_gratings_grating_psth'][self.data['movement_psth_type_simple'==name]])
-            mean_psth = np.nanmean(all_psth, 0)
-            plt.subplot(2,2,count+1)
-            plt.plot(bins[0:-1]+dt/2, mean_psth)
-            plt.title('gratings psth', fontsize=20)
-            plt.xlabel('time'); plt.ylabel('sp/sec')
-            plt.ylim([0, np.nanmax(mean_psth)*1.2])
 
     def position_around_saccade(self, movement):
         sessions = [i for i in self.data['session'].unique() if type(i) != float]
@@ -2291,14 +2310,17 @@ class Population:
         print('clustering by waveform')
         self.cluster_population_by_waveform()
 
-        print('contrast response')
-        self.neural_response_to_contrast()
+        if np.sum(self.data['has_hf'])>1:
+            print('contrast response')
+            self.neural_response_to_contrast()
 
-        print('gratings response')
-        self.neural_response_to_gratings()
+        if np.sum(self.data['has_hf'])>1:
+            print('gratings response')
+            self.neural_response_to_gratings()
 
-        print('median firing rate by stim and animal activity')
-        self.spike_rate_by_stim()
+        if np.sum(self.data['has_hf'])>1:
+            print('median firing rate by stim and animal activity')
+            self.spike_rate_by_stim()
 
         print('movement tuning')
         self.neural_response_to_movement()

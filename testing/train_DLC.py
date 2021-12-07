@@ -2,9 +2,10 @@ import os
 os.environ["DLClight"] = "True"
 import deeplabcut
 
-# use ephys1-gpu environment, not DLC-GPU1
+# label with DLC-GPU1
+# use ephys1-gpu environment to train, not DLC-GPU1
 
-config_path = '/home/niell_lab/Documents/deeplabcut_projects/WidefieldEyeCams-kris-2021-10-12/config.yaml'
+config_path = '/home/niell_lab/Documents/deeplabcut_projects/EphysTopCam2-dylan-2021-11-16/config.yaml'
 batchsize = 14
 
 deeplabcut.create_training_dataset(config_path, augmenter_type='imgaug')
@@ -16,7 +17,7 @@ cfg_dlc['scale_jitter_up'] = 1.5
 cfg_dlc['augmentationprobability'] = 0.5
 cfg_dlc['batch_size'] = batchsize
 cfg_dlc['elastic_transform'] = True
-cfg_dlc['rotation'] = False
+cfg_dlc['rotation'] = False # False for eyecams, True for topdown
 cfg_dlc['covering'] = True
 cfg_dlc['motion_blur'] = True
 cfg_dlc['optimizer'] = 'adam'

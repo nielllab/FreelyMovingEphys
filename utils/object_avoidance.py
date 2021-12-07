@@ -857,8 +857,8 @@ class AvoidanceSession(BaseInput):
         if self.is_pillar_avoidance:
             self.dlc_project = '/home/niell_lab/Documents/deeplabcut_projects/object_avoidance-Mike-2021-08-31/config.yaml'
         elif self.is_gap_detection:
-            self.dlc_project = '/home/niell_lab/Documents/deeplabcut_projects/gap_determination-Kana-2021-10-19/config.yaml'
-
+            self.dlc_project = {'light':'/home/niell_lab/Documents/deeplabcut_projects/gap_determination-Kana-2021-10-19/config.yaml',
+                                'dark':'/home/niell_lab/Documents/deeplabcut_projects/dark_gap_determination-Kana-2021-11-08/config.yaml'}
         self.camname = 'top1'
         self.generic_camconfig = {
             'paths': {
@@ -886,6 +886,13 @@ class AvoidanceSession(BaseInput):
                 animal_dir = os.path.join(date_dir, animal)
                 camconfig = self.generic_camconfig
                 camconfig['animal_directory'] = animal_dir
+                isdark = ('dark' in animal_dir)
+                if not isdark:
+                    print('using light network')
+                    camconfig['paths']['dlc_projects'][self.camname] = self.dlc_project['light']
+                elif isdark:
+                    print('using dark network')
+                    camconfig['paths']['dlc_projects'][self.camname] = self.dlc_project['dark']
                 for recording_name in [k for k,v in self.metadata[date][animal].items()]:
                     recording_dir = os.path.join(animal_dir, recording_name)
                     name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', recording_dir) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-2])
@@ -929,21 +936,24 @@ class AvoidanceSession(BaseInput):
     def process(self, videos=False):
         self.gather_all_sessions()
         for trial_ind, trial_row in tqdm(self.all_sessions.iterrows()):
-            # analyze each trial
-            trial = AvoidanceTrial(trial_row, self.path, self.metadata)
-            dlc_h5 = find('*'+str(trial_row['date'])+'*'+trial_row['animal']+'*'+str(trial_row['task'])+'*.h5', self.path)
-            if dlc_h5 == []:
-                continue
-            trial_path, _ = os.path.split(dlc_h5[0])
-            trial_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', trial_path) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
-            trial.add_tracking(trial_name, trial_path)
-            if self.is_pillar_avoidance:
-                trial.pillar_avoidance()
-            elif self.is_gap_detection:
-                trial.gap_detection()
-            # make short diagnostic video
-            if videos:
-                trial.make_videos()
+            try:
+                # analyze each trial
+                trial = AvoidanceTrial(trial_row, self.path, self.metadata)
+                dlc_h5 = find('*'+str(trial_row['date'])+'*'+trial_row['animal']+'*'+str(trial_row['task'])+'*.h5', self.path)
+                if dlc_h5 == []:
+                    continue
+                trial_path, _ = os.path.split(dlc_h5[0])
+                trial_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', trial_path) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
+                trial.add_tracking(trial_name, trial_path)
+                if self.is_pillar_avoidance:
+                    trial.pillar_avoidance()
+                elif self.is_gap_detection:
+                    trial.gap_detection()
+                # make short diagnostic video
+                if videos:
+                    trial.make_videos()
+            except:
+                pass
 
     # def summarize(self):
 
