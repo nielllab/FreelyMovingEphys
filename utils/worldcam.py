@@ -1,6 +1,9 @@
+from utils.base import Camera
+
 class Worldcam(Camera):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config, recording_name, recording_path, camname):
+        super.__init__(self, config, recording_name, recording_path)
+        self.camname = camname
         
     def process(self):
         self.pack_position_data()

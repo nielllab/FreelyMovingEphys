@@ -50,7 +50,7 @@ class Topcam(Camera):
         width = int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        savepath = os.path.join(self.recording_path, (self.recordong_name+'_'+self.recording_name+'_plot.avi'))
+        savepath = os.path.join(self.recording_path, (self.recording_name+'_plot.avi'))
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
         plot_color0 = (225, 255, 0)
@@ -84,11 +84,13 @@ class Topcam(Camera):
         if self.config['main']['parameters']:
             self.gather_files()
             self.pack_position_data()
-            self.pt_names = list(self.data['point_loc'].values)
+            self.xrpts.name = self.camname+'_pts'
+            self.pt_names = list(self.xrpts['point_loc'].values)
             self.filter_likelihood()
             if self.config['internals']['diagnostic_preprocessing_videos']:
                 self.diagnostic_video()
-            self.pack_video_frames
+            self.pack_video_frames()
+            self.xrframes.name = self.camname+'_video'
 
     def save(self):
         self.safe_merge([self.xrpts, self.xrframes])

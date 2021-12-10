@@ -67,26 +67,13 @@ def main(whitenoise_directory, probe):
     lfp_ephys = read_ephys_bin(ephys_file, probe, do_remap=False)
     ephys_center_sub = lfp_ephys - np.mean(lfp_ephys,0)
     filt_ephys = butter_bandpass(ephys_center_sub, lowcut=800, highcut=8000, fs=30000, order=6)
+    
     t0 = open_time(ephys_time_file)[0]
     worldT = open_time(world_time_file)
     worldT = worldT - t0
     print('loading worldcam video')
-    vidread = cv2.VideoCapture(world_file)
-    world_vid = np.empty([int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)),
-                        int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*0.25),
-                        int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*0.25)], dtype=np.uint8)
-    # iterate through each frame
-    for frame_num in range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))):
-        # read the frame in and make sure it is read in correctly
-        ret, frame = vidread.read()
-        if not ret:
-            break
-        # convert to grayscale
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # downsample the frame by an amount specified in the config file
-        sframe = cv2.resize(frame, (0,0), fx=0.25, fy=0.25, interpolation=cv2.INTER_NEAREST)
-        # add the downsampled frame to all_frames as int8
-        world_vid[frame_num,:,:] = sframe.astype(np.int8)
+    
+
     print('setting up worldcam and ephys')
     offset0 = 0.1
     drift_rate = -0.1/1000

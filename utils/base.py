@@ -359,26 +359,27 @@ class Camera(BaseInput):
     def gather_files(self):
         # get dlc h5 path
         h5_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
+        h5_paths = [x for x in h5_paths if 'DLC' in x]
         self.dlc_path = next(path for path in h5_paths if self.camname in path)
         # get avi video and timestamps
         if 'eye' in self.camname.lower() or 'world' in self.camname.lower():
             if self.config['internals']['follow_strict_naming']:
                 # video
-                avi_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
+                avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
                 self.video_path = next(path for path in avi_paths if self.camname in path and 'deinter' in path and 'plot' not in path)
                 # timestamps
                 csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
                 self.timestamp_path = next(i for i in csv_paths if self.camname in i and 'formatted' in i)
             elif not self.config['internals']['follow_strict_naming']:
                 # video
-                avi_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
+                avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
                 self.video_path = next(path for path in avi_paths if self.camname in path)
                 # timestamps
                 csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
                 self.timestamp_path = next(i for i in csv_paths if self.camname)
         # all other cameras (i.e. topcam and sidecam)
         else:
-            avi_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
+            avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
             self.video_path = next(path for path in avi_paths if self.camname in path and 'plot' not in path)
             csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
             self.timestamp_path = next(i for i in csv_paths if self.camname in i)

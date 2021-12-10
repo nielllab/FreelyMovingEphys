@@ -122,3 +122,48 @@ def list_subdirs_nonrecursive(root_dir):
             dirnames.append(name)
         break
     return dirnames
+
+def sub2ind(array_shape, rows, cols):
+    ind = rows*array_shape[1] + cols
+    ind[ind < 0] = -1
+    ind[ind >= array_shape[0]*array_shape[1]] = -1
+    return ind
+
+def nanmedfilt(A, sz=5):
+    """ Median filtering of 1D or 2D array, A, while ignoring NaNs using tile size of sz
+    adapted from https://www.mathworks.com/matlabcentral/fileexchange/41457-nanmedfilt2
+    """
+    if type(sz)==int:
+        sz = np.array([sz,sz])
+    if any(sz%2 == 0):
+        print('kernel size must be odd')
+    margin = np.array((sz-1)//2)
+    if len(np.shape(A))==1:
+        A = np.expand_dims(A, axis=0)
+    AA = np.zeros(np.squeeze(np.array(np.shape(A))+2*np.expand_dims(margin,0)))
+    AA[:] = np.nan
+    AA[margin[0]:-margin[0], margin[1]:-margin[1]] = A
+    iB, jB = np.mgrid[0:sz[0],0:sz[1]]
+    isB = sub2ind(np.shape(AA.T),jB,iB)+1
+    iA, jA = np.mgrid[0:np.size(A,0),0:np.size(A,1)]
+    iA += 1
+    isA = sub2ind(np.shape(AA.T),jA,iA)
+    idx = isA + np.expand_dims(isB.flatten('F')-1,1)
+    
+    B = np.sort(AA.T.flatten()[idx-1],0)
+    j = np.any(np.isnan(B),0)
+    last = np.zeros([1,np.size(B,1)])+np.size(B,0)
+    last[:,j] = np.argmax(np.isnan(B[:,j]),0)
+    
+    M = np.zeros([1,np.size(B,1)])
+    M[:] = np.nan
+    valid = np.where(last>0)[1]
+    mid = (1+last)/2
+    i1 = np.floor(mid[:,valid])
+    i2 = np.ceil(mid[:,valid])
+    i1 = sub2ind(np.shape(B.T),valid,i1)
+    i2 = sub2ind(np.shape(B.T),valid,i2)
+    M[:,valid] = 0.5*(B.flatten('F')[i1.astype(int)-1] + B.flatten('F')[i2.astype(int)-1])
+    M = np.reshape(M, np.shape(A))
+    
+    return M

@@ -2,7 +2,7 @@
 prelim_whitenoise.py
 """
 from glob import glob
-import os
+import os, cv2
 from multiprocessing import freeze_support
 import matplotlib.pyplot as plt
 import numpy as np
@@ -150,7 +150,11 @@ def main(whitenoise_directory, probe):
         contrast_interp = newc(t[0:-1])
         # worldcam interp and set floor to values
         img_norm[img_norm<-2] = -2
-        movInterp = interp1d(worldT,img_norm,axis=0, bounds_error=False) # added extrapolate for cases where x_new is below interpolation range
+        sz = np.shape(img_norm); downsamp = 0.5
+        img_norm_sm = np.zeros((sz[0],np.int(sz[1]*downsamp),np.int(sz[2]*downsamp)))
+        for f in range(sz[0]):
+            img_norm_sm[f,:,:] = cv2.resize(img_norm[f,:,:],(np.int(sz[2]*downsamp),np.int(sz[1]*downsamp)))
+        movInterp = interp1d(worldT, img_norm_sm, axis=0, bounds_error=False)
         # raster
         raster_fig = plot_spike_raster(goodcells)
         pdf.savefig()
@@ -180,15 +184,15 @@ def main(whitenoise_directory, probe):
         pdf.savefig()
         plt.close()
         print('getting spike-triggered average')
-        _, STA_singlelag_fig = plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=2, show_title=True)
+        _, STA_singlelag_fig = plot_STA(goodcells, img_norm_sm, worldT, movInterp, ch_count, lag=2, show_title=True)
         pdf.savefig()
         plt.close()
         print('getting spike-triggered average with range in lags')
-        _, STA_multilag_fig = plot_STA(goodcells, img_norm, worldT, movInterp, ch_count, lag=np.arange(-2,8,2), show_title=False)
+        _, STA_multilag_fig = plot_STA(goodcells, img_norm_sm, worldT, movInterp, ch_count, lag=np.arange(-2,8,2), show_title=False)
         pdf.savefig()
         plt.close()
         print('getting spike-triggered variance')
-        _, STV_fig = plot_STV(goodcells, movInterp, img_norm, worldT)
+        _, STV_fig = plot_STV(goodcells, movInterp, img_norm_sm, worldT)
         pdf.savefig()
         plt.close()
         print('closing pdf')
