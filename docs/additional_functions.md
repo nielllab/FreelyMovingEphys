@@ -1,2 +1,0 @@
-# FreelyMovingEphys Additional Function Details
-
