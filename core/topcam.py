@@ -91,13 +91,13 @@ class Topcam(Camera):
         topT = topT - topT[0]
 
         # plot traces of each labeled point and show frequency of good tracking
-        pt_names = list(self.xrpts.TOP1_pts['point_loc'].values)
+        pt_names = list(self.xrpts['point_loc'].values)
         x_cols = [i for i in pt_names if '_x' in i]
         y_cols = [i for i in pt_names if '_y' in i]
         plt.subplots(int(np.ceil(len(pt_names)/9)),3,figsize=(20,15))
         for i in range(len(x_cols)):
-            x = self.xrpts.TOP1_pts.sel(point_loc=x_cols[i])
-            y = self.xrpts.TOP1_pts.sel(point_loc=y_cols[i])
+            x = self.xrpts.sel(point_loc=x_cols[i])
+            y = self.xrpts.sel(point_loc=y_cols[i])
             plt.subplot(int(np.ceil(len(pt_names)/9)),3,i+1)
             plt.plot(x); plt.plot(y)
             frac_good = np.sum(~np.isnan(x) * ~np.isnan(y)) / len(x)
@@ -326,7 +326,7 @@ class Topcam(Camera):
         for count, val in enumerate(prop_dict.values()):
             prop_arr[count,:] = val
 
-        self.xrprops = xr.DataArray(prop_arr,
+        self.xrprops = xr.DataArray(prop_arr.T,
                        coords=[('frame', range(len(lear_x))), ('prop', list(prop_dict.keys()))],
                        dims=['frame', 'prop'])
 
@@ -334,7 +334,8 @@ class Topcam(Camera):
         self.xrpts.name = self.camname+'_pts'
         self.xrframes.name = self.camname+'_video'
         self.xrprops.name = self.camname+'_props'
-        self.data = self.safe_merge([self.xrpts, self.xrframes, self.xrprops])
+        self.safe_merge([self.xrpts, self.xrframes, self.xrprops])
+        
         self.data.to_netcdf(os.path.join(self.recording_path,str(self.recording_name+'_'+self.camname+'.nc')),
                 engine='netcdf4', encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
 
@@ -344,10 +345,10 @@ class Topcam(Camera):
         if self.config['main']['parameters']:
             self.gather_files()
             self.pack_position_data()
+            self.pack_video_frames()
             self.pt_names = list(self.xrpts['point_loc'].values)
             self.filter_likelihood()
             self.get_head_body_yaw()
             if self.config['internals']['diagnostic_preprocessing_videos']:
                 self.diagnostic_video()
-            self.pack_video_frames()
             self.save_params()

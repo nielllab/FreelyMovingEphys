@@ -440,7 +440,7 @@ class Camera(BaseInput):
         # all other cameras (i.e. topcam and sidecam)
         else:
             avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
-            self.video_path = next(path for path in avi_paths if self.camname in path and 'plot' not in path)
+            self.video_path = next(path for path in avi_paths if self.camname in path and 'plot' not in path and 'speed_yaw' not in path)
             csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
             self.timestamp_path = next(i for i in csv_paths if self.camname in i)
 
