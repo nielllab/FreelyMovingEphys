@@ -1,8 +1,7 @@
 """
 FreelyMovingEphys/core/base.py
 """
-import os, subprocess, math
-import cv2
+import os, subprocess, math, cv2
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -106,31 +105,15 @@ class BaseInput:
         s = pd.read_csv(self.timestamp_path, encoding='utf-8', engine='c', header=None).squeeze()
         if s[0] == 0:
             s = s[1:]
-        read_time = self.read_timestamp_series(s)
+        camT = self.read_timestamp_series(s)
         # auto check if vids were deinterlaced
         if position_data_length is not None:
-            # test length of the time just read in as it compares to the length of the data, correct for deinterlacing if needed
-            timestep = np.nanmedian(np.diff(read_time, axis=0))
-            if position_data_length > len(read_time):
-                output_time = np.zeros(np.size(read_time, 0)*2)
-                # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
-                output_time[::2] = read_time - 0.25 * timestep
-                output_time[1::2] = read_time + 0.25 * timestep
-            elif position_data_length == len(read_time):
-                output_time = read_time
-            elif position_data_length < len(read_time):
-                output_time = read_time
-        elif position_data_length is None:
-            output_time = read_time
+            if position_data_length > len(camT):
+                camT = self.interp_timestamps(camT, use_medstep=False)
         # force the times to be shifted if the user is sure it should be done
         if force_timestamp_shift is True:
-            # test length of the time just read in as it compares to the length of the data, correct for deinterlacing
-            timestep = np.nanmedian(np.diff(read_time, axis=0))
-            output_time = np.zeros(np.size(read_time, 0)*2)
-            # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
-            output_time[::2] = read_time - 0.25 * timestep
-            output_time[1::2] = read_time + 0.25 * timestep
-        return output_time
+            camT = self.interp_timestamps(camT, use_medstep=False)
+        return camT
 
 class Camera(BaseInput):
     def __init__(self, config, recording_name, recording_path, camname):
