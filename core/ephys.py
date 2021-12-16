@@ -831,6 +831,16 @@ class Ephys(BaseInput):
         for i in range(len(self.model_t)):
             self.model_vid[i,:] = np.reshape(mov_interp(self.model_t[i]+self.model_dt/2), nk)
         self.model_vid[np.isnan(self.model_vid)] = 0
+    
+    def topcam_props_at_new_timebase(self):
+        self.top_speed_interp = interp1d(self.topT, self.top_speed, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.top_forward_run_interp = interp1d(self.topT, self.top_forward_run, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.top_fine_motion_interp = interp1d(self.topT, self.top_fine_motion, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.top_backward_run_interp = interp1d(self.topT, self.top_backward_run, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.top_immobility_interp = interp1d(self.topT, self.top_immobility, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.top_head_yaw_interp = interp1d(self.topT, self.top_head_yaw, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.top_body_yaw_interp = interp1d(self.topT, self.top_body_yaw, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.top_movement_yaw_interp = interp1d(self.topT, self.top_movement_yaw, bounds_error=False)(self.model_t+self.model_dt/2)
 
     def setup_model_spikes(self):
         # sta/stv setup
@@ -910,34 +920,34 @@ class Ephys(BaseInput):
 
         # all eye movements
         sthresh = next(5 if self.fm else 3)
-        right = self.eyeT[(np.append(self.dEye, 0) > sthresh)]
-        left = self.eyeT[(np.append(self.dEye, 0) < -sthresh)]
-        self.upsacc_avg, self.downsacc_avg = self.saccade_psth(right, left, 'all dEye')
+        left = self.eyeT[(np.append(self.dEye, 0) > sthresh)]
+        right = self.eyeT[(np.append(self.dEye, 0) < -sthresh)]
+        self.rightsacc_avg, self.leftsacc_avg = self.saccade_psth(right, left, 'all dEye')
 
         if self.fm:
             # plot gaze shifting eye movements
             sthresh = 5
-            right = self.eyeT[(np.append(self.dEye, 0) > sthresh) & (np.append(self.dGaze,0) > sthresh)]
-            left = self.eyeT[(np.append(self.dEye, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
-            self.upsacc_avg_gaze_shift_dEye, self.downsacc_avg_gaze_shift_dEye = self.saccade_psth(right, left, 'gaze-shifting dEye')
+            left = self.eyeT[(np.append(self.dEye, 0) > sthresh) & (np.append(self.dGaze,0) > sthresh)]
+            right = self.eyeT[(np.append(self.dEye, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
+            self.rightsacc_avg_gaze_shift_dEye, self.leftsacc_avg_gaze_shift_dEye = self.saccade_psth(right, left, 'gaze-shifting dEye')
             
             # plot compensatory eye movements    
             sthresh = 3
-            right = self.eyeT[(np.append(self.dEye, 0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
-            left = self.eyeT[(np.append(self.dEye, 0) < -sthresh) & (np.append(self.dGaze, 0) > -1)]
-            self.upsacc_avg_comp_dEye, self.downsacc_avg_comp_dEye = self.saccade_psth(right, left, 'comp dEye')
+            left = self.eyeT[(np.append(self.dEye, 0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
+            right = self.eyeT[(np.append(self.dEye, 0) < -sthresh) & (np.append(self.dGaze, 0) > -1)]
+            self.rightsacc_avg_comp_dEye, self.leftsacc_avg_comp_dEye = self.saccade_psth(right, left, 'comp dEye')
             
             # plot gaze shifting head movements
             sthresh = 3
-            right = self.eyeT[(np.append(self.dHead, 0) > sthresh) & (np.append(self.dGaze, 0) > sthresh)]
-            left = self.eyeT[(np.append(self.dHead, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
-            self.upsacc_avg_gaze_shift_dHead, self.downsacc_avg_gaze_shift_dHead = self.saccade_psth(right, left, 'gaze-shifting dHead')
+            left = self.eyeT[(np.append(self.dHead, 0) > sthresh) & (np.append(self.dGaze, 0) > sthresh)]
+            right = self.eyeT[(np.append(self.dHead, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
+            self.rightsacc_avg_gaze_shift_dHead, self.leftsacc_avg_gaze_shift_dHead = self.saccade_psth(right, left, 'gaze-shifting dHead')
             
             # plot compensatory head movements
             sthresh = 3
-            right = self.eyeT[(np.append(self.dHead,0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
-            left = self.eyeT[(np.append(self.dHead,0) < -sthresh) & (np.append(self.dGaze,0) > -1)]
-            self.upsacc_avg_comp_dHead, self.downsacc_avg_comp_dHead = self.saccade_psth(right, left, 'comp dHead')
+            left = self.eyeT[(np.append(self.dHead,0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
+            right = self.eyeT[(np.append(self.dHead,0) < -sthresh) & (np.append(self.dGaze,0) > -1)]
+            self.rightsacc_avg_comp_dHead, self.leftsacc_avg_comp_dHead = self.saccade_psth(right, left, 'comp dHead')
 
     def movement_tuning(self):
         if self.fm:
@@ -1186,8 +1196,11 @@ class Ephys(BaseInput):
         print('mua power profile laminar depth')
         if not self.fm:
             self.mua_power_laminar_depth()
-        print('interpolating worldcam')
+        print('interpolating worldcam data to match model timebase')
         self.worldcam_at_new_timebase()
+        if self.fm:
+            print('interpolating topcam data to match model timebase')
+            self.topcam_props_at_new_timebase()
         self.setup_model_spikes()
         print('calculating stas')
         self.sta()
