@@ -181,6 +181,7 @@ class FreelyMovingLight(Ephys):
             'model_active_thresh': self.model_active_thresh,
             'model_theta': self.model_theta,
             'model_phi': self.model_phi,
+            'model_speed': self.top_speed_interp,
             'model_raw_gyro_z': self.model_raw_gyro_z,
             'model_use': self.model_use,
             'model_roll': self.model_roll,

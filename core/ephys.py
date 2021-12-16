@@ -639,11 +639,18 @@ class Ephys(BaseInput):
 
     def open_topcam(self):
         top_data = xr.open_dataset(self.topcam_path)
-        topx = top_data.TOP1_pts.sel(point_loc='tailbase_x').values; topy = top_data.TOP1_pts.sel(point_loc='tailbase_y').values
-        topdX = np.diff(topx); topdY = np.diff(topy)
-        top_speed = np.sqrt(topdX**2, topdY**2) # speed of tailbase in topdown camera
-        topT = top_data.timestamps.copy() # read in time timestamps
-        top_vid = np.uint8(top_data['TOP1_video']) # read in top video
+        # top_vid = top_data.TOP1_video.astype(np.uint8).values.copy()
+        self.topT = top_data.timestamps.values.copy()
+        self.top_speed = top_data.TOP1_props.sel(prop='speed').values.copy()
+        self.top_head_yaw = top_data.TOP1_props.sel(prop='head_yaw').values.copy()
+        self.top_body_yaw = top_data.TOP1_props.sel(prop='body_yaw').values.copy()
+        self.top_body_head_diff = top_data.TOP1_props.sel(prop='body_head_diff').values.copy()
+        self.top_movement_yaw = top_data.TOP1_props.sel(prop='movement_yaw').values.copy()
+        self.top_movement_minus_body = top_data.TOP1_props.sel(prop='movement_minus_body').values.copy()
+        self.top_forward_run = top_data.TOP1_props.sel(prop='forward_run').values.copy()
+        self.top_backward_run = top_data.TOP1_props.sel(prop='backward_run').values.copy()
+        self.top_fine_motion = top_data.TOP1_props.sel(prop='fine_motion').values.copy()
+        self.top_immobility = top_data.TOP1_props.sel(prop='immobility').values.copy()
 
     def open_imu(self):
         imu_data = xr.open_dataset(self.imu_path)
