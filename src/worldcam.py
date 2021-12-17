@@ -1,7 +1,10 @@
+"""
+FreelyMovingEphys/src/worldcam.py
+"""
 import os, sys
 import xarray as xr
 
-from core.base import Camera
+from src.base import Camera
 
 class Worldcam(Camera):
     def __init__(self, config, recording_name, recording_path, camname):

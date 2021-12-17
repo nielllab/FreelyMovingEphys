@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/core/eye.py
+FreelyMovingEphys/src/eye.py
 """
 import numpy as np
 import json, os, cv2, sys
@@ -18,10 +18,10 @@ from tqdm import tqdm
 from astropy.convolution import convolve
 import matplotlib.patches as mpatches
 
-from core.utils.path import find, list_subdirs
-from core.utils.correlation import nanxcorr
-from core.utils.filter import nanmedfilt
-from core.base import Camera
+from src.utils.path import find, list_subdirs
+from src.utils.correlation import nanxcorr
+from src.utils.filter import nanmedfilt
+from src.base import Camera
 
 class Eyecam(Camera):
     """ Processing for head-mounted eye-facing camera.

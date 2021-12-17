@@ -1,3 +1,6 @@
+"""
+FreelyMovingEphys/src/ephys.py
+"""
 import os, json, cv2, platform, subprocess
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -19,9 +22,9 @@ if platform.system() == 'Linux':
 else:
     mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
 
-from core.base import BaseInput
-from core.utils.correlation import nanxcorr
-from core.utils.path import find, list_subdirs
+from src.base import BaseInput
+from src.utils.correlation import nanxcorr
+from src.utils.path import find, list_subdirs
 
 class Ephys(BaseInput):
     def __init__(self, config, recording_name, recording_path):

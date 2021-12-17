@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/core/top.py
+FreelyMovingEphys/src/top.py
 """
 import numpy as np
 import xarray as xr
@@ -16,8 +16,8 @@ else:
     mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
 from matplotlib.animation import FFMpegWriter
 
-from core.base import Camera
-from core.utils.filter import nanmedfilt, convfilt
+from src.base import Camera
+from src.utils.filter import nanmedfilt, convfilt
 
 class Topcam(Camera):
     def __init__(self, config, recording_name, recording_path, camname):

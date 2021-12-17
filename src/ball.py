@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/core/ball.py
+FreelyMovingEphys/src/ball.py
 """
 import os
 import pandas as pd
@@ -7,8 +7,8 @@ import numpy as np
 import xarray as xr
 from scipy.interpolate import interp1d
 
-from core.utils.filter import convfilt
-from core.base import BaseInput
+from src.utils.filter import convfilt
+from src.base import BaseInput
 
 class RunningBall(BaseInput):
     """ Preprocess data from spherical treadmill, with movement recorded by optical mouse.

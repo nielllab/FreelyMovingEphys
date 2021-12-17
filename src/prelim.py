@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from core.ephys import Ephys
+from src.ephys import Ephys
 
 class PrelimRF(Ephys):
     def __init__(self, binary_path, probe):

@@ -1,19 +1,19 @@
 """
-FreelyMovingEphys/core/run.py
+FreelyMovingEphys/src/run.py
 """
 
 import yaml, os
 import pandas as pd
 
-from core.utils.path import find, list_subdirs, auto_recording_name
-from core.ball import RunningBall
-# from core.imu import Imu
-from core.eyecam import Eyecam
-from core.topcam import Topcam
-from core.worldcam import Worldcam
-# from core.sidecam import Sidecam
-# from core.freelymoving import FreelyMovingLight, FreelyMovingDark
-# from core.headfixed import HeadFixedGratings, HeadFixedWhiteNoise, HeadFixedReversingCheckboard, HeadFixedSparseNoise
+from src.utils.path import find, list_subdirs, auto_recording_name
+from src.ball import RunningBall
+from src.imu import Imu
+from src.eyecam import Eyecam
+from src.topcam import Topcam
+from src.worldcam import Worldcam
+# from src.sidecam import Sidecam
+from src.freelymoving import FreelyMovingLight, FreelyMovingDark
+from src.headfixed import HeadFixedGratings, HeadFixedWhiteNoise, HeadFixedReversingCheckboard, HeadFixedSparseNoise
 
 class Session:
     """ Preprocessing and analysis of an individual session.
@@ -121,9 +121,9 @@ class Session:
                 elif camname.lower() in ['top1','top2','top3']:
                     tc = Topcam(self.config, recording_name, recording_path, camname)
                     tc.process().save()
-                elif camname.lower() in ['side']:
-                    sc = Sidecam(self.config, recording_name, recording_path, camname)
-                    sc.process().save()
+                # elif camname.lower() in ['side']:
+                #     sc = Sidecam(self.config, recording_name, recording_path, camname)
+                #     sc.process().save()
             if find(recording_name+'_IMU.bin', recording_path) != []:
                 imu = Imu(self.config, recording_name, recording_path)
                 imu.process().save()

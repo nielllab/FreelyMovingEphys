@@ -1,12 +1,13 @@
+"""
+FreelyMovingEphys/src/freelymoving.py
+"""
 import os
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import io_dict_to_hdf5 as ioh5
 from matplotlib.backends.backend_pdf import PdfPages
 
-from utils.ephys import Ephys
+from src.ephys import Ephys
 
 class FreelyMovingLight(Ephys):
     def __init__(self, config, recording_name, recording_path):
@@ -169,7 +170,7 @@ class FreelyMovingLight(Ephys):
         data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
     def glm_save(self):
-        """ Save a different h5 file out that has inputs needed for post-processing glm.
+        """ Save an npz file out that has inputs needed for post-processing glm.
         Just do this to avoid duplicating videos, etc. for all units, when the stim is shared.
         """
         np.savez(file=os.path.join(self.recording_path, 'glm_data.h5'),

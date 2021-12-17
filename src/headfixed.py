@@ -1,9 +1,8 @@
 """
-FreelyMovingEphys/core/headfixed.py
+FreelyMovingEphys/src/headfixed.py
 """
 import os, cv2
 from tqdm import tqdm
-import io_dict_to_hdf5 as ioh5
 from scipy.signal import medfilt
 from sklearn.cluster import KMeans
 import numpy as np
@@ -11,7 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from core.ephys import Ephys
+from src.ephys import Ephys
 
 class HeadFixedWhiteNoise(Ephys):
     def __init__(self, config, recording_name, recording_path):
@@ -123,17 +122,18 @@ class HeadFixedWhiteNoise(Ephys):
         data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
     def glm_save(self):
-        """ Save a different h5 file out that has inputs needed for post-processing glm.
+        """ Save an npz file out that has inputs needed for post-processing glm.
         Just do this to avoid duplicating videos, etc. for all units, when the stim is shared.
         """
-        glm_data = {
-            'model_t': self.model_t,
-            'model_glm_vid': self.glm_model_vid,
-            'model_nsp': self.model_nsp,
-            'model_theta': self.model_theta,
-            'model_phi': self.model_phi
-        }
-        ioh5.save(os.path.join(self.recording_path, 'glm_data.h5', glm_data))
+        np.savez(file=os.path.join(self.recording_path, 'glm_data.h5'),
+                 model_t=self.model_t,
+                 model_video=self.model_vid,
+                 model_rough_correction_video=self.glm_model_vid,
+                 model_nsp=self.model_nsp,
+                 model_theta=self.model_theta,
+                 model_phi=self.model_phi,
+                 model_use=self.model_use,
+        )
 
     def process(self):
         # delete the existing h5 file, so that a new one can be written

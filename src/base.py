@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/core/base.py
+FreelyMovingEphys/src/base.py
 """
 import os, subprocess, math, cv2
 import numpy as np
@@ -11,7 +11,7 @@ os.environ["DLClight"] = "True"
 import deeplabcut
 from scipy.io import loadmat
 
-from core.utils.path import find, list_subdirs
+from src.utils.path import find, list_subdirs
 
 class BaseInput:
     """ Base preprocessing input data.
@@ -412,7 +412,7 @@ class Camera(BaseInput):
                 self.video_path = next(path for path in avi_paths if self.camname in path and 'deinter' in path and 'plot' not in path)
                 # timestamps
                 csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
-                self.timestamp_path = next(i for i in csv_paths if self.camname in i and 'formatted' in i)
+                self.timestamp_path = next(i for i in csv_paths if self.camname in i and 'formatted' not in i)
             elif not self.config['internals']['follow_strict_naming']:
                 # video
                 avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
