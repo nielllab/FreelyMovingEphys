@@ -172,33 +172,32 @@ class FreelyMovingLight(Ephys):
         """ Save a different h5 file out that has inputs needed for post-processing glm.
         Just do this to avoid duplicating videos, etc. for all units, when the stim is shared.
         """
-        glm_data = {
-            'model_active': self.model_active,
-            'model_t': self.model_t,
-            'model_video': self.model_vid,
-            'model_rough_correction_video': self.glm_model_vid,
-            'model_nsp': self.model_nsp,
-            'model_eye_use_thresh': self.model_eye_use_thresh,
-            'model_active_thresh': self.model_active_thresh,
-            'model_theta': self.model_theta,
-            'model_phi': self.model_phi,
-            'model_speed': self.top_speed_interp,
-            'model_forward_run': self.top_forward_run_interp,
-            'model_fine_motion': self.top_fine_motion_interp,
-            'model_backward_run': self.top_backward_run_interp,
-            'model_immobility': self.top_immobility_interp,
-            'model_head_yaw': self.top_head_yaw_interp,
-            'model_body_yaw': self.top_body_yaw_interp,
-            'model_movement_yaw': self.top_movement_yaw_interp,
-            'model_raw_gyro_z': self.model_raw_gyro_z,
-            'model_use': self.model_use,
-            'model_roll': self.model_roll,
-            'model_pitch': self.model_pitch,
-            'model_gyro_z': self.model_gyro_z
-        }
-        ioh5.save(os.path.join(self.recording_path, 'glm_data.h5', glm_data))
+        np.savez(file=os.path.join(self.recording_path, 'glm_data.h5'),
+                 model_active=self.model_active,
+                 model_t=self.model_t,
+                 model_video=self.model_vid,
+                 model_rough_correction_video=self.glm_model_vid,
+                 model_nsp=self.model_nsp,
+                 model_eye_use_thresh=self.model_eye_use_thresh,
+                 model_active_thresh=self.model_active_thresh,
+                 model_theta=self.model_theta,
+                 model_phi=self.model_phi,
+                 model_speed=self.top_speed_interp,
+                 model_forward_run=self.top_forward_run_interp,
+                 model_fine_motion=self.top_fine_motion_interp,
+                 model_backward_run=self.top_backward_run_interp,
+                 model_immobility=self.top_immobility_interp,
+                 model_head_yaw=self.top_head_yaw_interp,
+                 model_body_yaw=self.top_body_yaw_interp,
+                 model_movement_yaw=self.top_movement_yaw_interp,
+                 model_raw_gyro_z=self.model_raw_gyro_z,
+                 model_use=self.model_use,
+                 model_roll=self.model_roll,
+                 model_pitch=self.model_pitch,
+                 model_gyro_z=self.model_gyro_z
+        )
 
-    def process(self):
+    def analyze(self):
         # delete the existing h5 file, so that a new one can be written
         if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
             os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
@@ -213,6 +212,10 @@ class FreelyMovingLight(Ephys):
         print('making summary and overview figures')
         self.overview_fig()
         self.summary_fig()
+
+        print('saving files')
+        self.save()
+        self.glm_save()
 
         print('closing pdfs')
         self.overview_pdf.close(); self.detail_pdf.close(); self.diagnostic_pdf.close()
@@ -338,7 +341,7 @@ class FreelyMovingDark(Ephys):
         data_out = pd.concat([self.cells, unit_data], axis=1)
         data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
-    def process(self):
+    def analyze(self):
         # delete the existing h5 file, so that a new one can be written
         if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
             os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
@@ -353,6 +356,9 @@ class FreelyMovingDark(Ephys):
         print('making summary and overview figures')
         self.overview_fig()
         self.summary_fig()
+
+        print('saving files')
+        self.save()
 
         print('closing pdfs')
         self.overview_pdf.close(); self.detail_pdf.close(); self.diagnostic_pdf.close()
