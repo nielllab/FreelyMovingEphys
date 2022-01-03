@@ -21,7 +21,8 @@ from scipy import stats
 import warnings
 warnings.filterwarnings('ignore')
 
-from core.utils.path import find, flatten_series
+from src.utils.path import find
+from src.utils.aux import flatten_series
 
 class Population:
     def __init__(self, savepath, metadata_path=None):

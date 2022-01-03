@@ -1,9 +1,10 @@
 """
 FreelyMovingEphys/src/freelymoving.py
 """
-import os
+import os, cv2
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 

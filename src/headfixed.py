@@ -78,6 +78,7 @@ class HeadFixedWhiteNoise(Ephys):
                                         'phi',
                                         'glm_receptive_field',
                                         'glm_cc',
+                                        'speed',
                                         'spike_rate_vs_spd_cent',
                                         'spike_rate_vs_spd_tuning',
                                         'spike_rate_vs_spd_err',
@@ -106,6 +107,7 @@ class HeadFixedWhiteNoise(Ephys):
                                     self.phi,
                                     self.glm_rf[unit_num],
                                     self.glm_cc[unit_num],
+                                    self.ball_speed,
                                     self.spike_rate_vs_spd_cent,
                                     self.spike_rate_vs_spd_tuning[unit_num],
                                     self.spike_rate_vs_spd_err[unit_num],
@@ -342,6 +344,7 @@ class HeadFixedReversingCheckboard(Ephys):
                                         'lfp_rel_depth',
                                         'theta',
                                         'phi',
+                                        'speed',
                                         'spike_rate_vs_spd_cent',
                                         'spike_rate_vs_spd_tuning',
                                         'spike_rate_vs_spd_err',
@@ -372,6 +375,7 @@ class HeadFixedReversingCheckboard(Ephys):
                                     self.lfp_depth,
                                     self.theta,
                                     self.phi,
+                                    self.ball_speed,
                                     self.spike_rate_vs_spd_cent,
                                     self.spike_rate_vs_spd_tuning[unit_num],
                                     self.spike_rate_vs_spd_err[unit_num],
@@ -431,6 +435,7 @@ class HeadFixedSparseNoise(Ephys):
                                         'trange',
                                         'theta',
                                         'phi',
+                                        'speed',
                                         'spike_rate_vs_spd_cent',
                                         'spike_rate_vs_spd_tuning',
                                         'spike_rate_vs_spd_err',
@@ -457,6 +462,7 @@ class HeadFixedSparseNoise(Ephys):
                                     self.trange,
                                     self.theta,
                                     self.phi,
+                                    self.ball_speed,
                                     self.spike_rate_vs_spd_cent,
                                     self.spike_rate_vs_spd_tuning[unit_num],
                                     self.spike_rate_vs_spd_err[unit_num],
@@ -488,7 +494,6 @@ class HeadFixedSparseNoise(Ephys):
 
         print('closing pdfs')
         self.detail_pdf.close(); self.diagnostic_pdf.close()
-        
         
 class HeadFixedGratings(Ephys):
     def __init__(self, config, recording_name, recording_path):
@@ -765,6 +770,7 @@ class HeadFixedGratings(Ephys):
                                         'trange',
                                         'theta',
                                         'phi',
+                                        'speed',
                                         'spike_rate_vs_spd_cent',
                                         'spike_rate_vs_spd_tuning',
                                         'spike_rate_vs_spd_err',
@@ -799,6 +805,7 @@ class HeadFixedGratings(Ephys):
                                     self.trange,
                                     self.theta,
                                     self.phi,
+                                    self.ball_speed,
                                     self.spike_rate_vs_spd_cent,
                                     self.spike_rate_vs_spd_tuning[unit_num],
                                     self.spike_rate_vs_spd_err[unit_num],
