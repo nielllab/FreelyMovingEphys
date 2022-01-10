@@ -28,7 +28,7 @@ class Worldcam(Camera):
             sys.exit()
 
         if self.config['main']['parameters']:
-            self.gather_files()
+            self.gather_camera_files()
             self.pack_position_data()
             self.pack_video_frames()
             self.save_params()

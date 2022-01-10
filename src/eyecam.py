@@ -192,9 +192,9 @@ class Eyecam(Camera):
         # get bools of when a frame is usable with the right number of points above threshold
         if self.config['internals']['subtract_reflection_position']:
             # if spot subtraction is being done, we should only include frames where all five pts marked around the ir spot are good (centroid would be off otherwise)
-            usegood_eye = (np.sum(likelihood >= self.config['internals']['likelihood_thresh'], 1) >= self.config['internals']['ellipse_pts_needed_for_eye']) & (np.sum(spot_likelihood >= self.config['internals']['lik_thresh'], 1) >= self.config['internals']['pts_needed_for_reflection'])
-            usegood_eyecalib = (np.sum(likelihood >= self.config['internals']['likelihood_thresh'], 1) >= self.config['internals']['ellipse_pts_needed_for_calibration']) & (np.sum(spot_likelihood >= self.config['internals']['lik_thresh'], 1) >= self.config['internals']['pts_needed_for_reflection'])
-            usegood_reflec = (np.sum(spot_likelihood >= self.config['internals']['likelihood_thresh'], 1) >= self.config['internals']['pts_needed_for_reflection'])
+            usegood_eye = (np.sum(likelihood >= self.config['internals']['likelihood_threshold'], 1) >= self.config['internals']['ellipse_pts_needed_for_eye']) & (np.sum(spot_likelihood >= self.config['internals']['likelihood_threshold'], 1) >= self.config['internals']['pts_needed_for_reflection'])
+            usegood_eyecalib = (np.sum(likelihood >= self.config['internals']['likelihood_threshold'], 1) >= self.config['internals']['ellipse_pts_needed_for_calibration']) & (np.sum(spot_likelihood >= self.config['internals']['likelihood_threshold'], 1) >= self.config['internals']['pts_needed_for_reflection'])
+            usegood_reflec = (np.sum(spot_likelihood >= self.config['internals']['likelihood_threshold'], 1) >= self.config['internals']['pts_needed_for_reflection'])
         else:
             usegood_eye = np.sum(likelihood >= self.config['internals']['likelihood_threshold'], 1) >= self.config['internals']['ellipse_pts_needed_for_eye']
             usegood_eyecalib = np.sum(likelihood >= self.config['internals']['likelihood_threshold'], 1) >= self.config['internals']['ellipse_pts_needed_for_calibration']
@@ -898,7 +898,7 @@ class Eyecam(Camera):
             self.pose_estimation()
 
         if self.config['main']['parameters']:
-            self.gather_files()
+            self.gather_camera_files()
             self.pack_position_data()
             self.pack_video_frames()
             self.get_horizontal_vertical_rotation()

@@ -12,6 +12,7 @@ from src.eyecam import Eyecam
 from src.topcam import Topcam
 from src.worldcam import Worldcam
 # from src.sidecam import Sidecam
+# from src.glm_rf import FitGLM
 from src.freelymoving import FreelyMovingLight, FreelyMovingDark
 from src.headfixed import HeadFixedGratings, HeadFixedWhiteNoise, HeadFixedReversingCheckboard, HeadFixedSparseNoise
 
@@ -22,7 +23,7 @@ class Session:
                 ephys_samprate=30000, eye_ellipticity_thresh=0.85, eye_dist_thresh_cm=4.1, eye_pxl_per_cm=24, ellipse_pts_needed_for_calibration=8,
                 ellipse_pts_needed_for_eye=7, pts_needed_for_reflection=5, max_pupil_radius_pxls=50, imu_dwnsmpl=100, imu_samprate=30000, video_dwnsmpl=0.25,
                 video_frames_to_save=3600, optical_mouse_pxls_to_cm=2840, optical_mouse_samprate_ms=200, optical_mouse_screen_center={'x': 960, 'y': 540},
-                strict_likelihood_threshold=0.9999, rotate_eyecam=True, rotate_worldcam=True):
+                strict_likelihood_threshold=0.9999, rotate_eyecam=True, rotate_worldcam=True, flip_gyro_xy=False):
         """
         Parameters:
         config_path (str): path to config.yaml
@@ -75,7 +76,8 @@ class Session:
             'optical_mouse_screen_center': optical_mouse_screen_center,
             'strict_likelihood_threshold': strict_likelihood_threshold,
             'rotate_eyecam': rotate_eyecam,
-            'rotate_worldcam': rotate_worldcam
+            'rotate_worldcam': rotate_worldcam,
+            'flip_gyro_xy': flip_gyro_xy
         })
 
     def get_session_recordings(self):
@@ -114,26 +116,24 @@ class Session:
             for camname in recording_cams:
                 if camname.lower() in ['reye','leye']:
                     ec = Eyecam(self.config, recording_name, recording_path, camname)
-                    ec.process().save()
+                    ec.process()
                 elif camname.lower() in ['world']:
                     wc = Worldcam(self.config, recording_name, recording_path, camname)
-                    wc.process().save()
+                    wc.process()
                 elif camname.lower() in ['top1','top2','top3']:
                     tc = Topcam(self.config, recording_name, recording_path, camname)
-                    tc.process().save()
+                    tc.process()
                 # elif camname.lower() in ['side']:
                 #     sc = Sidecam(self.config, recording_name, recording_path, camname)
-                #     sc.process().save()
+                #     sc.process()
             if find(recording_name+'_IMU.bin', recording_path) != []:
                 imu = Imu(self.config, recording_name, recording_path)
-                imu.process().save()
+                imu.process()
             if find(recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', recording_path) != []:
                 rb = RunningBall(self.config, recording_name, recording_path)
-                rb.process().save()
+                rb.process()
 
-    # def shift_eyecam(self):
-    
-    # def receptive_fields(self):
+    # def glm_rf(self):
 
     def ephys_analysis(self):
         self.get_session_recordings()
@@ -161,10 +161,8 @@ class Session:
     def run_main(self):
         if self.config['main']['deinterlace'] or self.config['main']['undistort'] or self.config['main']['pose_estimation'] or self.config['main']['parameters']:
             self.preprocessing()
-        if self.config['main']['eye_shift']:
-            self.shift_eyecam()
-        if self.config['main']['glm_rf']:
-            self.receptive_fields()
+        # if self.config['main']['glm_rf']:
+        #     self.glm_rf()
         if self.config['main']['ephys']:
             self.ephys_analysis()
 

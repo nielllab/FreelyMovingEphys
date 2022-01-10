@@ -343,7 +343,7 @@ class Topcam(Camera):
         if self.config['main']['pose_estimation']:
             self.pose_estimation()
         if self.config['main']['parameters']:
-            self.gather_files()
+            self.gather_camera_files()
             self.pack_position_data()
             self.pack_video_frames()
             self.pt_names = list(self.xrpts['point_loc'].values)

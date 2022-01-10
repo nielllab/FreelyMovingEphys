@@ -4,8 +4,7 @@ FreelyMovingEphys/modules/session_analysis/__main__.py
 import argparse
 import PySimpleGUI as sg
 
-from core.utils.aux import str_to_bool
-from core.run import Session
+from src.run import Session
 
 def get_args():
     parser = argparse.ArgumentParser()

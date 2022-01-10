@@ -30,6 +30,9 @@ class Population:
         self.savepath = savepath
         self.samprate = 30000
         self.model_dt = 0.025
+        lower = -0.5; upper = 1.5; grat_dt = 0.1
+        gratbins = np.arange(lower,upper+grat_dt,grat_dt)
+        self.grat_psth_x = gratbins[0:-1]+ grat_dt/2
         self.trange = np.arange(-1, 1.1, self.model_dt)
         self.trange_x = 0.5*(self.trange[0:-1]+ self.trange[1:])
         self.deye_psth_cmap = ['orange','magenta','cadetblue','darkolivegreen','red']
@@ -679,7 +682,6 @@ class Population:
 
             elif self.current_row['has_dark']:
                 # fm1 gyro z tuning curve
-                fig_fmdark_gyro_z_tuning = self.figure.add_subplot(self.spec[2,2])
                 fmdark_gyro_z_tuning_modind = self.tuning_curve(panel=fig_fmdark_gyro_z_tuning,
                                         varcent_name=darkfm+'_spike_rate_vs_gz_cent',
                                         tuning_name=darkfm+'_spike_rate_vs_gz_tuning',
@@ -689,7 +691,6 @@ class Population:
                 self.data.at[self.current_index, 'fm_dark_spike_rate_vs_gz_modind'] = fmdark_gyro_z_tuning_modind
 
                 # fm1 gyro x tuning curve
-                fig_fmdark_gyro_x_tuning = self.figure.add_subplot(self.spec[2,3])
                 fmdark_gyro_x_tuning_modind = self.tuning_curve(panel=fig_fmdark_gyro_x_tuning,
                                         varcent_name=darkfm+'_spike_rate_vs_gx_cent',
                                         tuning_name=darkfm+'_spike_rate_vs_gx_tuning',
@@ -699,7 +700,6 @@ class Population:
                 self.data.at[self.current_index, 'fm_dark_spike_rate_vs_gx_modind'] = fmdark_gyro_x_tuning_modind
 
                 # fm1 gyro y tuning curve
-                fig_fmdark_gyro_y_tuning = self.figure.add_subplot(self.spec[2,4])
                 fmdark_gyro_y_tuning_modind = self.tuning_curve(panel=fig_fmdark_gyro_y_tuning,
                                         varcent_name=darkfm+'_spike_rate_vs_gy_cent',
                                         tuning_name=darkfm+'_spike_rate_vs_gy_tuning',

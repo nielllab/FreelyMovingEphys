@@ -184,7 +184,8 @@ class Camera(BaseInput):
                     # get the save path for new timestamps
                     csv_out_path = os.path.join(current_path, (key + '_BonsaiTSformatted.csv'))
                     # read in the exiting timestamps, interpolate to match the new number of steps, and format as dataframe
-                    csv_out = pd.DataFrame(self.read_timestamp_file(this_csv, int(frame_count_deinter)))
+                    self.timestamp_path = this_csv
+                    csv_out = pd.DataFrame(self.read_timestamp_file(int(frame_count_deinter)))
                     # save new timestamps
                     csv_out.to_csv(csv_out_path, index=False)
 
@@ -399,7 +400,7 @@ class Camera(BaseInput):
         # do the merge with the lengths all matching along provided dimension
         self.data = xr.merge(out_objs)
 
-    def gather_files(self):
+    def gather_camera_files(self):
         # get dlc h5 path
         h5_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
         h5_paths = [x for x in h5_paths if 'DLC' in x]

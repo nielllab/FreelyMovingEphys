@@ -1,8 +1,14 @@
 import os
 import numpy as np
+from glob import glob
+from tqdm import tqdm
 import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
+from src.worldcam import Worldcam
 from src.ephys import Ephys
+from src.utils.path import find
 
 class PrelimRF(Ephys):
     def __init__(self, binary_path, probe):
@@ -77,8 +83,9 @@ class PrelimRF(Ephys):
 
     def full_process(self):
 
-
 class PrelimDepth(Ephys):
+    def __init__(self, binary_path, probe):
+
 
 
 class RawEphys:

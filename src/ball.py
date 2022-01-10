@@ -9,12 +9,13 @@ from scipy.interpolate import interp1d
 
 from src.utils.filter import convfilt
 from src.base import BaseInput
+from src.utils.path import find
 
 class RunningBall(BaseInput):
     """ Preprocess data from spherical treadmill, with movement recorded by optical mouse.
     """
-    def __init__(self, config):
-        super.__init__(self, config)
+    def __init__(self, config, recording_name, recording_path):
+        BaseInput.__init__(self, config, recording_name, recording_path)
         # output sample rate (data will be set up to match this sample rate,
         # since there is not constant sample rate for optical mouse data
         # from Bonsai)
@@ -49,24 +50,27 @@ class RunningBall(BaseInput):
                 data_out[ind] = (data[ind] if t >= (arange_time[ind]-self.timestamp_seek_window) and t <= arange_time[ind] else 0)
         return data_out
 
-    def save(self):
+    def save_params(self):
         """ Save preprocessed position and speed data as an .nc file.
         """
         self.data.to_netcdf(os.path.join(self.recording_path, str(self.recording_name + '_speed.nc')))
+
+    def gather_ball_files(self):
+        self.running_ball_path = find(self.recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', self.recording_path)[0]
 
     def treadmill_speed(self):
         """ Track the movement of the ball for headfixed recordings.
         """
         # get coordinates on screen where optical mouse is centered out of preprocessing config file
-        screen_center = self.config['parameters']['running_wheel']['optical_mouse_screen_center']
+        screen_center = self.config['internals']['optical_mouse_screen_center']
         centX = screen_center['x']; centY = screen_center['y']
         # read in one csv file with timestamps, x position, and y position in three columns
         csv_data = pd.read_csv(self.running_ball_path)
         # from this, we can get the timestamps, as seconds since midnight before the recording
         time = self.read_timestamp_series(csv_data['Timestamp.TimeOfDay'])
         # convert center-subtracted pixels into cm
-        x_pos = (csv_data['Value.X']-centX) / self.config['parameters']['running_wheel']['optical_mouse_pix2cm']
-        y_pos = (csv_data['Value.Y']-centY) / self.config['parameters']['running_wheel']['optical_mouse_pix2cm']
+        x_pos = (csv_data['Value.X']-centX) / self.config['internals']['optical_mouse_pxls_to_cm']
+        y_pos = (csv_data['Value.Y']-centY) / self.config['internals']['optical_mouse_pxls_to_cm']
         # set up new time base
         t0 = time[0]; t_end = time[-1]
         arange_time = np.arange(t0, t_end, self.ball_samprate)
@@ -88,5 +92,6 @@ class RunningBall(BaseInput):
         self.data = xr.DataArray(all_data.T, dims={'frame','move_params'})
         
     def process(self):
+        self.gather_ball_files()
         self.treadmill_speed()
         self.save_params()
