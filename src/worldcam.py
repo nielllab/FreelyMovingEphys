@@ -15,7 +15,7 @@ class Worldcam(Camera):
         self.xrframes.name = self.camname+'_video'
         merged_data = [self.xrpts, self.xrframes]
 
-        self.data = self.safe_merge(merged_data)
+        self.safe_merge(merged_data)
         self.data.to_netcdf(os.path.join(self.recording_path,str(self.recording_name+'_world.nc')),engine='netcdf4',encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
 
     def process(self):

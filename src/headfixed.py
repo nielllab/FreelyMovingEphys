@@ -14,7 +14,7 @@ from src.ephys import Ephys
 
 class HeadFixedWhiteNoise(Ephys):
     def __init__(self, config, recording_name, recording_path):
-        super.__init__(self, config, recording_name, recording_path)
+        Ephys.__init__(self, config, recording_name, recording_path)
         self.fm = False
         self.stim = 'wn'
 
@@ -45,8 +45,8 @@ class HeadFixedWhiteNoise(Ephys):
             
             # plot eye movements
             plt.subplot(self.n_units, 4, i*4+4)
-            plt.plot(self.trange_x, self.upsacc_avg[i,:], color='tab:blue',label='right')
-            plt.plot(self.trange_x, self.downsacc_avg[i,:],color='red',label='left')
+            plt.plot(self.trange_x, self.rightsacc_avg[i,:], color='tab:blue',label='right')
+            plt.plot(self.trange_x, self.leftsacc_avg[i,:],color='red',label='left')
             maxval = np.max(np.maximum(self.rightavg[i,:], self.leftavg[i,:]))
             plt.vlines(0, 0, maxval*1.5, linestyles='dotted', colors='k')
             plt.ylim([0, maxval*1.2]); plt.ylabel('sp/sec'); plt.legend()
@@ -65,8 +65,8 @@ class HeadFixedWhiteNoise(Ephys):
                                         'spike_triggered_average',
                                         'sta_shape',
                                         'spike_triggered_variance',
-                                        'upsacc_avg',
-                                        'downsacc_avg',
+                                        'rightsacc_avg',
+                                        'leftsacc_avg',
                                         'spike_rate_vs_pupil_radius_cent',
                                         'spike_rate_vs_pupil_radius_tuning',
                                         'spike_rate_vs_pupil_radius_err',
@@ -94,8 +94,8 @@ class HeadFixedWhiteNoise(Ephys):
                                     np.ndarray.flatten(self.sta[unit_num]),
                                     np.shape(self.sta[unit_num]),
                                     np.ndarray.flatten(self.stv[unit_num]),
-                                    self.upsacc_avg[unit_num],
-                                    self.downsacc_avg[unit_num],
+                                    self.rightsacc_avg[unit_num],
+                                    self.leftsacc_avg[unit_num],
                                     self.spike_rate_vs_pupil_radius_cent,
                                     self.spike_rate_vs_pupil_radius_tuning[unit_num],
                                     self.spike_rate_vs_pupil_radius_err[unit_num],
@@ -162,7 +162,7 @@ class HeadFixedWhiteNoise(Ephys):
 
 class HeadFixedReversingCheckboard(Ephys):
     def __init__(self, config, recording_name, recording_path):
-        super.__init__(self, config, recording_name, recording_path)
+        Ephys.__init__(self, config, recording_name, recording_path)
 
         self.fm = False
         self.stim = 'rc'
@@ -330,8 +330,8 @@ class HeadFixedReversingCheckboard(Ephys):
                                         'spike_triggered_average',
                                         'sta_shape',
                                         'spike_triggered_variance',
-                                        'upsacc_avg',
-                                        'downsacc_avg',
+                                        'rightsacc_avg',
+                                        'leftsacc_avg',
                                         'spike_rate_vs_pupil_radius_cent',
                                         'spike_rate_vs_pupil_radius_tuning',
                                         'spike_rate_vs_pupil_radius_err',
@@ -361,8 +361,8 @@ class HeadFixedReversingCheckboard(Ephys):
                                     np.ndarray.flatten(self.sta[unit_num]),
                                     np.shape(self.sta[unit_num]),
                                     np.ndarray.flatten(self.stv[unit_num]),
-                                    self.upsacc_avg[unit_num],
-                                    self.downsacc_avg[unit_num],
+                                    self.rightsacc_avg[unit_num],
+                                    self.leftsacc_avg[unit_num],
                                     self.spike_rate_vs_pupil_radius_cent,
                                     self.spike_rate_vs_pupil_radius_tuning[unit_num],
                                     self.spike_rate_vs_pupil_radius_err[unit_num],
@@ -408,7 +408,7 @@ class HeadFixedReversingCheckboard(Ephys):
 
 class HeadFixedSparseNoise(Ephys):
     def __init__(self, config, recording_name, recording_path):
-        super.__init__(self, config, recording_name, recording_path)
+        Ephys.__init__(self, config, recording_name, recording_path)
 
         self.fm = False
         self.stim = 'sn'
@@ -424,8 +424,8 @@ class HeadFixedSparseNoise(Ephys):
                                         'spike_triggered_average',
                                         'sta_shape',
                                         'spike_triggered_variance',
-                                        'upsacc_avg',
-                                        'downsacc_avg',
+                                        'rightsacc_avg',
+                                        'leftsacc_avg',
                                         'spike_rate_vs_pupil_radius_cent',
                                         'spike_rate_vs_pupil_radius_tuning',
                                         'spike_rate_vs_pupil_radius_err',
@@ -451,8 +451,8 @@ class HeadFixedSparseNoise(Ephys):
                                     np.ndarray.flatten(self.sta[unit_num]),
                                     np.shape(self.sta[unit_num]),
                                     np.ndarray.flatten(self.stv[unit_num]),
-                                    self.upsacc_avg[unit_num],
-                                    self.downsacc_avg[unit_num],
+                                    self.rightsacc_avg[unit_num],
+                                    self.leftsacc_avg[unit_num],
                                     self.spike_rate_vs_pupil_radius_cent,
                                     self.spike_rate_vs_pupil_radius_tuning[unit_num],
                                     self.spike_rate_vs_pupil_radius_err[unit_num],
@@ -497,7 +497,7 @@ class HeadFixedSparseNoise(Ephys):
         
 class HeadFixedGratings(Ephys):
     def __init__(self, config, recording_name, recording_path):
-        super.__init__(self, config, recording_name, recording_path)
+        Ephys.__init__(self, config, recording_name, recording_path)
         self.fm = False
         self.stim = 'gt'
 
@@ -730,8 +730,8 @@ class HeadFixedGratings(Ephys):
             
             # plot eye movements
             plt.subplot(self.n_units, 4, i*4+4)
-            plt.plot(self.trange_x, self.upsacc_avg[i,:], color='tab:blue',label='right')
-            plt.plot(self.trange_x, self.downsacc_avg[i,:],color='red',label='left')
+            plt.plot(self.trange_x, self.rightsacc_avg[i,:], color='tab:blue',label='right')
+            plt.plot(self.trange_x, self.leftsacc_avg[i,:],color='red',label='left')
             maxval = np.max(np.maximum(self.rightavg[i,:], self.leftavg[i,:]))
             plt.vlines(0, 0, maxval*1.5, linestyles='dotted', colors='k')
             plt.ylim([0, maxval*1.2]); plt.ylabel('sp/sec'); plt.legend()
@@ -751,8 +751,8 @@ class HeadFixedGratings(Ephys):
                                         'spike_triggered_average',
                                         'sta_shape',
                                         'spike_triggered_variance',
-                                        'upsacc_avg',
-                                        'downsacc_avg',
+                                        'rightsacc_avg',
+                                        'leftsacc_avg',
                                         'spike_rate_vs_pupil_radius_cent',
                                         'spike_rate_vs_pupil_radius_tuning',
                                         'spike_rate_vs_pupil_radius_err',
@@ -786,8 +786,8 @@ class HeadFixedGratings(Ephys):
                                     np.ndarray.flatten(self.sta[unit_num]),
                                     np.shape(self.sta[unit_num]),
                                     np.ndarray.flatten(self.stv[unit_num]),
-                                    self.upsacc_avg[unit_num],
-                                    self.downsacc_avg[unit_num],
+                                    self.rightsacc_avg[unit_num],
+                                    self.leftsacc_avg[unit_num],
                                     self.spike_rate_vs_pupil_radius_cent,
                                     self.spike_rate_vs_pupil_radius_tuning[unit_num],
                                     self.spike_rate_vs_pupil_radius_err[unit_num],

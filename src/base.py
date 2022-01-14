@@ -401,12 +401,15 @@ class Camera(BaseInput):
         self.data = xr.merge(out_objs)
 
     def gather_camera_files(self):
-        # get dlc h5 path
-        h5_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
-        h5_paths = [x for x in h5_paths if 'DLC' in x]
-        self.dlc_path = next(path for path in h5_paths if self.camname in path)
+        if self.camname.lower() != 'world':
+            # get dlc h5 path
+            h5_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
+            h5_paths = [x for x in h5_paths if 'DLC' in x]
+            self.dlc_path = next(path for path in h5_paths if self.camname in path)
+        elif self.camname.lower() == 'world': # worldcam will not have h5 files
+            self.dlc_path = None
         # get avi video and timestamps
-        if 'eye' in self.camname.lower() or 'world' in self.camname.lower():
+        if 'eye' in self.camname.lower() or 'world' == self.camname.lower():
             if self.config['internals']['follow_strict_naming']:
                 # video
                 avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]

@@ -23,7 +23,7 @@ class Session:
                 ephys_samprate=30000, eye_ellipticity_thresh=0.85, eye_dist_thresh_cm=4.1, eye_pxl_per_cm=24, ellipse_pts_needed_for_calibration=8,
                 ellipse_pts_needed_for_eye=7, pts_needed_for_reflection=5, max_pupil_radius_pxls=50, imu_dwnsmpl=100, imu_samprate=30000, video_dwnsmpl=0.25,
                 video_frames_to_save=3600, optical_mouse_pxls_to_cm=2840, optical_mouse_samprate_ms=200, optical_mouse_screen_center={'x': 960, 'y': 540},
-                strict_likelihood_threshold=0.9999, rotate_eyecam=True, rotate_worldcam=True, flip_gyro_xy=False):
+                strict_likelihood_threshold=0.9999, rotate_eyecam=True, rotate_worldcam=True, flip_gyro_xy=False, do_rough_glm_fit=False):
         """
         Parameters:
         config_path (str): path to config.yaml
@@ -77,7 +77,8 @@ class Session:
             'strict_likelihood_threshold': strict_likelihood_threshold,
             'rotate_eyecam': rotate_eyecam,
             'rotate_worldcam': rotate_worldcam,
-            'flip_gyro_xy': flip_gyro_xy
+            'flip_gyro_xy': flip_gyro_xy,
+            'do_rough_glm_fit': do_rough_glm_fit
         })
 
     def get_session_recordings(self):
@@ -138,7 +139,7 @@ class Session:
     def ephys_analysis(self):
         self.get_session_recordings()
         for _, recording_path in self.recordings_dict.items():
-            recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', recording_path) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
+            recording_name = auto_recording_name(recording_path)
             if ('fm' in recording_name and 'light' in recording_name) or ('fm' in recording_name and 'light' not in recording_name and 'dark' not in recording_name):
                 ephys = FreelyMovingLight(self.config, recording_name, recording_path)
                 ephys.analyze()

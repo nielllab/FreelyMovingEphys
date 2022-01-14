@@ -28,12 +28,13 @@ from src.utils.path import find, list_subdirs
 
 class Ephys(BaseInput):
     def __init__(self, config, recording_name, recording_path):
-        super.__init__(self, config, recording_name, recording_path)
+        BaseInput.__init__(self, config, recording_name, recording_path)
 
         self.channel_map_path = self.config['paths']['channel_map_path']
 
         self.highlight_neuron = self.config['options']['neuron_to_highlight']
         self.save_diagnostic_video = self.config['options']['ephys_videos']
+        self.do_rough_glm_fit = self.config['internals']['do_rough_glm_fit']
         self.probe = self.config['options']['probe']
         self.num_channels = next(int(num) for num in ['128','64','16'] if num in self.probe)
         self.ephys_samprate = self.config['internals']['ephys_samprate']
@@ -265,10 +266,8 @@ class Ephys(BaseInput):
         self.diagnostic_pdf.savefig(); plt.close()
 
     def sta(self, lag=2, do_rotation=False, using_spike_sorted=True):
-        nks = np.shape(self.img_norm[0,:,:])
-        nk = nks[0]*nks[1]
-        # spike-triggered average
-        all_sta = np.zeros([self.n_cells, np.shape(self.img_norm)[1], np.shape(self.img_norm)[2]])
+        nks = np.shape(self.small_world_vid[0,:,:])
+        all_sta = np.zeros([self.n_cells, np.shape(self.small_world_vid)[1], np.shape(self.small_world_vid)[2]])
         plt.subplots(np.ceil(self.n_cells/7).astype('int'), 7, figsize=(35,np.int(np.ceil(self.n_cells/3))), dpi=50)
         if using_spike_sorted:
             cell_inds = self.cells.index
@@ -296,16 +295,14 @@ class Ephys(BaseInput):
                 plt.imshow(sta, vmin=-0.3 ,vmax=0.3, cmap='seismic')
             else:
                 sta = np.nan
-                plt.imshow(np.zeros([120,160]))
+                # plt.imshow(np.zeros([120,160]))
             all_sta[c,:,:] = sta
         plt.tight_layout()
         self.sta = all_sta
         self.detail_pdf.savefig(); plt.close()
 
     def multilag_sta(self, lag_range=np.arange(-2,8,2)):
-        nks = np.shape(self.img_norm[0,:,:])
-        nk = nks[0]*nks[1]
-        # spike-triggered average
+        nks = np.shape(self.small_world_vid[0,:,:])
         plt.subplots(self.n_cells, 5, figsize=(6, np.int(np.ceil(self.n_cells/2))), dpi=300)
         for c, ind in enumerate(self.cells.index):
             for lag_ind, lag in enumerate(lag_range):
@@ -321,7 +318,7 @@ class Ephys(BaseInput):
                     plt.imshow(sta, vmin=-0.3, vmax=0.3, cmap='seismic')
                 else:
                     sta = np.nan
-                    plt.imshow(np.zeros([120,160]))
+                    # plt.imshow(np.zeros([120,160]))
                 if c == 0:
                     plt.title(str(np.round(lag*self.model_dt*1000)) + 'msec', fontsize=5)
                 plt.axis('off')
@@ -329,13 +326,12 @@ class Ephys(BaseInput):
         self.detail_pdf.savefig(); plt.close()
 
     def stv(self):
-        nks = np.shape(self.img_norm[0,:,:])
-        nk = nks[0]*nks[1]
+        nks = np.shape(self.small_world_vid[0,:,:])
         sq_model_vid = self.model_vid**2
         lag = 2
-        all_stv = np.zeros((self.n_cells, np.shape(self.img_norm)[1], np.shape(self.img_norm)[2]))
+        all_stv = np.zeros((self.n_cells, np.shape(self.small_world_vid)[1], np.shape(self.small_world_vid)[2]))
         plt.subplots(np.ceil(self.n_cells/7).astype('int'), 7, figsize=(35,np.int(np.ceil(self.n_cells/3))), dpi=50)
-        mean_sq_img_norm = np.mean(self.img_norm**2, axis=0)
+        mean_sq_img_norm = np.mean(self.small_world_vid**2, axis=0)
         for c, ind in enumerate(self.cells.index):
             sp = self.model_nsp[c,:].copy()
             sp = np.roll(sp, -lag)
@@ -349,7 +345,7 @@ class Ephys(BaseInput):
                 plt.imshow(stv, vmin=-1, vmax=1, cmap='cividis')
             else:
                 stv = np.nan
-                plt.imshow(np.zeros([120,160]))
+                # plt.imshow(np.zeros([120,160]))
             all_stv[c,:,:] = stv
             plt.axis('off')
         self.stv = all_stv
@@ -502,7 +498,7 @@ class Ephys(BaseInput):
         self.glm_rf = sta_all
         self.glm_cc = cc_all
 
-    def diagnostic_video():
+    def diagnostic_video(self):
         raise NotImplementedError
 
     def diagnostic_audio(self, start=0):
@@ -611,11 +607,11 @@ class Ephys(BaseInput):
     def open_worldcam(self, dwnsmpl=0.5):
         # open data
         world_data = xr.open_dataset(self.world_path)
-        world_vid_raw = world_data.WORLD_video.astyoe(np.uint8)
+        world_vid_raw = world_data.WORLD_video.astype(np.uint8).values
         # raw video size
-        sz = self.world_vid_raw.shape
+        sz = world_vid_raw.shape
         # resize if size is larger than the target 60x80
-        if sz[1]>160:
+        if sz[1]>=160:
             self.world_vid = np.zeros((sz[0], int(sz[1]*dwnsmpl), int(sz[2]*dwnsmpl)), dtype='uint8')
             for f in range(sz[0]):
                 self.world_vid[f,:,:] = cv2.resize(world_vid_raw[f,:,:],(int(sz[2]*dwnsmpl),int(sz[1]*dwnsmpl)))
@@ -657,8 +653,12 @@ class Ephys(BaseInput):
 
     def open_imu(self):
         imu_data = xr.open_dataset(self.imu_path)
-        self.imuT = imu_data.IMU_data.sample # imu timestamps
-        imu_channels = imu_data.IMU_data # imu dample data
+        try:
+            self.imuT_raw = imu_data.IMU_data.sample # imu timestamps
+            imu_channels = imu_data.IMU_data # imu dample data
+        except AttributeError:
+            self.imuT_raw = imu_data.__xarray_dataarray_variable__.sample
+            imu_channels = imu_data.__xarray_dataarray_variable__
         # raw gyro values
         self.gyro_x_raw = imu_channels.sel(channel='gyro_x_raw').values
         self.gyro_y_raw = imu_channels.sel(channel='gyro_y_raw').values
@@ -822,13 +822,13 @@ class Ephys(BaseInput):
         """ Create interpolator for movie data so we can evaluate at same timebins are firing rate.
         """
         sz = np.shape(self.img_norm)
-        small_world_vid = np.zeros((sz[0], np.int(sz[1]*dwnsmpl), np.int(sz[2]*dwnsmpl)))
+        self.small_world_vid = np.zeros((sz[0], np.int(sz[1]*dwnsmpl), np.int(sz[2]*dwnsmpl)))
         for f in range(sz[0]):
-            small_world_vid[f,:,:] = cv2.resize(self.img_norm[f,:,:],(np.int(sz[2]*dwnsmpl),np.int(sz[1]*dwnsmpl)))
-        mov_interp = interp1d(self.worldT, small_world_vid, axis=0, bounds_error=False)
+            self.small_world_vid[f,:,:] = cv2.resize(self.img_norm[f,:,:],(np.int(sz[2]*dwnsmpl),np.int(sz[1]*dwnsmpl)))
+        mov_interp = interp1d(self.worldT, self.small_world_vid, axis=0, bounds_error=False)
 
         # model video for STAs, STVs, etc.
-        nks = np.shape(self.img_norm[0,:,:])
+        nks = np.shape(self.small_world_vid[0,:,:])
         nk = nks[0]*nks[1]
         self.model_vid = np.zeros((len(self.model_t), nk))
         for i in range(len(self.model_t)):
@@ -915,14 +915,14 @@ class Ephys(BaseInput):
             self.detail_pdf.savefig(); plt.close()
             
             plt.figure()
-            plt.plot(self.dEye, self.dHead, 'k.')
+            plt.plot(self.dEye, self.dHead[:-1], 'k.')
             plt.xlabel('dEye'); plt.ylabel('dHead')
             plt.xlim((-10,10)); plt.ylim((-10,10))
             plt.plot([-10,10], [10,-10], 'r:')
             self.detail_pdf.savefig(); plt.close()
 
         # all eye movements
-        sthresh = next(5 if self.fm else 3)
+        sthresh = (5 if self.fm else 3)
         left = self.eyeT[(np.append(self.dEye, 0) > sthresh)]
         right = self.eyeT[(np.append(self.dEye, 0) < -sthresh)]
         self.rightsacc_avg, self.leftsacc_avg = self.saccade_psth(right, left, 'all dEye')
@@ -932,7 +932,7 @@ class Ephys(BaseInput):
             sthresh = 5
             left = self.eyeT[(np.append(self.dEye, 0) > sthresh) & (np.append(self.dGaze,0) > sthresh)]
             right = self.eyeT[(np.append(self.dEye, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
-            self.rightsacc_avg_gaze_shift_dEye, self.leftsacc_avg_gaze_shift_dEye = self.saccade_psth(right, left, 'gaze-shifting dEye')
+            self.rightsacc_avg_gaze_shift_dEye, self.leftsacc_avg_gaze_shift_dEye = self.saccade_psth(right, left, 'gaze-shift dEye')
             
             # plot compensatory eye movements    
             sthresh = 3
@@ -942,14 +942,14 @@ class Ephys(BaseInput):
             
             # plot gaze shifting head movements
             sthresh = 3
-            left = self.eyeT[(np.append(self.dHead, 0) > sthresh) & (np.append(self.dGaze, 0) > sthresh)]
-            right = self.eyeT[(np.append(self.dHead, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
-            self.rightsacc_avg_gaze_shift_dHead, self.leftsacc_avg_gaze_shift_dHead = self.saccade_psth(right, left, 'gaze-shifting dHead')
+            left = self.eyeT[(np.append(self.dHead[:-1], 0) > sthresh) & (np.append(self.dGaze, 0) > sthresh)]
+            right = self.eyeT[(np.append(self.dHead[:-1], 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
+            self.rightsacc_avg_gaze_shift_dHead, self.leftsacc_avg_gaze_shift_dHead = self.saccade_psth(right, left, 'gaze-shift dHead')
             
             # plot compensatory head movements
             sthresh = 3
-            left = self.eyeT[(np.append(self.dHead,0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
-            right = self.eyeT[(np.append(self.dHead,0) < -sthresh) & (np.append(self.dGaze,0) > -1)]
+            left = self.eyeT[(np.append(self.dHead[:-1],0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
+            right = self.eyeT[(np.append(self.dHead[:-1],0) < -sthresh) & (np.append(self.dGaze,0) > -1)]
             self.rightsacc_avg_comp_dHead, self.leftsacc_avg_comp_dHead = self.saccade_psth(right, left, 'comp dHead')
 
     def movement_tuning(self):
@@ -990,7 +990,7 @@ class Ephys(BaseInput):
             centered_roll = self.roll - np.mean(self.roll)
 
             # interpolate to match eye timing
-            pitch_interp = interp1d(self.imuT, centered_pitch, bounds_error=False)
+            pitch_interp = interp1d(self.imuT, centered_pitch, bounds_error=False)(self.eyeT)
             roll_interp = interp1d(self.imuT, centered_roll, bounds_error=False)(self.eyeT)
 
             # pitch vs theta
@@ -1178,7 +1178,7 @@ class Ephys(BaseInput):
         self.open_eyecam()
         print('aligning timestamps to ephys')
         self.align_time()
-        if self.fm and self.stim != 'dk':
+        if self.fm and self.stim != 'dk' and self.do_rough_glm_fit:
             print('shifting worldcam for eye movements')
             self.estimate_visual_scene()
         print('dropping static worldcam pixels')
@@ -1211,10 +1211,10 @@ class Ephys(BaseInput):
         self.multilag_sta()
         print('calculating stvs')
         self.stv()
-        if (self.fm and self.stim != 'dk') or self.stim == 'wn':
+        if self.do_rough_glm_fit and ((self.fm and self.stim == 'lt') or self.stim == 'wn'):
             print('using glm to get receptive fields')
             self.glm_receptive_fields()
-        elif self.fm and self.stim == 'dk':
+        elif self.fm and (self.stim == 'dk' or not self.do_rough_glm_fit):
             print('getting active times without glm')
             self.get_active_times_without_glm()
         print('saccade psths')

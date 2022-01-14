@@ -12,30 +12,30 @@ from src.ephys import Ephys
 
 class FreelyMovingLight(Ephys):
     def __init__(self, config, recording_name, recording_path):
-        super.__init__(self, config, recording_name, recording_path)
+        Ephys.__init__(self, config, recording_name, recording_path)
 
         self.fm = True
         self.stim = 'lt'
 
     def overview_fig(self):
-        plt.figure(figsize=(5, int(np.ceil(self.n_units/2))), dpi=50)
+        plt.figure(figsize=(5, int(np.ceil(self.n_cells/2))), dpi=50)
 
         for i, ind in enumerate(self.cells.index):
 
             # plot waveform
-            plt.subplot(self.n_units, 4, i*4+1)
+            plt.subplot(self.n_cells, 4, i*4+1)
             wv = self.cells.at[ind,'waveform']
             plt.plot(np.arange(len(wv))*1000/self.ephys_samprate, wv)
             plt.xlabel('msec'); plt.title(str(ind)+' '+self.cells.at[ind,'KSLabel']+' cont='+str(self.cells.at[ind,'ContamPct']))
             
             # plot contrast response function
-            plt.subplot(self.n_units, 4, i*4+2)
+            plt.subplot(self.n_cells, 4, i*4+2)
             plt.errorbar(self.crf_cent, self.crf_tuning, yerr=self.crf_err)
             plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec')
             plt.ylim(0, np.nanmax(self.crf_tuning*1.2))
 
             # plot sta
-            plt.subplot(self.n_units, 4, i*4+3)
+            plt.subplot(self.n_cells, 4, i*4+3)
             sta = self.sta[i,:,:]
             sta_range = np.nanmax(np.abs(sta))*1.2
             if sta_range < 0.25:
@@ -43,7 +43,7 @@ class FreelyMovingLight(Ephys):
             plt.imshow(sta, vmin=-sta_range, vmax=sta_range, cmap='seismic')
             
             # plot eye movements
-            plt.subplot(self.n_units, 4, i*4+4)
+            plt.subplot(self.n_cells, 4, i*4+4)
             plt.plot(self.trange_x, self.upsacc_avg[i,:], color='tab:blue',label='right')
             plt.plot(self.trange_x, self.downsacc_avg[i,:],color='red',label='left')
             maxval = np.max(np.maximum(self.rightavg[i,:], self.leftavg[i,:]))
@@ -109,7 +109,15 @@ class FreelyMovingLight(Ephys):
                                         'spike_rate_vs_phi_err',
                                         'accT',
                                         'roll',
-                                        'pitch']]
+                                        'pitch',
+                                        'top_speed',
+                                        'top_is_forward',
+                                        'top_is_fine_motion',
+                                        'top_is_backward',
+                                        'top_is_immobile',
+                                        'top_head_yaw',
+                                        'top_body_yaw',
+                                        'top_movement_direction']]
             unit_df = pd.DataFrame(pd.Series([self.contrast_range,
                                     self.crf_cent,
                                     self.crf_tuning[unit_num],
@@ -117,16 +125,16 @@ class FreelyMovingLight(Ephys):
                                     np.ndarray.flatten(self.sta[unit_num]),
                                     np.shape(self.sta[unit_num]),
                                     np.ndarray.flatten(self.stv[unit_num]),
-                                    self.upsacc_avg[unit_num],
-                                    self.downsacc_avg[unit_num],
-                                    self.upsacc_avg_gaze_shift_dEye[unit_num],
-                                    self.downsacc_avg_gaze_shift_dEye[unit_num],
-                                    self.upsacc_avg_comp_dEye[unit_num],
-                                    self.downsacc_avg_comp_dEye[unit_num],
-                                    self.upsacc_avg_gaze_shift_dHead[unit_num],
-                                    self.downsacc_avg_gaze_shift_dHead[unit_num],
-                                    self.upsacc_avg_comp_dHead[unit_num],
-                                    self.downsacc_avg_comp_dHead[unit_num],
+                                    self.rightsacc_avg[unit_num],
+                                    self.leftsacc_avg[unit_num],
+                                    self.rightsacc_avg_gaze_shift_dEye[unit_num],
+                                    self.leftsacc_avg_gaze_shift_dEye[unit_num],
+                                    self.rightsacc_avg_comp_dEye[unit_num],
+                                    self.leftsacc_avg_comp_dEye[unit_num],
+                                    self.rightsacc_avg_gaze_shift_dHead[unit_num],
+                                    self.leftsacc_avg_gaze_shift_dHead[unit_num],
+                                    self.rightsacc_avg_comp_dHead[unit_num],
+                                    self.leftsacc_avg_comp_dHead[unit_num],
                                     self.spike_rate_vs_pupil_radius_cent,
                                     self.spike_rate_vs_pupil_radius_tuning[unit_num],
                                     self.spike_rate_vs_pupil_radius_err[unit_num],
@@ -162,7 +170,15 @@ class FreelyMovingLight(Ephys):
                                     self.spike_rate_vs_phi_err[unit_num],
                                     self.imuT,
                                     self.roll,
-                                    self.pitch]),dtype=object).T
+                                    self.pitch,
+                                    self.top_speed_interp,
+                                    self.top_forward_run_interp,
+                                    self.top_fine_motion_interp,
+                                    self.top_backward_run_interp,
+                                    self.top_immobility_interp,
+                                    self.top_head_yaw_interp,
+                                    self.top_body_yaw_interp,
+                                    self.top_movement_yaw_interp]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = self.session_name
@@ -224,7 +240,8 @@ class FreelyMovingLight(Ephys):
 
 class FreelyMovingDark(Ephys):
     def __init__(self, config, recording_name, recording_path):
-        super.__init__(self, config, recording_name, recording_path)
+        Ephys.__init__(self, config, recording_name, recording_path)
+        
         self.fm = True
         self.stim = 'dk'
 
@@ -291,16 +308,16 @@ class FreelyMovingDark(Ephys):
                                     np.ndarray.flatten(self.sta[unit_num]),
                                     np.shape(self.sta[unit_num]),
                                     np.ndarray.flatten(self.stv[unit_num]),
-                                    self.upsacc_avg[unit_num],
-                                    self.downsacc_avg[unit_num],
-                                    self.upsacc_avg_gaze_shift_dEye[unit_num],
-                                    self.downsacc_avg_gaze_shift_dEye[unit_num],
-                                    self.upsacc_avg_comp_dEye[unit_num],
-                                    self.downsacc_avg_comp_dEye[unit_num],
-                                    self.upsacc_avg_gaze_shift_dHead[unit_num],
-                                    self.downsacc_avg_gaze_shift_dHead[unit_num],
-                                    self.upsacc_avg_comp_dHead[unit_num],
-                                    self.downsacc_avg_comp_dHead[unit_num],
+                                    self.rightsacc_avg[unit_num],
+                                    self.leftsacc_avg[unit_num],
+                                    self.rightsacc_avg_gaze_shift_dEye[unit_num],
+                                    self.leftsacc_avg_gaze_shift_dEye[unit_num],
+                                    self.rightsacc_avg_comp_dEye[unit_num],
+                                    self.leftsacc_avg_comp_dEye[unit_num],
+                                    self.rightsacc_avg_gaze_shift_dHead[unit_num],
+                                    self.leftsacc_avg_gaze_shift_dHead[unit_num],
+                                    self.rightsacc_avg_comp_dHead[unit_num],
+                                    self.leftsacc_avg_comp_dHead[unit_num],
                                     self.spike_rate_vs_pupil_radius_cent,
                                     self.spike_rate_vs_pupil_radius_tuning[unit_num],
                                     self.spike_rate_vs_pupil_radius_err[unit_num],

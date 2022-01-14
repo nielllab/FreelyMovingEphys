@@ -252,6 +252,8 @@ class Topcam(Camera):
                 plt.arrow(x0, y0, dX, dY, facecolor=usecolor, width=7, edgecolor='k')
             plt.tight_layout(); pdf.savefig(); plt.close()
 
+        pdf.close()
+
         if self.config['internals']['diagnostic_preprocessing_videos']:
             vid_save_path = os.path.join(self.recording_path,(self.recording_name+'_'+self.camname+'_speed_yaw.avi'))
             start = 1000
@@ -334,6 +336,7 @@ class Topcam(Camera):
         self.xrpts.name = self.camname+'_pts'
         self.xrframes.name = self.camname+'_video'
         self.xrprops.name = self.camname+'_props'
+        
         self.safe_merge([self.xrpts, self.xrframes, self.xrprops])
         
         self.data.to_netcdf(os.path.join(self.recording_path,str(self.recording_name+'_'+self.camname+'.nc')),

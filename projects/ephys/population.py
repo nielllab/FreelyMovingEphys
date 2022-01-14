@@ -134,8 +134,6 @@ class Population:
             pickle_path = os.path.join(self.savepath, 'pooled_ephys_unit_update_'+datetime.today().strftime('%m%d%y')+'.pickle')
         elif stage == 'population':
             pickle_path = os.path.join(self.savepath, 'pooled_ephys_population_update_'+datetime.today().strftime('%m%d%y')+'.pickle')
-        else:
-            raise UserInputError('Not a valid stage to save.')
         if os.path.isfile(pickle_path):
             os.remove(pickle_path)
         # self.data = self.data.reset_index()
@@ -152,10 +150,11 @@ class Population:
             pickle_path = sorted(find('*pooled_ephys_unit_update_*.pickle', self.savepath))[-1]
         elif stage == 'population':
             pickle_path = sorted(find('*pooled_ephys_population_update_*.pickle', self.savepath))[-1]
-        else:
-            raise UserInputError('Not a valid stage to read.')
         print('reading data from', pickle_path)
         self.data = pd.read_pickle(pickle_path)
+
+    # def add_available_optic_flow_data(self):
+        
 
     def tuning_modulation_index(self, tuning):
         tuning = tuning[~np.isnan(tuning)]
@@ -2315,6 +2314,41 @@ class Population:
             self.data = self.data[self.data['use_in_dark_analysis']==True]
         self.exptype = exptype
 
+    def find_SbCs_and_trGratPsth(self):
+        for ind, row in self.data.iterrows():
+            if row['hf1_wn_crf_tuning'][0]<1:
+                self.data.at[ind, 'is_SbC'] = False
+                self.data.at[ind, 'is_grat_trpsth'] = False
+                continue
+            high_contrast_std = np.std(row['hf1_wn_crf_tuning'][3:])
+            self.data.at[ind, 'high_contrast_std'] = high_contrast_std
+            min_contrast = row['hf1_wn_crf_tuning'][0]
+            mid_contrast = row['hf1_wn_crf_tuning'][3]
+            max_contrast = row['hf1_wn_crf_tuning'][-1]
+            min_mid_mod = (min_contrast - mid_contrast) / (min_contrast + mid_contrast)
+            min_max_mod = (min_contrast - max_contrast) / (min_contrast + max_contrast)
+            self.data.at[ind, 'SbC_min_mid_mod'] = min_mid_mod
+            self.data.at[ind, 'SbC_min_max_mod'] = min_max_mod
+            # gratings psth
+            psth = row['hf3_gratings_grating_psth']
+            during_stim = psth[(self.grat_psth_x<1) * (self.grat_psth_x>0)]
+            stim_onset = psth[(self.grat_psth_x>0) * (self.grat_psth_x<0.10)]
+            prestim = psth[(self.grat_psth_x<0)]
+            sbgrat = (np.nanmean(during_stim) - np.nanmean(prestim)) / np.nanmean(prestim)
+            self.data.at[ind, 'grat_psth_drop'] = sbgrat
+            self.data.at[ind, 'change_at_gratstim_onset'] = stim_onset - np.mean(prestim)
+            self.data.at[ind, 'change_during_gratstim'] = np.mean(during_stim) - stim_onset
+            if (min_mid_mod>0.25 and sbgrat<0):
+                isSbC = True
+            else:
+                isSbC = False
+            if (np.mean(stim_onset) > 2*np.mean(prestim) and np.mean(during_stim) < 0.66*stim_onset):
+                isgrat_trpsth = True
+            else:
+                isgrat_trpsth = False
+            self.data.at[ind, 'is_SbC'] = isSbC
+            self.data.at[ind, 'is_grat_trpsth'] = isgrat_trpsth
+
     def summarize_population(self):
         print('applying activity thresholds')
         self.set_activity_thresh()
@@ -2341,6 +2375,9 @@ class Population:
 
         print('dEye clustering')
         self.deye_clustering()
+
+        print('SbCs')
+        self.find_SbCs_and_trGratPsth()
 
         # print('dhead and deye around time of gaze shifting eye movements')
         # self.position_around_saccade('eye_gaze_shifting')

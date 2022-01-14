@@ -861,7 +861,7 @@ class Eyecam(Camera):
         self.rfit = rfit_xr
         self.rfit_conv = rfit_conv_xr
 
-    # def get_torsion_from_markers(self): 
+    # def get_torsion_from_markers(self):
 
     def save_params(self):
         self.xrpts.name = self.camname+'_pts'
@@ -878,7 +878,7 @@ class Eyecam(Camera):
             print('Torsion from markers not implemented.')
             sys.exit()
 
-        self.data = self.safe_merge(merged_data)
+        self.safe_merge(merged_data)
         self.data.to_netcdf(os.path.join(self.recording_path,str(self.recording_name+'_'+self.camname+'.nc')),
                     engine='netcdf4', encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
 
