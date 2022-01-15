@@ -37,6 +37,9 @@ class Population:
         self.trange_x = 0.5*(self.trange[0:-1]+ self.trange[1:])
         self.deye_psth_cmap = ['orange','magenta','cadetblue','darkolivegreen','red']
         self.deye_psth_full_cmap = ['orange','coral','magenta','thistle','cadetblue','lightsteelblue','darkolivegreen','seagreen','red']
+        self.cmap_orientation = ['#fff7bc', '#fec44f', '#d95f0e', '#000000'] # [low, mid, high, spont]
+        self.cmap_movement_clusters = ['#636363', '#1b9e77','#7570b3','#e7298a','#d95f02', '##e6ab02'] # [all, early, late, biphasic, negative, unresponsive]
+        self.cmap_cell_types = ['#8c510a', '#01665e'] # [exc, inh]
 
     def gather_data(self, csv_filepath):
         # open the csv file of metadata and pull out all of the desired data paths
@@ -97,8 +100,8 @@ class Population:
                     ellipse_fit_params = json.load(f)
                 session_data['best_ellipse_fit_m'] = ellipse_fit_params['regression_m']
                 session_data['best_ellipse_fit_r'] = ellipse_fit_params['regression_r']
-            else:
-                pass
+            # add the session path to each row
+            session_data['original_recording_path'] = session
             # add probe name
             session_data['probe_name'] = probenames_for_goodsessions[ind]
             session_data['use_in_dark_analysis'] = use_in_dark_analysis[ind+1]
@@ -153,8 +156,67 @@ class Population:
         print('reading data from', pickle_path)
         self.data = pd.read_pickle(pickle_path)
 
-    # def add_available_optic_flow_data(self):
-        
+    def add_available_optic_flow_data(self, use_lag=2):
+        """
+        use_lag is the index--not the value
+        so use_lag=2 is time lag 0msec
+        """
+        self.data['has_optic_flow'] = False
+        recordings = self.data['original_recording_path'].unique()
+        for i, recording_path in enumerate(recordings):
+            flow_files = find('*optic_flow.npz', recording_path)
+            if len(flow_files) == 0:
+                # skip this recording if there isn't an optic flow npz file
+                continue
+            flow_data = np.load(flow_files[0])
+            # shape is [unit, lag, x, y, U/V]
+            # shape is [unit, lag, x, y]
+            movement_state_dict = {'active_gyro_vec':flow_data['active_gyro_vec'],'active_gyro_amp':flow_data['active_gyro_amp'],
+                                   'inactive_gyro_vec':flow_data['inactive_gyro_vec'],'inactive_gyro_amp':flow_data['inactive_gyro_amp'],
+                                   'running_forward_vec':flow_data['running_forward_vec'],'running_forward_amp':flow_data['running_forward_amp'],
+                                   'running_backward_vec':flow_data['running_backward_vec'],'running_backward_amp':flow_data['running_backward_amp'],
+                                   'fine_motion_vec':flow_data['fine_motion_vec'],'fine_motion_amp':flow_data['fine_motion_amp'],
+                                   'immobile_vec':flow_data['immobile_vec'],'immobile_amp':flow_data['immobile_amp']}
+            
+            for movement_state in ['active_gyro','inactive_gyro','running_forward','running_backward','fine_motion','immobile']:
+                flow_arr_ind = 0
+                vec_scale = np.zeros(len(self.data[self.data['original_recording_path']==recording_path])) # vector scale defined for each recording independetly
+                flow_vec = movement_state_dict[movement_state+'_vec']
+                flow_amp = movement_state_dict[movement_state+'_amp']
+                for ind, _ in self.data[self.data['original_recording_path']==recording_path].iterrows():
+                    self.data.at[ind, 'fm1_optic_flow_'+movement_state+'_vec'] = flow_vec[flow_arr_ind, use_lag].astype(object)
+                    self.data.at[ind, 'fm1_optic_flow_'+movement_state+'_amp'] = flow_amp[flow_arr_ind, use_lag].astype(object)
+                    vec_scale[flow_arr_ind] = np.max(np.sqrt((flow_vec[flow_arr_ind, use_lag, :, 0].flatten()**2) + (flow_vec[flow_arr_ind, use_lag, :, 1].flatten()**2))) # U**2 + V**2
+                    flow_arr_ind += 1
+                max_vec_scale = np.max(vec_scale.flatten())
+                for ind, _ in self.data[self.data['original_recording_path']==recording_path].iterrows():
+                    self.data.at[ind, 'fm1_flowvec_scale'] = max_vec_scale
+                    self.data.at[ind, 'has_optic_flow'] = True
+            
+    def optic_flow_vec(self, panel):
+        fv = self.current_row['fm1_optic_flow_vec'] # shape is [x, y, U/V]
+
+        nx = 5 #binning for plotting flow vectors
+        fv_scale = self.current_row['fm1_flowvec_scale']
+        flow_w = np.size(fv, 0)
+        flow_h = np.size(fv, 1)
+        X,Y = np.meshgrid(np.arange(0,flow_w),np.arange(0,flow_h))
+
+        U = fv[:,:,0]
+        V = fv[:,:,1]
+
+        panel.quiver(X[::nx,::nx], -Y[::nx,::nx], U[::nx,::nx], -V[::nx,::nx], scale=fv_scale)
+        panel.axis('off')
+        panel.axis('equal')
+        panel.set_title('optic flow vector')
+
+    def optic_flow_amp(self, panel):
+        fa = self.current_row['fm1_optic_flow_amp'] # shape is [x, y]
+
+        panel.imshow(fa, vmin=0, vmax=0.25, cmap='Reds')
+        panel.axis('off')
+        panel.axis('equal')
+        panel.set_title(title)
 
     def tuning_modulation_index(self, tuning):
         tuning = tuning[~np.isnan(tuning)]
@@ -211,9 +273,9 @@ class Population:
             R_null = tuning[th_null, sf] # tuning value at that peak
             dsi[sf] = (R_pref - R_null) / (R_pref + R_null)
         panel.set_title(tf_sel+' tf\n OSI l='+str(np.round(osi[0],3))+'m='+str(np.round(osi[1],3))+'h='+str(np.round(osi[2],3))+'\n DSI l='+str(np.round(dsi[0],3))+'m='+str(np.round(dsi[1],3))+'h='+str(np.round(dsi[2],3)), fontsize=20)
-        panel.plot(np.arange(8)*45, raw_tuning[:,0],label = 'low sf')
-        panel.plot(np.arange(8)*45, raw_tuning[:,1],label = 'mid sf')
-        panel.plot(np.arange(8)*45, raw_tuning[:,2],label = 'high sf')
+        panel.plot(np.arange(8)*45, raw_tuning[:,0], label='low sf', color=)
+        panel.plot(np.arange(8)*45, raw_tuning[:,1], label='mid sf')
+        panel.plot(np.arange(8)*45, raw_tuning[:,2], label='high sf')
         panel.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
         panel.legend()
         panel.set_ylim([0,np.nanmax(self.current_row['hf3_gratings_ori_tuning'][:,:,:])*1.2])
@@ -647,6 +709,13 @@ class Population:
                                     title='FM1 pitch',
                                     xlabel='deg')
             self.data.at[self.current_index, 'fm1_spike_rate_vs_pitch_modind'] = fm1_pitch_modind
+
+            ### if optic flow data exists for this file
+            fig_fm1_flow_vec = self.figure.add_subplot(self.spec[7,3])
+            self.optic_flow_vec(panel=fig_fm1_flow_vec)
+
+            fig_fm1_flow_amp = self.figure.add_subplot(self.spec[7,4])
+            self.optic_flow_amp(panel=fig_fm1_flow_amp)
 
             # set up panels for dark figures
             fig_fmdark_gyro_z_tuning = self.figure.add_subplot(self.spec[7,0])

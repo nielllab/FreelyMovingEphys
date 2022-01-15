@@ -23,7 +23,7 @@ class Session:
                 ephys_samprate=30000, eye_ellipticity_thresh=0.85, eye_dist_thresh_cm=4.1, eye_pxl_per_cm=24, ellipse_pts_needed_for_calibration=8,
                 ellipse_pts_needed_for_eye=7, pts_needed_for_reflection=5, max_pupil_radius_pxls=50, imu_dwnsmpl=100, imu_samprate=30000, video_dwnsmpl=0.25,
                 video_frames_to_save=3600, optical_mouse_pxls_to_cm=2840, optical_mouse_samprate_ms=200, optical_mouse_screen_center={'x': 960, 'y': 540},
-                strict_likelihood_threshold=0.9999, rotate_eyecam=True, rotate_worldcam=True, flip_gyro_xy=False, do_rough_glm_fit=False):
+                strict_likelihood_threshold=0.9999, rotate_eyecam=True, rotate_worldcam=True, flip_gyro_xy=False, do_rough_glm_fit=False, do_glm_model_preprocessing=True):
         """
         Parameters:
         config_path (str): path to config.yaml
@@ -78,7 +78,8 @@ class Session:
             'rotate_eyecam': rotate_eyecam,
             'rotate_worldcam': rotate_worldcam,
             'flip_gyro_xy': flip_gyro_xy,
-            'do_rough_glm_fit': do_rough_glm_fit
+            'do_rough_glm_fit': do_rough_glm_fit,
+            'do_glm_model_preprocessing': do_glm_model_preprocessing
         })
 
     def get_session_recordings(self):

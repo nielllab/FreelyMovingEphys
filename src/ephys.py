@@ -35,6 +35,7 @@ class Ephys(BaseInput):
         self.highlight_neuron = self.config['options']['neuron_to_highlight']
         self.save_diagnostic_video = self.config['options']['ephys_videos']
         self.do_rough_glm_fit = self.config['internals']['do_rough_glm_fit']
+        self.do_glm_model_preprocessing = self.config['internals']['do_glm_model_preprocessing']
         self.probe = self.config['options']['probe']
         self.num_channels = next(int(num) for num in ['128','64','16'] if num in self.probe)
         self.ephys_samprate = self.config['internals']['ephys_samprate']
@@ -580,10 +581,15 @@ class Ephys(BaseInput):
 
         plt.subplots(self.n_cells+3, 1,figsize=(12, int(np.ceil(self.n_cells/2))))
 
-        # running speed
-        plt.subplot(self.n_cells+3, 1, 1)
-        plt.plot(self.ballT, self.ball_speed, 'k')
-        plt.xlim(0, np.max(self.worldT)); plt.ylabel('cm/sec'); plt.title('running speed')
+        if not self.fm:
+            # running speed
+            plt.subplot(self.n_cells+3, 1, 1)
+            plt.plot(self.ballT, self.ball_speed, 'k')
+            plt.xlim(0, np.max(self.worldT)); plt.ylabel('cm/sec'); plt.title('running speed')
+        elif self.fm:
+            plt.subplot(self.n_cells+3, 1, 1)
+            plt.plot(self.topT, self.top_speed, 'k')
+            plt.xlim(0, np.max(self.worldT)); plt.ylabel('cm/sec'); plt.title('running speed')
         
         # pupil diameter
         plt.subplot(self.n_cells+3, 1, 2)
@@ -853,7 +859,7 @@ class Ephys(BaseInput):
         for i, ind in enumerate(self.cells.index):
             self.model_nsp[i,:], _ = np.histogram(self.cells.at[ind,'spikeT'], bins)
 
-    def glm_receptive_fields(self):
+    def rough_glm_setup(self):
         # get eye position
         self.model_theta = interp1d(self.eyeT, self.theta, bounds_error=False)(self.model_t+self.model_dt/2)
         self.model_phi =interp1d(self.eyeT, self.phi, bounds_error=False)(self.model_t+self.model_dt/2)
@@ -887,7 +893,6 @@ class Ephys(BaseInput):
         nks = np.shape(smallvid)
         nk = nks[0]*nks[1]
         self.glm_model_vid[np.isnan(self.glm_model_vid)] = 0
-        self.fit_glm_rfs()
 
     def get_active_times_without_glm(self):
         model_raw_gyro_z = interp1d(self.imuT, (self.gyro_z_raw - np.nanmean(self.gyro_z_raw)*7.5), bounds_error=False)(self.model_t)
@@ -900,6 +905,7 @@ class Ephys(BaseInput):
         self.detail_pdf.savefig(); plt.close()
 
         if self.fm:
+            print('deye dhead')
             dHead_interp = interp1d(self.imuT, self.gyro_z, bounds_error=False)
             self.dHead = dHead_interp(self.eyeT)
             self.dGaze = self.dEye + dHead_interp(self.eyeT[:-1])
@@ -922,6 +928,7 @@ class Ephys(BaseInput):
             self.detail_pdf.savefig(); plt.close()
 
         # all eye movements
+        print('all eye movements')
         sthresh = (5 if self.fm else 3)
         left = self.eyeT[(np.append(self.dEye, 0) > sthresh)]
         right = self.eyeT[(np.append(self.dEye, 0) < -sthresh)]
@@ -929,23 +936,27 @@ class Ephys(BaseInput):
 
         if self.fm:
             # plot gaze shifting eye movements
+            print('gaze-shift deye')
             sthresh = 5
             left = self.eyeT[(np.append(self.dEye, 0) > sthresh) & (np.append(self.dGaze,0) > sthresh)]
             right = self.eyeT[(np.append(self.dEye, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
             self.rightsacc_avg_gaze_shift_dEye, self.leftsacc_avg_gaze_shift_dEye = self.saccade_psth(right, left, 'gaze-shift dEye')
             
+            print('comp deye')
             # plot compensatory eye movements    
             sthresh = 3
             left = self.eyeT[(np.append(self.dEye, 0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
             right = self.eyeT[(np.append(self.dEye, 0) < -sthresh) & (np.append(self.dGaze, 0) > -1)]
             self.rightsacc_avg_comp_dEye, self.leftsacc_avg_comp_dEye = self.saccade_psth(right, left, 'comp dEye')
             
+            print('gaze-shift dhead')
             # plot gaze shifting head movements
             sthresh = 3
             left = self.eyeT[(np.append(self.dHead[:-1], 0) > sthresh) & (np.append(self.dGaze, 0) > sthresh)]
             right = self.eyeT[(np.append(self.dHead[:-1], 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
             self.rightsacc_avg_gaze_shift_dHead, self.leftsacc_avg_gaze_shift_dHead = self.saccade_psth(right, left, 'gaze-shift dHead')
             
+            print('comp dhead')
             # plot compensatory head movements
             sthresh = 3
             left = self.eyeT[(np.append(self.dHead[:-1],0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
@@ -1213,10 +1224,14 @@ class Ephys(BaseInput):
         self.stv()
         if self.do_rough_glm_fit and ((self.fm and self.stim == 'lt') or self.stim == 'wn'):
             print('using glm to get receptive fields')
-            self.glm_receptive_fields()
+            self.rough_glm_setup()
+            self.fit_glm_rfs()
         elif self.fm and (self.stim == 'dk' or not self.do_rough_glm_fit):
             print('getting active times without glm')
             self.get_active_times_without_glm()
+        if not self.do_rough_glm_fit and self.do_glm_model_preprocessing and ((self.fm and self.stim == 'lt') or self.stim == 'wn'):
+            print('preparing inputs for full glm model')
+            self.rough_glm_setup()
         print('saccade psths')
         self.head_and_eye_movements()
         print('tuning to pupil properties')

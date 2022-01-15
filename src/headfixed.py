@@ -19,24 +19,24 @@ class HeadFixedWhiteNoise(Ephys):
         self.stim = 'wn'
 
     def overview_fig(self):
-        plt.figure(figsize=(5, int(np.ceil(self.n_units/2))), dpi=50)
+        plt.figure(figsize=(5, int(np.ceil(self.n_cells/2))), dpi=50)
 
         for i, ind in enumerate(self.cells.index):
 
             # plot waveform
-            plt.subplot(self.n_units, 4, i*4+1)
+            plt.subplot(self.n_cells, 4, i*4+1)
             wv = self.cells.at[ind,'waveform']
             plt.plot(np.arange(len(wv))*1000/self.ephys_samprate, wv)
             plt.xlabel('msec'); plt.title(str(ind)+' '+self.cells.at[ind,'KSLabel']+' cont='+str(self.cells.at[ind,'ContamPct']))
             
             # plot contrast response function
-            plt.subplot(self.n_units, 4, i*4+2)
-            plt.errorbar(self.crf_cent, self.crf_tuning, yerr=self.crf_err)
+            plt.subplot(self.n_cells, 4, i*4+2)
+            plt.errorbar(self.crf_cent, self.crf_tuning[i], yerr=self.crf_err[i])
             plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec')
             plt.ylim(0, np.nanmax(self.crf_tuning*1.2))
 
             # plot sta
-            plt.subplot(self.n_units, 4, i*4+3)
+            plt.subplot(self.n_cells, 4, i*4+3)
             sta = self.sta[i,:,:]
             sta_range = np.nanmax(np.abs(sta))*1.2
             if sta_range < 0.25:
@@ -44,17 +44,17 @@ class HeadFixedWhiteNoise(Ephys):
             plt.imshow(sta, vmin=-sta_range, vmax=sta_range, cmap='seismic')
             
             # plot eye movements
-            plt.subplot(self.n_units, 4, i*4+4)
+            plt.subplot(self.n_cells, 4, i*4+4)
             plt.plot(self.trange_x, self.rightsacc_avg[i,:], color='tab:blue',label='right')
             plt.plot(self.trange_x, self.leftsacc_avg[i,:],color='red',label='left')
-            maxval = np.max(np.maximum(self.rightavg[i,:], self.leftavg[i,:]))
+            maxval = np.max(np.maximum(self.rightsacc_avg[i,:], self.leftsacc_avg[i,:]))
             plt.vlines(0, 0, maxval*1.5, linestyles='dotted', colors='k')
             plt.ylim([0, maxval*1.2]); plt.ylabel('sp/sec'); plt.legend()
         
         plt.tight_layout()
         plt.tight_layout(); self.overview_pdf.savefig(); plt.close()
 
-    def save(self):
+    def glm_save(self):
         unit_data = pd.DataFrame([])
         stim = 'wn'
         for unit_num, ind in enumerate(self.cells.index):
@@ -123,11 +123,76 @@ class HeadFixedWhiteNoise(Ephys):
         data_out = pd.concat([self.cells, unit_data], axis=1)
         data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
-    def glm_save(self):
+    def save(self):
+        unit_data = pd.DataFrame([])
+        stim = 'wn'
+        for unit_num, ind in enumerate(self.cells.index):
+            cols = [stim+'_'+i for i in ['c_range',
+                                        'crf_cent',
+                                        'crf_tuning',
+                                        'crf_err',
+                                        'spike_triggered_average',
+                                        'sta_shape',
+                                        'spike_triggered_variance',
+                                        'rightsacc_avg',
+                                        'leftsacc_avg',
+                                        'spike_rate_vs_pupil_radius_cent',
+                                        'spike_rate_vs_pupil_radius_tuning',
+                                        'spike_rate_vs_pupil_radius_err',
+                                        'spike_rate_vs_theta_cent',
+                                        'spike_rate_vs_theta_tuning',
+                                        'spike_rate_vs_theta_err',
+                                        'trange',
+                                        'theta',
+                                        'phi',
+                                        'speed',
+                                        'spike_rate_vs_spd_cent',
+                                        'spike_rate_vs_spd_tuning',
+                                        'spike_rate_vs_spd_err',
+                                        'spike_rate_vs_phi_cent',
+                                        'spike_rate_vs_phi_tuning',
+                                        'spike_rate_vs_phi_err',
+                                        'lfp_power_profiles',
+                                        'lfp_layer5_centers']]
+            unit_df = pd.DataFrame(pd.Series([self.contrast_range,
+                                    self.crf_cent,
+                                    self.crf_tuning[unit_num],
+                                    self.crf_err[unit_num],
+                                    np.ndarray.flatten(self.sta[unit_num]),
+                                    np.shape(self.sta[unit_num]),
+                                    np.ndarray.flatten(self.stv[unit_num]),
+                                    self.rightsacc_avg[unit_num],
+                                    self.leftsacc_avg[unit_num],
+                                    self.spike_rate_vs_pupil_radius_cent,
+                                    self.spike_rate_vs_pupil_radius_tuning[unit_num],
+                                    self.spike_rate_vs_pupil_radius_err[unit_num],
+                                    self.spike_rate_vs_theta_cent,
+                                    self.spike_rate_vs_theta_tuning[unit_num],
+                                    self.spike_rate_vs_theta_err[unit_num],
+                                    self.trange,
+                                    self.theta,
+                                    self.phi,
+                                    self.ball_speed,
+                                    self.spike_rate_vs_spd_cent,
+                                    self.spike_rate_vs_spd_tuning[unit_num],
+                                    self.spike_rate_vs_spd_err[unit_num],
+                                    self.spike_rate_vs_phi_cent,
+                                    self.spike_rate_vs_phi_tuning[unit_num],
+                                    self.spike_rate_vs_phi_err[unit_num],
+                                    self.lfp_power_profiles,
+                                    self.lfp_layer5_centers]),dtype=object).T
+            unit_df.columns = cols
+            unit_df.index = [ind]
+            unit_df['session'] = self.session_name
+            unit_data = pd.concat([unit_data, unit_df], axis=0)
+        data_out = pd.concat([self.cells, unit_data], axis=1)
+        data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
+
+    def save_glm_model_inputs(self):
         """ Save an npz file out that has inputs needed for post-processing glm.
         Just do this to avoid duplicating videos, etc. for all units, when the stim is shared.
         """
-        np.savez(file=os.path.join(self.recording_path, 'glm_data.h5'),
+        np.savez(file=os.path.join(self.recording_path, 'glm_model_inputs.h5'),
                  model_t=self.model_t,
                  model_video=self.model_vid,
                  model_rough_correction_video=self.glm_model_vid,
@@ -156,9 +221,15 @@ class HeadFixedWhiteNoise(Ephys):
         print('closing pdfs')
         self.overview_pdf.close(); self.detail_pdf.close(); self.diagnostic_pdf.close()
 
-        print('organizing and saving data')
-        self.save()
-        self.glm_save()
+        print('saving ephys file')
+        if self.do_rough_glm_fit:
+            self.glm_save()
+        elif not self.do_rough_glm_fit:
+            self.save()
+        
+        if self.do_glm_model_preprocessing:
+            print('saving inputs to full glm model')
+            self.save_glm_model_inputs()
 
 class HeadFixedReversingCheckboard(Ephys):
     def __init__(self, config, recording_name, recording_path):
@@ -406,6 +477,15 @@ class HeadFixedReversingCheckboard(Ephys):
         print('getting depth from reversing checkboard stimulus')
         self.revchecker_laminar_depth()
 
+        print('making summary and overview figures')
+        self.summary_fig()
+
+        print('closing pdfs')
+        self.detail_pdf.close(); self.diagnostic_pdf.close()
+
+        print('saving ephys file')
+        self.save()
+
 class HeadFixedSparseNoise(Ephys):
     def __init__(self, config, recording_name, recording_path):
         Ephys.__init__(self, config, recording_name, recording_path)
@@ -494,6 +574,9 @@ class HeadFixedSparseNoise(Ephys):
 
         print('closing pdfs')
         self.detail_pdf.close(); self.diagnostic_pdf.close()
+
+        print('saving ephys file')
+        self.save()
         
 class HeadFixedGratings(Ephys):
     def __init__(self, config, recording_name, recording_path):
@@ -639,7 +722,7 @@ class HeadFixedGratings(Ephys):
         self.ori_tuning = np.zeros((len(self.cells), 8, 3))
         self.ori_tuning_tf = np.zeros((len(self.cells), 8, 3, 2))
         self.drift_spont = np.zeros(len(self.cells))
-        plt.figure(figsize=(12, self.n_units*2))
+        plt.figure(figsize=(12, self.n_cells*2))
         for c, ind in enumerate(self.cells.index):
             sp = self.cells.at[ind,'spikeT'].copy()
             for i in range(len(self.stim_start)):
@@ -652,11 +735,11 @@ class HeadFixedGratings(Ephys):
                     for tf in range(2):
                         self.ori_tuning_tf[c, ori, sf, tf] = np.mean(self.grating_rate[c, (ori_cat==ori) & (sf_cat ==sf) & (grating_tf==tf)])
             self.drift_spont[c] = np.mean(self.spont_rate[c, :])
-            plt.subplot(self.n_units, 4, 4*c+1)
+            plt.subplot(self.n_cells, 4, 4*c+1)
             plt.scatter(self.grating_ori, self.grating_rate[c,:], c=sf_cat)
             plt.plot(3*np.ones(len(self.spont_rate[c,:])), self.spont_rate[c,:], 'r.')
             
-            plt.subplot(self.n_units, 4, 4*c+2)
+            plt.subplot(self.n_cells, 4, 4*c+2)
             plt.plot(self.ori_x, self.ori_tuning[c,:,0], label='low sf')
             plt.plot(self.ori_x, self.ori_tuning[c,:,1], label='mid sf')
             plt.plot(self.ori_x, self.ori_tuning[c,:,2], label='high sf')
@@ -667,7 +750,7 @@ class HeadFixedGratings(Ephys):
                 plt.ylim(0,1)
             plt.legend()
 
-            plt.subplot(self.n_units, 4, 4*c+3)
+            plt.subplot(self.n_cells, 4, 4*c+3)
             plt.plot(self.ori_x, self.ori_tuning_tf[c,:,0,0], label='low sf')
             plt.plot(self.ori_x, self.ori_tuning_tf[c,:,1,0], label='mid sf')
             plt.plot(self.ori_x, self.ori_tuning_tf[c,:,2,0], label='high sf')
@@ -678,7 +761,7 @@ class HeadFixedGratings(Ephys):
                 plt.ylim(0,1)
             plt.legend()
 
-            plt.subplot(self.n_units, 4, 4*c+4)
+            plt.subplot(self.n_cells, 4, 4*c+4)
             plt.plot(self.ori_x, self.ori_tuning_tf[c,:,0,1], label='low sf')
             plt.plot(self.ori_x, self.ori_tuning_tf[c,:,1,1], label='mid sf')
             plt.plot(self.ori_x, self.ori_tuning_tf[c,:,2,1], label='high sf')
@@ -702,22 +785,22 @@ class HeadFixedGratings(Ephys):
         self.ori_tuning_tf = np.roll(self.ori_tuning_tf, shift=-1, axis=1)
 
     def overview_fig(self):
-        plt.figure(figsize=(5, int(np.ceil(self.n_units/2))), dpi=50)
+        plt.figure(figsize=(5, int(np.ceil(self.n_cells/2))), dpi=50)
 
         for i, ind in enumerate(self.cells.index):
             # plot waveform
-            plt.subplot(self.n_units, 4, i*4+1)
+            plt.subplot(self.n_cells, 4, i*4+1)
             wv = self.cells.at[ind,'waveform']
             plt.plot(np.arange(len(wv))*1000/self.ephys_samprate, wv)
             plt.xlabel('msec'); plt.title(str(ind)+' '+self.cells.at[ind,'KSLabel']+' cont='+str(self.cells.at[ind,'ContamPct']))
             
             # plot orientation tuning curve
-            plt.subplot(self.n_units, 4, i*4+2)
+            plt.subplot(self.n_cells, 4, i*4+2)
             plt.scatter(self.grating_ori, self.grating_rate[i,:], c=self.sf_cat)
             plt.plot(3*np.ones(len(self.spont_rate[i,:])), self.spont_rate[i,:], 'r:')
 
             # plot tuning curve
-            plt.subplot(self.n_units, 4, i*4+3)
+            plt.subplot(self.n_cells, 4, i*4+3)
             plt.plot(self.ori_x, self.ori_tuning_meantf[i,:,0], label='low sf')
             plt.plot(self.ori_x, self.ori_tuning_meantf[i,:,1], label='mid sf')
             plt.plot(self.ori_x, self.ori_tuning_meantf[i,:,2], label='high sf')
@@ -729,14 +812,13 @@ class HeadFixedGratings(Ephys):
             plt.xlabel('orientation (deg)')
             
             # plot eye movements
-            plt.subplot(self.n_units, 4, i*4+4)
+            plt.subplot(self.n_cells, 4, i*4+4)
             plt.plot(self.trange_x, self.rightsacc_avg[i,:], color='tab:blue',label='right')
             plt.plot(self.trange_x, self.leftsacc_avg[i,:],color='red',label='left')
-            maxval = np.max(np.maximum(self.rightavg[i,:], self.leftavg[i,:]))
+            maxval = np.max(np.maximum(self.rightsacc_avg[i,:], self.leftsacc_avg[i,:]))
             plt.vlines(0, 0, maxval*1.5, linestyles='dotted', colors='k')
             plt.ylim([0, maxval*1.2]); plt.ylabel('sp/sec'); plt.legend()
         
-        plt.tight_layout()
         plt.tight_layout(); self.overview_pdf.savefig(); plt.close()
 
     def save(self):
@@ -841,4 +923,7 @@ class HeadFixedGratings(Ephys):
         self.summary_fig()
 
         print('closing pdfs')
-        self.overview_pdf.close(); self.detail_pdf.close(); self.diagnostic_pdf.close()
+        self.detail_pdf.close(); self.diagnostic_pdf.close()
+
+        print('saving ephys file')
+        self.save()
