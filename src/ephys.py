@@ -906,9 +906,8 @@ class Ephys(BaseInput):
 
         if self.fm:
             print('deye dhead')
-            dHead_interp = interp1d(self.imuT, self.gyro_z, bounds_error=False)
-            self.dHead = dHead_interp(self.eyeT)
-            self.dGaze = self.dEye + dHead_interp(self.eyeT[:-1])
+            self.dHead = np.diff(interp1d(self.imuT, self.gyro_z, bounds_error=False)(self.eyeT))
+            self.dGaze = self.dEye + self.dHead
 
             plt.figure()
             plt.hist(self.dHead, bins=21, range=(-10,10))
@@ -921,7 +920,7 @@ class Ephys(BaseInput):
             self.detail_pdf.savefig(); plt.close()
             
             plt.figure()
-            plt.plot(self.dEye, self.dHead[:-1], 'k.')
+            plt.plot(self.dEye, self.dHead, 'k.')
             plt.xlabel('dEye'); plt.ylabel('dHead')
             plt.xlim((-10,10)); plt.ylim((-10,10))
             plt.plot([-10,10], [10,-10], 'r:')
@@ -952,15 +951,15 @@ class Ephys(BaseInput):
             print('gaze-shift dhead')
             # plot gaze shifting head movements
             sthresh = 3
-            left = self.eyeT[(np.append(self.dHead[:-1], 0) > sthresh) & (np.append(self.dGaze, 0) > sthresh)]
-            right = self.eyeT[(np.append(self.dHead[:-1], 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
+            left = self.eyeT[(np.append(self.dHead, 0) > sthresh) & (np.append(self.dGaze, 0) > sthresh)]
+            right = self.eyeT[(np.append(self.dHead, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
             self.rightsacc_avg_gaze_shift_dHead, self.leftsacc_avg_gaze_shift_dHead = self.saccade_psth(right, left, 'gaze-shift dHead')
             
             print('comp dhead')
             # plot compensatory head movements
             sthresh = 3
-            left = self.eyeT[(np.append(self.dHead[:-1],0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
-            right = self.eyeT[(np.append(self.dHead[:-1],0) < -sthresh) & (np.append(self.dGaze,0) > -1)]
+            left = self.eyeT[(np.append(self.dHead,0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
+            right = self.eyeT[(np.append(self.dHead,0) < -sthresh) & (np.append(self.dGaze,0) > -1)]
             self.rightsacc_avg_comp_dHead, self.leftsacc_avg_comp_dHead = self.saccade_psth(right, left, 'comp dHead')
 
     def movement_tuning(self):

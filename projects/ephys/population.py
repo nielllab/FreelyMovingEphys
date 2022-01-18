@@ -1202,7 +1202,7 @@ class Population:
             plt.subplot(5,5,1)
             plt.title(unique_ind+' eye fit: m='+fmt_m+' r='+fmt_r, fontsize=20)
             dEye = uniquedf['fm1_dEye'].iloc[0]
-            dhead = uniquedf['fm1_dHead'].iloc[0][:-1]
+            dhead = uniquedf['fm1_dHead'].iloc[0]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
             plt.plot(dEye[::10], dhead[::10], 'k.')
             plt.xlabel('dEye (deg)', fontsize=20); plt.ylabel('dHead (deg)', fontsize=20); plt.xlim((-15,15)); plt.ylim((-15,15))
