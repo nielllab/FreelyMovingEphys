@@ -35,33 +35,39 @@ class Population:
         self.grat_psth_x = gratbins[0:-1]+ grat_dt/2
         self.trange = np.arange(-1, 1.1, self.model_dt)
         self.trange_x = 0.5*(self.trange[0:-1]+ self.trange[1:])
-        self.deye_psth_cmap = ['orange','magenta','cadetblue','darkolivegreen','red']
-        self.deye_psth_full_cmap = ['orange','coral','magenta','thistle','cadetblue','lightsteelblue','darkolivegreen','seagreen','red']
-        self.cmap_orientation = ['#fff7bc', '#fec44f', '#d95f0e', '#000000'] # [low, mid, high, spont]
-        self.cmap_movement_clusters = ['#636363', '#1b9e77','#7570b3','#e7298a','#d95f02', '##e6ab02'] # [all, early, late, biphasic, negative, unresponsive]
-        self.cmap_cell_types = ['#8c510a', '#01665e'] # [exc, inh]
+        self.cmap_orientation = ['#fec44f','#ec7014','#993404','#000000'] # [low, mid, high, spont]
+        self.cmap_movclusts = ['#4d4d4d','#4daf4a','#984ea3','#377eb8','#e41a1c','#999999'] # [all, early, late, biphasic, negative, unresponsive]
+        self.cmap_celltype = ['#fee08b','#66c2a5'] # [exc, inh]
+        self.cmap_sacc = ['#e9a3c9','#91bfdb'] # [right, left]
 
-    def gather_data(self, csv_filepath):
-        # open the csv file of metadata and pull out all of the desired data paths
-        if type(csv_filepath) == str:
-            csv = pd.read_csv(csv_filepath)
-            for_data_pool = csv[csv['good_experiment'] == any(['TRUE' or True or 'True'])]
-        elif type(csv_filepath) == pd.Series:
-            for_data_pool = csv_filepath
-        goodsessions = []; probenames_for_goodsessions = []; layer5_depth_for_goodsessions = []; use_in_dark_analysis = []
-        # get all of the best freely moving recordings of a session into a dictionary
-        goodlightrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else 'fm1' for i in for_data_pool['best_light_fm']]))
-        gooddarkrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else None for i in for_data_pool['best_dark_fm']]))
-        # change paths to work with linux
-        if platform.system() == 'Linux':
+    def gather_data(self, csv_filepath=None, goodsessions=None, probes=None, use_as_ltdk=None):
+        if csv_filepath==None:
+            csv_filepath = self.metadata_path
+        if goodsessions is not None:
+            use_path_list = True
+            probenames_for_goodsessions = probes
+            use_in_dark_analysis = use_as_ltdk
+        elif goodsessions is None:
+            # open the csv file of metadata and pull out all of the desired data paths
+            if type(csv_filepath) == str:
+                csv = pd.read_csv(csv_filepath)
+                for_data_pool = csv[csv['good_experiment'] == any(['TRUE' or True or 'True'])]
+            elif type(csv_filepath) == pd.Series:
+                for_data_pool = csv_filepath
+            goodsessions = []; probenames_for_goodsessions = []; layer5_depth_for_goodsessions = []; use_in_dark_analysis = []
+            # get all of the best freely moving recordings of a session into a dictionary
+            goodlightrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else 'fm1' for i in for_data_pool['best_light_fm']]))
+            gooddarkrecs = dict(zip(list([j+'_'+i for i in [i.split('\\')[-1] for i in for_data_pool['animal_dirpath']] for j in [datetime.strptime(i,'%m/%d/%y').strftime('%m%d%y') for i in list(for_data_pool['experiment_date'])]]),[i if i !='' else None for i in for_data_pool['best_dark_fm']]))
+            # change paths to work with linux
+            if platform.system() == 'Linux':
+                for ind, row in for_data_pool.iterrows():
+                    drive = [row['drive'] if row['drive'] == 'nlab-nas' else row['drive'].capitalize()][0]
+                    for_data_pool.loc[ind,'animal_dirpath'] = os.path.expanduser('~/'+('/'.join([row['computer'].title(), drive] + list(filter(None, row['animal_dirpath'].replace('\\','/').split('/')))[2:])))
             for ind, row in for_data_pool.iterrows():
-                drive = [row['drive'] if row['drive'] == 'nlab-nas' else row['drive'].capitalize()][0]
-                for_data_pool.loc[ind,'animal_dirpath'] = os.path.expanduser('~/'+('/'.join([row['computer'].title(), drive] + list(filter(None, row['animal_dirpath'].replace('\\','/').split('/')))[2:])))
-        for ind, row in for_data_pool.iterrows():
-            goodsessions.append(row['animal_dirpath'])
-            probenames_for_goodsessions.append(row['probe_name'])
-            layer5_depth_for_goodsessions.append(row['overwrite_layer5center'])
-            use_in_dark_analysis.append(row['use_in_dark_analysis'])
+                goodsessions.append(row['animal_dirpath'])
+                probenames_for_goodsessions.append(row['probe_name'])
+                layer5_depth_for_goodsessions.append(row['overwrite_layer5center'])
+                use_in_dark_analysis.append(row['use_in_dark_analysis'])
         # get the .h5 files from each day
         # this will be a list of lists, where each list inside of the main list has all the data of a single session
         sessions = [find('*_ephys_props.h5',session) for session in goodsessions]
@@ -78,12 +84,13 @@ class Population:
                 # rename spike time columns so that data is retained for each of the seperate trials
                 rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
                 # add a column for which fm recording should be prefered
-                for key,val in goodlightrecs.items():
-                    if key in rec_data['session'].iloc[0]:
-                        rec_data['best_light_fm'] = val
-                for key,val in gooddarkrecs.items():
-                    if key in rec_data['session'].iloc[0]:
-                        rec_data['best_dark_fm'] = val
+                if not use_path_list:
+                    for key,val in goodlightrecs.items():
+                        if key in rec_data['session'].iloc[0]:
+                            rec_data['best_light_fm'] = val
+                    for key,val in gooddarkrecs.items():
+                        if key in rec_data['session'].iloc[0]:
+                            rec_data['best_dark_fm'] = val
                 # get column names
                 column_names = list(session_data.columns.values) + list(rec_data.columns.values)
                 # new columns for same unit within a session
@@ -101,17 +108,20 @@ class Population:
                 session_data['best_ellipse_fit_m'] = ellipse_fit_params['regression_m']
                 session_data['best_ellipse_fit_r'] = ellipse_fit_params['regression_r']
             # add the session path to each row
-            session_data['original_recording_path'] = session
+            session_data['original_session_path'] = goodsessions[ind]
             # add probe name
             session_data['probe_name'] = probenames_for_goodsessions[ind]
-            session_data['use_in_dark_analysis'] = use_in_dark_analysis[ind+1]
-            # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
-            manual_depth_entry = layer5_depth_for_goodsessions[ind]
-            if 'hf1_wn_lfp_layer5_centers' in session_data.columns.values:
-                if type(session_data['hf1_wn_lfp_layer5_centers'].iloc[0]) != float and type(manual_depth_entry) != float and manual_depth_entry not in ['?','','FALSE',False]:
-                    num_sh = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[0])
-                    for i, row in session_data.iterrows():
-                        session_data.at[i, 'hf1_wn_lfp_layer5_centers'] = list(np.ones([num_sh]).astype(int)*int(manual_depth_entry))
+            if not use_path_list:
+                session_data['use_in_dark_analysis'] = use_in_dark_analysis[ind+1]
+                # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
+                manual_depth_entry = layer5_depth_for_goodsessions[ind]
+                if 'hf1_wn_lfp_layer5_centers' in session_data.columns.values:
+                    if type(session_data['hf1_wn_lfp_layer5_centers'].iloc[0]) != float and type(manual_depth_entry) != float and manual_depth_entry not in ['?','','FALSE',False]:
+                        num_sh = len(session_data['hf1_wn_lfp_layer5_centers'].iloc[0])
+                        for i, row in session_data.iterrows():
+                            session_data.at[i, 'hf1_wn_lfp_layer5_centers'] = list(np.ones([num_sh]).astype(int)*int(manual_depth_entry))
+            else:
+                session_data['use_in_dark_analysis'] = use_in_dark_analysis[ind]
             ind += 1
             # new rows for units from different mice or sessions
             all_data = pd.concat([all_data, session_data], axis=0)
@@ -156,47 +166,63 @@ class Population:
         print('reading data from', pickle_path)
         self.data = pd.read_pickle(pickle_path)
 
+    def save_custom_pickle(self, key='temp'):
+        pickle_path = os.path.join(self.savepath, 'pooled_ephys_'+key+'_'+datetime.today().strftime('%m%d%y')+'.pickle')
+        if os.path.isfile(pickle_path):
+            os.remove(pickle_path)
+        print('saving to '+pickle_path)
+        self.data.to_pickle(pickle_path)
+
+    def load_custom_pickle(self, key='temp'):
+        pickle_path = os.path.join(self.savepath, 'pooled_ephys_'+key+'_'+datetime.today().strftime('%m%d%y')+'.pickle')
+        print('reading from '+pickle_path)
+        self.data = pd.read_pickle(pickle_path)
+
     def add_available_optic_flow_data(self, use_lag=2):
         """
         use_lag is the index--not the value
         so use_lag=2 is time lag 0msec
         """
         self.data['has_optic_flow'] = False
-        recordings = self.data['original_recording_path'].unique()
+        recordings = self.data['original_session_path'].unique()
+        recordings = [os.path.join(x, 'fm1') for x in recordings]
         for i, recording_path in enumerate(recordings):
             flow_files = find('*optic_flow.npz', recording_path)
             if len(flow_files) == 0:
                 # skip this recording if there isn't an optic flow npz file
                 continue
             flow_data = np.load(flow_files[0])
-            # shape is [unit, lag, x, y, U/V]
-            # shape is [unit, lag, x, y]
-            movement_state_dict = {'active_gyro_vec':flow_data['active_gyro_vec'],'active_gyro_amp':flow_data['active_gyro_amp'],
+            movement_state_dict = {'full_vec':flow_data['full_vec'],'full_amp':flow_data['full_amp'],
+                                   'active_gyro_vec':flow_data['active_gyro_vec'],'active_gyro_amp':flow_data['active_gyro_amp'],
                                    'inactive_gyro_vec':flow_data['inactive_gyro_vec'],'inactive_gyro_amp':flow_data['inactive_gyro_amp'],
                                    'running_forward_vec':flow_data['running_forward_vec'],'running_forward_amp':flow_data['running_forward_amp'],
                                    'running_backward_vec':flow_data['running_backward_vec'],'running_backward_amp':flow_data['running_backward_amp'],
                                    'fine_motion_vec':flow_data['fine_motion_vec'],'fine_motion_amp':flow_data['fine_motion_amp'],
                                    'immobile_vec':flow_data['immobile_vec'],'immobile_amp':flow_data['immobile_amp']}
             
-            for movement_state in ['active_gyro','inactive_gyro','running_forward','running_backward','fine_motion','immobile']:
+            for movement_state in ['full','active_gyro','inactive_gyro','running_forward','running_backward','fine_motion','immobile']:
+                flow_vec = movement_state_dict[movement_state+'_vec'] # shape is [unit, lag, x, y, U/V]
+                flow_amp = movement_state_dict[movement_state+'_amp'] # shape is [unit, lag, x, y]
+                if movement_state=='full':
+                    vec_scale = np.zeros(np.size(flow_vec, 0))
+                    print(np.shape(vec_scale))
                 flow_arr_ind = 0
-                vec_scale = np.zeros(len(self.data[self.data['original_recording_path']==recording_path])) # vector scale defined for each recording independetly
-                flow_vec = movement_state_dict[movement_state+'_vec']
-                flow_amp = movement_state_dict[movement_state+'_amp']
-                for ind, _ in self.data[self.data['original_recording_path']==recording_path].iterrows():
+                for ind, _ in self.data[self.data['original_session_path']==recording_path].iterrows():
                     self.data.at[ind, 'fm1_optic_flow_'+movement_state+'_vec'] = flow_vec[flow_arr_ind, use_lag].astype(object)
                     self.data.at[ind, 'fm1_optic_flow_'+movement_state+'_amp'] = flow_amp[flow_arr_ind, use_lag].astype(object)
-                    vec_scale[flow_arr_ind] = np.max(np.sqrt((flow_vec[flow_arr_ind, use_lag, :, 0].flatten()**2) + (flow_vec[flow_arr_ind, use_lag, :, 1].flatten()**2))) # U**2 + V**2
+                    if movement_state=='full':
+                        vec_scale[flow_arr_ind] = np.max(np.sqrt((flow_vec[flow_arr_ind, use_lag, :, 0].flatten()**2) + (flow_vec[flow_arr_ind, use_lag, :, 1].flatten()**2))) # U**2 + V**2
                     flow_arr_ind += 1
-                max_vec_scale = np.max(vec_scale.flatten())
-                for ind, _ in self.data[self.data['original_recording_path']==recording_path].iterrows():
-                    self.data.at[ind, 'fm1_flowvec_scale'] = max_vec_scale
-                    self.data.at[ind, 'has_optic_flow'] = True
+                if movement_state=='full':
+                    max_vec_scale = np.max(vec_scale.flatten())
+                    for ind, _ in self.data[self.data['original_session_path']==recording_path].iterrows():
+                        self.data.at[ind, 'fm1_flowvec_scale'] = max_vec_scale
+                        self.data.at[ind, 'has_optic_flow'] = True
             
-    def optic_flow_vec(self, panel):
-        fv = self.current_row['fm1_optic_flow_vec'] # shape is [x, y, U/V]
+    def optic_flow_vec(self, panel, movstate):
+        fv = self.current_row['fm1_optic_flow_'+movstate+'_vec'] # shape is [x, y, U/V]
 
-        nx = 5 #binning for plotting flow vectors
+        nx = 5 # binning for plotting flow vectors
         fv_scale = self.current_row['fm1_flowvec_scale']
         flow_w = np.size(fv, 0)
         flow_h = np.size(fv, 1)
@@ -208,15 +234,15 @@ class Population:
         panel.quiver(X[::nx,::nx], -Y[::nx,::nx], U[::nx,::nx], -V[::nx,::nx], scale=fv_scale)
         panel.axis('off')
         panel.axis('equal')
-        panel.set_title('optic flow vector')
+        panel.set_title(movstate)
 
-    def optic_flow_amp(self, panel):
-        fa = self.current_row['fm1_optic_flow_amp'] # shape is [x, y]
+    def optic_flow_amp(self, panel, movstate):
+        fa = self.current_row['fm1_optic_flow_'+movstate+'_amp'] # shape is [x, y]
 
         panel.imshow(fa, vmin=0, vmax=0.25, cmap='Reds')
         panel.axis('off')
         panel.axis('equal')
-        panel.set_title(title)
+        panel.set_title(movstate)
 
     def tuning_modulation_index(self, tuning):
         tuning = tuning[~np.isnan(tuning)]
@@ -233,7 +259,7 @@ class Population:
 
     def waveform(self, panel):
         wv = self.current_row['waveform']
-        panel.plot(np.arange(len(wv))*1000/self.samprate, wv)
+        panel.plot(np.arange(len(wv))*1000/self.samprate, wv, color='k')
         panel.set_ylabel('millivolts')
         panel.set_xlabel('msec')
         panel.set_title(self.current_row['KSLabel']+' cont='+str(np.round(self.current_row['ContamPct'],3)), fontsize=20)
@@ -242,7 +268,7 @@ class Population:
         var_cent = self.current_row[varcent_name]
         tuning = self.current_row[tuning_name]
         tuning_err = self.current_row[err_name]
-        panel.errorbar(var_cent,tuning[:],yerr=tuning_err[:])
+        panel.errorbar(var_cent,tuning[:],yerr=tuning_err[:], color='k')
         modind = self.tuning_modulation_index(tuning)
         panel.set_title(title+'\nmod.ind.='+str(modind), fontsize=20)
         panel.set_xlabel(xlabel); panel.set_ylabel('sp/sec')
@@ -273,10 +299,10 @@ class Population:
             R_null = tuning[th_null, sf] # tuning value at that peak
             dsi[sf] = (R_pref - R_null) / (R_pref + R_null)
         panel.set_title(tf_sel+' tf\n OSI l='+str(np.round(osi[0],3))+'m='+str(np.round(osi[1],3))+'h='+str(np.round(osi[2],3))+'\n DSI l='+str(np.round(dsi[0],3))+'m='+str(np.round(dsi[1],3))+'h='+str(np.round(dsi[2],3)), fontsize=20)
-        panel.plot(np.arange(8)*45, raw_tuning[:,0], label='low sf', color=)
-        panel.plot(np.arange(8)*45, raw_tuning[:,1], label='mid sf')
-        panel.plot(np.arange(8)*45, raw_tuning[:,2], label='high sf')
-        panel.plot([0,315],[drift_spont,drift_spont],'r:',label='spont')
+        panel.plot(np.arange(8)*45, raw_tuning[:,0], label='low sf', color=self.cmap_orientation[0])
+        panel.plot(np.arange(8)*45, raw_tuning[:,1], label='mid sf', color=self.cmap_orientation[1])
+        panel.plot(np.arange(8)*45, raw_tuning[:,2], label='high sf', color=self.cmap_orientation[2])
+        panel.plot([0,315],[drift_spont,drift_spont],':',label='spont', color=self.cmap_orientation[3])
         panel.legend()
         panel.set_ylim([0,np.nanmax(self.current_row['hf3_gratings_ori_tuning'][:,:,:])*1.2])
         if tf_sel=='mean':
@@ -349,7 +375,7 @@ class Population:
         lower = -0.5; upper = 1.5; dt = 0.1
         bins = np.arange(lower,upper+dt,dt)
         psth = self.current_row['hf3_gratings_grating_psth']
-        panel.plot(bins[0:-1]+ dt/2,psth)
+        panel.plot(bins[0:-1]+ dt/2,psth, color='k')
         panel.set_title('gratings psth', fontsize=20)
         panel.set_xlabel('time'); panel.set_ylabel('sp/sec')
         panel.set_ylim([0,np.nanmax(psth)*1.2])
@@ -366,7 +392,7 @@ class Population:
             ch_spacing = 25
         ch_depth = ch_spacing*(self.current_row['ch']%32)-(layer5cent*ch_spacing)
         num_sites = 32
-        panel.plot(ch_shank_profile,range(0,num_sites))
+        panel.plot(ch_shank_profile,range(0,num_sites),color='k')
         panel.plot(ch_shank_profile[layer5cent]+0.01,layer5cent,'r*',markersize=12)
         panel.hlines(y=self.current_row['ch']%32, xmin=0, xmax=ch_power, colors='g', linewidth=5)
         panel.set_ylim([33,-1])
@@ -394,10 +420,10 @@ class Population:
         panel.set_title(title, fontsize=20)
         modind_right = self.saccade_modulation_index(rightavg)
         modind_left = self.saccade_modulation_index(leftavg)
-        panel.plot(self.trange_x, rightavg[:], color='tab:blue')
-        panel.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]), color='tab:blue', xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
-        panel.plot(self.trange_x, leftavg[:], color='tab:red')
-        panel.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]), color='tab:red', xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
+        panel.plot(self.trange_x, rightavg[:], color=self.cmap_sacc[0])
+        panel.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]), color=self.cmap_sacc[0], xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
+        panel.plot(self.trange_x, leftavg[:], color=self.cmap_sacc[1])
+        panel.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]), color=self.cmap_sacc[1], xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
         panel.legend(['right','left'], loc=1)
         maxval = np.max(np.maximum(rightavg[:], leftavg[:]))*1.2
         panel.set_ylim([0, maxval])
@@ -421,8 +447,8 @@ class Population:
             self.current_row = row
 
             # set up page
-            self.figure = plt.figure(constrained_layout=True, figsize=(50,45))
-            self.spec = gridspec.GridSpec(ncols=5, nrows=10, figure=self.figure)
+            self.figure = plt.figure(constrained_layout=True, figsize=(60,45))
+            self.spec = gridspec.GridSpec(ncols=7, nrows=10, figure=self.figure)
 
             # page title
             title = self.figure.add_subplot(self.spec[0,0])
@@ -710,12 +736,37 @@ class Population:
                                     xlabel='deg')
             self.data.at[self.current_index, 'fm1_spike_rate_vs_pitch_modind'] = fm1_pitch_modind
 
-            ### if optic flow data exists for this file
-            fig_fm1_flow_vec = self.figure.add_subplot(self.spec[7,3])
-            self.optic_flow_vec(panel=fig_fm1_flow_vec)
+            if self.current_row['has_optic_flow']:
+                fig_flow_full_vec = self.figure.add_subplot(self.spec[0,5])
+                fig_flow_full_amp = self.figure.add_subplot(self.spec[0,6])
 
-            fig_fm1_flow_amp = self.figure.add_subplot(self.spec[7,4])
-            self.optic_flow_amp(panel=fig_fm1_flow_amp)
+                fig_flow_ag_vec = self.figure.add_subplot(self.spec[1,5])
+                fig_flow_ag_amp = self.figure.add_subplot(self.spec[1,6])
+
+                fig_flow_ig_vec = self.figure.add_subplot(self.spec[2,5])
+                fig_flow_ig_amp = self.figure.add_subplot(self.spec[2,6])
+
+                fig_flow_rf_vec = self.figure.add_subplot(self.spec[3,5])
+                fig_flow_rf_amp = self.figure.add_subplot(self.spec[3,6])
+
+                fig_flow_rb_vec = self.figure.add_subplot(self.spec[4,5])
+                fig_flow_rb_amp = self.figure.add_subplot(self.spec[4,6])
+
+                fig_flow_fm_vec = self.figure.add_subplot(self.spec[5,5])
+                fig_flow_fm_amp = self.figure.add_subplot(self.spec[5,6])
+
+                fig_flow_im_vec = self.figure.add_subplot(self.spec[6,5])
+                fig_flow_im_amp = self.figure.add_subplot(self.spec[6,6])
+
+                movstates = ['full','active_gyro','inactive_gyro','running_forward','running_backward','fine_motion','immobile']
+                statevecs = [fig_flow_full_vec, fig_flow_ag_vec, fig_flow_ig_vec, fig_flow_rf_vec, fig_flow_rb_vec, fig_flow_fm_vec, fig_flow_im_vec]
+                stateamps = [fig_flow_full_amp, fig_flow_ag_amp, fig_flow_ig_amp, fig_flow_rf_amp, fig_flow_rb_amp, fig_flow_fm_amp, fig_flow_im_amp]
+
+                for i in range(len(movstates)):
+                    self.optic_flow_vec(panel=statevecs[i],
+                                        movstate=movstates[i])
+                    self.optic_flow_amp(panel=stateamps[i],
+                                    movstate=movstates[i])
 
             # set up panels for dark figures
             fig_fmdark_gyro_z_tuning = self.figure.add_subplot(self.spec[7,0])
@@ -950,9 +1001,9 @@ class Population:
         self.data['has_dark'] = ~self.data['fm_dark_theta'].isna()
         self.data['has_hf'] = ~self.data['hf1_wn_crf_tuning'].isna()
 
-        active_time_by_session, light_len, dark_len = self.get_animal_activity()
+        if self.data['has_dark'].sum() > 0 and self.data['has_hf'].sum() > 0:
+            active_time_by_session, light_len, dark_len = self.get_animal_activity()
 
-        if np.sum(self.data['has_dark']) > 0:
             # fraction active time: light vs dark
             light = np.array([val for key,val in active_time_by_session['light'].items()])
             light_err = np.std(light) / np.sqrt(len(light))
@@ -969,8 +1020,7 @@ class Population:
             plt.ylabel('fraction of time spent active')
             plt.tight_layout(); pdf.savefig(); plt.close()
 
-        # fraction active time: light vs dark (broken up by session)
-        if np.sum(self.data['has_dark']) > 0:
+            # fraction active time: light vs dark (broken up by session)
             dark_active_times = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
             dark_session_names = [session for session, active_frac in active_time_by_session['dark'].items()]
             fig, ax = plt.subplots(1,1, figsize=(5,10))
@@ -980,31 +1030,30 @@ class Population:
             plt.ylabel('frac active time')
             plt.tight_layout(); pdf.savefig(); plt.close()
 
-        light_active_times = [active_frac for session, active_frac in active_time_by_session['light'].items()]
-        light_session_names = [session for session, active_frac in active_time_by_session['light'].items()]
-        fig, ax = plt.subplots(1,1, figsize=(12,10))
-        plt.bar(np.arange(0, len(light_session_names)), light_active_times, color='khaki')
-        ax.set_xticks(np.arange(len(light_session_names)))
-        ax.set_xticklabels(light_session_names, rotation=90)
-        plt.ylabel('frac active time'); plt.ylim([0,1])
-        plt.tight_layout(); pdf.savefig(); plt.close()
+            light_active_times = [active_frac for session, active_frac in active_time_by_session['light'].items()]
+            light_session_names = [session for session, active_frac in active_time_by_session['light'].items()]
+            fig, ax = plt.subplots(1,1, figsize=(12,10))
+            plt.bar(np.arange(0, len(light_session_names)), light_active_times, color='khaki')
+            ax.set_xticks(np.arange(len(light_session_names)))
+            ax.set_xticklabels(light_session_names, rotation=90)
+            plt.ylabel('frac active time'); plt.ylim([0,1])
+            plt.tight_layout(); pdf.savefig(); plt.close()
 
-        # minutes active or stationary: light vs dark
-        total_min = [(i*self.model_dt)/60 for i in light_len]
-        frac_active = [active_frac for session, active_frac in active_time_by_session['light'].items()]
-        light_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
-        light_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
-        light_session_names = [session for session, active_frac in active_time_by_session['light'].items()]
-        fig, ax = plt.subplots(1,1, figsize=(12,10))
-        plt.bar(np.arange(0, len(light_session_names)), light_active_min, color='salmon', label='active')
-        plt.bar(np.arange(0, len(light_session_names)), light_stationary_min, bottom=light_active_min, color='gray', label='stationary')
-        ax.set_xticks(np.arange(len(light_session_names)))
-        ax.set_xticklabels(light_session_names, rotation=90)
-        plt.legend()
-        plt.ylabel('recording time (min)')
-        plt.tight_layout(); pdf.savefig(); plt.close()
+            # minutes active or stationary: light vs dark
+            total_min = [(i*self.model_dt)/60 for i in light_len]
+            frac_active = [active_frac for session, active_frac in active_time_by_session['light'].items()]
+            light_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
+            light_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
+            light_session_names = [session for session, active_frac in active_time_by_session['light'].items()]
+            fig, ax = plt.subplots(1,1, figsize=(12,10))
+            plt.bar(np.arange(0, len(light_session_names)), light_active_min, color='salmon', label='active')
+            plt.bar(np.arange(0, len(light_session_names)), light_stationary_min, bottom=light_active_min, color='gray', label='stationary')
+            ax.set_xticks(np.arange(len(light_session_names)))
+            ax.set_xticklabels(light_session_names, rotation=90)
+            plt.legend()
+            plt.ylabel('recording time (min)')
+            plt.tight_layout(); pdf.savefig(); plt.close()
 
-        if np.sum(self.data['has_dark']) > 0:
             total_min = [(i*self.model_dt)/60 for i in dark_len]
             frac_active = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
             dark_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
@@ -1020,7 +1069,13 @@ class Population:
             plt.tight_layout(); pdf.savefig(); plt.close()
 
         movement_count_dict = dict()
-        for base in ['fm1','fm_dark']:
+        session_stim_list = []
+        if self.data['has_dark'].sum() > 0:
+            session_stim_list.append('fm_dark')
+        if self.data['has_hf'].sum() > 0:
+            session_stim_list.append('fm1')
+
+        for base in session_stim_list:
             for movement in ['eye_gaze_shifting', 'eye_comp']:
                 sessions = [i for i in self.data['session'].unique() if type(i) != float]
                 n_sessions = len(self.data['session'].unique())
@@ -1028,59 +1083,55 @@ class Population:
                 for session_num, session_name in enumerate(sessions):
                     row = self.data[self.data['session']==session_name].iloc[0]
 
-                    if type(row[base+'_eyeT']) != float and type(row[base+'_dEye']) != float and type(row[base+'_dHead']) != float:
+                    eyeT = np.array(row[base+'_eyeT'])
+                    dEye = row[base+'_dEye']
+                    dhead = row[base+'_dHead'][:-1]
+                    dgz = dEye + dhead
 
-                        eyeT = np.array(row[base+'_eyeT'])
-                        dEye = row[base+'_dEye']
-                        dhead = row[base+'_dHead']
-                        dgz = dEye + dhead(eyeT[0:-1])
+                    if movement=='eye_gaze_shifting':
+                        sthresh = 5
+                        rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
+                        leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+                    elif movement=='eye_comp':
+                        sthresh = 3
+                        rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
+                        leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
+                    elif movement=='head_gaze_shifting':
+                        sthresh = 3
+                        rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)>sthresh)]
+                        leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+                    elif movement=='head_comp':
+                        sthresh = 3
+                        rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)<1)]
+                        leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)>-1)]
 
-                        if movement=='eye_gaze_shifting':
-                            sthresh = 5
-                            rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
-                            leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-                        elif movement=='eye_comp':
-                            sthresh = 3
-                            rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
-                            leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
-                        elif movement=='head_gaze_shifting':
-                            sthresh = 3
-                            rightsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)>sthresh)]
-                            leftsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-                        elif movement=='head_comp':
-                            sthresh = 3
-                            rightsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
-                            leftsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
+                    deye_mov_right = np.zeros([len(rightsacc), len(trange)]); deye_mov_left = np.zeros([len(leftsacc), len(trange)])
+                    dgz_mov_right = np.zeros([len(rightsacc), len(trange)]); dgz_mov_left = np.zeros([len(leftsacc), len(trange)])
+                    dhead_mov_right = np.zeros([len(rightsacc), len(trange)]); dhead_mov_left = np.zeros([len(leftsacc), len(trange)])
 
-                        deye_mov_right = np.zeros([len(rightsacc), len(trange)]); deye_mov_left = np.zeros([len(leftsacc), len(trange)])
-                        dgz_mov_right = np.zeros([len(rightsacc), len(trange)]); dgz_mov_left = np.zeros([len(leftsacc), len(trange)])
-                        dhead_mov_right = np.zeros([len(rightsacc), len(trange)]); dhead_mov_left = np.zeros([len(leftsacc), len(trange)])
+                    for sind in range(len(rightsacc)):
+                        s = rightsacc[sind]
+                        mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
+                        trange_inds = list(mov_ind + np.arange(-42,42))
+                        if np.max(trange_inds) < len(dEye):
+                            deye_mov_right[sind,:] = dEye[np.array(trange_inds)]
+                        if np.max(trange_inds) < len(dgz):
+                            dgz_mov_right[sind,:] = dgz[np.array(trange_inds)]
+                        if np.max(trange_inds) < len(dhead):
+                            dhead_mov_right[sind,:] = dhead[np.array(trange_inds)]
+                    for sind in range(len(leftsacc)):
+                        s = leftsacc[sind]
+                        mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
+                        trange_inds = list(mov_ind + np.arange(-42,42))
+                        if np.max(trange_inds) < len(dEye):
+                            deye_mov_left[sind,:] = dEye[np.array(trange_inds)]
+                        if np.max(trange_inds) < len(dgz):
+                            dgz_mov_left[sind,:] = dgz[np.array(trange_inds)]
+                        if np.max(trange_inds) < len(dhead):
+                            dhead_mov_left[sind,:] = dhead[np.array(trange_inds)]
 
-                        dhead = dhead(eyeT[0:-1])
-
-                        for sind in range(len(rightsacc)):
-                            s = rightsacc[sind]
-                            mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
-                            trange_inds = list(mov_ind + np.arange(-42,42))
-                            if np.max(trange_inds) < len(dEye):
-                                deye_mov_right[sind,:] = dEye[np.array(trange_inds)]
-                            if np.max(trange_inds) < len(dgz):
-                                dgz_mov_right[sind,:] = dgz[np.array(trange_inds)]
-                            if np.max(trange_inds) < len(dhead):
-                                dhead_mov_right[sind,:] = dhead[np.array(trange_inds)]
-                        for sind in range(len(leftsacc)):
-                            s = leftsacc[sind]
-                            mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
-                            trange_inds = list(mov_ind + np.arange(-42,42))
-                            if np.max(trange_inds) < len(dEye):
-                                deye_mov_left[sind,:] = dEye[np.array(trange_inds)]
-                            if np.max(trange_inds) < len(dgz):
-                                dgz_mov_left[sind,:] = dgz[np.array(trange_inds)]
-                            if np.max(trange_inds) < len(dhead):
-                                dhead_mov_left[sind,:] = dhead[np.array(trange_inds)]
-
-                        movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['right'] = len(rightsacc)
-                        movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['left'] = len(leftsacc)
+                    movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['right'] = len(rightsacc)
+                    movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['left'] = len(leftsacc)
 
         if np.sum(self.data['has_dark']) > 0:
             right_gaze = [val['right'] for key,val in movement_count_dict['fm1']['eye_gaze_shifting'].items()]
@@ -1151,19 +1202,25 @@ class Population:
             plt.subplot(5,5,1)
             plt.title(unique_ind+' eye fit: m='+fmt_m+' r='+fmt_r, fontsize=20)
             dEye = uniquedf['fm1_dEye'].iloc[0]
-            dhead = uniquedf['fm1_dHead'].iloc[0]
+            dhead = uniquedf['fm1_dHead'].iloc[0][:-1]
             eyeT = uniquedf['fm1_eyeT'].iloc[0]
-            if len(dEye[0:-1:10]) == len(dhead(eyeT[0:-1:10])):
-                plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'k.')
-            elif len(dEye[0:-1:10]) > len(dhead(eyeT[0:-1:10])):
-                plt.plot(dEye[0:-1:10][:len(dhead(eyeT[0:-1:10]))],dhead(eyeT[0:-1:10]),'k.')
-            elif len(dEye[0:-1:10]) < len(dhead(eyeT[0:-1:10])):
-                plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10])[:len(dEye[0:-1:10])],'k.')
+            plt.plot(dEye[::10], dhead[::10], 'k.')
             plt.xlabel('dEye (deg)', fontsize=20); plt.ylabel('dHead (deg)', fontsize=20); plt.xlim((-15,15)); plt.ylim((-15,15))
             plt.plot([-15,15],[15,-15], 'r:')
 
-            roll_interp = uniquedf['fm1_roll_interp'].iloc[0]
-            pitch_interp = uniquedf['fm1_pitch_interp'].iloc[0]
+            try:
+                imuT = uniquedf['fm1_imuT'].iloc[0]
+            except KeyError:
+                imuT = uniquedf['fm1_accT'].iloc[0]
+            roll = uniquedf['fm1_roll'].iloc[0]
+            pitch = uniquedf['fm1_pitch'].iloc[0]
+
+            centered_roll = roll - np.mean(roll)
+            roll_interp = interp1d(imuT, centered_roll, bounds_error=False)(eyeT)
+
+            centered_pitch = pitch - np.mean(pitch)
+            pitch_interp = interp1d(imuT, centered_pitch, bounds_error=False)(eyeT)
+
             th = uniquedf['fm1_theta'].iloc[0]
             phi = uniquedf['fm1_phi'].iloc[0]
             plt.subplot(5,5,2)
@@ -1328,14 +1385,9 @@ class Population:
             elif uniquedf['has_dark'].iloc[0]:
                 plt.subplot(5,5,18)
                 dEye = uniquedf['fm_dark_dEye'].iloc[0]
-                dhead = uniquedf['fm_dark_dHead'].iloc[0]
+                dhead = uniquedf['fm_dark_dHead'].iloc[0][:-1]
                 eyeT = uniquedf['fm_dark_eyeT'].iloc[0]
-                if len(dEye[0:-1:10]) == len(dhead(eyeT[0:-1:10])):
-                    plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10]),'k.')
-                elif len(dEye[0:-1:10]) > len(dhead(eyeT[0:-1:10])):
-                    plt.plot(dEye[0:-1:10][:len(dhead(eyeT[0:-1:10]))],dhead(eyeT[0:-1:10]),'k.')
-                elif len(dEye[0:-1:10]) < len(dhead(eyeT[0:-1:10])):
-                    plt.plot(dEye[0:-1:10],dhead(eyeT[0:-1:10])[:len(dEye[0:-1:10])],'k.')
+                plt.plot(dEye[::10], dhead[::10], 'k.')
                 plt.xlabel('dark dEye (deg)', fontsize=20); plt.ylabel('dark dHead (deg)', fontsize=20); plt.xlim((-15,15)); plt.ylim((-15,15))
                 plt.plot([-15,15],[15,-15], 'r:')
 
@@ -2276,8 +2328,8 @@ class Population:
                 
                 eyeT = np.array(row['fm1_eyeT'])
                 dEye = row['fm1_dEye']
-                dhead = row['fm1_dHead']
-                dgz = dEye + dhead(eyeT[0:-1])
+                dhead = row['fm1_dHead'][:-1]
+                dgz = dEye + dhead
                 
                 if movement=='eye_gaze_shifting':
                     sthresh = 5
@@ -2289,18 +2341,16 @@ class Population:
                     leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
                 elif movement=='head_gaze_shifting':
                     sthresh = 3
-                    rightsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)>sthresh)]
-                    leftsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+                    rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)>sthresh)]
+                    leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
                 elif movement=='head_comp':
                     sthresh = 3
-                    rightsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)>sthresh) & (np.append(dgz,0)<1)]
-                    leftsacc = eyeT[(np.append(dhead(eyeT[0:-1]),0)<-sthresh) & (np.append(dgz,0)>-1)]
+                    rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)<1)]
+                    leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)>-1)]
 
                 deye_mov_right = np.zeros([len(rightsacc), len(self.trange)]); deye_mov_left = np.zeros([len(leftsacc), len(self.trange)])
                 dgz_mov_right = np.zeros([len(rightsacc), len(self.trange)]); dgz_mov_left = np.zeros([len(leftsacc), len(self.trange)])
                 dhead_mov_right = np.zeros([len(rightsacc), len(self.trange)]); dhead_mov_left = np.zeros([len(leftsacc), len(self.trange)])
-                
-                dhead = dhead(eyeT[0:-1])
 
                 for sind in range(len(rightsacc)):
                     s = rightsacc[sind]
@@ -2379,7 +2429,7 @@ class Population:
     def set_experiment(self, exptype):
         if exptype=='hffm':
             self.data = self.data[self.data['use_in_dark_analysis']==False]
-        elif exptype=='lightdark':
+        elif exptype=='ltdk':
             self.data = self.data[self.data['use_in_dark_analysis']==True]
         self.exptype = exptype
 
@@ -2421,6 +2471,11 @@ class Population:
     def summarize_population(self):
         print('applying activity thresholds')
         self.set_activity_thresh()
+
+        # calculate gaze if it wasn't done in ephys analysis
+        if (~self.data['fm1_gaze'].isna()).sum() > 0:
+            for ind, row in self.data.iterrows():
+                self.data.at[ind,'fm1_gaze'] = row['fm1_theta'] + np.rad2deg(row['fm1_top_head_yaw'])
 
         self.poppdf = PdfPages(os.path.join(self.savepath, 'population_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
 
@@ -2483,6 +2538,7 @@ class Population:
 
     def process(self):
         self.setup()
+        self.add_available_optic_flow_data()
 
         self.summarize_sessions()
 

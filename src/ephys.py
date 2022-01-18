@@ -647,10 +647,10 @@ class Ephys(BaseInput):
         # top_vid = top_data.TOP1_video.astype(np.uint8).values.copy()
         self.topT = top_data.timestamps.values.copy()
         self.top_speed = top_data.TOP1_props.sel(prop='speed').values.copy()
-        self.top_head_yaw = top_data.TOP1_props.sel(prop='head_yaw').values.copy()
-        self.top_body_yaw = top_data.TOP1_props.sel(prop='body_yaw').values.copy()
-        self.top_body_head_diff = top_data.TOP1_props.sel(prop='body_head_diff').values.copy()
-        self.top_movement_yaw = top_data.TOP1_props.sel(prop='movement_yaw').values.copy()
+        self.top_head_yaw = np.rad2deg(top_data.TOP1_props.sel(prop='head_yaw').values.copy())
+        self.top_body_yaw = np.rad2deg(top_data.TOP1_props.sel(prop='body_yaw').values.copy())
+        self.top_body_head_diff = np.rad2deg(top_data.TOP1_props.sel(prop='body_head_diff').values.copy())
+        self.top_movement_yaw = np.rad2deg(top_data.TOP1_props.sel(prop='movement_yaw').values.copy())
         self.top_movement_minus_body = top_data.TOP1_props.sel(prop='movement_minus_body').values.copy()
         self.top_forward_run = top_data.TOP1_props.sel(prop='forward_run').values.copy()
         self.top_backward_run = top_data.TOP1_props.sel(prop='backward_run').values.copy()
@@ -1170,6 +1170,9 @@ class Ephys(BaseInput):
             plt.title('shank3')
             plt.tight_layout(); self.detail_pdf.savefig(); plt.close()
 
+    def calculate_gaze(self):
+        self.gaze = self.theta + self.top_head_yaw_interp
+
     def base_ephys_analysis(self):
         print('gathering files')
         self.gather_fm_files()
@@ -1234,6 +1237,8 @@ class Ephys(BaseInput):
             self.rough_glm_setup()
         print('saccade psths')
         self.head_and_eye_movements()
+        print('getting gaze')
+        self.calculate_gaze()
         print('tuning to pupil properties')
         self.pupil_tuning()
         print('tuning to movement signals')
