@@ -305,7 +305,7 @@ for en, env in enumerate(tqdm(order, leave=False)):
             yedges_all[:,0,m,n,en] = yedges_on
             yedges_all[:,1,m,n,en] = yedges_off
 
-for n in tqdm(np.arange(6,df_meta.shape[0])):
+for n in tqdm(np.arange(0,df_meta.shape[0])):
     ##### Extract Values from DataFrames #####
     trial = df_meta['Trial'].iloc[n]
     date = df_meta['experiment_date'].iloc[n]

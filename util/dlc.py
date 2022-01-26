@@ -26,7 +26,7 @@ def runDLCbatch(vid_list, config_path, config):
     if isinstance(vid_list, list):
         for vid in vid_list:
             print('analyzing ' + vid)
-            if glob(os.path.join(os.path.dirname(vid),'*'+os.path.basename(vid)[-8:-4]+'*.h5'))==[]:
+            if (glob(os.path.join(os.path.dirname(vid),'*'+os.path.basename(vid)[-8:-4]+'*.h5'))==[])|(config['pose_estimation']['rerun']==True):
                 if config['pose_estimation']['crop_for_dlc'] is True:
                     deeplabcut.cropimagesandlabels(config_path, size=(400, 400), userfeedback=False)
                 deeplabcut.analyze_videos(config_path, [vid])

@@ -30,15 +30,15 @@ calibration:
 pose_estimation:
   run_dlc: true                          ### get pose estimation?
   crop_for_dlc: false                    # crop videos prior to pose estimation (default=false)
-  filter_dlc_predictions: true          # apply median filter to dlc outputs (default=false)
+  filter_dlc_predictions: false          # apply median filter to dlc outputs (default=false)
   has_cricket_labeled: false             # are there two points labeled on a cricket in the topdown view? (default=false)
   has_ir_spot_labeled: true              # are there five points labeled around the reflection of the eyecam's ir led? (default=false)
   has_tear_labeled: true                 # are there two points labeled at the tear duct and outer edge of the eye? (default=true)
   multianimal_top_project: false         # is the topdown camera's dlc network a multianimal project? (default=false)
-
+  rerun: true 
   projects:
-    TOP1: T:/deeplabcut_projects/BinocularOpto-Elliott-2021-08-12/config.yaml
-    TOP2: T:/deeplabcut_projects/BinocularOpto-Elliott-2021-08-12/config.yaml
+    TOP1: T:/deeplabcut_projects/BinocularOpto-Elliott-2021-08-12-new/config.yaml
+    TOP2: T:/deeplabcut_projects/BinocularOpto-Elliott-2021-08-12-new/config.yaml
 
 # PARAMETERS
 parameters:

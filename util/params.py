@@ -70,7 +70,10 @@ def extract_params(config):
                 print('tracking '+top_view+ ' for ' + recording_name)
                 # filter the list of files for the current trial to get the topdown view
                 try:
-                    top_h5 = [i for i in trial_cam_h5 if top_view in i][0]
+                    if config['pose_estimation']['filter_dlc_predictions']:
+                        top_h5 = sorted([i for i in trial_cam_h5 if (top_view in i) & ('filtered' in i)])[-1]
+                    else:
+                        top_h5 = sorted([i for i in trial_cam_h5 if (top_view in i) & ('filtered' not in i)])[-1]
                 except IndexError:
                     top_h5 = None
                 if config['parameters']['follow_strict_naming'] is True:

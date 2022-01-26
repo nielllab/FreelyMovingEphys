@@ -33,7 +33,7 @@ from project_analysis.ephys.ephys_utils import population_analysis
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--csv_filepath', type=str, help='read path for metadata .csv',
-                        default='T:/BinocOptoPreyCapture/csv_today.csv')
+                        default='T:/BinocOptoPreyCapture/csv_testing.csv')
     parser.add_argument('--config', type=str, help='yaml config file',
                         default='C:/Users/Niell lab/Documents/GitHub/FreelyMovingEphys/project_analysis/prey_capture/config.yaml')
     parser.add_argument('--log_dir', type=str,
@@ -77,7 +77,7 @@ def main(csv_filepath, config_path, log_dir, clear_dlc):
     csv2 = pd.DataFrame(columns=cols)
     for ind, row in csv.iterrows():
         for n in range(1, 6):
-            if np.isnan(row['excluded_trials'])==True:
+            if pd.isna(row['excluded_trials'])==True:
                 if '*' in row['{:d}'.format(n)]:
                     csv2 = csv2.append(
                         row[:-4].append(pd.Series([n, True], index=['Trial', 'LaserOn'])), ignore_index=True)
