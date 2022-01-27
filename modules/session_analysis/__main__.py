@@ -1,10 +1,12 @@
 """
 FreelyMovingEphys/modules/session_analysis/__main__.py
 """
-import argparse
+import argparse, warnings
 import PySimpleGUI as sg
 
 from src.run import Session
+
+warnings.filterwarnings("ignore")
 
 def get_args():
     parser = argparse.ArgumentParser()

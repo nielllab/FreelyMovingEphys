@@ -47,6 +47,7 @@ class Ephys(BaseInput):
         self.model_eye_use_thresh = 10
         self.model_active_thresh = 40
         self.darkness_thresh = 100
+        self.contrast_range = np.arange(0,1.2,0.1)
 
         self.default_ephys_offset = 0.1
         self.default_ephys_drift_rate = -0.000114
@@ -266,7 +267,7 @@ class Ephys(BaseInput):
 
         self.diagnostic_pdf.savefig(); plt.close()
 
-    def sta(self, lag=2, do_rotation=False, using_spike_sorted=True):
+    def calc_sta(self, lag=2, do_rotation=False, using_spike_sorted=True):
         nks = np.shape(self.small_world_vid[0,:,:])
         all_sta = np.zeros([self.n_cells, np.shape(self.small_world_vid)[1], np.shape(self.small_world_vid)[2]])
         plt.subplots(np.ceil(self.n_cells/7).astype('int'), 7, figsize=(35,np.int(np.ceil(self.n_cells/3))), dpi=50)
@@ -302,7 +303,7 @@ class Ephys(BaseInput):
         self.sta = all_sta
         self.detail_pdf.savefig(); plt.close()
 
-    def multilag_sta(self, lag_range=np.arange(-2,8,2)):
+    def calc_multilag_sta(self, lag_range=np.arange(-2,8,2)):
         nks = np.shape(self.small_world_vid[0,:,:])
         plt.subplots(self.n_cells, 5, figsize=(6, np.int(np.ceil(self.n_cells/2))), dpi=300)
         for c, ind in enumerate(self.cells.index):
@@ -326,7 +327,7 @@ class Ephys(BaseInput):
             plt.tight_layout()
         self.detail_pdf.savefig(); plt.close()
 
-    def stv(self):
+    def calc_stv(self):
         nks = np.shape(self.small_world_vid[0,:,:])
         sq_model_vid = self.model_vid**2
         lag = 2
@@ -353,7 +354,7 @@ class Ephys(BaseInput):
         plt.tight_layout()
         self.detail_pdf.savefig(); plt.close()
 
-    def tuning_to_variable(self, variable, variable_range, useT, label):
+    def calc_tuning(self, variable, variable_range, useT, label):
         scatter = np.zeros((self.n_cells, len(variable)))
         tuning = np.zeros((self.n_cells, len(variable_range)-1))
         tuning_err = tuning.copy()
@@ -973,27 +974,27 @@ class Ephys(BaseInput):
             # spike rate vs gyro x
             gx_range = np.linspace(-400,400,10)
             active_gx = self.gyro_x[use]
-            self.spike_rate_vs_gx_cent, self.spike_rate_vs_gx_tuning, self.spike_rate_vs_gx_err = self.tuning_to_variable(active_gx, gx_range, imuT_use, 'gyro x')
+            self.gyrox_tuning_bins, self.gyrox_tuning, self.gyrox_tuning_err = self.calc_tuning(active_gx, gx_range, imuT_use, 'gyro x')
 
             # spike rate vs gyro y
             gy_range = np.linspace(-400,400,10)
             active_gy = self.gyro_y[use]
-            self.spike_rate_vs_gy_cent, self.spike_rate_vs_gy_tuning, self.spike_rate_vs_gy_err = self.tuning_to_variable(active_gy, gy_range, imuT_use, 'gyro y')
+            self.gyroy_tuning_bins, self.gyroy_tuning, self.gyroy_tuning_err = self.calc_tuning(active_gy, gy_range, imuT_use, 'gyro y')
             
             # spike rate vs gyro z
             gz_range = np.linspace(-400,400,10)
             active_gz = self.gyro_z[use]
-            self.spike_rate_vs_gz_cent, self.spike_rate_vs_gz_tuning, self.spike_rate_vs_gz_err = self.tuning_to_variable(active_gz, gz_range, imuT_use, 'gyro z')
+            self.gyroz_tuning_bins, self.gyroz_tuning, self.gyroz_tuning_err = self.calc_tuning(active_gz, gz_range, imuT_use, 'gyro z')
 
             # roll vs spike rate
             roll_range = np.linspace(-30,30,10)
             active_roll = self.roll[use]
-            self.spike_rate_vs_roll_cent, self.spike_rate_vs_roll_tuning, self.spike_rate_vs_roll_err = self.tuning_to_variable(active_roll, roll_range, imuT_use, 'head roll')
+            self.roll_tuning_bins, self.roll_tuning, self.roll_tuning_err = self.calc_tuning(active_roll, roll_range, imuT_use, 'head roll')
 
             # pitch vs spike rate
             pitch_range = np.linspace(-30,30,10)
             active_pitch = self.pitch[use]
-            self.spike_rate_vs_pitch_cent, self.spike_rate_vs_pitch_tuning, self.spike_rate_vs_pitch_err = self.tuning_to_variable(active_pitch, pitch_range, imuT_use, 'head pitch')
+            self.pitch_tuning_bins, self.pitch_tuning, self.pitch_tuning_err = self.calc_tuning(active_pitch, pitch_range, imuT_use, 'head pitch')
 
             # subtract mean from roll and pitch to center around zero
             centered_pitch = self.pitch - np.mean(self.pitch)
@@ -1049,7 +1050,7 @@ class Ephys(BaseInput):
 
         elif not self.fm:
             ball_speed_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
-            self.spike_rate_vs_spd_cent, self.spike_rate_vs_spd_tuning, self.spike_rate_vs_spd_err = self.tuning_to_variable(self.ball_speed, ball_speed_range, self.ballT, 'running speed')
+            self.ballspeed_tuning_bins, self.ballspeed_tuning, self.ballspeed_tuning_err = self.calc_tuning(self.ball_speed, ball_speed_range, self.ballT, 'running speed')
 
     def pupil_tuning(self):
         # pupil radius
@@ -1065,7 +1066,7 @@ class Ephys(BaseInput):
 
         # rate vs pupil radius
         radius_range = np.linspace(10,50,10)
-        self.spike_rate_vs_pupil_radius_cent, self.spike_rate_vs_pupil_radius_tuning, self.spike_rate_vs_pupil_radius_err = self.tuning_to_variable(self.longaxis, radius_range, self.eyeT, 'pupil radius')
+        self.pupilradius_tuning_bins, self.pupilradius_tuning, self.pupilradius_tuning_err = self.calc_tuning(self.longaxis, radius_range, self.eyeT, 'pupil radius')
 
         # normalize eye position
         self.norm_theta = (self.theta - np.nanmean(self.theta)) / np.nanstd(self.theta)
@@ -1078,11 +1079,11 @@ class Ephys(BaseInput):
 
         # theta tuning
         theta_range = np.linspace(-30,30,10)
-        self.spike_rate_vs_theta_cent, self.spike_rate_vs_theta_tuning, self.spike_rate_vs_theta_err = self.tuning_to_variable(self.theta, theta_range, self.eyeT, 'theta')
+        self.theta_tuning_bins, self.theta_tuning, self.theta_tuning_err = self.calc_tuning(self.theta, theta_range, self.eyeT, 'theta')
 
         # phi tuning
         phi_range = np.linspace(-30,30,10)
-        self.spike_rate_vs_phi_cent, self.spike_rate_vs_phi_tuning, self.spike_rate_vs_phi_err = self.tuning_to_variable(self.phi, phi_range, self.eyeT, 'phi')
+        self.phi_tuning_bins, self.phi_tuning, self.phi_tuning_err = self.calc_tuning(self.phi, phi_range, self.eyeT, 'phi')
 
     def mua_power_laminar_depth(self):
         # don't run for freely moving, at least for now, because recordings can be too long to fit ephys binary into memory
@@ -1207,8 +1208,7 @@ class Ephys(BaseInput):
         print('firing rates at new timebase')
         self.firing_rate_at_new_timebase()
         print('contrast response functions')
-        self.contrast_range = np.arange(0,1.2,0.1)
-        self.crf_cent, self.crf_tuning, self.crf_err = self.tuning_to_variable(self.contrast, self.contrast_range, self.worldT, 'contrast')
+        self.contrast_tuning_bins, self.contrast_tuning, self.contrast_tuning_err = self.calc_tuning(self.contrast, self.contrast_range, self.worldT, 'contrast')
         print('mua power profile laminar depth')
         if not self.fm:
             self.mua_power_laminar_depth()
@@ -1219,11 +1219,11 @@ class Ephys(BaseInput):
             self.topcam_props_at_new_timebase()
         self.setup_model_spikes()
         print('calculating stas')
-        self.sta()
+        self.calc_sta()
         print('calculating multilag stas')
-        self.multilag_sta()
+        self.calc_multilag_sta()
         print('calculating stvs')
-        self.stv()
+        self.calc_stv()
         if self.do_rough_glm_fit and ((self.fm and self.stim == 'lt') or self.stim == 'wn'):
             print('using glm to get receptive fields')
             self.rough_glm_setup()
@@ -1237,7 +1237,8 @@ class Ephys(BaseInput):
         print('saccade psths')
         self.head_and_eye_movements()
         print('getting gaze')
-        self.calculate_gaze()
+        if self.fm and self.stim=='lt':
+            self.calculate_gaze()
         print('tuning to pupil properties')
         self.pupil_tuning()
         print('tuning to movement signals')

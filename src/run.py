@@ -105,37 +105,53 @@ class Session:
     def preprocessing(self):
         if self.config['internals']['clear_dlc']:
             self.clear_dlc()
+
         # get list of recordings from config file, or search subdirectories if none listed
         self.get_session_recordings()
+
         # iterate through recordings in the session
         for _, recording_path in self.recordings_dict.items():
+
             recording_name = auto_recording_name(recording_path)
+
+            print('preprocessing '+recording_name)
+
+            # skip this recording if it was acquired while the animal was transfered between ball and arena
+            if 'transfer' in recording_name:
+                continue
+
             # get a list of cameras in the current recording
             recording_cams = []
             for p in ['REYE','LEYE','Reye','Leye','Side','SIDE','TOP1','TOP2','TOP3','WORLD','World']:
                 if find(recording_name+'_'+p+'.avi', recording_path) != []:
                     recording_cams.append(p)
+
             for camname in recording_cams:
                 if camname.lower() in ['reye','leye']:
+                    print(recording_name + ' for input: ' + camname)
                     ec = Eyecam(self.config, recording_name, recording_path, camname)
                     ec.process()
                 elif camname.lower() in ['world']:
+                    print(recording_name + ' for input: ' + camname)
                     wc = Worldcam(self.config, recording_name, recording_path, camname)
                     wc.process()
-                elif camname.lower() in ['top1','top2','top3']:
+                elif camname.lower() in ['top1','top2','top3'] and 'dark' not in recording_name:
+                    print(recording_name + ' for input: ' + camname)
                     tc = Topcam(self.config, recording_name, recording_path, camname)
                     tc.process()
                 # elif camname.lower() in ['side']:
                 #     sc = Sidecam(self.config, recording_name, recording_path, camname)
                 #     sc.process()
             if find(recording_name+'_IMU.bin', recording_path) != []:
+                print(recording_name + ' for input: IMU')
                 imu = Imu(self.config, recording_name, recording_path)
                 imu.process()
             if find(recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', recording_path) != []:
+                print(recording_name + ' for input: head-fixed running ball')
                 rb = RunningBall(self.config, recording_name, recording_path)
                 rb.process()
 
-    # def glm_rf(self):
+    # def calc_glm_rf(self):
 
     def ephys_analysis(self):
         self.get_session_recordings()

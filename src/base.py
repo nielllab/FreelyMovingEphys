@@ -314,36 +314,37 @@ class Camera(BaseInput):
                 deeplabcut.filterpredictions(project_config, vid)
 
     def pose_estimation(self):
-        # get each camera type's entry
-        cam_project = self.config['paths']['dlc_projects'][self.camname]
+        if self.camname in self.config['paths']['dlc_projects'].keys():
+            cam_project = self.config['paths']['dlc_projects'][self.camname]
+        else:
+            cam_project = None
+
         if cam_project != '' and cam_project != 'None' and cam_project != None:
             # if it's one of the cameras that needs to needs to be deinterlaced first, make sure and read in the deinterlaced 
             if self.camname=='REYE' or self.camname=='LEYE':
                 # find all the videos in the data directory that are from the current camera and are deinterlaced
                 if self.config['internals']['follow_strict_naming'] is True:
-                    vids_this_cam = find('*'+self.camname+'*deinter.avi', self.config['animal_directory'])
+                    vids_this_cam = find('*'+self.camname+'*deinter.avi', self.recording_path)
                 elif self.config['internals']['follow_strict_naming'] is False:
-                    vids_this_cam = find('*'+self.camname+'*.avi', self.config['animal_directory'])
+                    vids_this_cam = find('*'+self.camname+'*.avi', self.recording_path)
                 # remove unflipped videos generated during jumping analysis
-                bad_vids = find('*'+self.camname+'*unflipped*.avi', self.config['animal_directory'])
+                bad_vids = find('*'+self.camname+'*unflipped*.avi', self.recording_path)
                 for x in bad_vids:
                     if x in vids_this_cam:
                         vids_this_cam.remove(x)
-                ir_vids = find('*IR*.avi', self.config['animal_directory'])
+                ir_vids = find('*IR*.avi', self.recording_path)
                 for x in ir_vids:
                     if x in vids_this_cam:
                         vids_this_cam.remove(x)
-                print('found ' + str(len(vids_this_cam)) + ' deinterlaced videos from cam_key ' + self.camname)
                 # warning for user if no videos found
                 if len(vids_this_cam) == 0:
                     print('no ' + self.camname + ' videos found -- maybe the videos are not deinterlaced yet?')
             else:
                 # find all the videos for camera types that don't neeed to be deinterlaced
                 if self.config['internals']['follow_strict_naming'] is True:
-                    vids_this_cam = find('*'+self.camname+'*.avi', self.config['animal_directory'])
+                    vids_this_cam = find('*'+self.camname+'*.avi', self.recording_path)
                 elif self.config['internals']['follow_strict_naming'] is False:
-                    vids_this_cam = find('*'+self.camname+'*.avi', self.config['animal_directory'])
-                print('found ' + str(len(vids_this_cam)) + ' videos from cam_key ' + self.camname)
+                    vids_this_cam = find('*'+self.camname+'*.avi', self.recording_path)
             # analyze the videos with DeepLabCut
             # this gives the function a list of files that it will iterate over with the same DLC config file
             vids2run = [vid for vid in vids_this_cam if 'plot' not in vid]
