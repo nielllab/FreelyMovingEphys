@@ -123,7 +123,7 @@ class HeadFixedWhiteNoise(Ephys):
 
     def save(self):
         unit_data = pd.DataFrame([])
-        stim = 'wn'
+        stim = 'Wn'
         for unit_num, ind in enumerate(self.cells.index):
             cols = [stim+'_'+i for i in ['contrast_tuning_bins',
                                         'contrast_tuning',
@@ -388,7 +388,7 @@ class HeadFixedReversingCheckboard(Ephys):
 
     def save(self):
         unit_data = pd.DataFrame([])
-        stim = 'revcheck'
+        stim = 'Rc'
         for unit_num, ind in enumerate(self.cells.index):
             cols = [stim+'_'+i for i in ['contrast_tuning_bins',
                                         'contrast_tuning',
@@ -416,10 +416,10 @@ class HeadFixedReversingCheckboard(Ephys):
                                         'ballspeed_tuning_err',
                                         'lfp_power',
                                         'layer5cent_from_lfp',
-                                        'revcheck_response_by_channel',
+                                        'response_by_channel',
                                         'current_source_density',
-                                        'revcheck_relative_depth',
-                                        'layer4cent_from_revcheck']]
+                                        'relative_depth',
+                                        'layer4cent']]
             unit_df = pd.DataFrame(pd.Series([self.contrast_tuning_bins,
                                     self.contrast_tuning[unit_num],
                                     self.contrast_tuning_err[unit_num],
@@ -489,7 +489,7 @@ class HeadFixedSparseNoise(Ephys):
 
     def save(self):
         unit_data = pd.DataFrame([])
-        stim = 'sparsenoiseflash'
+        stim = 'Sn'
         for unit_num, ind in enumerate(self.cells.index):
             cols = [stim+'_'+i for i in ['contrast_tuning_bins',
                                         'contrast_tuning',
@@ -815,7 +815,7 @@ class HeadFixedGratings(Ephys):
 
     def save(self):
         unit_data = pd.DataFrame([])
-        stim = 'gratings'
+        stim = 'Gt'
         for unit_num, ind in enumerate(self.cells.index):
             cols = [stim+'_'+i for i in ['contrast_tuning_bins',
                                         'contrast_tuning',

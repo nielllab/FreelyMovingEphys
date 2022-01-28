@@ -55,7 +55,7 @@ class FreelyMovingLight(Ephys):
 
     def glm_save(self):
         unit_data = pd.DataFrame([])
-        stim = 'fm1'
+        stim = 'FmLt'
         for unit_num, ind in enumerate(self.cells.index):
             cols = [stim+'_'+i for i in ['contrast_tuning_bins',
                                         'contrast_tuning',
@@ -192,7 +192,7 @@ class FreelyMovingLight(Ephys):
 
     def save(self):
         unit_data = pd.DataFrame([])
-        stim = 'fm1'
+        stim = 'FmLt'
         for unit_num, ind in enumerate(self.cells.index):
             cols = [stim+'_'+i for i in ['contrast_tuning_bins',
                                         'contrast_tuning',
@@ -390,7 +390,7 @@ class FreelyMovingDark(Ephys):
 
     def save(self):
         unit_data = pd.DataFrame([])
-        stim = 'fm_dark'
+        stim = 'FmDk'
         for unit_num, ind in enumerate(self.cells.index):
             cols = [stim+'_'+i for i in ['contrast_tuning_bins',
                                         'contrast_tuning',
@@ -434,7 +434,6 @@ class FreelyMovingDark(Ephys):
                                         'dEye',
                                         'theta',
                                         'phi',
-                                        'gaze',
                                         'dGaze',
                                         'roll_tuning_bins',
                                         'roll_tuning',
@@ -486,7 +485,6 @@ class FreelyMovingDark(Ephys):
                                     self.dEye,
                                     self.theta,
                                     self.phi,
-                                    self.gaze,
                                     self.dGaze,
                                     self.roll_tuning_bins,
                                     self.roll_tuning[unit_num],

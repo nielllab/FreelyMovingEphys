@@ -545,8 +545,7 @@ class Ephys(BaseInput):
     def open_eyecam(self):
         self.eye_data = xr.open_dataset(self.reye_path)
         self.eye_vid = self.eye_data['REYE_video'].astype(np.uint8)
-        self.eyeT = self.eye_data.timestamps.copy()
-        self.eyeT = self.eyeT.values
+        self.eyeT = self.eye_data.timestamps.copy().values
         # plot eye timestamps
         plt.subplots(1,2)
         plt.subplot(1,2,1)
@@ -908,16 +907,21 @@ class Ephys(BaseInput):
         if self.fm:
             print('deye dhead')
             self.dHead = np.diff(interp1d(self.imuT, self.gyro_z, bounds_error=False)(self.eyeT))
-            self.dGaze = self.dEye + self.dHead
+            
+            if self.stim == 'lt':
+                self.gaze = self.theta + self.top_head_yaw_interp
+                self.dGaze = np.diff(self.gaze)
+            elif self.stim == 'dk':
+                self.dGaze = self.dEye + self.dHead
+
+                plt.figure()
+                plt.hist(self.dGaze, bins=21, range=(-10,10))
+                plt.xlabel('dGaze')
+                self.detail_pdf.savefig(); plt.close()
 
             plt.figure()
             plt.hist(self.dHead, bins=21, range=(-10,10))
             plt.xlabel('dHead')
-            self.detail_pdf.savefig(); plt.close()
-
-            plt.figure()
-            plt.hist(self.dGaze, bins=21, range=(-10,10))
-            plt.xlabel('dGaze')
             self.detail_pdf.savefig(); plt.close()
             
             plt.figure()
@@ -1170,9 +1174,6 @@ class Ephys(BaseInput):
             plt.title('shank3')
             plt.tight_layout(); self.detail_pdf.savefig(); plt.close()
 
-    def calculate_gaze(self):
-        self.gaze = self.theta + self.top_head_yaw_interp
-
     def base_ephys_analysis(self):
         print('gathering files')
         self.gather_fm_files()
@@ -1236,9 +1237,6 @@ class Ephys(BaseInput):
             self.rough_glm_setup()
         print('saccade psths')
         self.head_and_eye_movements()
-        print('getting gaze')
-        if self.fm and self.stim=='lt':
-            self.calculate_gaze()
         print('tuning to pupil properties')
         self.pupil_tuning()
         print('tuning to movement signals')
