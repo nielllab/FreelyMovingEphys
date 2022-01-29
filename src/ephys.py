@@ -684,7 +684,11 @@ class Ephys(BaseInput):
         self.diagnostic_pdf.savefig(); plt.close()
 
     def open_running_ball(self):
-        running_ball_data = xr.open_dataset(self.running_ball_path).BALL_data
+        running_ball_data = xr.open_dataset(self.running_ball_path)
+        try:
+            running_ball_data = running_ball_data.BALL_data
+        except AttributeError:
+            running_ball_data = running_ball_data.__xarray_dataarray_variable__
         try:
             self.ball_speed = running_ball_data.sel(move_params='speed_cmpersec')
             self.ballT = running_ball_data.sel(move_params='timestamps')
@@ -692,7 +696,7 @@ class Ephys(BaseInput):
             self.ball_speed = running_ball_data.sel(frame='speed_cmpersec')
             self.ballT = running_ball_data.sel(frame='timestamps')
         plt.figure()
-        plt.plot(self.ballT,self.ball_speed)
+        plt.plot(self.ballT, self.ball_speed)
         plt.xlabel('sec'); plt.ylabel('running speed (cm/sec)')
         self.diagnostic_pdf.savefig(); plt.close()
 
@@ -842,14 +846,14 @@ class Ephys(BaseInput):
         self.model_vid[np.isnan(self.model_vid)] = 0
     
     def topcam_props_at_new_timebase(self):
-        self.top_speed_interp = interp1d(self.topT, self.top_speed, bounds_error=False)(self.model_t+self.model_dt/2)
-        self.top_forward_run_interp = interp1d(self.topT, self.top_forward_run, bounds_error=False)(self.model_t+self.model_dt/2)
-        self.top_fine_motion_interp = interp1d(self.topT, self.top_fine_motion, bounds_error=False)(self.model_t+self.model_dt/2)
-        self.top_backward_run_interp = interp1d(self.topT, self.top_backward_run, bounds_error=False)(self.model_t+self.model_dt/2)
-        self.top_immobility_interp = interp1d(self.topT, self.top_immobility, bounds_error=False)(self.model_t+self.model_dt/2)
-        self.top_head_yaw_interp = interp1d(self.topT, self.top_head_yaw, bounds_error=False)(self.model_t+self.model_dt/2)
-        self.top_body_yaw_interp = interp1d(self.topT, self.top_body_yaw, bounds_error=False)(self.model_t+self.model_dt/2)
-        self.top_movement_yaw_interp = interp1d(self.topT, self.top_movement_yaw, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.top_speed_interp = interp1d(self.topT, self.top_speed, bounds_error=False)(self.eyeT)
+        self.top_forward_run_interp = interp1d(self.topT, self.top_forward_run, bounds_error=False)(self.eyeT)
+        self.top_fine_motion_interp = interp1d(self.topT, self.top_fine_motion, bounds_error=False)(self.eyeT)
+        self.top_backward_run_interp = interp1d(self.topT, self.top_backward_run, bounds_error=False)(self.eyeT)
+        self.top_immobility_interp = interp1d(self.topT, self.top_immobility, bounds_error=False)(self.eyeT)
+        self.top_head_yaw_interp = interp1d(self.topT, self.top_head_yaw, bounds_error=False)(self.eyeT)
+        self.top_body_yaw_interp = interp1d(self.topT, self.top_body_yaw, bounds_error=False)(self.eyeT)
+        self.top_movement_yaw_interp = interp1d(self.topT, self.top_movement_yaw, bounds_error=False)(self.eyeT)
 
     def setup_model_spikes(self):
         # sta/stv setup
@@ -1176,7 +1180,10 @@ class Ephys(BaseInput):
 
     def base_ephys_analysis(self):
         print('gathering files')
-        self.gather_fm_files()
+        if not self.fm:
+            self.gather_hf_files()
+        elif self.fm:
+            self.gather_fm_files()
         print('opening worldcam')
         self.open_worldcam()
         if self.fm:

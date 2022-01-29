@@ -41,14 +41,17 @@ class Population:
         self.cmap_celltype = ['#fee08b','#66c2a5'] # [exc, inh]
         self.cmap_sacc = ['#e9a3c9','#91bfdb'] # [right, left]
 
-    def gather_data(self, csv_filepath=None, goodsessions=None, probes=None, use_as_ltdk=None):
+    def gather_data(self, csv_filepath=None, path_list=None, probe_list=None, ltdk_bools=None,
+                    opticflow_bools=None):
         if csv_filepath==None:
             csv_filepath = self.metadata_path
-        if goodsessions is not None:
+        if path_list is not None:
+            goodsessions = path_list
             use_path_list = True
-            probenames_for_goodsessions = probes
-            use_in_dark_analysis = use_as_ltdk
-        elif goodsessions is None:
+            probenames_for_goodsessions = probe_list
+            use_in_dark_analysis = ltdk_bools
+            use_in_optic_flow = opticflow_bools
+        elif path_list is None:
             use_path_list = False
             # open the csv file of metadata and pull out all of the desired data paths
             if type(csv_filepath) == str:
@@ -88,7 +91,7 @@ class Population:
             for recording in session:
                 rec_data = pd.read_hdf(recording)
                 # get name of the current recording (i.e. 'FmLt' or 'Wn')
-                rec_type = '_'.join(([col for col in rec_data.columns.values if 'trange' in col][0]).split('_')[:-1])
+                rec_type = '_'.join(([col for col in rec_data.columns.values if 'contrast_tuning_bins' in col][0]).split('_')[:-3])
                 # rename spike time columns so that data is retained for each of the seperate trials
                 rec_data = rec_data.rename(columns={'spikeT':rec_type+'_spikeT', 'spikeTraw':rec_type+'_spikeTraw','rate':rec_type+'_rate','n_spikes':rec_type+'_n_spikes'})
                 # add a column for which fm recording should be prefered
@@ -193,8 +196,19 @@ class Population:
         so use_lag=2 is time lag 0msec
         """
         self.data['has_optic_flow'] = False
+        self.data['has_topdown_optic_flow'] = False
+        self.data['FmLt_flowvec_scale'] = False
+
+        movement_state_list = ['full','active_gyro','inactive_gyro','running_forward','running_backward','fine_motion','immobile']
+        # emptydata = self.data['FmLt_spikeT'].iloc[0].copy()
+        for movement_state in movement_state_list:
+            self.data['FmLt_optic_flow_'+movement_state+'_vec'] = np.nan
+            # self.data['FmLt_optic_flow_'+movement_state+'_vec'] = emptydata.astype(object)
+            self.data['FmLt_optic_flow_'+movement_state+'_amp'] = np.nan
+            # self.data['FmLt_optic_flow_'+movement_state+'_amp'] = emptydata.astype(object)
+        
         recordings = self.data['original_session_path'].unique()
-        recordings = [os.path.join(x, 'FmLt') for x in recordings]
+        recordings = [os.path.join(x, 'fm1') for x in recordings]
         for i, recording_path in enumerate(recordings):
             flow_files = find('*optic_flow.npz', recording_path)
             if len(flow_files) == 0:
@@ -202,7 +216,7 @@ class Population:
                 continue
             flow_data = np.load(flow_files[0])
             # optic flow w/ topdown tracking, or only using gyro?
-            if 'running_forward_vec' in flow_data.keys():
+            if 'running_forward_vec' in flow_data.files:
                 topdown_flow = True
             else:
                 topdown_flow = False
@@ -223,12 +237,18 @@ class Population:
                 movement_state_list = ['full','active_gyro','inactive_gyro']
             
             for movement_state in movement_state_list:
+                self.data['FmLt_optic_flow_'+movement_state+'_vec'] = np.nan
+                self.data['FmLt_optic_flow_'+movement_state+'_amp'] = np.nan
+
+            for movement_state in movement_state_list:
                 flow_vec = movement_state_dict[movement_state+'_vec'] # shape is [unit, lag, x, y, U/V]
                 flow_amp = movement_state_dict[movement_state+'_amp'] # shape is [unit, lag, x, y]
                 if movement_state=='full':
                     vec_scale = np.zeros(np.size(flow_vec, 0))
                 flow_arr_ind = 0
-                for ind, _ in self.data[self.data['original_session_path']==recording_path].iterrows():
+                use = self.data['original_session_path']==recording_path[:-3]
+                'FmLt_optic_flow_'+movement_state+'_amp'
+                for ind, _ in self.data[use].iterrows():
                     self.data.at[ind, 'FmLt_optic_flow_'+movement_state+'_vec'] = flow_vec[flow_arr_ind, use_lag].astype(object)
                     self.data.at[ind, 'FmLt_optic_flow_'+movement_state+'_amp'] = flow_amp[flow_arr_ind, use_lag].astype(object)
                     if movement_state=='full':
@@ -299,11 +319,11 @@ class Population:
 
     def grat_stim_tuning(self, panel, tf_sel='mean'):
         if tf_sel=='mean':
-            raw_tuning = np.mean(self.current_row['Gt_ori_tuning'],2)
+            raw_tuning = np.mean(self.current_row['Gt_ori_tuning_tf'],2)
         elif tf_sel=='low':
-            raw_tuning = self.current_row['Gt_ori_tuning'][:,:,0]
+            raw_tuning = self.current_row['Gt_ori_tuning_tf'][:,:,0]
         elif tf_sel=='high':
-            raw_tuning = self.current_row['Gt_ori_tuning'][:,:,1]
+            raw_tuning = self.current_row['Gt_ori_tuning_tf'][:,:,1]
         drift_spont = self.current_row['Gt_drift_spont']
         tuning = raw_tuning - drift_spont # subtract off spont rate
         tuning[tuning < 0] = 0 # set to 0 when tuning goes negative (i.e. when firing rate is below spontanious rate)
@@ -326,7 +346,7 @@ class Population:
         panel.plot(np.arange(8)*45, raw_tuning[:,2], label='high sf', color=self.cmap_orientation[2])
         panel.plot([0,315],[drift_spont,drift_spont],':',label='spont', color=self.cmap_orientation[3])
         panel.legend()
-        panel.set_ylim([0,np.nanmax(self.current_row['Gt_ori_tuning'][:,:,:])*1.2])
+        panel.set_ylim([0,np.nanmax(self.current_row['Gt_ori_tuning_tf'][:,:,:])*1.2])
         if tf_sel=='mean':
             self.data.at[self.current_index, 'Gt_osi_low'] = osi[0]; self.data.at[self.current_index, 'Gt_osi_mid'] = osi[1]; self.data.at[self.current_index, 'Gt_osi_high'] = osi[2]
             self.data.at[self.current_index, 'Gt_dsi_low'] = dsi[0]; self.data.at[self.current_index, 'Gt_dsi_mid'] = dsi[1]; self.data.at[self.current_index, 'Gt_dsi_high'] = dsi[2]
@@ -425,7 +445,7 @@ class Population:
         panel.set_title('shank='+str(ch_shank)+' site='+str(self.current_row['ch']%32)+'\n depth='+str(ch_depth), fontsize=20)
         self.data.at[self.current_index, 'Wn_depth_from_layer5'] = ch_depth
 
-    def sta(self, panel, sta_name, shape_name, title):
+    def sta(self, panel, sta_name, title):
         # wnsta = np.reshape(self.current_row[sta_name],tuple(self.current_row[shape_name]))
         wnsta = self.current_row[sta_name]
         sta_range = np.max(np.abs(wnsta))*1.2
@@ -434,7 +454,7 @@ class Population:
         panel.imshow(wnsta, vmin=-sta_range, vmax=sta_range, cmap='seismic')
         panel.axis('off')
 
-    def stv(self, panel, stv_name, shape_name, title):
+    def stv(self, panel, stv_name, title):
         # wnstv = np.reshape(self.current_row[stv_name],tuple(self.current_row[shape_name]))
         wnstv = self.current_row[stv_name]
         panel.imshow(wnstv, vmin=-1, vmax=1, cmap='cividis')
@@ -463,8 +483,17 @@ class Population:
     def summarize_units(self):
         pdf = PdfPages(os.path.join(self.savepath, 'unit_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
 
-        self.is_empty_index('FmDk_theta', 'has_dark')
-        self.is_empty_index('Wn_contrast_tuning', 'has_hf')
+        if 'FmDk_theta' in self.data.columns:
+            self.is_empty_index('FmDk_theta', 'has_dark')
+        else:
+            self.data['has_dark'] = False
+        
+        if 'Wn_contrast_tuning' in self.data.columns:
+            self.is_empty_index('Wn_contrast_tuning', 'has_hf')
+        else:
+            self.data['has_hf'] = False
+
+        self.data = self.data.reset_index()
 
         print('num units=' + str(len(self.data)))
 
@@ -621,17 +650,18 @@ class Population:
                                     xlabel='deg/sec')
             self.data.at[self.current_index, 'FmLt_gyroy_modind'] = FmLt_gyro_y_tuning_modind
             
-            if type(self.current_row['FmLt_glm_rf']) != float:
-                # FmLt glm receptive field at five lags
-                glm = self.current_row['FmLt_glm_rf']
-                glm_cc = self.current_row['FmLt_glm_cc']
-                lag_list = [-4,-2,0,2,4]
-                crange = np.max(np.abs(glm))
-                for glm_lag in range(5):
-                    unitfig_glm = self.figure.add_subplot(self.spec[3,glm_lag])
-                    unitfig_glm.imshow(glm[glm_lag], vmin=-crange, vmax=crange, cmap='seismic')
-                    unitfig_glm.set_title('FmLt GLM RF\n(lag='+str(lag_list[glm_lag])+' cc='+str(np.round(glm_cc[glm_lag],2))+')', fontsize=20)
-                    unitfig_glm.axis('off')
+            if 'FmLt_glm_rf' in self.data.columns:
+                if type(self.current_row['FmLt_glm_rf']) != float:
+                    # FmLt glm receptive field at five lags
+                    glm = self.current_row['FmLt_glm_rf']
+                    glm_cc = self.current_row['FmLt_glm_cc']
+                    lag_list = [-4,-2,0,2,4]
+                    crange = np.max(np.abs(glm))
+                    for glm_lag in range(5):
+                        unitfig_glm = self.figure.add_subplot(self.spec[3,glm_lag])
+                        unitfig_glm.imshow(glm[glm_lag], vmin=-crange, vmax=crange, cmap='seismic')
+                        unitfig_glm.set_title('FmLt GLM RF\n(lag='+str(lag_list[glm_lag])+' cc='+str(np.round(glm_cc[glm_lag],2))+')', fontsize=20)
+                        unitfig_glm.axis('off')
 
             # FmLt gaze shift dEye psth
             fig_FmLt_gaze_dEye = self.figure.add_subplot(self.spec[4,1])
@@ -968,7 +998,7 @@ class Population:
             if type(session_data['FmLt_eyeT'].iloc[0]) != float:
                 # light setup
                 fm_light_eyeT = np.array(session_data['FmLt_eyeT'].iloc[0])
-                fm_light_gz = session_data['FmLt_gyroz'].iloc[0]
+                fm_light_gz = session_data['FmLt_gyro_z'].iloc[0]
                 fm_light_accT = session_data['FmLt_imuT'].iloc[0]
                 light_model_t = np.arange(0,np.nanmax(fm_light_eyeT),self.model_dt)
                 light_model_gz = interp1d(fm_light_accT,(fm_light_gz-np.mean(fm_light_gz))*7.5,bounds_error=False)(light_model_t)
@@ -995,7 +1025,7 @@ class Population:
 
                 # dark setup
                 FmDk_eyeT = np.array(session_data['FmDk_eyeT'].iloc[0])
-                FmDk_gz = session_data['FmDk_gyroz'].iloc[0]
+                FmDk_gz = session_data['FmDk_gyro_z'].iloc[0]
                 FmDk_accT = session_data['FmDk_imuT'].iloc[0]
                 dark_model_t = np.arange(0,np.nanmax(FmDk_eyeT),self.model_dt)
                 dark_model_gz = interp1d(FmDk_accT,(FmDk_gz-np.mean(FmDk_gz))*7.5,bounds_error=False)(dark_model_t)
@@ -1027,9 +1057,16 @@ class Population:
     def summarize_sessions(self):
         pdf = PdfPages(os.path.join(self.savepath, 'session_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
 
-        self.data['has_dark'] = ~self.data['FmDk_theta'].isna()
-        self.data['has_hf'] = ~self.data['Wn_contrast_tuning'].isna()
-
+        if 'FmDk_theta' in self.data.columns:
+            self.data['has_dark'] = ~self.data['FmDk_theta'].isna()
+        else:
+            self.data['has_dark'] = False
+        
+        if 'Wn_contrast_tuning' in self.data.columns:
+            self.data['has_hf'] = ~self.data['Wn_contrast_tuning'].isna()
+        else:
+            self.data['has_hf'] = False
+        
         if self.data['has_dark'].sum() > 0 and self.data['has_hf'].sum() > 0:
             active_time_by_session, light_len, dark_len = self.get_animal_activity()
 
@@ -1114,7 +1151,7 @@ class Population:
 
                     eyeT = np.array(row[base+'_eyeT'])
                     dEye = row[base+'_dEye']
-                    dhead = row[base+'_dHead'][:-1]
+                    dhead = row[base+'_dHead']
                     dgz = dEye + dhead
 
                     if movement=='eye_gaze_shifting':
@@ -1237,10 +1274,7 @@ class Population:
             plt.xlabel('dEye (deg)', fontsize=20); plt.ylabel('dHead (deg)', fontsize=20); plt.xlim((-15,15)); plt.ylim((-15,15))
             plt.plot([-15,15],[15,-15], 'r:')
 
-            try:
-                imuT = uniquedf['FmLt_imuT'].iloc[0]
-            except KeyError:
-                imuT = uniquedf['FmLt_imuT'].iloc[0]
+            imuT = uniquedf['FmLt_imuT'].iloc[0]
             roll = uniquedf['FmLt_roll'].iloc[0]
             pitch = uniquedf['FmLt_pitch'].iloc[0]
 
@@ -1268,7 +1302,7 @@ class Population:
             plt.hist(uniquedf['FmLt_phi'].iloc[0], range=[-45,45], alpha=0.5); plt.xlabel('FmLt phi (deg)', fontsize=20)
             # histogram of gyro z (resonable range?)
             plt.subplot(5,5,6)
-            plt.hist(uniquedf['FmLt_gyroz'].iloc[0], range=[2,4], alpha=0.5); plt.xlabel('FmLt gyro z (deg)', fontsize=20)
+            plt.hist(uniquedf['FmLt_gyro_z'].iloc[0], range=[2,4], alpha=0.5); plt.xlabel('FmLt gyro z (deg)', fontsize=20)
             # plot of contrast response functions on same panel scaled to max 30sp/sec
             # plot of average contrast reponse function across units
             plt.subplot(5,5,7)
@@ -1620,10 +1654,10 @@ class Population:
 
     def neural_response_to_gratings(self):
         for sf in ['low','mid','high']:
-            self.data['norm_ori_tuning_'+sf] = self.data['Gt_ori_tuning'].copy().astype(object)
+            self.data['norm_ori_tuning_'+sf] = self.data['Gt_ori_tuning_tf'].copy().astype(object)
         for ind, row in self.data.iterrows():
             try:
-                orientations = np.nanmean(np.array(row['Gt_ori_tuning'], dtype=np.float),2)
+                orientations = np.nanmean(np.array(row['Gt_ori_tuning_tf'], dtype=np.float),2)
                 for sfnum in range(3):
                     sf = ['low','mid','high'][sfnum]
                     self.data.at[ind,'norm_ori_tuning_'+sf] = orientations[:,sfnum] - row['Gt_drift_spont']
@@ -1659,7 +1693,7 @@ class Population:
 
         for ind, row in self.data.iterrows():
             if type(row['Gt_ori_tuning_tf']) != float:
-                tuning = np.nanmean(row['Gt_ori_tuning'],1)
+                tuning = np.nanmean(row['Gt_ori_tuning_tf'],1)
                 tuning = tuning - row['Gt_drift_spont']
                 tuning[tuning < 0] = 0
                 mean_for_tf = np.array([np.mean(tuning[:,0]), np.mean(tuning[:,1])])
@@ -2239,7 +2273,7 @@ class Population:
             plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
         for ind, row in self.data[self.data['has_hf']].iterrows():
-            ori_tuning = np.mean(row['Gt_ori_tuning'],2) # [orientation, sf, tf]
+            ori_tuning = np.mean(row['Gt_ori_tuning_tf'],2) # [orientation, sf, tf]
             drift_spont = row['Gt_drift_spont']
             tuning = ori_tuning - drift_spont # subtract off spont rate
             tuning[tuning < 0] = 0 # set to 0 when tuning goes negative (i.e. when firing rate is below spontanious rate)
@@ -2354,7 +2388,7 @@ class Population:
                 
                 eyeT = np.array(row['FmLt_eyeT'])
                 dEye = row['FmLt_dEye']
-                dhead = row['FmLt_dHead'][:-1]
+                dhead = row['FmLt_dHead']
                 dgz = dEye + dhead
                 
                 if movement=='eye_gaze_shifting':

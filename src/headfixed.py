@@ -198,24 +198,25 @@ class HeadFixedWhiteNoise(Ephys):
                  model_use=self.model_use,
         )
 
-    def process(self):
+    def analyze(self):
         # delete the existing h5 file, so that a new one can be written
         if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
             os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
 
-        self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
+        # self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
         self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
         self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
 
-        print('starting ephys analysis')
+        print('starting ephys analysis for '+self.recording_name)
         self.base_ephys_analysis()
 
         print('making summary and overview figures')
-        self.overview_fig()
-        self.summary_fig()
+        # self.overview_fig()
+        # self.summary_fig()
 
         print('closing pdfs')
-        self.overview_pdf.close(); self.detail_pdf.close(); self.diagnostic_pdf.close()
+        # self.overview_pdf.close();
+        self.detail_pdf.close(); self.diagnostic_pdf.close()
 
         print('saving ephys file')
         if self.do_rough_glm_fit:
@@ -457,7 +458,7 @@ class HeadFixedReversingCheckboard(Ephys):
         data_out = pd.concat([self.cells, unit_data], axis=1)
         data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
-    def process(self):
+    def analyze(self):
         # delete the existing h5 file, so that a new one can be written
         if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
             os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
@@ -465,14 +466,14 @@ class HeadFixedReversingCheckboard(Ephys):
         self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
         self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
 
-        print('starting ephys analysis')
+        print('starting ephys analysis for '+self.recording_name)
         self.base_ephys_analysis()
         
         print('getting depth from reversing checkboard stimulus')
         self.revchecker_laminar_depth()
 
         print('making summary and overview figures')
-        self.summary_fig()
+        # self.summary_fig()
 
         print('closing pdfs')
         self.detail_pdf.close(); self.diagnostic_pdf.close()
@@ -550,7 +551,7 @@ class HeadFixedSparseNoise(Ephys):
         data_out = pd.concat([self.cells, unit_data], axis=1)
         data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
-    def process(self):
+    def analyze(self):
         # delete the existing h5 file, so that a new one can be written
         if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
             os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
@@ -558,11 +559,11 @@ class HeadFixedSparseNoise(Ephys):
         self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
         self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
         
-        print('starting ephys analysis')
+        print('starting ephys analysis for '+self.recording_name)
         self.base_ephys_analysis()
 
         print('making summary and overview figures')
-        self.summary_fig()
+        # self.summary_fig()
 
         print('closing pdfs')
         self.detail_pdf.close(); self.diagnostic_pdf.close()
@@ -681,7 +682,7 @@ class HeadFixedGratings(Ephys):
         ori_cat = np.floor((self.grating_ori+np.pi/16) / (np.pi/4))
         
         plt.figure()
-        plt.plot(range(10), ori_cat[:15]); plt.xlabel('first 15 stims'); plt.ylabel('ori cat')
+        plt.plot(range(15), ori_cat[:15]); plt.xlabel('first 15 stims'); plt.ylabel('ori cat')
         self.diagnostic_pdf.savefig()
 
         km = KMeans(n_clusters=3).fit(np.reshape(grating_mag, (-1,1)))
@@ -892,24 +893,24 @@ class HeadFixedGratings(Ephys):
         data_out = pd.concat([self.cells, unit_data], axis=1)
         data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
-    def process(self):
+    def analyze(self):
         # delete the existing h5 file, so that a new one can be written
         if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
             os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
 
-        self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
+        # self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
         self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
         self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
 
-        print('starting ephys analysis')
+        print('starting ephys analysis for '+self.recording_name)
         self.base_ephys_analysis()
 
         print('running analysis for gratings stimulus')
         self.gratings_analysis()
 
-        print('making summary and overview figures')
-        self.overview_fig()
-        self.summary_fig()
+        # print('making summary and overview figures')
+        # self.overview_fig()
+        # self.summary_fig()
 
         print('closing pdfs')
         self.detail_pdf.close(); self.diagnostic_pdf.close()

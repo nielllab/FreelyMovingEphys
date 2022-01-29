@@ -357,19 +357,20 @@ class FreelyMovingLight(Ephys):
         if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
             os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
 
-        self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
+        # self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
         self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
         self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
 
-        print('starting ephys analysis')
+        print('starting ephys analysis for '+self.recording_name)
         self.base_ephys_analysis()
 
         print('making summary and overview figures')
-        self.overview_fig()
-        self.summary_fig()
+        # self.overview_fig()
+        # self.summary_fig()
 
         print('closing pdfs')
-        self.overview_pdf.close(); self.detail_pdf.close(); self.diagnostic_pdf.close()
+        # self.overview_pdf.close();
+        self.detail_pdf.close(); self.diagnostic_pdf.close()
 
         print('saving ephys file')
         if self.do_rough_glm_fit:
@@ -506,19 +507,20 @@ class FreelyMovingDark(Ephys):
         if os.path.isfile(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5'))):
             os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
 
-        self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
+        # self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
         self.detail_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_detailed_analysis_figures.pdf')))
         self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_diagnostic_analysis_figures.pdf')))
 
-        print('starting ephys analysis')
+        print('starting ephys analysis for '+self.recording_name)
         self.base_ephys_analysis()
 
         print('making summary and overview figures')
-        self.overview_fig()
-        self.summary_fig()
+        # self.overview_fig()
+        # self.summary_fig()
 
         print('saving files')
         self.save()
 
         print('closing pdfs')
-        self.overview_pdf.close(); self.detail_pdf.close(); self.diagnostic_pdf.close()
+        # self.overview_pdf.close();
+        self.detail_pdf.close(); self.diagnostic_pdf.close()
