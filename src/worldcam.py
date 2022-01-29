@@ -28,7 +28,11 @@ class Worldcam(Camera):
             sys.exit()
 
         if self.config['main']['parameters']:
+            if self.config['main']['undistort']:
+                self.undistort()
             self.gather_camera_files()
+            if self.config['main']['undistort']:
+                self.video_path = self.calibvid_path
             self.pack_position_data()
             self.pack_video_frames()
             self.save_params()

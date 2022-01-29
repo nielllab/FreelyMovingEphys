@@ -11,7 +11,7 @@ from src.imu import Imu
 from src.eyecam import Eyecam
 from src.topcam import Topcam
 from src.worldcam import Worldcam
-# from src.sidecam import Sidecam
+from src.sidecam import Sidecam
 # from src.glm_rf import FitGLM
 from src.freelymoving import FreelyMovingLight, FreelyMovingDark
 from src.headfixed import HeadFixedGratings, HeadFixedWhiteNoise, HeadFixedReversingCheckboard, HeadFixedSparseNoise
@@ -139,9 +139,9 @@ class Session:
                     print(recording_name + ' for input: ' + camname)
                     tc = Topcam(self.config, recording_name, recording_path, camname)
                     tc.process()
-                # elif camname.lower() in ['side']:
-                #     sc = Sidecam(self.config, recording_name, recording_path, camname)
-                #     sc.process()
+                elif camname.lower() in ['side']:
+                    sc = Sidecam(self.config, recording_name, recording_path, camname)
+                    sc.process()
             if find(recording_name+'_IMU.bin', recording_path) != []:
                 print(recording_name + ' for input: IMU')
                 imu = Imu(self.config, recording_name, recording_path)

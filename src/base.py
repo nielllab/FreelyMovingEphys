@@ -204,7 +204,7 @@ class Camera(BaseInput):
             elif self.config['internals']['flip_headcams']['hflip'] and self.config['internals']['flip_headcams']['vflip']:
                 subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'vflip, hflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
 
-    def define_distortion(self):
+    def define_distortion(self, checkervid='worldcam_checkerboard', mtxkey='worldcam_mtx'):
         """ Define distortion from checkerbaord videos.
         Config files are only setup to track worldcam checkboard videos.
         Could be used for topcam also.
@@ -218,7 +218,7 @@ class Camera(BaseInput):
         objp = np.zeros((6*7,3), np.float32)
         objp[:,:2] = np.mgrid[0:7,0:6].T.reshape(-1,2)
         # read in file path of video
-        calib_vid = cv2.VideoCapture(self.config['paths']['worldcam_checkerboard'])
+        calib_vid = cv2.VideoCapture(self.config['paths'][checkervid])
         # iterate through frames
         print('getting distortion out of each frame')
         for step in tqdm(range(0,int(calib_vid.get(cv2.CAP_PROP_FRAME_COUNT)))):
@@ -228,7 +228,10 @@ class Camera(BaseInput):
             if not ret:
                 break
             # convert to grayscale
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            if img.shape[2] > 1:
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = img
             # find the chess board corners
             ret, corners = cv2.findChessboardCorners(gray, (7,6), None)
             # if found, add object points, image points (after refining them)
@@ -240,18 +243,21 @@ class Camera(BaseInput):
         print('calculating calibration correction paramters')
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
         # format as xarray and save the file
-        savepath = self.config['paths']['worldcam_mtx']
+        savepath = self.config['paths'][mtxkey]
         np.savez(savepath, mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
 
-    def undistort(self):
+    def undistort(self, mtxkey='worldcam_mtx', readcamkey='WORLDdeinter', savecamkey='_WORLDcalib.avi',
+                  checkervid='worldcam_checkerboard'):
+        if not os.path.isfile(self.config['paths'][mtxkey]):
+            self.define_distortion(checkervid, mtxkey)
         # load the parameters
-        checker_in = np.load(self.config['paths']['worldcam_mtx'])
+        checker_in = np.load(self.config['paths'][mtxkey])
         # unpack camera properties
         mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
         # iterate through eye videos and save out a copy which has had distortions removed
-        world_list = find('*WORLDdeinter*.avi', self.config['animal_directory'])
+        world_list = find('*'+readcamkey+'*.avi', self.config['animal_directory'])
         for world_vid in [x for x in world_list if 'plot' not in x]:
-            savepath = '_'.join(world_vid.split('_')[:-1])+'_WORLDcalib.avi'
+            savepath = '_'.join(world_vid.split('_')[:-1])+savecamkey
             cap = cv2.VideoCapture(world_vid)
             # setup the file writer
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -267,6 +273,7 @@ class Camera(BaseInput):
                 # write the frame to the video
                 out_vid.write(undist_frame)
             out_vid.release()
+            self.calibvid_path = savepath
 
     def auto_contrast(self):
         if self.config['img_correction']['apply_gamma_to_eyecam']:
