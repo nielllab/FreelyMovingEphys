@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/core/utils/correlation.py
+FreelyMovingEphys/src/utils/correlation.py
 """
 import numpy as np
 import pandas as pd

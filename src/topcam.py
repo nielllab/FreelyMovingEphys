@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/src/top.py
+FreelyMovingEphys/src/topcam.py
 """
 import numpy as np
 import xarray as xr

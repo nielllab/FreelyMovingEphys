@@ -25,7 +25,7 @@ import matplotlib as mpl
 mpl.rcParams.update({'font.size': 25})
 
 from src.utils.path import find
-from src.utils.aux import flatten_series
+from src.utils.auxiliary import flatten_series
 
 class Population:
     def __init__(self, savepath, metadata_path=None):
@@ -1158,7 +1158,7 @@ class Population:
                     row = self.data[self.data['session']==session_name].iloc[0]
 
                     eyeT = np.array(row[base+'_eyeT'])
-                    dEye = row[base+'_dEye']
+                    dEye = row[base+'_dEye_dps']
                     dhead = row[base+'_dHead']
                     dgz = dEye + dhead
 
@@ -1275,7 +1275,7 @@ class Population:
 
             plt.subplot(5,5,1)
             plt.title(unique_ind+' eye fit: m='+fmt_m+' r='+fmt_r, fontsize=20)
-            dEye = uniquedf['FmLt_dEye'].iloc[0]
+            dEye = uniquedf['FmLt_dEye_dps'].iloc[0]
             dhead = uniquedf['FmLt_dHead'].iloc[0]
             eyeT = uniquedf['FmLt_eyeT'].iloc[0]
             plt.plot(dEye[::10], dhead[::10], 'k.')
@@ -1455,7 +1455,7 @@ class Population:
 
             elif uniquedf['has_dark'].iloc[0]:
                 plt.subplot(5,5,18)
-                dEye = uniquedf['FmDk_dEye'].iloc[0]
+                dEye = uniquedf['FmDk_dEye_dps'].iloc[0]
                 dhead = uniquedf['FmDk_dHead'].iloc[0][:-1]
                 eyeT = uniquedf['FmDk_eyeT'].iloc[0]
                 plt.plot(dEye[::10], dhead[::10], 'k.')
@@ -2392,10 +2392,10 @@ class Population:
             # get 0th index of units in this session (all units have identical info for these columns)
             row = self.data[self.data['session']==session].iloc[0]
             
-            if type(row['FmLt_eyeT']) != float and type(row['FmLt_dEye']) != float and type(row['FmLt_dHead']) != float:
+            if type(row['FmLt_eyeT']) != float and type(row['FmLt_dEye_dps']) != float and type(row['FmLt_dHead']) != float:
                 
                 eyeT = np.array(row['FmLt_eyeT'])
-                dEye = row['FmLt_dEye']
+                dEye = row['FmLt_dEye_dps']
                 dhead = row['FmLt_dHead']
                 dgz = dEye + dhead
                 

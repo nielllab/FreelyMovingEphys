@@ -1,10 +1,6 @@
 """
 FreelyMovingEphys/src/sidecam.py
 """
-
-"""
-FreelyMovingEphys/src/worldcam.py
-"""
 import os, sys
 import xarray as xr
 

@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/core/utils/filter.py
+FreelyMovingEphys/src/utils/filter.py
 """
 import numpy as np
 

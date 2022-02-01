@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/src/rf.py
+FreelyMovingEphys/src/glm_rf.py
 """
 import torch
 import torch.nn as nn

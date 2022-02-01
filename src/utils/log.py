@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/core/utils/log.py
+FreelyMovingEphys/src/utils/log.py
 """
 
 class log:

@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/core/utils/path.py
+FreelyMovingEphys/src/utils/path.py
 """
 import os, fnmatch
 

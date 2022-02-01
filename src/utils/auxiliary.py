@@ -1,5 +1,5 @@
 """
-FreelyMovingEphys/core/utils/aux.py
+FreelyMovingEphys/src/utils/auxiliary.py
 """
 import numpy as np
 
