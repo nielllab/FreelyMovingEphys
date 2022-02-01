@@ -28,7 +28,7 @@ class Topcam(Camera):
         self.dist_cm = 39
 
         self.make_all_plots = False
-        self.make_speed_yaw_video = True
+        self.make_speed_yaw_video = False
 
         # definitions of state
         # if body yaw is within +/- X deg of movement vector, the mouse is moving forward
@@ -254,7 +254,7 @@ class Topcam(Camera):
 
         pdf.close()
 
-        if self.config['internals']['diagnostic_preprocessing_videos']:
+        if self.config['internals']['diagnostic_preprocessing_videos'] and self.make_speed_yaw_video:
             vid_save_path = os.path.join(self.recording_path,(self.recording_name+'_'+self.camname+'_speed_yaw.avi'))
             start = 1000
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
