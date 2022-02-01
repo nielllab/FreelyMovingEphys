@@ -130,18 +130,18 @@ class Session:
                 if camname.lower() in ['reye','leye']:
                     print(recording_name + ' for input: ' + camname)
                     ec = Eyecam(self.config, recording_name, recording_path, camname)
-                    ec.process()
+                    ec.safe_process(show=True)
                 elif camname.lower() in ['world']:
                     print(recording_name + ' for input: ' + camname)
                     wc = Worldcam(self.config, recording_name, recording_path, camname)
-                    wc.process()
+                    wc.safe_process(show=True)
                 elif camname.lower() in ['top1','top2','top3'] and 'dark' not in recording_name:
                     print(recording_name + ' for input: ' + camname)
                     tc = Topcam(self.config, recording_name, recording_path, camname)
-                    tc.process()
+                    tc.safe_process(show=True)
                 elif camname.lower() in ['side']:
                     sc = Sidecam(self.config, recording_name, recording_path, camname)
-                    sc.process()
+                    sc.safe_process(show=True)
             if find(recording_name+'_IMU.bin', recording_path) != []:
                 print(recording_name + ' for input: IMU')
                 imu = Imu(self.config, recording_name, recording_path)

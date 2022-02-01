@@ -237,10 +237,11 @@ class Camera(BaseInput):
             # if found, add object points, image points (after refining them)
             if ret == True:
                 objpoints.append(objp)
-                corners2 = cv2.cornerSubPix(gray,corners, (11,11), (-1,-1), criteria)
+                corners2 = cv2.cornerSubPix(gray, corners, (11,11), (-1,-1), criteria)
                 imgpoints.append(corners)
         # calibrate the camera (this is a little slow)
         print('calculating calibration correction paramters')
+        # print(np.shape(imgpoints))
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
         # format as xarray and save the file
         savepath = self.config['paths'][mtxkey]
@@ -588,3 +589,12 @@ class Camera(BaseInput):
         y_vals = xr.DataArray.to_pandas(y_pts).T
         likeli_pts = xr.DataArray.to_pandas(likeli_pts).T
         return x_vals, y_vals, likeli_pts
+
+    def safe_process(self, show=False):
+        try:
+            self.process()
+        except Exception as e:
+            if show:
+                print(e)
+            else:
+                pass
