@@ -726,7 +726,8 @@ class Ephys(BaseInput):
 
         if self.fm:
             self.imuT_raw = self.imuT_raw - self.ephysT0
-            self.topT = self.topT - self.ephysT0
+            if self.stim=='lt':
+                self.topT = self.topT - self.ephysT0
         elif not self.fm:
             self.ballT = self.ballT - self.ephysT0
 
