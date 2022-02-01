@@ -66,7 +66,7 @@ def list_subdirs(root_dir, name_only=False):
         List of directories as strings.
     """
     dirnames = []
-
+    
     if not name_only:
         for _, dirs, _ in os.walk(root_dir):
             for rec_dir in dirs:

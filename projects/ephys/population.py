@@ -21,6 +21,8 @@ import itertools
 from scipy import stats
 import warnings
 warnings.filterwarnings('ignore')
+import matplotlib as mpl
+mpl.rcParams.update({'font.size': 25})
 
 from src.utils.path import find
 from src.utils.aux import flatten_series
@@ -197,15 +199,21 @@ class Population:
         """
         self.data['has_optic_flow'] = False
         self.data['has_topdown_optic_flow'] = False
-        self.data['FmLt_flowvec_scale'] = False
+        self.data['FmLt_flowvec_scale'] = None
 
         movement_state_list = ['full','active_gyro','inactive_gyro','running_forward','running_backward','fine_motion','immobile']
-        # emptydata = self.data['FmLt_spikeT'].iloc[0].copy()
+        
+        dummy_vec = np.zeros([40,60,2])
+        vec_series = pd.Series([])
+        dummy_amp = np.zeros([40,60])
+        amp_series = pd.Series([])
+        for i in range(len(self.data)):
+            vec_series[i] = dummy_vec.astype(object)
+            amp_series[i] = dummy_amp.astype(object)
+
         for movement_state in movement_state_list:
-            self.data['FmLt_optic_flow_'+movement_state+'_vec'] = np.nan
-            # self.data['FmLt_optic_flow_'+movement_state+'_vec'] = emptydata.astype(object)
-            self.data['FmLt_optic_flow_'+movement_state+'_amp'] = np.nan
-            # self.data['FmLt_optic_flow_'+movement_state+'_amp'] = emptydata.astype(object)
+            self.data['FmLt_optic_flow_'+movement_state+'_vec'] = vec_series.astype(object)
+            self.data['FmLt_optic_flow_'+movement_state+'_amp'] = amp_series.astype(object)
         
         recordings = self.data['original_session_path'].unique()
         recordings = [os.path.join(x, 'fm1') for x in recordings]
@@ -235,10 +243,6 @@ class Population:
                                     'active_gyro_vec':flow_data['active_gyro_vec'],'active_gyro_amp':flow_data['active_gyro_amp'],
                                     'inactive_gyro_vec':flow_data['inactive_gyro_vec'],'inactive_gyro_amp':flow_data['inactive_gyro_amp']}
                 movement_state_list = ['full','active_gyro','inactive_gyro']
-            
-            for movement_state in movement_state_list:
-                self.data['FmLt_optic_flow_'+movement_state+'_vec'] = np.nan
-                self.data['FmLt_optic_flow_'+movement_state+'_amp'] = np.nan
 
             for movement_state in movement_state_list:
                 flow_vec = movement_state_dict[movement_state+'_vec'] # shape is [unit, lag, x, y, U/V]
@@ -256,35 +260,39 @@ class Population:
                     flow_arr_ind += 1
                 if movement_state=='full':
                     max_vec_scale = np.max(vec_scale.flatten())
-                    for ind, _ in self.data[self.data['original_session_path']==recording_path].iterrows():
+                    for ind, _ in self.data[self.data['original_session_path']==recording_path[:-3]].iterrows():
                         self.data.at[ind, 'FmLt_flowvec_scale'] = max_vec_scale
                         self.data.at[ind, 'has_optic_flow'] = True
                         self.data.at[ind, 'has_topdown_optic_flow'] = topdown_flow
             
     def optic_flow_vec(self, panel, movstate):
-        fv = self.current_row['FmLt_optic_flow_'+movstate+'_vec'] # shape is [x, y, U/V]
+        fv = self.current_row['FmLt_optic_flow_'+movstate+'_vec'].astype(float) # shape is [x, y, U/V]
+        fa = self.current_row['FmLt_optic_flow_'+movstate+'_amp'].astype(float) # shape is [x, y]
+
+        norm_amp = (fa/np.max(fa))
 
         nx = 5 # binning for plotting flow vectors
         fv_scale = self.current_row['FmLt_flowvec_scale']
-        flow_w = np.size(fv, 0)
-        flow_h = np.size(fv, 1)
+        flow_w = np.size(fv, 1)
+        flow_h = np.size(fv, 0)
+
         X,Y = np.meshgrid(np.arange(0,flow_w),np.arange(0,flow_h))
 
-        U = fv[:,:,0]
-        V = fv[:,:,1]
+        U = fv[:,:,0] * norm_amp
+        V = fv[:,:,1] * norm_amp
 
         panel.quiver(X[::nx,::nx], -Y[::nx,::nx], U[::nx,::nx], -V[::nx,::nx], scale=fv_scale)
         panel.axis('off')
         panel.axis('equal')
-        panel.set_title(movstate)
+        panel.set_title('vec * amp')
 
     def optic_flow_amp(self, panel, movstate):
-        fa = self.current_row['FmLt_optic_flow_'+movstate+'_amp'] # shape is [x, y]
+        fa = self.current_row['FmLt_optic_flow_'+movstate+'_amp'].astype(float) # shape is [x, y]
 
-        panel.imshow(fa, vmin=0, vmax=0.25, cmap='Reds')
+        panel.imshow(fa, cmap='Reds')
         panel.axis('off')
         panel.axis('equal')
-        panel.set_title(movstate)
+        panel.set_title(movstate + ' amp')
 
     def tuning_modulation_index(self, tuning):
         tuning = tuning[~np.isnan(tuning)]
@@ -790,27 +798,27 @@ class Population:
             self.data.at[self.current_index, 'FmLt_pitch_modind'] = FmLt_pitch_modind
 
             if self.current_row['has_optic_flow']:
-                fig_flow_full_vec = self.figure.add_subplot(self.spec[0,5])
-                fig_flow_full_amp = self.figure.add_subplot(self.spec[0,6])
+                fig_flow_full_vec = self.figure.add_subplot(self.spec[0,6])
+                fig_flow_full_amp = self.figure.add_subplot(self.spec[0,5])
 
-                fig_flow_ag_vec = self.figure.add_subplot(self.spec[1,5])
-                fig_flow_ag_amp = self.figure.add_subplot(self.spec[1,6])
+                fig_flow_ag_vec = self.figure.add_subplot(self.spec[1,6])
+                fig_flow_ag_amp = self.figure.add_subplot(self.spec[1,5])
 
-                fig_flow_ig_vec = self.figure.add_subplot(self.spec[2,5])
-                fig_flow_ig_amp = self.figure.add_subplot(self.spec[2,6])
+                fig_flow_ig_vec = self.figure.add_subplot(self.spec[2,6])
+                fig_flow_ig_amp = self.figure.add_subplot(self.spec[2,5])
 
                 if self.current_row['has_topdown_optic_flow']:
-                    fig_flow_rf_vec = self.figure.add_subplot(self.spec[3,5])
-                    fig_flow_rf_amp = self.figure.add_subplot(self.spec[3,6])
+                    fig_flow_rf_vec = self.figure.add_subplot(self.spec[3,6])
+                    fig_flow_rf_amp = self.figure.add_subplot(self.spec[3,5])
 
-                    fig_flow_rb_vec = self.figure.add_subplot(self.spec[4,5])
-                    fig_flow_rb_amp = self.figure.add_subplot(self.spec[4,6])
+                    fig_flow_rb_vec = self.figure.add_subplot(self.spec[4,6])
+                    fig_flow_rb_amp = self.figure.add_subplot(self.spec[4,5])
 
-                    fig_flow_fm_vec = self.figure.add_subplot(self.spec[5,5])
-                    fig_flow_fm_amp = self.figure.add_subplot(self.spec[5,6])
+                    fig_flow_fm_vec = self.figure.add_subplot(self.spec[5,6])
+                    fig_flow_fm_amp = self.figure.add_subplot(self.spec[5,5])
 
-                    fig_flow_im_vec = self.figure.add_subplot(self.spec[6,5])
-                    fig_flow_im_amp = self.figure.add_subplot(self.spec[6,6])
+                    fig_flow_im_vec = self.figure.add_subplot(self.spec[6,6])
+                    fig_flow_im_amp = self.figure.add_subplot(self.spec[6,5])
 
                     movstates = ['full','active_gyro','inactive_gyro','running_forward','running_backward','fine_motion','immobile']
                     statevecs = [fig_flow_full_vec, fig_flow_ag_vec, fig_flow_ig_vec, fig_flow_rf_vec, fig_flow_rb_vec, fig_flow_fm_vec, fig_flow_im_vec]
