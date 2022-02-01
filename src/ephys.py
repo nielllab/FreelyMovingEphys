@@ -910,7 +910,7 @@ class Ephys(BaseInput):
 
         if self.fm:
             print('deye dhead')
-            self.dHead = np.diff(interp1d(self.imuT, self.gyro_z, bounds_error=False)(self.eyeT))
+            self.dHead = interp1d(self.imuT, self.gyro_z, bounds_error=False)(self.eyeT)
             
             if self.stim == 'lt':
                 self.gaze = self.theta + self.top_head_yaw_interp
@@ -1187,8 +1187,9 @@ class Ephys(BaseInput):
         print('opening worldcam')
         self.open_worldcam()
         if self.fm:
-            print('opening topcam')
-            self.open_topcam()
+            if self.stim == 'lt':
+                print('opening topcam')
+                self.open_topcam()
             print('opening imu')
             self.open_imu()
         if not self.fm:

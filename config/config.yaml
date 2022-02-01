@@ -14,16 +14,19 @@ main:
 paths:
   # worldcam video of checkerboard
   worldcam_checkerboard: E:/freely_moving_ephys/camera_calibration_params/betafpv_checkerboard.avi
+  sidecam_checkerboard: example
   # npz of worldcam properties
   # if define_worldcam_distortion is True, this file will be written (and possibly overwritten)
   # if undistort is False, this file will be read
   worldcam_mtx: E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz
+  sidecam_mtx: example
   # paths to dlc project config.yaml files
   dlc_projects:
     REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams7-dylan-2021-09-13/config.yaml
     TOP1: E:/freely_moving_ephys/deeplabcut_projects/EphysTopCam2-dylan-2021-11-16/config.yaml
+    SIDE: example
   # channel maps json
-  channel_map_path: C:/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys/config/channel_maps.json
+  channel_map_path: C:/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys-dmm/config/channel_maps.json
 
 options:
   # list of recordings to process
@@ -35,7 +38,7 @@ options:
   # options = [default16, NN_H16, default64, NN_H64-LP, DB_P64-3, DB_P64-8, DB_P128-6])
   probe: default16
   # write ephys videos
-  ephys_videos: true
+  ephys_videos: false
 
 internals:
   # threshold for allowed brightness in a darkness stimulus
@@ -72,7 +75,7 @@ internals:
   drop_window_around_missing_data: false
   # only use animal subdirectories that contain fm or hf
   # if false, all subdirectories will be processed
-  follow_strict_directory_naming: false
+  follow_strict_directory_naming: true
   # use exact file nomenclature
   # if false, requirements will be relaxed but multiple files may be returned when looking (i.e. deinterlaced and raw videos may be confused)
   follow_strict_naming: true
