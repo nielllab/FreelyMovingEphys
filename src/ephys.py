@@ -48,6 +48,8 @@ class Ephys(BaseInput):
         self.model_active_thresh = 40
         self.darkness_thresh = 100
         self.contrast_range = np.arange(0,1.2,0.1)
+        self.high_sacc_thresh = 5/.016 # deg/sec
+        self.low_sacc_thresh = 3/.016 # deg/sec
 
         self.default_ephys_offset = 0.1
         self.default_ephys_drift_rate = -0.000114
@@ -906,71 +908,61 @@ class Ephys(BaseInput):
 
     def head_and_eye_movements(self):
         plt.figure()
-        plt.hist(self.dEye, bins=21, range=(-10,10), density=True)
+        plt.hist(self.dEye_dps, bins=21, density=True)
         plt.xlabel('dTheta')
         self.detail_pdf.savefig(); plt.close()
 
         if self.fm:
             print('deye dhead')
             self.dHead = interp1d(self.imuT, self.gyro_z, bounds_error=False)(self.eyeT)[:-1]
-            
-            if self.stim == 'lt':
-                self.gaze = self.theta + self.top_head_yaw_interp
-                self.dGaze = np.diff(self.gaze)
-            elif self.stim == 'dk':
-                self.dGaze = self.dEye_dps + self.dHead
-
-                plt.figure()
-                plt.hist(self.dGaze, bins=21, range=(-10,10))
-                plt.xlabel('dGaze')
-                self.detail_pdf.savefig(); plt.close()
+            self.dGaze = self.dEye_dps + self.dHead
 
             plt.figure()
-            plt.hist(self.dHead, bins=21, range=(-10,10))
+            plt.hist(self.dGaze, bins=21, density=True)
+            plt.xlabel('dGaze')
+            self.detail_pdf.savefig(); plt.close()
+
+            plt.figure()
+            plt.hist(self.dHead, bins=21, density=True)
             plt.xlabel('dHead')
             self.detail_pdf.savefig(); plt.close()
             
             plt.figure()
-            plt.plot(self.dEye_dps, self.dHead, 'k.')
+            plt.plot(self.dEye_dps[::20], self.dHead[::20], 'k.')
             plt.xlabel('dEye'); plt.ylabel('dHead')
-            plt.xlim((-10,10)); plt.ylim((-10,10))
-            plt.plot([-10,10], [10,-10], 'r:')
+            plt.xlim((-900,900)); plt.ylim((-900,900))
+            plt.plot([-900,900], [900,-900], 'r:')
             self.detail_pdf.savefig(); plt.close()
 
         # all eye movements
         print('all eye movements')
-        sthresh = (5 if self.fm else 3)
-        left = self.eyeT[(np.append(self.dEye_dps, 0) > sthresh)]
-        right = self.eyeT[(np.append(self.dEye_dps, 0) < -sthresh)]
+        left = self.eyeT[(np.append(self.dEye_dps, 0) > self.low_sacc_thresh)]
+        right = self.eyeT[(np.append(self.dEye_dps, 0) < -self.low_sacc_thresh)]
         self.rightsacc_avg, self.leftsacc_avg = self.saccade_psth(right, left, 'all dEye')
 
         if self.fm:
             # plot gaze shifting eye movements
             print('gaze-shift deye')
-            sthresh = 5
-            left = self.eyeT[(np.append(self.dEye_dps, 0) > sthresh) & (np.append(self.dGaze,0) > sthresh)]
-            right = self.eyeT[(np.append(self.dEye_dps, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
+            left = self.eyeT[(np.append(self.dEye_dps, 0) > self.high_sacc_thresh) & (np.append(self.dGaze,0) > self.high_sacc_thresh)]
+            right = self.eyeT[(np.append(self.dEye_dps, 0) < -self.high_sacc_thresh) & (np.append(self.dGaze, 0) < -self.high_sacc_thresh)]
             self.rightsacc_avg_gaze_shift_dEye, self.leftsacc_avg_gaze_shift_dEye = self.saccade_psth(right, left, 'gaze-shift dEye')
             
             print('comp deye')
             # plot compensatory eye movements    
-            sthresh = 3
-            left = self.eyeT[(np.append(self.dEye_dps, 0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
-            right = self.eyeT[(np.append(self.dEye_dps, 0) < -sthresh) & (np.append(self.dGaze, 0) > -1)]
+            left = self.eyeT[(np.append(self.dEye_dps, 0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) < 1)]
+            right = self.eyeT[(np.append(self.dEye_dps, 0) < -self.low_sacc_thresh) & (np.append(self.dGaze, 0) > -1)]
             self.rightsacc_avg_comp_dEye, self.leftsacc_avg_comp_dEye = self.saccade_psth(right, left, 'comp dEye')
             
             print('gaze-shift dhead')
             # plot gaze shifting head movements
-            sthresh = 3
-            left = self.eyeT[(np.append(self.dHead, 0) > sthresh) & (np.append(self.dGaze, 0) > sthresh)]
-            right = self.eyeT[(np.append(self.dHead, 0) < -sthresh) & (np.append(self.dGaze, 0) < -sthresh)]
+            left = self.eyeT[(np.append(self.dHead, 0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) > self.low_sacc_thresh)]
+            right = self.eyeT[(np.append(self.dHead, 0) < -self.low_sacc_thresh) & (np.append(self.dGaze, 0) < -self.low_sacc_thresh)]
             self.rightsacc_avg_gaze_shift_dHead, self.leftsacc_avg_gaze_shift_dHead = self.saccade_psth(right, left, 'gaze-shift dHead')
             
             print('comp dhead')
             # plot compensatory head movements
-            sthresh = 3
-            left = self.eyeT[(np.append(self.dHead,0) > sthresh) & (np.append(self.dGaze, 0) < 1)]
-            right = self.eyeT[(np.append(self.dHead,0) < -sthresh) & (np.append(self.dGaze,0) > -1)]
+            left = self.eyeT[(np.append(self.dHead,0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) < 1)]
+            right = self.eyeT[(np.append(self.dHead,0) < -self.low_sacc_thresh) & (np.append(self.dGaze,0) > -1)]
             self.rightsacc_avg_comp_dHead, self.leftsacc_avg_comp_dHead = self.saccade_psth(right, left, 'comp dHead')
 
     def movement_tuning(self):
