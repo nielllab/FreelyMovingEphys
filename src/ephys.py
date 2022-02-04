@@ -50,6 +50,7 @@ class Ephys(BaseInput):
         self.contrast_range = np.arange(0,1.2,0.1)
         self.high_sacc_thresh = 5/.016 # deg/sec
         self.low_sacc_thresh = 3/.016 # deg/sec
+        self.gaze_sacc_thresh = 1/.016 # deg/sec
 
         self.default_ephys_offset = 0.1
         self.default_ephys_drift_rate = -0.000114
@@ -949,8 +950,8 @@ class Ephys(BaseInput):
             
             print('comp deye')
             # plot compensatory eye movements    
-            left = self.eyeT[(np.append(self.dEye_dps, 0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) < 1)]
-            right = self.eyeT[(np.append(self.dEye_dps, 0) < -self.low_sacc_thresh) & (np.append(self.dGaze, 0) > -1)]
+            left = self.eyeT[(np.append(self.dEye_dps, 0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) < self.gaze_sacc_thresh)]
+            right = self.eyeT[(np.append(self.dEye_dps, 0) < -self.low_sacc_thresh) & (np.append(self.dGaze, 0) > -self.gaze_sacc_thresh)]
             self.rightsacc_avg_comp_dEye, self.leftsacc_avg_comp_dEye = self.saccade_psth(right, left, 'comp dEye')
             
             print('gaze-shift dhead')
@@ -961,8 +962,8 @@ class Ephys(BaseInput):
             
             print('comp dhead')
             # plot compensatory head movements
-            left = self.eyeT[(np.append(self.dHead,0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) < 1)]
-            right = self.eyeT[(np.append(self.dHead,0) < -self.low_sacc_thresh) & (np.append(self.dGaze,0) > -1)]
+            left = self.eyeT[(np.append(self.dHead,0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) < self.gaze_sacc_thresh)]
+            right = self.eyeT[(np.append(self.dHead,0) < -self.low_sacc_thresh) & (np.append(self.dGaze,0) > -self.gaze_sacc_thresh)]
             self.rightsacc_avg_comp_dHead, self.leftsacc_avg_comp_dHead = self.saccade_psth(right, left, 'comp dHead')
 
     def movement_tuning(self):

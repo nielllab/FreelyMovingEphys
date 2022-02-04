@@ -180,15 +180,15 @@ class Population:
         print('reading data from', pickle_path)
         self.data = pd.read_pickle(pickle_path)
 
-    def save_custom_pickle(self, key='temp'):
-        pickle_path = os.path.join(self.savepath, 'pooled_ephys_'+key+'_'+datetime.today().strftime('%m%d%y')+'.pickle')
+    def save_custom_pickle(self, fname):
+        pickle_path = os.path.join(self.savepath, fname)
         if os.path.isfile(pickle_path):
             os.remove(pickle_path)
         print('saving to '+pickle_path)
         self.data.to_pickle(pickle_path)
 
-    def load_custom_pickle(self, key='temp'):
-        pickle_path = os.path.join(self.savepath, 'pooled_ephys_'+key+'_'+datetime.today().strftime('%m%d%y')+'.pickle')
+    def load_custom_pickle(self, fname):
+        pickle_path = os.path.join(self.savepath, fname)
         print('reading from '+pickle_path)
         self.data = pd.read_pickle(pickle_path)
 

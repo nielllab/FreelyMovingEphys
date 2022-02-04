@@ -161,10 +161,10 @@ class Topcam(Camera):
         rear_x = nanmedfilt(self.xrpts.sel(point_loc='right_ear_x').values, 7).squeeze()
         rear_y = nanmedfilt(self.xrpts.sel(point_loc='right_ear_y').values, 7).squeeze()
         head_yaw = np.arctan2((lear_y - rear_y), (lear_x - rear_x)) + np.deg2rad(90) # rotate 90deg because ears are perpendicular to head yaw
-        haed_yaw_deg = np.rad2deg(head_yaw % (2*np.pi))
+        head_yaw_deg = np.rad2deg(head_yaw % (2*np.pi))
 
         plt.figure(figsize=(15,5))
-        plt.plot(topT, haed_yaw_deg, '.', markersize=1)
+        plt.plot(topT, head_yaw_deg, '.', markersize=1)
         plt.ylabel('head yaw (deg)'); plt.xlabel('sec')
         plt.tight_layout(); pdf.savefig(); plt.close()
 
