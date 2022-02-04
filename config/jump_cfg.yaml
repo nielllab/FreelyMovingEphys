@@ -4,22 +4,22 @@
 animal_directory: /path/to/animal/
 
 main:
-  deinterlace: true
+  deinterlace: false
   undistort: true
-  pose_estimation: true
-  parameters: true
+  pose_estimation: false
+  parameters: false
   glm_rf: false
-  ephys: true
+  ephys: false
 
 paths:
   # worldcam video of checkerboard
   worldcam_checkerboard: E:/freely_moving_ephys/camera_calibration_params/betafpv_checkerboard.avi
-  sidecam_checkerboard: example
+  sidecam_checkerboard: E:/freely_moving_ephys/camera_calibration_params/012822_checkerboard_control_SIDE_0.avi
   # npz of worldcam properties
   # if define_worldcam_distortion is True, this file will be written (and possibly overwritten)
   # if undistort is False, this file will be read
   worldcam_mtx: E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz
-  sidecam_mtx: example
+  sidecam_mtx: E:/freely_moving_ephys/camera_calibration_params/side_checkerboard_calib.npz
   # paths to dlc project config.yaml files
   dlc_projects:
     REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams7-dylan-2021-09-13/config.yaml
@@ -41,9 +41,6 @@ options:
   ephys_videos: false
 
 internals:
-  # threshold for allowed brightness in a darkness stimulus
-  # if lights were switched on, set this to true and frames with the lights on will be ignored
-  set_darkness_thresh: true
   # delete existing .h5 and .pickle files saved out from previous DLC analysis
   clear_dlc: false
   # flip eye and world cameras without deinterlacing
@@ -55,17 +52,10 @@ internals:
   # apply an automatic contrast correction to the eyecam videos, getting a gamma value frame-by-frame
   # good for a dark, low-contrast video (slow)
   apply_gamma_to_eyecam: false
-  # dlc top network has a cricket labeled?
-  topcam_has_cricket: false
-  # worldcam has cricket
-  worldcam_has_cricket: false
   # dlc eyecam network has the reflection of the ir light labeled?
   eye_has_reflection: true
   # dlc eyecam network has both corners of the eye (tear duct) labeled?
   eye_has_corners: true
-  # calculate the needed correction for worldcam videos
-  # this only needs to be run once for a given camera
-  define_worldcam_distortion: false
   # whether or not to subtract the center of the ir spot's reflection on the eye from the labeled points around the eye
   subtract_reflection_position: true
   # pupil cyclotorsion
@@ -75,7 +65,7 @@ internals:
   drop_window_around_missing_data: false
   # only use animal subdirectories that contain fm or hf
   # if false, all subdirectories will be processed
-  follow_strict_directory_naming: true
+  follow_strict_directory_naming: false
   # use exact file nomenclature
   # if false, requirements will be relaxed but multiple files may be returned when looking (i.e. deinterlaced and raw videos may be confused)
   follow_strict_naming: true

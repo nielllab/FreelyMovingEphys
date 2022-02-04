@@ -86,7 +86,7 @@ class Session:
             recording_names = [i for i in list_subdirs(self.config['animal_directory']) if 'hf' in i or 'fm' in i]
         elif not self.config['internals']['follow_strict_directory_naming']:
             recording_names = list_subdirs(self.config['animal_directory'])
-        if self.config['internals']['follow_strict_directory_naming'] and self.config['options']['recording_list'] != []:
+        if self.config['options']['recording_list'] != []:
             recording_names = [i for i in recording_names if i in self.config['options']['recording_list']]
         recording_names = [i for i in recording_names if 'transfer' not in i]
         recording_paths = [os.path.join(self.config['animal_directory'], recording_name) for recording_name in recording_names]
