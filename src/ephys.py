@@ -1218,7 +1218,7 @@ class Ephys(BaseInput):
             self.mua_power_laminar_depth()
         print('interpolating worldcam data to match model timebase')
         self.worldcam_at_new_timebase()
-        if self.fm:
+        if self.fm and self.stim=='lt':
             print('interpolating topcam data to match model timebase')
             self.topcam_props_at_new_timebase()
         self.setup_model_spikes()
