@@ -204,7 +204,7 @@ class Camera(BaseInput):
             elif self.config['internals']['flip_headcams']['hflip'] and self.config['internals']['flip_headcams']['vflip']:
                 subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'vflip, hflip', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
 
-    def define_distortion(self, checkervid='worldcam_checkerboard', mtxkey='worldcam_mtx'):
+    def define_distortion(self, checkervid='worldcam_checkerboard', mtxkey='worldcam_mtx', boardw=7, boardh=5):
         """ Define distortion from checkerbaord videos.
         Config files are only setup to track worldcam checkboard videos.
         Could be used for topcam also.
@@ -215,8 +215,8 @@ class Camera(BaseInput):
         # termination criteria
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         #prepare object points
-        objp = np.zeros((6*7,3), np.float32)
-        objp[:,:2] = np.mgrid[0:7,0:6].T.reshape(-1,2)
+        objp = np.zeros((boardh*boardw,3), np.float32)
+        objp[:,:2] = np.mgrid[0:boardw,0:boardh].T.reshape(-1,2)
         # read in file path of video
         calib_vid = cv2.VideoCapture(self.config['paths'][checkervid])
         # iterate through frames
@@ -233,7 +233,7 @@ class Camera(BaseInput):
             else:
                 gray = img
             # find the chess board corners
-            ret, corners = cv2.findChessboardCorners(gray, (7,6), None)
+            ret, corners = cv2.findChessboardCorners(gray, (boardw,boardh), None)
             # if found, add object points, image points (after refining them)
             if ret == True:
                 objpoints.append(objp)
