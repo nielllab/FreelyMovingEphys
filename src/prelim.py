@@ -7,17 +7,18 @@ from glob import glob
 from tqdm import tqdm
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.io import loadmat
 from matplotlib.backends.backend_pdf import PdfPages
 
 from src.worldcam import Worldcam
 from src.ephys import Ephys
-from src.utils.path import find
+from src.utils.path import find, auto_recording_name
 
 class PrelimRF(Ephys):
     def __init__(self, binary_path, probe):
-        head, tail = os.path.split(binary_path)
+        head, _ = os.path.split(binary_path)
         self.recording_path = head
-        self.recording_name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', head) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-1])
+        self.recording_name = auto_recording_name(head)
         self.probe = probe
         self.num_channels = next(int(num) for num in ['128','64','16'] if num in self.probe)
         self.n_cells = self.num_channels
@@ -40,7 +41,7 @@ class PrelimRF(Ephys):
         std_im[std_im<10/255] = 10 / 255
         self.img_norm = (world_norm - np.mean(world_norm, axis=0)) / std_im
         self.img_norm = self.img_norm * (std_im > 20 / 255)
-        self.img_norm[self.img_norm < -2] = -2
+        self.small_world_vid[self.img_norm < -2] = -2
 
     def minimal_process(self):
         self.detail_pdf = PdfPages(os.path.join(self.recording_name, 'prelim_raw_whitenoise.pdf'))
@@ -52,7 +53,7 @@ class PrelimRF(Ephys):
         self.ephys_bin_path = glob(os.path.join(self.recording_path, '*Ephys.bin'))[0]
         ephys_time_file = glob(os.path.join(self.recording_path, '*Ephys_BonsaiBoardTS.csv'))[0]
 
-        lfp_ephys = self.read_binary_file(do_remap=False)
+        lfp_ephys = self.read_binary_file(do_remap=True)
         ephys_center_sub = lfp_ephys - np.mean(lfp_ephys, 0)
         filt_ephys = self.butter_bandpass(ephys_center_sub, lowcut=800, highcut=8000, fs=30000, order=6)
 
@@ -80,16 +81,14 @@ class PrelimRF(Ephys):
         for i in range(self.n_cells):
             self.model_nsp[i,:], _ = np.histogram(all_spikeT[i], bins)
 
-        self.sta(do_rotation=True)
+        self.calc_sta(do_rotation=True, using_spike_sorted=False)
 
         self.detail_pdf.close()
 
-    def full_process(self):
+    # def full_process(self):
 
-class PrelimDepth(Ephys):
-    def __init__(self, binary_path, probe):
-
-
+# class PrelimDepth(Ephys):
+#     def __init__(self, binary_path, probe):
 
 class RawEphys:
     def __init__(self, merge_file):
