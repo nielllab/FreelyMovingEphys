@@ -257,12 +257,19 @@ class Camera(BaseInput):
         mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
         # iterate through eye videos and save out a copy which has had distortions removed
         world_list = find('*'+readcamkey+'*.avi', self.config['animal_directory'])
-        for world_vid in [x for x in world_list if 'plot' not in x]:
-            savepath = '_'.join(world_vid.split('_')[:-1])+savecamkey
+        for world_vid in [x for x in world_list if 'plot' not in x and 'calib' not in x]:
+            print('undistorting '+ world_vid)
+            if self.config['internals']['follow_strict_naming']:
+                savepath = '_'.join(world_vid.split('_')[:-2])+savecamkey
+            elif not self.config['internals']['follow_strict_naming']:
+                head, tail = os.path.splitext(world_vid)
+                savepath = '_'.join(['_'.join(head.split('_')[:-2]), head.split('_')[-1], head.split('_')[-2]+'calib'])+tail
+                print('saving to '+savepath)
             cap = cv2.VideoCapture(world_vid)
+            real_fps = cap.get(cv2.CAP_PROP_FPS)
             # setup the file writer
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))))
+            out_vid = cv2.VideoWriter(savepath, fourcc, real_fps, (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))))
             # iterate through all frames
             for step in tqdm(range(0,int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))):
                 # open frame and check that it opens correctly
