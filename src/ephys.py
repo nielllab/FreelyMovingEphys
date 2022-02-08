@@ -30,6 +30,12 @@ class Ephys(BaseInput):
     def __init__(self, config, recording_name, recording_path):
         BaseInput.__init__(self, config, recording_name, recording_path)
 
+        # save figures into a pdf?
+        # if false, figures will be shown and not saved
+        # turn off if modules are being run outside of the
+        # pipeline, where the pdf object might not be defined
+        self.figs_in_pdf = True
+
         self.channel_map_path = self.config['paths']['channel_map_path']
 
         self.highlight_neuron = self.config['options']['neuron_to_highlight']
@@ -129,7 +135,11 @@ class Ephys(BaseInput):
             ax.spines['top'].set_visible(False)
         plt.xlabel('secs'); plt.ylabel('unit number')
         plt.ylim([self.n_cells, 0])
-        self.detail_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def eye_position(self):
         good_pts = np.sum(~np.isnan(self.theta))/len(self.theta)
@@ -137,7 +147,11 @@ class Ephys(BaseInput):
         plt.plot(self.theta, self.phi, 'k.', markersize=4)
         plt.xlabel('theta'); plt.ylabel('phi')
         plt.title('frac good='+str(np.round(good_pts,3)))
-        self.detail_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def check_theta(self):
         # flip the order of frames in an every-other fashion
@@ -152,7 +166,10 @@ class Ephys(BaseInput):
         plt.subplot(1,2,2)
         plt.plot(th_switch[start:stop]); plt.title('theta switch')
         plt.tight_layout()
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def check_imu_eye_alignment(self, t1, offset, ccmax):
         plt.subplot(1,2,1)
@@ -162,7 +179,10 @@ class Ephys(BaseInput):
         plt.plot(self.eyeT[t1*60], ccmax)
         plt.xlabel('secs'); plt.ylabel('max cc')
         plt.tight_layout()
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def plot_regression_timing_fit(self, dataT, offset):
         dataT = dataT[~np.isnan(dataT)]
@@ -173,14 +193,22 @@ class Ephys(BaseInput):
         plt.plot(dataT, self.ephys_offset + dataT * self.ephys_drift_rate, color='r')
         plt.xlabel('secs'); plt.ylabel('offset (secs)')
         plt.title('offset0='+str(np.round(self.ephys_offset, 3))+' drift rate='+str(np.round(self.ephys_drift_rate, 3)))
-        self.diagnostic_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def head_and_eye_diagnostics(self):
         plt.figure()
         plt.plot(self.eyeT[:-1], np.diff(self.theta), label='dTheta')
         plt.plot(self.imuT-0.1, (self.gyro_z_raw-3)*10, label='raw gyro z')
         plt.xlim(30,40); plt.ylim(-12,12); plt.legend(); plt.xlabel('secs')
-        self.diagnostic_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
         gyro_z_interp = interp1d(self.imuT, self.gyro_z, bounds_error=False)
         plt.subplots(1,2)
@@ -195,7 +223,10 @@ class Ephys(BaseInput):
         plt.plot(self.eyeT[1:], self.theta[0:-1], label='eye position')
         plt.xlim(35,40); plt.ylim(-30,30); plt.legend(); plt.ylabel('deg'); plt.xlabel('secs')
         plt.tight_layout()
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def estimate_shift_worldcam(self, max_frames=3600, num_iter=5000, term_eps=1e-4):
         # get eye displacement for each worldcam frame
@@ -268,7 +299,10 @@ class Ephys(BaseInput):
         self.xcorrection = xmap
         self.ycorrection = ymap
 
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def calc_sta(self, lag=2, do_rotation=False, using_spike_sorted=True):
         nks = np.shape(self.small_world_vid[0,:,:])
@@ -304,7 +338,10 @@ class Ephys(BaseInput):
             all_sta[c,:,:] = sta
         plt.tight_layout()
         self.sta = all_sta
-        self.detail_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def calc_multilag_sta(self, lag_range=np.arange(-2,8,2)):
         nks = np.shape(self.small_world_vid[0,:,:])
@@ -327,8 +364,11 @@ class Ephys(BaseInput):
                 if c == 0:
                     plt.title(str(np.round(lag*self.model_dt*1000)) + 'msec', fontsize=5)
                 plt.axis('off')
-            plt.tight_layout()
-        self.detail_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def calc_stv(self):
         nks = np.shape(self.small_world_vid[0,:,:])
@@ -355,7 +395,10 @@ class Ephys(BaseInput):
             plt.axis('off')
         self.stv = all_stv
         plt.tight_layout()
-        self.detail_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def calc_tuning(self, variable, variable_range, useT, label):
         scatter = np.zeros((self.n_cells, len(variable)))
@@ -383,7 +426,10 @@ class Ephys(BaseInput):
             plt.xlabel(label, fontsize=5); plt.ylabel('sp/sec', fontsize=5)
             plt.xticks(fontsize=5); plt.yticks(fontsize=5)
         plt.tight_layout()
-        self.detail_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
         return var_cent, tuning, tuning_err
 
     def saccade_psth(self, right, left, label):
@@ -408,7 +454,10 @@ class Ephys(BaseInput):
             plt.xlabel('sec')
             plt.title(str(ind)+' '+label)
         plt.tight_layout()
-        self.detail_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
         return rightavg, leftavg
 
     def fit_glm_rfs(self, nks):
@@ -499,7 +548,11 @@ class Ephys(BaseInput):
                 plt.subplot(n_cells, 6, (celln*6)+lag_ind+1)
                 plt.imshow(sta_all[celln, lag_ind, :, :], vmin=-crange, vmax=crange, cmap='seismic')
                 plt.title('cc={:.2f}'.format(cc_all[celln,lag_ind]), fontsize=5)
-        self.detail_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
         self.glm_rf = sta_all
         self.glm_cc = cc_all
 
@@ -549,6 +602,7 @@ class Ephys(BaseInput):
         self.eye_data = xr.open_dataset(self.reye_path)
         self.eye_vid = self.eye_data['REYE_video'].astype(np.uint8)
         self.eyeT = self.eye_data.timestamps.copy().values
+        
         # plot eye timestamps
         plt.subplots(1,2)
         plt.subplot(1,2,1)
@@ -559,8 +613,14 @@ class Ephys(BaseInput):
         plt.subplot(1,2,2)
         plt.hist(np.diff(self.eyeT), bins=100)
         plt.xlabel('eyecam deltaT')
-        self.diagnostic_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
+
         self.eye_params = self.eye_data['REYE_ellipse_params']
+        
         # define theta, phi and zero-center
         th = np.rad2deg(self.eye_params.sel(ellipse_params = 'theta').values)
         phi = np.rad2deg(self.eye_params.sel(ellipse_params = 'phi').values)
@@ -577,7 +637,10 @@ class Ephys(BaseInput):
             plt.plot(self.eyeT[0:-1:10], self.eye_params.sel(ellipse_params=val)[0:-1:10])
             plt.ylabel(val.values)
         plt.tight_layout()
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def summary_fig(self, hist_dt=1):
         hist_t = np.arange(0, np.max(self.worldT), hist_dt)
@@ -611,7 +674,11 @@ class Ephys(BaseInput):
             plt.plot(bins[0:-1], rate, 'k')
             plt.xlim(bins[0], bins[-1]); plt.ylabel('unit ' + str(ind))
 
-        plt.tight_layout(); self.detail_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def open_worldcam(self, dwnsmpl=0.5):
         # open data
@@ -629,8 +696,11 @@ class Ephys(BaseInput):
         plt.figure()
         plt.imshow(np.mean(self.world_vid, axis=0))
         plt.title('mean world image')
-        self.diagnostic_pdf.savefig()
-        plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
+
         # world timestamps
         self.worldT = world_data.timestamps.copy()
         # plot timing
@@ -643,7 +713,11 @@ class Ephys(BaseInput):
         plt.subplot(1,2,2)
         plt.hist(np.diff(self.worldT), 100)
         plt.xlabel('deltaT')
-        self.diagnostic_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def open_topcam(self):
         top_data = xr.open_dataset(self.topcam_path)
@@ -684,7 +758,10 @@ class Ephys(BaseInput):
         plt.plot(self.gyro_x[0:100*60])
         plt.title('gyro z (deg)')
         plt.xlabel('frame')
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def open_running_ball(self):
         running_ball_data = xr.open_dataset(self.running_ball_path)
@@ -701,7 +778,10 @@ class Ephys(BaseInput):
         plt.figure()
         plt.plot(self.ballT, self.ball_speed)
         plt.xlabel('sec'); plt.ylabel('running speed (cm/sec)')
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def drop_slow_data(self, slow_thresh=0.03, win=3):
         isfast = np.diff(self.eyeT) <= slow_thresh
@@ -751,7 +831,10 @@ class Ephys(BaseInput):
             plt.plot(self.imuT_raw, self.gyro_z, label='gyro z')
             plt.legend()
             plt.xlim(0,10); plt.xlabel('secs'); plt.ylabel('gyro (deg/s)')
-            self.diagnostic_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.diagnostic_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
             lag_range = np.arange(-0.2, 0.2, 0.002)
             cc = np.zeros(np.shape(lag_range))
@@ -817,13 +900,19 @@ class Ephys(BaseInput):
         plt.plot(self.contrast[2000:3000])
         plt.xlabel('frames')
         plt.ylabel('worldcam contrast')
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
         # std of worldcam image
         fig = plt.figure()
         plt.imshow(std_im)
         plt.colorbar()
         plt.title('worldcam std img')
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
     def firing_rate_at_new_timebase(self):
         self.model_t = np.arange(0, np.max(self.worldT), self.model_dt)
@@ -911,7 +1000,11 @@ class Ephys(BaseInput):
         plt.figure()
         plt.hist(self.dEye_dps, bins=21, density=True)
         plt.xlabel('dTheta')
-        self.detail_pdf.savefig(); plt.close()
+        plt.tight_layout()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
         if self.fm:
             print('deye dhead')
@@ -921,19 +1014,28 @@ class Ephys(BaseInput):
             plt.figure()
             plt.hist(self.dGaze, bins=21, density=True)
             plt.xlabel('dGaze')
-            self.detail_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.detail_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
             plt.figure()
             plt.hist(self.dHead, bins=21, density=True)
             plt.xlabel('dHead')
-            self.detail_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.detail_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
             
             plt.figure()
             plt.plot(self.dEye_dps[::20], self.dHead[::20], 'k.')
             plt.xlabel('dEye'); plt.ylabel('dHead')
             plt.xlim((-900,900)); plt.ylim((-900,900))
             plt.plot([-900,900], [900,-900], 'r:')
-            self.detail_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.detail_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
         # all eye movements
         print('all eye movements')
@@ -1011,45 +1113,69 @@ class Ephys(BaseInput):
             plt.figure()
             plt.plot(pitch_interp[::100], self.theta[::100], 'k.'); plt.xlabel('head pitch'); plt.ylabel('theta')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
-            self.diagnostic_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.diagnostic_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
             # roll vs phi
             plt.figure()
             plt.plot(roll_interp[::100], self.phi[::100], 'k.'); plt.xlabel('head roll'); plt.ylabel('phi')
             plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
-            self.diagnostic_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.diagnostic_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
             # roll vs theta
             plt.figure()
             plt.plot(roll_interp[::100], self.theta[::100], 'k.'); plt.xlabel('head roll'); plt.ylabel('theta')
             plt.ylim([-60,60]); plt.xlim([-60,60])
-            self.diagnostic_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.diagnostic_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
             # pitch vs phi
             plt.figure()
             plt.plot(pitch_interp[::100], self.phi[::100], 'k.'); plt.xlabel('head pitch'); plt.ylabel('phi')
             plt.ylim([-60,60]); plt.xlim([-60,60])
-            self.diagnostic_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.diagnostic_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
             # histogram of pitch values
             plt.figure()
             plt.hist(centered_pitch, bins=50); plt.xlabel('head pitch')
-            self.diagnostic_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.diagnostic_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
             # histogram of pitch values
             plt.figure()
             plt.hist(centered_roll, bins=50); plt.xlabel('head roll')
-            self.diagnostic_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.diagnostic_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
             # histogram of th values
             plt.figure()
             plt.hist(self.theta, bins=50); plt.xlabel('theta')
-            self.diagnostic_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.diagnostic_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
             # histogram of pitch values
             plt.figure()
             plt.hist(self.phi, bins=50); plt.xlabel('phi')
-            self.diagnostic_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.diagnostic_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
         elif not self.fm:
             ball_speed_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
@@ -1065,7 +1191,10 @@ class Ephys(BaseInput):
         plt.plot(self.eyeT, self.norm_longaxis, 'k')
         plt.xlabel('sec')
         plt.ylabel('normalized pupil radius')
-        self.detail_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.detail_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
         # rate vs pupil radius
         radius_range = np.linspace(10,50,10)
@@ -1078,7 +1207,10 @@ class Ephys(BaseInput):
         plt.figure()
         plt.plot(self.eyeT[:3600], self.norm_theta[:3600], 'k')
         plt.xlabel('sec'); plt.ylabel('norm theta')
-        self.diagnostic_pdf.savefig(); plt.close()
+        if self.figs_in_pdf:
+            self.diagnostic_pdf.savefig(); plt.close()
+        elif not self.figs_in_pdf:
+            plt.show()
 
         # theta tuning
         theta_range = np.linspace(-30,30,10)
@@ -1125,7 +1257,11 @@ class Ephys(BaseInput):
             plt.plot(norm_profile_sh1[layer5_cent_sh1]+0.01,layer5_cent_sh1,'r*',markersize=12)
             plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh1*ch_spacing)))
             plt.title('shank1')
-            plt.tight_layout(); self.detail_pdf.savefig(); plt.close()
+            plt.tight_layout()
+            if self.figs_in_pdf:
+                self.detail_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
         elif self.num_channels==16:
             norm_profile_sh0 = lfp_power_profiles_filt[:16]/np.max(lfp_power_profiles_filt[:16])
             layer5_cent_sh0 = np.argmax(norm_profile_sh0)
@@ -1137,7 +1273,10 @@ class Ephys(BaseInput):
             plt.plot(norm_profile_sh0[layer5_cent_sh0]+0.01,layer5_cent_sh0,'r*',markersize=12)
             plt.ylim([17,-1]); plt.yticks(ticks=list(range(-1,17)),labels=(ch_spacing*np.arange(18)-(layer5_cent_sh0*ch_spacing)))
             plt.title('shank0')
-            self.detail_pdf.savefig(); plt.close()
+            if self.figs_in_pdf:
+                self.detail_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
         elif self.num_channels==128:
             norm_profile_sh0 = lfp_power_profiles_filt[:32]/np.max(lfp_power_profiles_filt[:32])
             layer5_cent_sh0 = np.argmax(norm_profile_sh0)
@@ -1170,7 +1309,11 @@ class Ephys(BaseInput):
             plt.plot(norm_profile_sh3[layer5_cent_sh3]+0.01,layer5_cent_sh3,'r*',markersize=12)
             plt.ylim([33,-1]); plt.yticks(ticks=list(range(-1,33)),labels=(ch_spacing*np.arange(34)-(layer5_cent_sh3*ch_spacing)))
             plt.title('shank3')
-            plt.tight_layout(); self.detail_pdf.savefig(); plt.close()
+            plt.tight_layout()
+            if self.figs_in_pdf:
+                self.detail_pdf.savefig(); plt.close()
+            elif not self.figs_in_pdf:
+                plt.show()
 
     def base_ephys_analysis(self):
         print('gathering files')

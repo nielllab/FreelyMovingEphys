@@ -126,7 +126,7 @@ class Population:
             session_data['probe_name'] = probenames_for_goodsessions[ind]
             session_data['use_in_optic_flow'] = use_in_optic_flow[ind]
             if not use_path_list:
-                session_data['use_in_dark_analysis'] = use_in_dark_analysis[ind+1]
+                session_data['use_in_dark_analysis'] = use_in_dark_analysis[ind]
                 # replace LFP power profile estimate of laminar depth with value entered into spreadsheet
                 manual_depth_entry = layer5_depth_for_goodsessions[ind]
                 if 'Wn_layer5cent_from_lfp' in session_data.columns.values:
@@ -1062,205 +1062,210 @@ class Population:
         idx = np.nanargmin(np.abs(array - value))
         return array[idx]
 
-    def summarize_sessions(self):
+    def summarize_sessions(self, do_session_props=False):
         pdf = PdfPages(os.path.join(self.savepath, 'session_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
 
-        if 'FmDk_theta' in self.data.columns:
-            self.data['has_dark'] = ~self.data['FmDk_theta'].isna()
-        else:
-            self.data['has_dark'] = False
-        
-        if 'Wn_contrast_tuning' in self.data.columns:
-            self.data['has_hf'] = ~self.data['Wn_contrast_tuning'].isna()
-        else:
-            self.data['has_hf'] = False
-        
-        if self.data['has_dark'].sum() > 0 and self.data['has_hf'].sum() > 0:
-            active_time_by_session, light_len, dark_len = self.get_animal_activity()
+        if do_session_props:
+            print('session property comparisons')
 
-            # fraction active time: light vs dark
-            light = np.array([val for key,val in active_time_by_session['light'].items()])
-            light_err = np.std(light) / np.sqrt(len(light))
-            dark = np.array([val for key,val in active_time_by_session['dark'].items()])
-            dark_err = np.std(dark) / np.sqrt(len(dark))
-            fig, ax = plt.subplots(1,1,figsize=(3,5))
-            plt.bar(0, np.mean(light), yerr=light_err, width=0.5, color='yellow')
-            plt.plot(np.zeros(len(light)), light, 'o', color='tab:gray')
-            plt.bar(1, np.mean(dark), yerr=dark_err, width=0.5, color='cadetblue')
-            plt.plot(np.ones(len(dark)), dark, 'o', color='tab:gray')
-            ax.set_xticks([0,1])
-            ax.set_xticklabels(['light','dark'])
-            plt.ylim([0,1])
-            plt.ylabel('fraction of time spent active')
-            plt.tight_layout(); pdf.savefig(); plt.close()
+            if 'FmDk_theta' in self.data.columns:
+                self.data['has_dark'] = ~self.data['FmDk_theta'].isna()
+            else:
+                self.data['has_dark'] = False
+            
+            if 'Wn_contrast_tuning' in self.data.columns:
+                self.data['has_hf'] = ~self.data['Wn_contrast_tuning'].isna()
+            else:
+                self.data['has_hf'] = False
+            
+            if self.data['has_dark'].sum() > 0 and self.data['has_hf'].sum() > 0:
+                active_time_by_session, light_len, dark_len = self.get_animal_activity()
 
-            # fraction active time: light vs dark (broken up by session)
-            dark_active_times = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
-            dark_session_names = [session for session, active_frac in active_time_by_session['dark'].items()]
-            fig, ax = plt.subplots(1,1, figsize=(5,10))
-            plt.bar(np.arange(0, len(dark_session_names)), dark_active_times, color='cadetblue')
-            ax.set_xticks(np.arange(0, len(dark_session_names)))
-            ax.set_xticklabels(dark_session_names, rotation=90)
-            plt.ylabel('frac active time')
-            plt.tight_layout(); pdf.savefig(); plt.close()
+                # fraction active time: light vs dark
+                light = np.array([val for key,val in active_time_by_session['light'].items()])
+                light_err = np.std(light) / np.sqrt(len(light))
+                dark = np.array([val for key,val in active_time_by_session['dark'].items()])
+                dark_err = np.std(dark) / np.sqrt(len(dark))
+                fig, ax = plt.subplots(1,1,figsize=(3,5))
+                plt.bar(0, np.mean(light), yerr=light_err, width=0.5, color='yellow')
+                plt.plot(np.zeros(len(light)), light, 'o', color='tab:gray')
+                plt.bar(1, np.mean(dark), yerr=dark_err, width=0.5, color='cadetblue')
+                plt.plot(np.ones(len(dark)), dark, 'o', color='tab:gray')
+                ax.set_xticks([0,1])
+                ax.set_xticklabels(['light','dark'])
+                plt.ylim([0,1])
+                plt.ylabel('fraction of time spent active')
+                plt.tight_layout(); pdf.savefig(); plt.close()
 
-            light_active_times = [active_frac for session, active_frac in active_time_by_session['light'].items()]
-            light_session_names = [session for session, active_frac in active_time_by_session['light'].items()]
-            fig, ax = plt.subplots(1,1, figsize=(12,10))
-            plt.bar(np.arange(0, len(light_session_names)), light_active_times, color='khaki')
-            ax.set_xticks(np.arange(len(light_session_names)))
-            ax.set_xticklabels(light_session_names, rotation=90)
-            plt.ylabel('frac active time'); plt.ylim([0,1])
-            plt.tight_layout(); pdf.savefig(); plt.close()
+                # fraction active time: light vs dark (broken up by session)
+                dark_active_times = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
+                dark_session_names = [session for session, active_frac in active_time_by_session['dark'].items()]
+                fig, ax = plt.subplots(1,1, figsize=(5,10))
+                plt.bar(np.arange(0, len(dark_session_names)), dark_active_times, color='cadetblue')
+                ax.set_xticks(np.arange(0, len(dark_session_names)))
+                ax.set_xticklabels(dark_session_names, rotation=90)
+                plt.ylabel('frac active time')
+                plt.tight_layout(); pdf.savefig(); plt.close()
 
-            # minutes active or stationary: light vs dark
-            total_min = [(i*self.model_dt)/60 for i in light_len]
-            frac_active = [active_frac for session, active_frac in active_time_by_session['light'].items()]
-            light_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
-            light_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
-            light_session_names = [session for session, active_frac in active_time_by_session['light'].items()]
-            fig, ax = plt.subplots(1,1, figsize=(12,10))
-            plt.bar(np.arange(0, len(light_session_names)), light_active_min, color='salmon', label='active')
-            plt.bar(np.arange(0, len(light_session_names)), light_stationary_min, bottom=light_active_min, color='gray', label='stationary')
-            ax.set_xticks(np.arange(len(light_session_names)))
-            ax.set_xticklabels(light_session_names, rotation=90)
-            plt.legend()
-            plt.ylabel('recording time (min)')
-            plt.tight_layout(); pdf.savefig(); plt.close()
+                light_active_times = [active_frac for session, active_frac in active_time_by_session['light'].items()]
+                light_session_names = [session for session, active_frac in active_time_by_session['light'].items()]
+                fig, ax = plt.subplots(1,1, figsize=(12,10))
+                plt.bar(np.arange(0, len(light_session_names)), light_active_times, color='khaki')
+                ax.set_xticks(np.arange(len(light_session_names)))
+                ax.set_xticklabels(light_session_names, rotation=90)
+                plt.ylabel('frac active time'); plt.ylim([0,1])
+                plt.tight_layout(); pdf.savefig(); plt.close()
 
-            total_min = [(i*self.model_dt)/60 for i in dark_len]
-            frac_active = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
-            dark_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
-            dark_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
-            dark_session_names = [session for session, active_frac in active_time_by_session['dark'].items()]
-            fig, ax = plt.subplots(1,1, figsize=(12,10))
-            plt.bar(np.arange(0, len(dark_session_names)), dark_active_min, color='salmon', label='active')
-            plt.bar(np.arange(0, len(dark_session_names)), dark_stationary_min, bottom=dark_active_min, color='gray', label='stationary')
-            ax.set_xticks(np.arange(len(dark_session_names)))
-            ax.set_xticklabels(dark_session_names, rotation=90)
-            plt.legend()
-            plt.ylabel('recording time (min)')
-            plt.tight_layout(); pdf.savefig(); plt.close()
+                # minutes active or stationary: light vs dark
+                total_min = [(i*self.model_dt)/60 for i in light_len]
+                frac_active = [active_frac for session, active_frac in active_time_by_session['light'].items()]
+                light_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
+                light_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
+                light_session_names = [session for session, active_frac in active_time_by_session['light'].items()]
+                fig, ax = plt.subplots(1,1, figsize=(12,10))
+                plt.bar(np.arange(0, len(light_session_names)), light_active_min, color='salmon', label='active')
+                plt.bar(np.arange(0, len(light_session_names)), light_stationary_min, bottom=light_active_min, color='gray', label='stationary')
+                ax.set_xticks(np.arange(len(light_session_names)))
+                ax.set_xticklabels(light_session_names, rotation=90)
+                plt.legend()
+                plt.ylabel('recording time (min)')
+                plt.tight_layout(); pdf.savefig(); plt.close()
 
-        movement_count_dict = dict()
-        session_stim_list = []
-        if self.data['has_dark'].sum() > 0:
-            session_stim_list.append('FmDk')
-        if self.data['has_hf'].sum() > 0:
-            session_stim_list.append('FmLt')
+                total_min = [(i*self.model_dt)/60 for i in dark_len]
+                frac_active = [active_frac for session, active_frac in active_time_by_session['dark'].items()]
+                dark_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
+                dark_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
+                dark_session_names = [session for session, active_frac in active_time_by_session['dark'].items()]
+                fig, ax = plt.subplots(1,1, figsize=(12,10))
+                plt.bar(np.arange(0, len(dark_session_names)), dark_active_min, color='salmon', label='active')
+                plt.bar(np.arange(0, len(dark_session_names)), dark_stationary_min, bottom=dark_active_min, color='gray', label='stationary')
+                ax.set_xticks(np.arange(len(dark_session_names)))
+                ax.set_xticklabels(dark_session_names, rotation=90)
+                plt.legend()
+                plt.ylabel('recording time (min)')
+                plt.tight_layout(); pdf.savefig(); plt.close()
 
-        for base in session_stim_list:
-            for movement in ['eye_gaze_shifting', 'eye_comp']:
-                sessions = [i for i in self.data['session'].unique() if type(i) != float]
-                n_sessions = len(self.data['session'].unique())
-                trange = np.arange(-1,1.1,0.025)
-                for session_num, session_name in enumerate(sessions):
-                    row = self.data[self.data['session']==session_name].iloc[0]
+            movement_count_dict = dict()
+            session_stim_list = []
+            if self.data['has_dark'].sum() > 0:
+                session_stim_list.append('FmDk')
+            if self.data['has_hf'].sum() > 0:
+                session_stim_list.append('FmLt')
 
-                    eyeT = np.array(row[base+'_eyeT'])
-                    dEye = row[base+'_dEye_dps']
-                    dhead = row[base+'_dHead']
-                    dgz = dEye + dhead
+            for base in session_stim_list:
+                for movement in ['eye_gaze_shifting', 'eye_comp']:
+                    sessions = [i for i in self.data['session'].unique() if type(i) != float]
+                    n_sessions = len(self.data['session'].unique())
+                    trange = np.arange(-1,1.1,0.025)
+                    for session_num, session_name in enumerate(sessions):
+                        row = self.data[self.data['session']==session_name].iloc[0]
 
-                    if movement=='eye_gaze_shifting':
-                        sthresh = 5
-                        rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
-                        leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-                    elif movement=='eye_comp':
-                        sthresh = 3
-                        rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
-                        leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
-                    elif movement=='head_gaze_shifting':
-                        sthresh = 3
-                        rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)>sthresh)]
-                        leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-                    elif movement=='head_comp':
-                        sthresh = 3
-                        rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)<1)]
-                        leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)>-1)]
+                        eyeT = np.array(row[base+'_eyeT'])
+                        dEye = row[base+'_dEye_dps']
+                        dhead = row[base+'_dHead']
+                        dgz = dEye + dhead
 
-                    deye_mov_right = np.zeros([len(rightsacc), len(trange)]); deye_mov_left = np.zeros([len(leftsacc), len(trange)])
-                    dgz_mov_right = np.zeros([len(rightsacc), len(trange)]); dgz_mov_left = np.zeros([len(leftsacc), len(trange)])
-                    dhead_mov_right = np.zeros([len(rightsacc), len(trange)]); dhead_mov_left = np.zeros([len(leftsacc), len(trange)])
+                        if movement=='eye_gaze_shifting':
+                            sthresh = 5
+                            rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
+                            leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+                        elif movement=='eye_comp':
+                            sthresh = 3
+                            rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
+                            leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
+                        elif movement=='head_gaze_shifting':
+                            sthresh = 3
+                            rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)>sthresh)]
+                            leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+                        elif movement=='head_comp':
+                            sthresh = 3
+                            rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)<1)]
+                            leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)>-1)]
 
-                    for sind in range(len(rightsacc)):
-                        s = rightsacc[sind]
-                        mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
-                        trange_inds = list(mov_ind + np.arange(-42,42))
-                        if np.max(trange_inds) < len(dEye):
-                            deye_mov_right[sind,:] = dEye[np.array(trange_inds)]
-                        if np.max(trange_inds) < len(dgz):
-                            dgz_mov_right[sind,:] = dgz[np.array(trange_inds)]
-                        if np.max(trange_inds) < len(dhead):
-                            dhead_mov_right[sind,:] = dhead[np.array(trange_inds)]
-                    for sind in range(len(leftsacc)):
-                        s = leftsacc[sind]
-                        mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
-                        trange_inds = list(mov_ind + np.arange(-42,42))
-                        if np.max(trange_inds) < len(dEye):
-                            deye_mov_left[sind,:] = dEye[np.array(trange_inds)]
-                        if np.max(trange_inds) < len(dgz):
-                            dgz_mov_left[sind,:] = dgz[np.array(trange_inds)]
-                        if np.max(trange_inds) < len(dhead):
-                            dhead_mov_left[sind,:] = dhead[np.array(trange_inds)]
+                        deye_mov_right = np.zeros([len(rightsacc), len(trange)]); deye_mov_left = np.zeros([len(leftsacc), len(trange)])
+                        dgz_mov_right = np.zeros([len(rightsacc), len(trange)]); dgz_mov_left = np.zeros([len(leftsacc), len(trange)])
+                        dhead_mov_right = np.zeros([len(rightsacc), len(trange)]); dhead_mov_left = np.zeros([len(leftsacc), len(trange)])
 
-                    movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['right'] = len(rightsacc)
-                    movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['left'] = len(leftsacc)
+                        for sind in range(len(rightsacc)):
+                            s = rightsacc[sind]
+                            mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
+                            trange_inds = list(mov_ind + np.arange(-42,42))
+                            if np.max(trange_inds) < len(dEye):
+                                deye_mov_right[sind,:] = dEye[np.array(trange_inds)]
+                            if np.max(trange_inds) < len(dgz):
+                                dgz_mov_right[sind,:] = dgz[np.array(trange_inds)]
+                            if np.max(trange_inds) < len(dhead):
+                                dhead_mov_right[sind,:] = dhead[np.array(trange_inds)]
+                        for sind in range(len(leftsacc)):
+                            s = leftsacc[sind]
+                            mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
+                            trange_inds = list(mov_ind + np.arange(-42,42))
+                            if np.max(trange_inds) < len(dEye):
+                                deye_mov_left[sind,:] = dEye[np.array(trange_inds)]
+                            if np.max(trange_inds) < len(dgz):
+                                dgz_mov_left[sind,:] = dgz[np.array(trange_inds)]
+                            if np.max(trange_inds) < len(dhead):
+                                dhead_mov_left[sind,:] = dhead[np.array(trange_inds)]
 
-        if np.sum(self.data['has_dark']) > 0:
-            right_gaze = [val['right'] for key,val in movement_count_dict['FmLt']['eye_gaze_shifting'].items()]
-            left_gaze = [val['left'] for key,val in movement_count_dict['FmLt']['eye_gaze_shifting'].items()]
+                        movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['right'] = len(rightsacc)
+                        movement_count_dict.setdefault(base, {}).setdefault(movement, {}).setdefault(session_name, {})['left'] = len(leftsacc)
 
-            right_comp = [val['right'] for key,val in movement_count_dict['FmLt']['eye_comp'].items()]
-            left_comp = [val['left'] for key,val in movement_count_dict['FmLt']['eye_comp'].items()]
+            if np.sum(self.data['has_dark']) > 0:
+                right_gaze = [val['right'] for key,val in movement_count_dict['FmLt']['eye_gaze_shifting'].items()]
+                left_gaze = [val['left'] for key,val in movement_count_dict['FmLt']['eye_gaze_shifting'].items()]
 
-            right_gaze_dark = [val['right'] for key,val in movement_count_dict['FmDk']['eye_gaze_shifting'].items()]
-            left_gaze_dark = [val['left'] for key,val in movement_count_dict['FmDk']['eye_gaze_shifting'].items()]
+                right_comp = [val['right'] for key,val in movement_count_dict['FmLt']['eye_comp'].items()]
+                left_comp = [val['left'] for key,val in movement_count_dict['FmLt']['eye_comp'].items()]
 
-            right_comp_dark = [val['right'] for key,val in movement_count_dict['FmDk']['eye_comp'].items()]
-            left_comp_dark = [val['left'] for key,val in movement_count_dict['FmDk']['eye_comp'].items()]
+                right_gaze_dark = [val['right'] for key,val in movement_count_dict['FmDk']['eye_gaze_shifting'].items()]
+                left_gaze_dark = [val['left'] for key,val in movement_count_dict['FmDk']['eye_gaze_shifting'].items()]
 
+                right_comp_dark = [val['right'] for key,val in movement_count_dict['FmDk']['eye_comp'].items()]
+                left_comp_dark = [val['left'] for key,val in movement_count_dict['FmDk']['eye_comp'].items()]
+
+                # number of eye movements during recording: light vs dark (broken up by session)            
             # number of eye movements during recording: light vs dark (broken up by session)            
-            x = np.arange(len(['gaze-shifting', 'compensatory']))
-            width = 0.35
+                # number of eye movements during recording: light vs dark (broken up by session)            
+                x = np.arange(len(['gaze-shifting', 'compensatory']))
+                width = 0.35
 
-            fig, ax = plt.subplots(figsize=(4,7))
+                fig, ax = plt.subplots(figsize=(4,7))
 
-            ax.bar(x - width/2, np.mean(right_gaze), width, color='lightcoral')
-            ax.bar(x - width/2, np.mean(left_gaze), width, bottom=np.mean(right_gaze), color='lightsteelblue')
-            plt.plot(np.ones(len(right_gaze))*(0 - width/2), np.add(right_gaze, left_gaze), '.', color='gray')
+                ax.bar(x - width/2, np.mean(right_gaze), width, color='lightcoral')
+                ax.bar(x - width/2, np.mean(left_gaze), width, bottom=np.mean(right_gaze), color='lightsteelblue')
+                plt.plot(np.ones(len(right_gaze))*(0 - width/2), np.add(right_gaze, left_gaze), '.', color='gray')
 
-            ax.bar(x + width/2, np.mean(right_gaze_dark), width, color='lightcoral')
-            ax.bar(x + width/2, np.mean(left_gaze_dark), width, bottom=np.mean(right_gaze_dark), color='lightsteelblue')
-            plt.plot(np.ones(len(right_gaze_dark))*(0 + width/2), np.add(right_gaze_dark, left_gaze_dark), '.', color='gray')
+                ax.bar(x + width/2, np.mean(right_gaze_dark), width, color='lightcoral')
+                ax.bar(x + width/2, np.mean(left_gaze_dark), width, bottom=np.mean(right_gaze_dark), color='lightsteelblue')
+                plt.plot(np.ones(len(right_gaze_dark))*(0 + width/2), np.add(right_gaze_dark, left_gaze_dark), '.', color='gray')
 
-            ax.bar(x - width/2, np.mean(right_comp), width, color='lightcoral')
-            ax.bar(x - width/2, np.mean(left_comp), width, bottom=np.mean(right_comp), color='lightsteelblue')
-            plt.plot(np.ones(len(right_comp))*(1 - width/2), np.add(right_comp, left_comp), '.', color='gray')
+                ax.bar(x - width/2, np.mean(right_comp), width, color='lightcoral')
+                ax.bar(x - width/2, np.mean(left_comp), width, bottom=np.mean(right_comp), color='lightsteelblue')
+                plt.plot(np.ones(len(right_comp))*(1 - width/2), np.add(right_comp, left_comp), '.', color='gray')
 
-            ax.bar(x + width/2, np.mean(right_comp_dark), width, color='lightcoral')
-            ax.bar(x + width/2, np.mean(left_comp_dark), width, bottom=np.mean(right_comp_dark), color='lightsteelblue')
-            plt.plot(np.ones(len(right_comp_dark))*(1 + width/2), np.add(right_comp_dark, left_comp_dark), '.', color='gray')
+                ax.bar(x + width/2, np.mean(right_comp_dark), width, color='lightcoral')
+                ax.bar(x + width/2, np.mean(left_comp_dark), width, bottom=np.mean(right_comp_dark), color='lightsteelblue')
+                plt.plot(np.ones(len(right_comp_dark))*(1 + width/2), np.add(right_comp_dark, left_comp_dark), '.', color='gray')
 
-            ax.set_xticks(x)
-            ax.set_xticklabels(['gaze-shifting', 'compensatory'])
-            plt.ylim([0,3700]); plt.ylabel('number of eye movements')
-            plt.tight_layout(); pdf.savefig(); plt.close()
+                ax.set_xticks(x)
+                ax.set_xticklabels(['gaze-shifting', 'compensatory'])
+                plt.ylim([0,3700]); plt.ylabel('number of eye movements')
+                plt.tight_layout(); pdf.savefig(); plt.close()
 
-            total_min = [(i*self.model_dt)/60 for i in light_len]
-            frac_active = [active_frac for session, active_frac in active_time_by_session['light'].items()]
-            light_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
-            light_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
+                total_min = [(i*self.model_dt)/60 for i in light_len]
+                frac_active = [active_frac for session, active_frac in active_time_by_session['light'].items()]
+                light_active_min = [total_min[i] * frac_active[i] for i in range(len(total_min))]
+                light_stationary_min = [total_min[i] * (1-frac_active[i]) for i in range(len(total_min))]
 
-            # number of eye movements per minute of active time: light vs dark (broken up by session)
-            fig = plt.subplots(2,1,figsize=(10,15))
-            ax = plt.subplot(2,1,1)
-            ax.bar(light_session_names, np.add(right_gaze, left_gaze) / light_active_min)
-            ax.set_xticklabels(light_session_names, rotation=90); plt.ylim([0,220]); plt.ylabel('eye movements per min during active periods'); plt.title('light stim')
-            ax = plt.subplot(2,1,2)
-            ax.bar(dark_session_names, np.add(right_gaze_dark, left_gaze_dark) / dark_active_min, width=0.3)
-            ax.set_xticklabels(dark_session_names, rotation=90); plt.ylim([0,220]); plt.ylabel('eye movements per min during active periods'); plt.title('dark stim')
-            plt.tight_layout(); pdf.savefig(); plt.close()
+                # number of eye movements per minute of active time: light vs dark (broken up by session)
+                fig = plt.subplots(2,1,figsize=(10,15))
+                ax = plt.subplot(2,1,1)
+                ax.bar(light_session_names, np.add(right_gaze, left_gaze) / light_active_min)
+                ax.set_xticklabels(light_session_names, rotation=90); plt.ylim([0,220]); plt.ylabel('eye movements per min during active periods'); plt.title('light stim')
+                ax = plt.subplot(2,1,2)
+                ax.bar(dark_session_names, np.add(right_gaze_dark, left_gaze_dark) / dark_active_min, width=0.3)
+                ax.set_xticklabels(dark_session_names, rotation=90); plt.ylim([0,220]); plt.ylabel('eye movements per min during active periods'); plt.title('dark stim')
+                plt.tight_layout(); pdf.savefig(); plt.close()
 
         session_data = self.data.set_index('session')
         unique_inds = sorted(list(set(session_data.index.values)))
@@ -1279,8 +1284,9 @@ class Population:
             dhead = uniquedf['FmLt_dHead'].iloc[0]
             eyeT = uniquedf['FmLt_eyeT'].iloc[0]
             plt.plot(dEye[::10], dhead[::10], 'k.')
-            plt.xlabel('dEye (deg)', fontsize=20); plt.ylabel('dHead (deg)', fontsize=20); plt.xlim((-15,15)); plt.ylim((-15,15))
-            plt.plot([-15,15],[15,-15], 'r:')
+            plt.xlabel('dEye (deg/sec)', fontsize=20); plt.ylabel('dHead (deg/sec)', fontsize=20)
+            plt.xlim((-700,700)); plt.ylim((-700,700))
+            plt.plot([-700,700],[700,-700], 'r:')
 
             imuT = uniquedf['FmLt_imuT'].iloc[0]
             roll = uniquedf['FmLt_roll'].iloc[0]
@@ -1310,7 +1316,7 @@ class Population:
             plt.hist(uniquedf['FmLt_phi'].iloc[0], range=[-45,45], alpha=0.5); plt.xlabel('FmLt phi (deg)', fontsize=20)
             # histogram of gyro z (resonable range?)
             plt.subplot(5,5,6)
-            plt.hist(uniquedf['FmLt_gyro_z'].iloc[0], range=[2,4], alpha=0.5); plt.xlabel('FmLt gyro z (deg)', fontsize=20)
+            plt.hist(uniquedf['FmLt_gyro_z'].iloc[0], range=[-400,400], alpha=0.5); plt.xlabel('FmLt gyro z (deg)', fontsize=20)
             # plot of contrast response functions on same panel scaled to max 30sp/sec
             # plot of average contrast reponse function across units
             plt.subplot(5,5,7)
@@ -2497,6 +2503,7 @@ class Population:
     def set_experiment(self, exptype):
         if exptype=='hffm':
             self.data = self.data[self.data['use_in_dark_analysis']==False]
+            self.data = self.data.drop(columns=[col for col in self.data.columns.values if 'FmDk' in col])
         elif exptype=='ltdk':
             self.data = self.data[self.data['use_in_dark_analysis']==True]
         self.exptype = exptype
@@ -2536,7 +2543,7 @@ class Population:
             self.data.at[ind, 'is_SbC'] = isSbC
             self.data.at[ind, 'is_grat_trpsth'] = isgrat_trpsth
 
-    def summarize_population(self):
+    def summarize_population(self, extras=False):
         print('applying activity thresholds')
         self.set_activity_thresh()
 
@@ -2566,52 +2573,23 @@ class Population:
         print('SbCs')
         self.find_SbCs_and_trGratPsth()
 
-        # print('dhead and deye around time of gaze shifting eye movements')
-        # self.position_around_saccade('eye_gaze_shifting')
-        # print('dhead and deye around time of compesatory eye movements')
-        # self.position_around_saccade('eye_comp')
-        # print('dhead and deye around time of gaze shifting head movements')
-        # self.position_around_saccade('head_gaze_shifting')
-        # print('dhead and deye around time of compensatory head movements')
-        # self.position_around_saccade('head_comp')
+        if extras:
+            print('dhead and deye around time of gaze shifting eye movements')
+            self.position_around_saccade('eye_gaze_shifting')
+            print('dhead and deye around time of compesatory eye movements')
+            self.position_around_saccade('eye_comp')
+            print('dhead and deye around time of gaze shifting head movements')
+            self.position_around_saccade('head_gaze_shifting')
+            print('dhead and deye around time of compensatory head movements')
+            self.position_around_saccade('head_comp')
 
         self.poppdf.close()
 
-    def setup(self):
-        self.gather_data(self.metadata_path)
-        # # fix typos
-    
-        # # update for new names
-        # sacccols = [col for col in cols if 'upsacc' in col]
-        # for c in sacccols:
-        #     new_col = str(c.replace('upsacc','rightsacc'))
-        #     self.data = self.data.rename(columns={str(c): new_col})
-        # sacccols = [col for col in cols if 'downsacc' in col]
-        # for c in sacccols:
-        #     new_col = str(c.replace('downsacc','leftsacc'))
-        #     self.data = self.data.rename(columns={str(c): new_col})
-        # # remove fm2, hf5-8 recordings
-        # cols = self.data.columns.values; badcols = []
-        # for c in cols:
-        #     if any(s in c for s in ['hf5','hf6','hf7','hf8']):
-        #         badcols.append(c)
-        # self.data = self.data.drop(labels=badcols, axis=1)
-        # # drop duplicate columns
-        # duplicates = self.data.columns.values[self.data.columns.duplicated()]
-        # for d in duplicates:
-        #     temp = self.data[d].iloc[:,0].combine_first(self.data[d].iloc[:,1])
-        #     self.data = self.data.drop(columns=d)
-        #     self.data[d] = temp
-        # for i, ind in enumerate(self.data.index.values):
-        #     if type(self.data['FmLt_dHead'].iat[i])==scipy.interpolate.interpolate.interp1d:
-        #         self.data['FmLt_dHead'].iat[i] = self.data['FmLt_dHead'].iat[i](self.data['FmLt_eyeT'].iat[i]).astype(object)
-        #     if type(self.data['FmDk_dHead'].iat[i])==scipy.interpolate.interpolate.interp1d:
-        #         self.data['FmDk_dHead'].iat[i] = self.data['FmDk_dHead'].iat[i](self.data['FmDk_eyeT'].iat[i]).astype(object)
+    def process(self):
+        self.gather_data()
         self.data = self.data.reset_index()
         self.save_as_pickle(stage='gathered')
-
-    def process(self):
-        self.setup()
+        
         self.add_available_optic_flow_data()
 
         self.summarize_sessions()
