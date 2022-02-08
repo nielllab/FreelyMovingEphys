@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from matplotlib.backends.backend_pdf import PdfPages
 
+from src.base import BaseInput
 from src.worldcam import Worldcam
 from src.ephys import Ephys
 from src.utils.path import find, auto_recording_name
@@ -90,7 +91,7 @@ class PrelimRF(Ephys):
 # class PrelimDepth(Ephys):
 #     def __init__(self, binary_path, probe):
 
-class RawEphys:
+class RawEphys(BaseInput):
     def __init__(self, merge_file):
         self.merge_file = merge_file
         self.ephys_samprate = 30000
@@ -138,8 +139,9 @@ class RawEphys:
             # get timestamp from csv for this recording
             fname = fileList[0,s][0].copy()
             fname = fname[0:-4] + '_BonsaiBoardTS.csv'
-            ephys_time_path = os.path.join(pathList[0,s][0],fname)
-            ephys_data['t0'] = self.read_timestamp_file(ephys_time_path)[0]
+            self.timestamp_path = os.path.join(pathList[0,s][0],fname)
+            ephysT = self.read_timestamp_file()
+            ephys_data['t0'] = ephysT[0]
             
             # write ephys data into json file
             fname = fileList[0,s][0].copy()
