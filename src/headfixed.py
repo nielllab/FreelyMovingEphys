@@ -420,8 +420,6 @@ class HeadFixedReversingCheckboard(Ephys):
                                         'ballspeed_tuning_bins',
                                         'ballspeed_tuning',
                                         'ballspeed_tuning_err',
-                                        'lfp_power',
-                                        'layer5cent_from_lfp',
                                         'response_by_channel',
                                         'current_source_density',
                                         'relative_depth',
@@ -451,8 +449,6 @@ class HeadFixedReversingCheckboard(Ephys):
                                     self.ballspeed_tuning_bins,
                                     self.ballspeed_tuning[unit_num],
                                     self.ballspeed_tuning_err[unit_num],
-                                    self.lfp_power_profiles,
-                                    self.lfp_layer5_centers,
                                     self.rev_resp_mean,
                                     self.csd_interp,
                                     self.lfp_depth,
@@ -522,9 +518,7 @@ class HeadFixedSparseNoise(Ephys):
                                         'ballspeed',
                                         'ballspeed_tuning_bins',
                                         'ballspeed_tuning',
-                                        'ballspeed_tuning_err',
-                                        'lfp_power',
-                                        'layer5cent_from_lfp']]
+                                        'ballspeed_tuning_err']]
             unit_df = pd.DataFrame(pd.Series([self.contrast_tuning_bins,
                                     self.contrast_tuning[unit_num],
                                     self.contrast_tuning_err[unit_num],
@@ -549,9 +543,7 @@ class HeadFixedSparseNoise(Ephys):
                                     self.ball_speed,
                                     self.ballspeed_tuning_bins,
                                     self.ballspeed_tuning[unit_num],
-                                    self.ballspeed_tuning_err[unit_num],
-                                    self.lfp_power_profiles,
-                                    self.lfp_layer5_centers]),dtype=object).T
+                                    self.ballspeed_tuning_err[unit_num]]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = self.session_name
@@ -776,7 +768,7 @@ class HeadFixedGratings(Ephys):
         plt.tight_layout(); self.detail_pdf.savefig(); plt.close()
 
         # roll orientation tuning curves
-        # sf_cat maps orientations so that ind=0 is the bottom-right corner of the monitor
+        # ori_cat maps orientations so that ind=0 is the bottom-right corner of the monitor
         # index of sf_cat ascend moving counter-clockwise
         # ind=1 are rightward gratings; ind=5 are leftward gratings
 
@@ -851,8 +843,6 @@ class HeadFixedGratings(Ephys):
                                         'ballspeed_tuning_bins',
                                         'ballspeed_tuning',
                                         'ballspeed_tuning_err',
-                                        'lfp_power',
-                                        'layer5cent_from_lfp',
                                         'grating_psth',
                                         'grating_ori',
                                         'ori_tuning_mean_tf',
@@ -886,8 +876,6 @@ class HeadFixedGratings(Ephys):
                                     self.ballspeed_tuning_bins,
                                     self.ballspeed_tuning[unit_num],
                                     self.ballspeed_tuning_err[unit_num],
-                                    self.lfp_power_profiles,
-                                    self.lfp_layer5_centers,
                                     self.grating_psth[unit_num],
                                     self.grating_ori,
                                     self.ori_tuning_meantf[unit_num],
@@ -895,7 +883,7 @@ class HeadFixedGratings(Ephys):
                                     self.drift_spont[unit_num],
                                     self.spont_rate[unit_num],
                                     self.grating_rate[unit_num],
-                                    self.sf_cat[unit_num],]),dtype=object).T
+                                    self.sf_cat[unit_num]]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
             unit_df['session'] = self.session_name

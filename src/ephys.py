@@ -1098,9 +1098,8 @@ class Ephys(BaseInput):
         ephys_center_sub = lfp_ephys - np.mean(lfp_ephys,0)
         filt_ephys = self.butter_bandpass(ephys_center_sub, order=6)
         # get lfp power profile for each channel
-        ch_num = np.size(filt_ephys,1)
-        lfp_power_profiles = np.zeros([ch_num])
-        for ch in range(ch_num):
+        lfp_power_profiles = np.zeros([self.num_channels])
+        for ch in range(self.num_channels):
             lfp_power_profiles[ch] = np.sqrt(np.mean(filt_ephys[:,ch]**2)) # multiunit LFP power profile
         # median filter
         lfp_power_profiles_filt = signal.medfilt(lfp_power_profiles)
@@ -1113,8 +1112,8 @@ class Ephys(BaseInput):
             layer5_cent_sh0 = np.argmax(norm_profile_sh0)
             norm_profile_sh1 = lfp_power_profiles_filt[32:64]/np.max(lfp_power_profiles_filt[32:64])
             layer5_cent_sh1 = np.argmax(norm_profile_sh1)
-            lfp_power_profiles = [norm_profile_sh0, norm_profile_sh1]
-            lfp_layer5_centers = [layer5_cent_sh0, layer5_cent_sh1]
+            self.lfp_power_profiles = [norm_profile_sh0, norm_profile_sh1]
+            self.lfp_layer5_centers = [layer5_cent_sh0, layer5_cent_sh1]
             plt.subplots(1,2)
             plt.subplot(1,2,1)
             plt.plot(norm_profile_sh0,range(0,32))
@@ -1214,7 +1213,7 @@ class Ephys(BaseInput):
         print('contrast response functions')
         self.contrast_tuning_bins, self.contrast_tuning, self.contrast_tuning_err = self.calc_tuning(self.contrast, self.contrast_range, self.worldT, 'contrast')
         print('mua power profile laminar depth')
-        if not self.fm:
+        if self.stim == 'wn':
             self.mua_power_laminar_depth()
         print('interpolating worldcam data to match model timebase')
         self.worldcam_at_new_timebase()
