@@ -217,59 +217,59 @@ class Population:
         
         recordings = self.data['original_session_path'].unique()
         recordings = [os.path.join(x, 'fm1') for x in recordings]
+        print(recordings)
         for i, recording_path in enumerate(recordings):
+            print('recording=',recording_path)
             flow_files = find('*optic_flow.npz', recording_path)
-            if len(flow_files) == 0:
-                # skip this recording if there isn't an optic flow npz file
-                continue
-            flow_data = np.load(flow_files[0])
-            # optic flow w/ topdown tracking, or only using gyro?
-            if 'running_forward_vec' in flow_data.files:
-                topdown_flow = True
-            else:
-                topdown_flow = False
+            if flow_files:
+                print('reading '+flow_files[0])
+                flow_data = np.load(flow_files[0])
+                # optic flow w/ topdown tracking, or only using gyro?
+                if 'running_forward_vec' in flow_data.files:
+                    topdown_flow = True
+                else:
+                    topdown_flow = False
 
-            if topdown_flow:
-                movement_state_dict = {'full_vec':flow_data['full_vec'],'full_amp':flow_data['full_amp'],
-                                    'active_gyro_vec':flow_data['active_gyro_vec'],'active_gyro_amp':flow_data['active_gyro_amp'],
-                                    'inactive_gyro_vec':flow_data['inactive_gyro_vec'],'inactive_gyro_amp':flow_data['inactive_gyro_amp'],
-                                    'running_forward_vec':flow_data['running_forward_vec'],'running_forward_amp':flow_data['running_forward_amp'],
-                                    'running_backward_vec':flow_data['running_backward_vec'],'running_backward_amp':flow_data['running_backward_amp'],
-                                    'fine_motion_vec':flow_data['fine_motion_vec'],'fine_motion_amp':flow_data['fine_motion_amp'],
-                                    'immobile_vec':flow_data['immobile_vec'],'immobile_amp':flow_data['immobile_amp']}
-                movement_state_list = ['full','active_gyro','inactive_gyro','running_forward','running_backward','fine_motion','immobile']
-            elif not topdown_flow:
-                movement_state_dict = {'full_vec':flow_data['full_vec'],'full_amp':flow_data['full_amp'],
-                                    'active_gyro_vec':flow_data['active_gyro_vec'],'active_gyro_amp':flow_data['active_gyro_amp'],
-                                    'inactive_gyro_vec':flow_data['inactive_gyro_vec'],'inactive_gyro_amp':flow_data['inactive_gyro_amp']}
-                movement_state_list = ['full','active_gyro','inactive_gyro']
+                if topdown_flow:
+                    movement_state_dict = {'full_vec':flow_data['full_vec'],'full_amp':flow_data['full_amp'],
+                                        'active_gyro_vec':flow_data['active_gyro_vec'],'active_gyro_amp':flow_data['active_gyro_amp'],
+                                        'inactive_gyro_vec':flow_data['inactive_gyro_vec'],'inactive_gyro_amp':flow_data['inactive_gyro_amp'],
+                                        'running_forward_vec':flow_data['running_forward_vec'],'running_forward_amp':flow_data['running_forward_amp'],
+                                        'running_backward_vec':flow_data['running_backward_vec'],'running_backward_amp':flow_data['running_backward_amp'],
+                                        'fine_motion_vec':flow_data['fine_motion_vec'],'fine_motion_amp':flow_data['fine_motion_amp'],
+                                        'immobile_vec':flow_data['immobile_vec'],'immobile_amp':flow_data['immobile_amp']}
+                    movement_state_list = ['full','active_gyro','inactive_gyro','running_forward','running_backward','fine_motion','immobile']
+                elif not topdown_flow:
+                    movement_state_dict = {'full_vec':flow_data['full_vec'],'full_amp':flow_data['full_amp'],
+                                        'active_gyro_vec':flow_data['active_gyro_vec'],'active_gyro_amp':flow_data['active_gyro_amp'],
+                                        'inactive_gyro_vec':flow_data['inactive_gyro_vec'],'inactive_gyro_amp':flow_data['inactive_gyro_amp']}
+                    movement_state_list = ['full','active_gyro','inactive_gyro']
 
-            for movement_state in movement_state_list:
-                flow_vec = movement_state_dict[movement_state+'_vec'] # shape is [unit, lag, x, y, U/V]
-                flow_amp = movement_state_dict[movement_state+'_amp'] # shape is [unit, lag, x, y]
-                if movement_state=='full':
-                    vec_scale = np.zeros(np.size(flow_vec, 0))
-                flow_arr_ind = 0
-                use = self.data['original_session_path']==recording_path[:-3]
-                'FmLt_optic_flow_'+movement_state+'_amp'
-                for ind, _ in self.data[use].iterrows():
-                    self.data.at[ind, 'FmLt_optic_flow_'+movement_state+'_vec'] = flow_vec[flow_arr_ind, use_lag].astype(object)
-                    self.data.at[ind, 'FmLt_optic_flow_'+movement_state+'_amp'] = flow_amp[flow_arr_ind, use_lag].astype(object)
+                origsess, _ = os.path.split(recording_path)
+
+                for movement_state in movement_state_list:
+                    flow_vec = movement_state_dict[movement_state+'_vec'] # shape is [unit, lag, x, y, U/V]
+                    flow_amp = movement_state_dict[movement_state+'_amp'] # shape is [unit, lag, x, y]
                     if movement_state=='full':
-                        vec_scale[flow_arr_ind] = np.max(np.sqrt((flow_vec[flow_arr_ind, use_lag, :, 0].flatten()**2) + (flow_vec[flow_arr_ind, use_lag, :, 1].flatten()**2))) # U**2 + V**2
-                    flow_arr_ind += 1
-                if movement_state=='full':
-                    max_vec_scale = np.max(vec_scale.flatten())
-                    for ind, _ in self.data[self.data['original_session_path']==recording_path[:-3]].iterrows():
-                        self.data.at[ind, 'FmLt_flowvec_scale'] = max_vec_scale
-                        self.data.at[ind, 'has_optic_flow'] = True
-                        self.data.at[ind, 'has_topdown_optic_flow'] = topdown_flow
+                        vec_scale = np.zeros(np.size(flow_vec, 0))
+                    flow_arr_ind = 0
+                    use_inds = [os.path.samefile(p, origsess) for p in self.data['original_session_path']]
+                    for ind, _ in self.data[use_inds].iterrows():
+                        self.data.at[ind, 'FmLt_optic_flow_'+movement_state+'_vec'] = flow_vec[flow_arr_ind, use_lag].astype(object)
+                        self.data.at[ind, 'FmLt_optic_flow_'+movement_state+'_amp'] = flow_amp[flow_arr_ind, use_lag].astype(object)
+                        if movement_state=='full':
+                            vec_scale[flow_arr_ind] = np.max(np.sqrt((flow_vec[flow_arr_ind, use_lag, :, 0].flatten()**2) + (flow_vec[flow_arr_ind, use_lag, :, 1].flatten()**2))) # U**2 + V**2
+                        flow_arr_ind += 1
+                    if movement_state=='full':
+                        max_vec_scale = np.max(vec_scale.flatten())
+                        for ind, _ in self.data[use_inds].iterrows():
+                            self.data.at[ind, 'FmLt_flowvec_scale'] = max_vec_scale
+                            self.data.at[ind, 'has_optic_flow'] = True
+                            self.data.at[ind, 'has_topdown_optic_flow'] = topdown_flow
             
-    def optic_flow_vec(self, panel, movstate):
+    def optic_flow_vec(self, panel, movstate, do_norm=False):
         fv = self.current_row['FmLt_optic_flow_'+movstate+'_vec'].astype(float) # shape is [x, y, U/V]
         fa = self.current_row['FmLt_optic_flow_'+movstate+'_amp'].astype(float) # shape is [x, y]
-
-        norm_amp = (fa/np.max(fa))
 
         nx = 5 # binning for plotting flow vectors
         fv_scale = self.current_row['FmLt_flowvec_scale']
@@ -278,13 +278,20 @@ class Population:
 
         X,Y = np.meshgrid(np.arange(0,flow_w),np.arange(0,flow_h))
 
-        U = fv[:,:,0] * norm_amp
-        V = fv[:,:,1] * norm_amp
+        if do_norm:
+            norm_amp = (fa/np.max(fa))
+
+            U = fv[:,:,0] * norm_amp
+            V = fv[:,:,1] * norm_amp
+
+        elif not do_norm:
+            U = fv[:,:,0]
+            V = fv[:,:,1]
 
         panel.quiver(X[::nx,::nx], -Y[::nx,::nx], U[::nx,::nx], -V[::nx,::nx], scale=fv_scale)
         panel.axis('off')
         panel.axis('equal')
-        panel.set_title('vec * amp')
+        panel.set_title(movstate)
 
     def optic_flow_amp(self, panel, movstate):
         fa = self.current_row['FmLt_optic_flow_'+movstate+'_amp'].astype(float) # shape is [x, y]
@@ -292,7 +299,7 @@ class Population:
         panel.imshow(fa, cmap='Reds')
         panel.axis('off')
         panel.axis('equal')
-        panel.set_title(movstate + ' amp')
+        # panel.set_title(movstate + ' amp')
 
     def tuning_modulation_index(self, tuning):
         tuning = tuning[~np.isnan(tuning)]
@@ -446,7 +453,7 @@ class Population:
         num_sites = 32
         panel.plot(ch_shank_profile,range(0,num_sites),color='k')
         panel.plot(ch_shank_profile[layer5cent]+0.01,layer5cent,'r*',markersize=12)
-        panel.hlines(y=self.current_row['ch']%32, xmin=0, xmax=ch_power, colors='g', linewidth=5)
+        panel.hlines(y=self.current_row['ch']%32, xmin=ch_power, xmax=1, colors='g', linewidth=5)
         panel.set_ylim([33,-1])
         panel.set_yticks(list(range(-1,num_sites+1)))
         panel.set_yticklabels(ch_spacing*np.arange(num_sites+2)-(layer5cent*ch_spacing))
@@ -501,8 +508,6 @@ class Population:
         else:
             self.data['has_hf'] = False
 
-        self.data = self.data.reset_index()
-
         print('num units=' + str(len(self.data)))
 
         for index, row in tqdm(self.data.iterrows()):
@@ -516,7 +521,7 @@ class Population:
             # page title
             title = self.figure.add_subplot(self.spec[0,0])
             title.axis('off')
-            title.annotate(str(self.current_row['session'])+'_unit'+str(self.current_row['index']),size=15, xy=(0.05, 0.95), xycoords='axes fraction', fontsize=20)
+            title.annotate(str(self.current_row['session'])+'_unit'+str(self.current_row['index']), xy=(0.05, 0.95), xycoords='axes fraction', fontsize=20)
 
             # unit waveform
             unitfig_waveform = self.figure.add_subplot(self.spec[0,1])
@@ -964,7 +969,7 @@ class Population:
 
                 # fm dark phi tuning
                 fmdark_phi_modind = self.tuning_curve(panel=fig_fmdark_phi_tuning,
-                                        varcent_name='FmDk_spike_rate_vs_phi_cent',
+                                        varcent_name='FmDk_phi_tuning_bins',
                                         tuning_name='FmDk_phi_tuning',
                                         err_name='FmDk_phi_tuning_err',
                                         title='FmDk phi',
@@ -973,7 +978,7 @@ class Population:
 
                 # fm dark roll tuning
                 fmdark_roll_modind = self.tuning_curve(panel=fig_fmdark_roll_tuning,
-                                        varcent_name='FmDk_spike_rate_vs_roll_cent',
+                                        varcent_name='FmDk_roll_tuning_bins',
                                         tuning_name='FmDk_roll_tuning',
                                         err_name='FmDk_roll_tuning_err',
                                         title='FmDk roll',
@@ -982,7 +987,7 @@ class Population:
                 
                 # fm dark pitch tuning
                 fmdark_pitch_modind = self.tuning_curve(panel=fig_fmdark_pitch_tuning,
-                                        varcent_name='FmDk_spike_rate_vs_pitch_cent',
+                                        varcent_name='FmDk_pitch_tuning_bins',
                                         tuning_name='FmDk_pitch_tuning',
                                         err_name='FmDk_pitch_tuning_err',
                                         title='FmDk pitch',
@@ -1065,18 +1070,18 @@ class Population:
     def summarize_sessions(self, do_session_props=False):
         pdf = PdfPages(os.path.join(self.savepath, 'session_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
 
+        if 'FmDk_theta' in self.data.columns:
+            self.data['has_dark'] = ~self.data['FmDk_theta'].isna()
+        else:
+            self.data['has_dark'] = False
+        
+        if 'Wn_contrast_tuning' in self.data.columns:
+            self.data['has_hf'] = ~self.data['Wn_contrast_tuning'].isna()
+        else:
+            self.data['has_hf'] = False
+
         if do_session_props:
             print('session property comparisons')
-
-            if 'FmDk_theta' in self.data.columns:
-                self.data['has_dark'] = ~self.data['FmDk_theta'].isna()
-            else:
-                self.data['has_dark'] = False
-            
-            if 'Wn_contrast_tuning' in self.data.columns:
-                self.data['has_hf'] = ~self.data['Wn_contrast_tuning'].isna()
-            else:
-                self.data['has_hf'] = False
             
             if self.data['has_dark'].sum() > 0 and self.data['has_hf'].sum() > 0:
                 active_time_by_session, light_len, dark_len = self.get_animal_activity()
@@ -1281,9 +1286,9 @@ class Population:
             plt.subplot(5,5,1)
             plt.title(unique_ind+' eye fit: m='+fmt_m+' r='+fmt_r, fontsize=20)
             dEye = uniquedf['FmLt_dEye_dps'].iloc[0]
-            dhead = uniquedf['FmLt_dHead'].iloc[0]
+            dHead = uniquedf['FmLt_dHead'].iloc[0]
             eyeT = uniquedf['FmLt_eyeT'].iloc[0]
-            plt.plot(dEye[::10], dhead[::10], 'k.')
+            plt.plot(dEye[::10], dHead[::10], 'k.')
             plt.xlabel('dEye (deg/sec)', fontsize=20); plt.ylabel('dHead (deg/sec)', fontsize=20)
             plt.xlim((-700,700)); plt.ylim((-700,700))
             plt.plot([-700,700],[700,-700], 'r:')
@@ -1461,23 +1466,38 @@ class Population:
 
             elif uniquedf['has_dark'].iloc[0]:
                 plt.subplot(5,5,18)
-                dEye = uniquedf['FmDk_dEye_dps'].iloc[0]
-                dhead = uniquedf['FmDk_dHead'].iloc[0][:-1]
-                eyeT = uniquedf['FmDk_eyeT'].iloc[0]
-                plt.plot(dEye[::10], dhead[::10], 'k.')
-                plt.xlabel('dark dEye (deg)', fontsize=20); plt.ylabel('dark dHead (deg)', fontsize=20); plt.xlim((-15,15)); plt.ylim((-15,15))
-                plt.plot([-15,15],[15,-15], 'r:')
 
-                dark_roll_interp = uniquedf['FmDk_roll_interp'].iloc[0]
-                dark_pitch_interp = uniquedf['FmDk_pitch_interp'].iloc[0]
-                th_dark = uniquedf['FmDk_theta'].iloc[0]
-                phi_dark = uniquedf['FmDk_phi'].iloc[0]
+                imuT_dk = uniquedf['FmDk_imuT'].iloc[0]
+                roll_dk = uniquedf['FmDk_roll'].iloc[0]
+                pitch_dk = uniquedf['FmDk_pitch'].iloc[0]
+                dHead_dk = uniquedf['FmDk_dHead'].iloc[0]
+
+                theta_dk = uniquedf['FmDk_theta'].iloc[0]
+                phi_dk = uniquedf['FmDk_phi'].iloc[0]
+                eyeT_dk = uniquedf['FmDk_eyeT'].iloc[0]
+                imuT_dk = uniquedf['FmDk_imuT'].iloc[0]
+                dEye_dk = uniquedf['FmDk_dEye_dps'].iloc[0]
+
+                centered_roll_dk = roll_dk - np.mean(roll_dk)
+                roll_dk_interp = interp1d(imuT_dk, centered_roll_dk, bounds_error=False)(eyeT_dk)
+
+                centered_pitch_dk = pitch_dk - np.mean(pitch_dk)
+                pitch_dk_interp = interp1d(imuT_dk, centered_pitch_dk, bounds_error=False)(eyeT_dk)
+
+
+                plt.plot(dEye_dk[::10], dHead_dk[::10], 'k.')
+                plt.xlabel('dark dEye (deg)', fontsize=20); plt.ylabel('dark dHead (deg)', fontsize=20)
+                plt.xlim((-700,700)); plt.ylim((-700,700))
+                plt.plot([-700,700],[700,-700], 'r:')
+
                 plt.subplot(5,5,19)
-                plt.plot(dark_pitch_interp[::100], th_dark[::100], '.'); plt.xlabel('dark pitch (deg)', fontsize=20); plt.ylabel('dark theta (deg)', fontsize=20)
+                plt.plot(pitch_dk_interp[::100], theta_dk[::100], '.'); plt.xlabel('dark pitch (deg)', fontsize=20)
+                plt.ylabel('dark theta (deg)', fontsize=20)
                 plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[-60,60], 'r:')
                 
                 plt.subplot(5,5,20)
-                plt.plot(dark_roll_interp[::100], phi_dark[::100], '.'); plt.xlabel('dark roll (deg)', fontsize=20); plt.ylabel('dark phi (deg)', fontsize=20)
+                plt.plot(roll_dk_interp[::100], phi_dk[::100], '.'); plt.xlabel('dark roll (deg)', fontsize=20)
+                plt.ylabel('dark phi (deg)', fontsize=20)
                 plt.ylim([-60,60]); plt.xlim([-60,60]); plt.plot([-60,60],[60,-60], 'r:')
 
             plt.tight_layout(); pdf.savefig(); plt.close()

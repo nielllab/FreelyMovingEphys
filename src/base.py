@@ -523,7 +523,10 @@ class Camera(BaseInput):
         elif self.dlc_path is None or self.dlc_path == [] and self.timestamp_path is not None:
             if self.timestamp_path is not None and self.timestamp_path != []:
                 # read in the time
-                time = self.read_timestamp_file()
+                if 'formatted' in self.timestamp_path:
+                    time = self.read_timestamp_file()
+                else:
+                    time = self.read_timestamp_file(force_timestamp_shift=True)
                 # setup frame indices
                 xrpts = xr.DataArray(np.zeros([len(time)-1]), dims=['frame'])
                 # assign frame coordinates, then timestamps

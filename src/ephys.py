@@ -594,7 +594,7 @@ class Ephys(BaseInput):
         self.cells = self.ephys_data.loc[self.ephys_data['group']=='good']
         self.units = self.cells.index.values
         # get number of good units
-        self.n_cells = len(self.cells)
+        self.n_cells = len(self.cells.index)
         # make a raster plot
         self.spike_raster()
 
