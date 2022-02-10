@@ -1,4 +1,12 @@
-name: ephys2
+# install: conda env create -f env0.yaml
+# update:  conda env update -f env0.yaml
+
+# for linux, replace
+#   - "deeplabcut[gui]"
+# with
+#   - deeplabcut
+
+name: ephys0
 channels:
   - conda-forge
   - defaults
@@ -10,24 +18,14 @@ dependencies:
   - ffmpeg
   - matplotlib
   - scikit-image
-  - xarray
-  - scipy
-  - numpy
-  - pandas
-  - ipykernel
+  - xarray=0.16
   - tqdm
   - pytables
-  - h5py
-  - seaborn
-  - ipywidgets
-  - jupyterlab
   - pip:
     - "deeplabcut[gui]"
-    - ray[default]
-    - sklearn
     - astropy
     - wavio
     - pysimplegui
     - netcdf4
     - opencv-python
-    - test-tube
+    - scipy==1.6.2
