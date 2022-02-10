@@ -117,7 +117,7 @@ class Session:
             print('preprocessing '+recording_name)
 
             # skip this recording if it was acquired while the animal was transfered between ball and arena
-            if 'transfer' in recording_name:
+            if 'transfer' in recording_name or 'test' in recording_name:
                 continue
 
             # get a list of cameras in the current recording

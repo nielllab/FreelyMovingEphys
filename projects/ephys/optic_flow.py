@@ -76,7 +76,7 @@ class OpticFlow:
             activity_state_bools = [full_recording, good_idxs, ~good_idxs]
             activity_state_names = ['full','active_gyro','inactive_gyro']
             
-         # pixels to crop on each side of the image
+        # pixels to crop on each side of the image
         flow_amp_dict = {}
         flow_vec_dict = {}
         for state_num in range(len(activity_state_names)):

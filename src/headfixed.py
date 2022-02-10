@@ -58,7 +58,8 @@ class HeadFixedWhiteNoise(Ephys):
         unit_data = pd.DataFrame([])
         stim = 'wn'
         for unit_num, ind in enumerate(self.cells.index):
-            cols = [stim+'_'+i for i in ['contrast_tuning_bins',
+            cols = [stim+'_'+i for i in ['contrast',
+                                        'contrast_tuning_bins',
                                         'contrast_tuning',
                                         'contrast_tuning_err',
                                         'spike_triggered_average',
@@ -87,7 +88,8 @@ class HeadFixedWhiteNoise(Ephys):
                                         'layer5cent_from_lfp',
                                         'glm_receptive_field',
                                         'glm_cc']]
-            unit_df = pd.DataFrame(pd.Series([self.contrast_tuning_bins,
+            unit_df = pd.DataFrame(pd.Series([self.contrast,
+                                    self.contrast_tuning_bins,
                                     self.contrast_tuning[unit_num],
                                     self.contrast_tuning_err[unit_num],
                                     self.sta[unit_num],
@@ -127,7 +129,8 @@ class HeadFixedWhiteNoise(Ephys):
         unit_data = pd.DataFrame([])
         stim = 'Wn'
         for unit_num, ind in enumerate(self.cells.index):
-            cols = [stim+'_'+i for i in ['contrast_tuning_bins',
+            cols = [stim+'_'+i for i in ['contrast',
+                                        'contrast_tuning_bins',
                                         'contrast_tuning',
                                         'contrast_tuning_err',
                                         'spike_triggered_average',
@@ -154,7 +157,8 @@ class HeadFixedWhiteNoise(Ephys):
                                         'ballspeed_tuning_err',
                                         'lfp_power',
                                         'layer5cent_from_lfp']]
-            unit_df = pd.DataFrame(pd.Series([self.contrast_tuning_bins,
+            unit_df = pd.DataFrame(pd.Series([self.contrast,
+                                    self.contrast_tuning_bins,
                                     self.contrast_tuning[unit_num],
                                     self.contrast_tuning_err[unit_num],
                                     self.sta[unit_num],
@@ -395,7 +399,8 @@ class HeadFixedReversingCheckboard(Ephys):
         unit_data = pd.DataFrame([])
         stim = 'Rc'
         for unit_num, ind in enumerate(self.cells.index):
-            cols = [stim+'_'+i for i in ['contrast_tuning_bins',
+            cols = [stim+'_'+i for i in ['contrast',
+                                        'contrast_tuning_bins',
                                         'contrast_tuning',
                                         'contrast_tuning_err',
                                         'spike_triggered_average',
@@ -424,7 +429,8 @@ class HeadFixedReversingCheckboard(Ephys):
                                         'current_source_density',
                                         'relative_depth',
                                         'layer4cent']]
-            unit_df = pd.DataFrame(pd.Series([self.contrast_tuning_bins,
+            unit_df = pd.DataFrame(pd.Series([self.contrast,
+                                    self.contrast_tuning_bins,
                                     self.contrast_tuning[unit_num],
                                     self.contrast_tuning_err[unit_num],
                                     self.sta[unit_num],
@@ -494,7 +500,8 @@ class HeadFixedSparseNoise(Ephys):
         unit_data = pd.DataFrame([])
         stim = 'Sn'
         for unit_num, ind in enumerate(self.cells.index):
-            cols = [stim+'_'+i for i in ['contrast_tuning_bins',
+            cols = [stim+'_'+i for i in ['contrast',
+                                        'contrast_tuning_bins',
                                         'contrast_tuning',
                                         'contrast_tuning_err',
                                         'spike_triggered_average',
@@ -519,7 +526,8 @@ class HeadFixedSparseNoise(Ephys):
                                         'ballspeed_tuning_bins',
                                         'ballspeed_tuning',
                                         'ballspeed_tuning_err']]
-            unit_df = pd.DataFrame(pd.Series([self.contrast_tuning_bins,
+            unit_df = pd.DataFrame(pd.Series([self.contrast,
+                                    self.contrast_tuning_bins,
                                     self.contrast_tuning[unit_num],
                                     self.contrast_tuning_err[unit_num],
                                     self.sta[unit_num],
@@ -818,7 +826,8 @@ class HeadFixedGratings(Ephys):
         unit_data = pd.DataFrame([])
         stim = 'Gt'
         for unit_num, ind in enumerate(self.cells.index):
-            cols = [stim+'_'+i for i in ['contrast_tuning_bins',
+            cols = [stim+'_'+i for i in ['contrast',
+                                        'contrast_tuning_bins',
                                         'contrast_tuning',
                                         'contrast_tuning_err',
                                         'spike_triggered_average',
@@ -851,7 +860,8 @@ class HeadFixedGratings(Ephys):
                                         'spont_rate',
                                         'grating_rate',
                                         'sf_cat']]
-            unit_df = pd.DataFrame(pd.Series([self.contrast_tuning_bins,
+            unit_df = pd.DataFrame(pd.Series([self.contrast,
+                                    self.contrast_tuning_bins,
                                     self.contrast_tuning[unit_num],
                                     self.contrast_tuning_err[unit_num],
                                     self.sta[unit_num],

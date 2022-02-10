@@ -626,6 +626,7 @@ class Ephys(BaseInput):
         phi = np.rad2deg(self.eye_params.sel(ellipse_params = 'phi').values)
         self.theta = th - np.nanmean(th)
         self.phi = phi - np.nanmean(phi)
+        self.phi = -self.phi # flip phi so that up is positive & down is negative
         # plot of theta vs phi
         self.eye_position()
         # plot theta vs theta switch -- check if deinterlacing was done correctly

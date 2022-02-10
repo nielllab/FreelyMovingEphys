@@ -153,42 +153,20 @@ class Population:
             all_data[col] = all_data[col].iloc[:,0].combine_first(all_data[col].iloc[:,1])
         # and drop the duplicates that have only partial data (all the data will now be in another column)
         self.data = all_data.loc[:,~all_data.columns.duplicated()]
+        
+        # clean up index
+        self.data['index'] = self.data.index.values
+        self.data.reset_index(inplace=True)
 
-    def save_as_pickle(self, stage='gathered'):
-        if stage == 'gathered':
-            pickle_path = os.path.join(self.savepath,'pooled_ephys_'+datetime.today().strftime('%m%d%y')+'.pickle')
-        elif stage == 'unit':
-            pickle_path = os.path.join(self.savepath, 'pooled_ephys_unit_update_'+datetime.today().strftime('%m%d%y')+'.pickle')
-        elif stage == 'population':
-            pickle_path = os.path.join(self.savepath, 'pooled_ephys_population_update_'+datetime.today().strftime('%m%d%y')+'.pickle')
-        if os.path.isfile(pickle_path):
-            os.remove(pickle_path)
-        # self.data = self.data.reset_index()
-        print('saving data to', pickle_path)
-        self.data.to_pickle(pickle_path)
-
-    def load_from_pickle(self, stage='gathered'):
-        """
-        Always choose the most recent file
-        """
-        if stage == 'gathered':
-            pickle_path = sorted([p for p in find('*pooled_ephys_*.pickle', self.savepath) if 'unit' not in p and 'population' not in p])[-1]
-        elif stage == 'unit':
-            pickle_path = sorted(find('*pooled_ephys_unit_update_*.pickle', self.savepath))[-1]
-        elif stage == 'population':
-            pickle_path = sorted(find('*pooled_ephys_population_update_*.pickle', self.savepath))[-1]
-        print('reading data from', pickle_path)
-        self.data = pd.read_pickle(pickle_path)
-
-    def save_custom_pickle(self, fname):
-        pickle_path = os.path.join(self.savepath, fname)
+    def save(self, fname):
+        pickle_path = os.path.join(self.savepath, fname+'.pickle')
         if os.path.isfile(pickle_path):
             os.remove(pickle_path)
         print('saving to '+pickle_path)
         self.data.to_pickle(pickle_path)
 
-    def load_custom_pickle(self, fname):
-        pickle_path = os.path.join(self.savepath, fname)
+    def load(self, fname):
+        pickle_path = os.path.join(self.savepath, fname+'.pickle')
         print('reading from '+pickle_path)
         self.data = pd.read_pickle(pickle_path)
 

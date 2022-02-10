@@ -83,8 +83,8 @@ class BaseInput:
             camT_out[1::2] = camT + 0.25 * medstep
         elif not use_medstep:
             steps = np.diff(camT, axis=0, append=camT[-1]+medstep)
-            camT_out[::2] = camT - 0.25 * steps
-            camT_out[1::2] = camT + 0.25 * steps
+            camT_out[::2] = camT
+            camT_out[1::2] = camT + 0.5 * steps
         return camT_out
 
     def read_timestamp_file(self, position_data_length=None, force_timestamp_shift=False):
@@ -428,8 +428,12 @@ class Camera(BaseInput):
         if 'eye' in self.camname.lower() or 'world' == self.camname.lower():
             if self.config['internals']['follow_strict_naming']:
                 # video
+                if 'eye' in self.camname.lower():
+                    vidsearchkey = 'deinter'
+                elif 'world' in self.camname.lower():
+                    vidsearchkey = 'calib'
                 avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
-                self.video_path = next(path for path in avi_paths if self.camname in path and 'deinter' in path and 'plot' not in path)
+                self.video_path = next(path for path in avi_paths if self.camname in path and vidsearchkey in path and 'plot' not in path)
                 # timestamps
                 csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
                 self.timestamp_path = next(i for i in csv_paths if self.camname in i and 'formatted' not in i)
