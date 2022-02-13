@@ -195,9 +195,7 @@ class Population:
         
         recordings = self.data['original_session_path'].unique()
         recordings = [os.path.join(x, 'fm1') for x in recordings]
-        print(recordings)
         for i, recording_path in enumerate(recordings):
-            print('recording=',recording_path)
             flow_files = find('*optic_flow.npz', recording_path)
             if flow_files:
                 print('reading '+flow_files[0])
@@ -1369,16 +1367,19 @@ class Population:
 
             if uniquedf['has_hf'].iloc[0]:
                 plt.subplot(5,5,13)
-                lower = -0.5; upper = 1.5; dt = 0.1
-                bins = np.arange(lower,upper+dt,dt)
-                psth_list = []
-                for ind, row in uniquedf.iterrows():
-                    plt.plot(bins[0:-1]+dt/2,row['Gt_grating_psth'])
-                    psth_list.append(row['Gt_grating_psth'])
-                avg_psth = np.mean(np.array(psth_list), axis=0)
-                plt.plot(bins[0:-1]+dt/2,avg_psth,color='k',linewidth=6)
-                plt.title('gratings psth', fontsize=20); plt.xlabel('sec', fontsize=20); plt.ylabel('sp/sec', fontsize=20)
-                plt.ylim([0,np.nanmax(avg_psth)*1.5])
+                try:
+                    lower = -0.5; upper = 1.5; dt = 0.1
+                    bins = np.arange(lower,upper+dt,dt)
+                    psth_list = []
+                    for ind, row in uniquedf.iterrows():
+                        plt.plot(bins[0:-1]+dt/2,row['Gt_grating_psth'])
+                        psth_list.append(row['Gt_grating_psth'])
+                    avg_psth = np.mean(np.array(psth_list), axis=0)
+                    plt.plot(bins[0:-1]+dt/2,avg_psth,color='k',linewidth=6)
+                    plt.title('gratings psth', fontsize=20); plt.xlabel('sec', fontsize=20); plt.ylabel('sp/sec', fontsize=20)
+                    plt.ylim([0,np.nanmax(avg_psth)*1.5])
+                except:
+                    pass
 
                 lfp_power_profile = uniquedf['Wn_lfp_power'].iloc[0]
                 layer5_cent = uniquedf['Wn_layer5cent_from_lfp'].iloc[0]
@@ -1985,8 +1986,8 @@ class Population:
     def get_peak_trough(self, wv, baseline):
         wv = [i-baseline for i in wv]
         wv_flip = [-i for i in wv]
-        peaks, peak_props = find_peaks(wv, height=0.2)
-        troughs, trough_props = find_peaks(wv_flip, height=0.2)
+        peaks, peak_props = find_peaks(wv, height=0.18)
+        troughs, trough_props = find_peaks(wv_flip, height=0.18)
         if len(peaks) > 1:
             peaks = peaks[np.argmax(peak_props['peak_heights'])]
         if len(troughs) > 1:
@@ -2116,17 +2117,18 @@ class Population:
         plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
     def deye_clustering(self):
+        zwin = [35,55]
         for ind, row in self.data.iterrows():
             # direction preference
             left_deflection = row['FmLt_leftsacc_avg_gaze_shift_dEye']
             right_deflection = row['FmLt_rightsacc_avg_gaze_shift_dEye']
-            left_right_index = np.argmax(np.abs(self.comparative_z_score(left_deflection, right_deflection)))
+            left_right_index = np.argmax(np.abs(self.comparative_z_score(left_deflection[zwin[0]:zwin[1]], right_deflection[zwin[0]:zwin[1]])))
             saccade_direction_pref = ['L','R'][left_right_index]
             self.data.at[ind, 'pref_gazeshift_direction'] = saccade_direction_pref; self.data.at[ind, 'pref_gazeshift_direction_ind'] = left_right_index
             # direction preference for compensatory movements
             left_deflection = row['FmLt_leftsacc_avg_comp_dEye']
             right_deflection = row['FmLt_rightsacc_avg_comp_dEye']
-            left_right_index = np.argmax(np.abs(self.comparative_z_score(left_deflection, right_deflection)))
+            left_right_index = np.argmax(np.abs(self.comparative_z_score(left_deflection[zwin[0]:zwin[1]], right_deflection[zwin[0]:zwin[1]])))
             saccade_direction_pref = ['L','R'][left_right_index]
             self.data.at[ind, 'pref_comp_direction'] = saccade_direction_pref; self.data.at[ind, 'pref_comp_direction_ind'] = left_right_index
         for ind, row in self.data.iterrows():
