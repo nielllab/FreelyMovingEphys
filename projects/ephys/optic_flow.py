@@ -16,7 +16,7 @@ class OpticFlow:
         # input files
         date_animal = '_'.join(base_path.split('/')[-3:-1])
         self.model_data_file = os.path.join(base_path, date_animal+'_ModelData_dt025_rawWorldCam_2ds.h5')
-        self.ephys_path = find('*_ephys_props.h5',base_path)[0]
+        self.ephys_path = find('*fm1*_ephys_props.h5',base_path)[0]
         self.save_name = os.path.join(base_path,'fm1_optic_flow.npz')
 
     def calc_optic_flow(self, crop_pix=10, win=5, lag_list=[-2,-1,0,1,2]):
@@ -24,6 +24,7 @@ class OpticFlow:
         lag_list: sta lags
         win: number of frames for window of optic flow
         """
+        print('reading '+self.model_data_file)
         data = ioh5.load(self.model_data_file)
 
         # shifted worldcam data

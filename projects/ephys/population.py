@@ -11,7 +11,7 @@ from datetime import datetime
 from tqdm import tqdm
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
-from sklearn.cluster import KMeans, AgglomerativeClustering
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from scipy.signal import find_peaks
 import matplotlib.patches as mpatches
@@ -44,6 +44,9 @@ class Population:
         self.cmap_celltype = ['sandybrown', 'olivedrab'] # [exc, inh]
         self.cmap_sacc = ['steelblue','coral'] # [right, left]
         self.cmap_special2 = ['dimgray','deepskyblue']
+
+        self.trange_win = [37,53]
+        self.trange_twin = self.trange_x[self.trange_win[0]:self.trange_win[1]]
 
     def gather_data(self, csv_filepath=None, path_list=None, probe_list=None, ltdk_bools=None,
                     opticflow_bools=None):
@@ -2121,6 +2124,62 @@ class Population:
             plt.title(label+' (cells='+str(len(s))+')')
         plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
+    def label_movcluster(self, psth, baseline, hthresh=0.17, el_bound=0.075):
+        """
+        PSTH should be the neural response to eye movements
+        between -0.0625 and 0.3125 sec, where 0 is the moment
+        of the eye movement.
+        """
+        # baseline subtract PSTH
+        psth = psth - baseline
+        # flip sign of the PSTH so that we can find the troughts also
+        revpsth = -psth.copy()
+        
+        # find peaks and troughs in PSTH
+        p, peak_props = find_peaks(psth, height=hthresh)
+        t, trough_props = find_peaks(revpsth, height=hthresh)
+        
+        # get the time index of the highest peaks
+        if len(p) > 1:
+            p = p[np.argmax(peak_props['peak_heights'])]
+        if len(t) > 1:
+            t = t[np.argmax(trough_props['peak_heights'])]
+        if p.size == 0:
+            p = np.nan
+        if t.size == 0:
+            t = np.nan
+        if ~np.isnan(p):
+            p = int(p)
+        if ~np.isnan(t):
+            t = int(t)
+            
+        # some filtering to choose the best position for the peak
+        if ~np.isnan(p):
+            has_peak = True
+            peak_cent = p
+        else:
+            has_peak = False
+            peak_cent = None
+        if ~np.isnan(t):
+            has_trough = True
+            trough_cent = t
+        else:
+            has_trough = False
+            trough_cent = None
+            
+        # now we decide which cluster each of these should be
+        el_bound_ind = np.argmin(np.abs(self.trange_twin-el_bound))
+        if has_peak and has_trough:
+            return 'biphasic'
+        elif has_trough and ~has_peak:
+            return 'negative'
+        elif peak_cent is not None and peak_cent <= el_bound_ind:
+            return 'early'
+        elif peak_cent is not None and peak_cent > el_bound_ind:
+            return 'late'
+        else:
+            return 'unresponsive'
+
     def deye_clustering(self):
         zwin = [35,55]
         for ind, row in self.data.iterrows():
@@ -2130,6 +2189,7 @@ class Population:
             left_right_index = np.argmax(np.abs(self.comparative_z_score(left_deflection[zwin[0]:zwin[1]], right_deflection[zwin[0]:zwin[1]])))
             saccade_direction_pref = ['L','R'][left_right_index]
             self.data.at[ind, 'pref_gazeshift_direction'] = saccade_direction_pref; self.data.at[ind, 'pref_gazeshift_direction_ind'] = left_right_index
+            self.data.at[ind, 'pref_gazeshift_raw_psth'] = ([row['FmLt_leftsacc_avg_gaze_shift_dEye'], row['FmLt_rightsacc_avg_gaze_shift_dEye']][int(left_right_index)]).astype(object)
             # direction preference for compensatory movements
             left_deflection = row['FmLt_leftsacc_avg_comp_dEye']
             right_deflection = row['FmLt_rightsacc_avg_comp_dEye']
@@ -2152,19 +2212,19 @@ class Population:
 
         for ind, row in self.data.iterrows():
             deflection_at_pref_direction = [row['FmLt_leftsacc_avg_gaze_shift_dEye'],row['FmLt_rightsacc_avg_gaze_shift_dEye']][int(row['pref_gazeshift_direction_ind'])]
-            norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['deflection_at_pref_direction']))
+            norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
             self.data.at[ind, 'pref_gazeshift_psth'] = norm_deflection.astype(object)
 
             deflection_at_pref_direction = [row['FmLt_leftsacc_avg_comp_dEye'],row['FmLt_rightsacc_avg_comp_dEye']][int(row['pref_gazeshift_direction_ind'])]
-            norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['deflection_at_pref_direction']))
+            norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
             self.data.at[ind, 'pref_comp_psth'] = norm_comp_deflection.astype(object)
 
             deflection_at_pref_direction = [row['FmLt_leftsacc_avg_gaze_shift_dEye'],row['FmLt_rightsacc_avg_gaze_shift_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
-            norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['deflection_at_pref_direction']))
+            norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
             self.data.at[ind, 'nonpref_gazeshift_psth'] = norm_deflection.astype(object)
 
             deflection_at_pref_direction = [row['FmLt_leftsacc_avg_comp_dEye'],row['FmLt_rightsacc_avg_comp_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
-            norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['deflection_at_pref_direction']))
+            norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
             self.data.at[ind, 'nonpref_comp_psth'] = norm_comp_deflection.astype(object)
 
             if np.sum(self.data['has_dark'])==len(self.data):
@@ -2183,33 +2243,59 @@ class Population:
                 self.data.at[ind, 'nonpref_gazeshift_psth_FmDk'] = dark_gaze_shift_norm_opp.astype(object)
                 self.data.at[ind, 'nonpref_comp_psth_FmDk'] = dark_comp_norm_opp.astype(object)
 
-        norm_deflection = flatten_series(self.data['pref_gazeshift_psth'])
+        unit_modulations = flatten_series(self.data['pref_gazeshift_psth'])[:,self.trange_win[0]:self.trange_win[1]]
+        pcas_cutoff = 7
 
         if self.exptype=='hffm':
-            # create the clustering model
+            pca = PCA(n_components=15)
+            pca.fit(unit_modulations)
+
+            explvar = pca.explained_variance_
+
+            plt.figure()
+            plt.plot(explvar)
+            plt.xlabel('PCAs'); plt.ylabel('explained variance')
+            plt.vlines(pcas_cutoff, 0, explvar[0], colors='k', linestyle='dotted')
+            plt.tight_layout(); self.poppdf.savefig(); plt.close()
+
+            proj = pca.transform(unit_modulations)
+            gproj = proj[:,:pcas_cutoff]
+
             km = KMeans(n_clusters=5)
-            km.fit_predict(norm_deflection)
+            km.fit_predict(gproj)
             Z = km.labels_
 
-            with open(os.path.join(self.savepath,'dEye_PSTH_km_clust.pickle'), 'wb') as f:
+            with open(os.path.join(self.savepath,'dEye_PSTH_km_model.pickle'), 'wb') as f:
                 pickle.dump(km, f)
+            with open(os.path.join(self.savepath,'dEye_PSTH_pca_model.pickle'), 'wb') as f:
+                pickle.dump(pca, f)
 
-            reduced_data = PCA(n_components=2).fit_transform(norm_deflection)
-            h = .02
-            plt.figure()
-            plt.title('PCA of dEye PSTH clusters (k=5)')
-            plt.scatter(reduced_data[:,0], reduced_data[:,1], c=Z, s=8, cmap='Set2')
-            plt.tight_layout(); self.poppdf.savefig(); plt.close()
-            np.save(file=os.path.join(self.savepath,'dEye_PSTH_pca.npy'), arr=reduced_data)
+            np.save(file=os.path.join(self.savepath,'dEye_PSTH_pca.npy'), arr=proj)
         
         elif self.exptype=='ltdk':
             # load in the clustering model from the hf/fm experiment data
-            with open(os.path.join(self.savepath,'dEye_PSTH_km_clust.pickle'), 'rb') as f:
+            with open(os.path.join(self.savepath,'dEye_PSTH_km_model.pickle'), 'rb') as f:
                 km = pickle.load(f)
+            with open(os.path.join(self.savepath,'dEye_PSTH_pca_model.pickle'), 'rb') as f:
+                pca = pickle.load(f)
+            
+            proj = pca.transform(unit_modulations)
+            gproj = proj[:,:pcas_cutoff]
 
-            Z = km.predict(norm_deflection)
-        
+            Z = km.predict(gproj)
+
         self.data['mov_kmclust'] = Z
+        
+        clustermeans = np.zeros([5,83])
+        for l in range(5):
+            clustermeans[l] = np.nanmean(flatten_series(self.data['pref_gazeshift_psth'][self.data['mov_kmclust']==l]),0)
+        cluster_to_cell_type = dict()
+        for l in range(5):
+            mean_response = clustermeans[l, self.trange_win[0]:self.trange_win[1]]
+            mean_baseline = np.nanmean(clustermeans[l, :self.trange_win[0]])
+            cluster_to_cell_type[l] = self.label_movcluster(mean_response, mean_baseline)
+        for ind, row in self.data.iterrows():
+            self.data.at[ind, 'movcluster'] = cluster_to_cell_type[row['mov_kmclust']]
 
         plt.subplots(2,3, figsize=(15,10))
         mean_cluster = dict()
@@ -2395,77 +2481,75 @@ class Population:
             session = sessions[session_num]
             # get 0th index of units in this session (all units have identical info for these columns)
             row = self.data[self.data['session']==session].iloc[0]
+                
+            eyeT = np.array(row['FmLt_eyeT'])
+            dEye = row['FmLt_dEye_dps']
+            dhead = row['FmLt_dHead']
+            dgz = dEye + dhead
             
-            if type(row['FmLt_eyeT']) != float and type(row['FmLt_dEye_dps']) != float and type(row['FmLt_dHead']) != float:
-                
-                eyeT = np.array(row['FmLt_eyeT'])
-                dEye = row['FmLt_dEye_dps']
-                dhead = row['FmLt_dHead']
-                dgz = dEye + dhead
-                
-                if movement=='eye_gaze_shifting':
-                    sthresh = 5
-                    rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
-                    leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-                elif movement=='eye_comp':
-                    sthresh = 3
-                    rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
-                    leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
-                elif movement=='head_gaze_shifting':
-                    sthresh = 3
-                    rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)>sthresh)]
-                    leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
-                elif movement=='head_comp':
-                    sthresh = 3
-                    rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)<1)]
-                    leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)>-1)]
+            if movement=='eye_gaze_shifting':
+                sthresh = 5
+                rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)>sthresh)]
+                leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+            elif movement=='eye_comp':
+                sthresh = 3
+                rightsacc = eyeT[(np.append(dEye,0)>sthresh) & (np.append(dgz,0)<1)]
+                leftsacc = eyeT[(np.append(dEye,0)<-sthresh) & (np.append(dgz,0)>-1)]
+            elif movement=='head_gaze_shifting':
+                sthresh = 3
+                rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)>sthresh)]
+                leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)<-sthresh)]
+            elif movement=='head_comp':
+                sthresh = 3
+                rightsacc = eyeT[(np.append(dhead,0)>sthresh) & (np.append(dgz,0)<1)]
+                leftsacc = eyeT[(np.append(dhead,0)<-sthresh) & (np.append(dgz,0)>-1)]
 
-                deye_mov_right = np.zeros([len(rightsacc), len(self.trange)]); deye_mov_left = np.zeros([len(leftsacc), len(self.trange)])
-                dgz_mov_right = np.zeros([len(rightsacc), len(self.trange)]); dgz_mov_left = np.zeros([len(leftsacc), len(self.trange)])
-                dhead_mov_right = np.zeros([len(rightsacc), len(self.trange)]); dhead_mov_left = np.zeros([len(leftsacc), len(self.trange)])
+            deye_mov_right = np.zeros([len(rightsacc), len(self.trange)]); deye_mov_left = np.zeros([len(leftsacc), len(self.trange)])
+            dgz_mov_right = np.zeros([len(rightsacc), len(self.trange)]); dgz_mov_left = np.zeros([len(leftsacc), len(self.trange)])
+            dhead_mov_right = np.zeros([len(rightsacc), len(self.trange)]); dhead_mov_left = np.zeros([len(leftsacc), len(self.trange)])
 
-                for sind in range(len(rightsacc)):
-                    s = rightsacc[sind]
-                    mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
-                    trange_inds = list(mov_ind + np.arange(-42,42))
-                    if np.max(trange_inds) < len(dEye):
-                        deye_mov_right[sind,:] = dEye[np.array(trange_inds)]
-                    if np.max(trange_inds) < len(dgz):
-                        dgz_mov_right[sind,:] = dgz[np.array(trange_inds)]
-                    if np.max(trange_inds) < len(dhead):
-                        dhead_mov_right[sind,:] = dhead[np.array(trange_inds)]
-                for sind in range(len(leftsacc)):
-                    s = leftsacc[sind]
-                    mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
-                    trange_inds = list(mov_ind + np.arange(-42,42))
-                    if np.max(trange_inds) < len(dEye):
-                        deye_mov_left[sind,:] = dEye[np.array(trange_inds)]
-                    if np.max(trange_inds) < len(dgz):
-                        dgz_mov_left[sind,:] = dgz[np.array(trange_inds)]
-                    if np.max(trange_inds) < len(dhead):
-                        dhead_mov_left[sind,:] = dhead[np.array(trange_inds)]
-                
-                plt.subplot(n_sessions,4,count)
-                count += 1
-                plt.plot(self.trange_x, np.nanmean(deye_mov_right,0), color='tab:blue')
-                plt.plot(self.trange_x, np.nanmean(deye_mov_left,0), color='red')
-                plt.title(session + movement)
-                plt.ylabel('deye')
-                plt.subplot(n_sessions,4,count)
-                count += 1
-                plt.plot(self.trange_x, np.nancumsum(np.nanmean(deye_mov_right,0)), color='tab:blue')
-                plt.plot(self.trange_x, np.nancumsum(np.nanmean(deye_mov_left,0)), color='red')
-                plt.ylabel('cumulative deye')
-                plt.subplot(n_sessions,4,count)
-                count += 1
-                plt.plot(self.trange_x, np.nanmean(dhead_mov_right,0), color='tab:blue')
-                plt.plot(self.trange_x, np.nanmean(dhead_mov_left,0), color='red')
-                plt.ylabel('dhead')
-                plt.subplot(n_sessions,4,count)
-                count += 1
-                plt.plot(self.trange_x, np.nancumsum(np.nanmean(dhead_mov_right,0)), color='tab:blue')
-                plt.plot(self.trange_x, np.nancumsum(np.nanmean(dhead_mov_left,0)), color='red')
-                plt.ylabel('cumulative dhead')
+            for sind in range(len(rightsacc)):
+                s = rightsacc[sind]
+                mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
+                trange_inds = list(mov_ind + np.arange(-42,42))
+                if np.max(trange_inds) < len(dEye):
+                    deye_mov_right[sind,:] = dEye[np.array(trange_inds)]
+                if np.max(trange_inds) < len(dgz):
+                    dgz_mov_right[sind,:] = dgz[np.array(trange_inds)]
+                if np.max(trange_inds) < len(dhead):
+                    dhead_mov_right[sind,:] = dhead[np.array(trange_inds)]
+            for sind in range(len(leftsacc)):
+                s = leftsacc[sind]
+                mov_ind = np.where([eyeT==self.find_nearest(eyeT, s)])[1]
+                trange_inds = list(mov_ind + np.arange(-42,42))
+                if np.max(trange_inds) < len(dEye):
+                    deye_mov_left[sind,:] = dEye[np.array(trange_inds)]
+                if np.max(trange_inds) < len(dgz):
+                    dgz_mov_left[sind,:] = dgz[np.array(trange_inds)]
+                if np.max(trange_inds) < len(dhead):
+                    dhead_mov_left[sind,:] = dhead[np.array(trange_inds)]
+            
+            plt.subplot(n_sessions,4,count)
+            count += 1
+            plt.plot(self.trange_x, np.nanmean(deye_mov_right,0), color='tab:blue')
+            plt.plot(self.trange_x, np.nanmean(deye_mov_left,0), color='red')
+            plt.title(session + movement)
+            plt.ylabel('deye')
+            plt.subplot(n_sessions,4,count)
+            count += 1
+            plt.plot(self.trange_x, np.nancumsum(np.nanmean(deye_mov_right,0)), color='tab:blue')
+            plt.plot(self.trange_x, np.nancumsum(np.nanmean(deye_mov_left,0)), color='red')
+            plt.ylabel('cumulative deye')
+            plt.subplot(n_sessions,4,count)
+            count += 1
+            plt.plot(self.trange_x, np.nanmean(dhead_mov_right,0), color='tab:blue')
+            plt.plot(self.trange_x, np.nanmean(dhead_mov_left,0), color='red')
+            plt.ylabel('dhead')
+            plt.subplot(n_sessions,4,count)
+            count += 1
+            plt.plot(self.trange_x, np.nancumsum(np.nanmean(dhead_mov_right,0)), color='tab:blue')
+            plt.plot(self.trange_x, np.nancumsum(np.nanmean(dhead_mov_left,0)), color='red')
+            plt.ylabel('cumulative dhead')
         plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
     def set_activity_thresh(self, method='min_active', light_val=14, dark_val=7):
