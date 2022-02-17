@@ -4,7 +4,7 @@ FreelyMovingEphys/projects/ephys/population.py
 import pandas as pd
 import numpy as np
 import os, platform, json
-from joblib import dump, load
+import pickle
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -17,6 +17,7 @@ from scipy.signal import find_peaks
 import matplotlib.patches as mpatches
 from scipy.interpolate import interp1d
 import scipy.interpolate
+from matplotlib import cm
 import itertools
 from scipy import stats
 import warnings
@@ -39,9 +40,10 @@ class Population:
         self.trange = np.arange(-1, 1.1, self.model_dt)
         self.trange_x = 0.5*(self.trange[0:-1]+ self.trange[1:])
         self.cmap_orientation = ['#fec44f','#ec7014','#993404','#000000'] # [low, mid, high, spont]
-        self.cmap_movclusts = ['#4d4d4d','#4daf4a','#984ea3','#377eb8','#e41a1c','#999999'] # [all, early, late, biphasic, negative, unresponsive]
-        self.cmap_celltype = ['#fee08b','#66c2a5'] # [exc, inh]
-        self.cmap_sacc = ['#e9a3c9','#91bfdb'] # [right, left]
+        self.cmap_movclusts = ['k', cm.Dark2(0), cm.Dark2(2), cm.Dark2(3), cm.Dark2(5), cm.Dark2(7)] # [all, early, late, biphasic, negative, unresponsive]
+        self.cmap_celltype = ['sandybrown', 'olivedrab'] # [exc, inh]
+        self.cmap_sacc = ['steelblue','coral'] # [right, left]
+        self.cmap_special2 = ['dimgray','deepskyblue']
 
     def gather_data(self, csv_filepath=None, path_list=None, probe_list=None, ltdk_bools=None,
                     opticflow_bools=None):
@@ -336,7 +338,8 @@ class Population:
         panel.plot(np.arange(8)*45, raw_tuning[:,1], label='mid sf', color=self.cmap_orientation[1])
         panel.plot(np.arange(8)*45, raw_tuning[:,2], label='high sf', color=self.cmap_orientation[2])
         panel.plot([0,315],[drift_spont,drift_spont],':',label='spont', color=self.cmap_orientation[3])
-        panel.legend()
+        if tf_sel=='mean':
+            panel.legend()
         panel.set_ylim([0,np.nanmax(self.current_row['Gt_ori_tuning_tf'][:,:,:])*1.2])
         if tf_sel=='mean':
             self.data.at[self.current_index, 'Gt_osi_low'] = osi[0]; self.data.at[self.current_index, 'Gt_osi_mid'] = osi[1]; self.data.at[self.current_index, 'Gt_osi_high'] = osi[2]
@@ -452,7 +455,7 @@ class Population:
         panel.set_title(title, fontsize=20)
         panel.axis('off')
 
-    def movement_psth(self, panel, rightsacc, leftsacc, title):
+    def movement_psth(self, panel, rightsacc, leftsacc, title, show_legend=False):
         rightavg = self.current_row[rightsacc]; leftavg = self.current_row[leftsacc]
         panel.set_title(title, fontsize=20)
         modind_right = self.saccade_modulation_index(rightavg)
@@ -461,7 +464,8 @@ class Population:
         panel.annotate('0ms='+str(modind_right[0])+' 100ms='+str(modind_right[1]), color=self.cmap_sacc[0], xy=(0.05, 0.95), xycoords='axes fraction', fontsize=15)
         panel.plot(self.trange_x, leftavg[:], color=self.cmap_sacc[1])
         panel.annotate('0ms='+str(modind_left[0])+' 100ms='+str(modind_left[1]), color=self.cmap_sacc[1], xy=(0.05, 0.87), xycoords='axes fraction', fontsize=15)
-        panel.legend(['right','left'], loc=1)
+        if show_legend:
+            panel.legend(['right','left'], loc=1)
         maxval = np.max(np.maximum(rightavg[:], leftavg[:]))*1.2
         panel.set_ylim([0, maxval])
         panel.set_xlim([-0.5, 0.6])
@@ -731,7 +735,8 @@ class Population:
             FmLt_all_dEye_right_modind, FmLt_all_dEye_left_modind = self.movement_psth(panel=fig_FmLt_all_dEye,
                                     rightsacc='FmLt_rightsacc_avg',
                                     leftsacc='FmLt_leftsacc_avg',
-                                    title='FmLt all dEye')
+                                    title='FmLt all dEye',
+                                    show_legend=True)
             self.data.at[self.current_index, 'FmLt_rightsacc_modind_t0'] = FmLt_all_dEye_right_modind[0]
             self.data.at[self.current_index, 'FmLt_leftsacc_modind_t0'] = FmLt_all_dEye_left_modind[0]
             self.data.at[self.current_index, 'FmLt_rightsacc_modind_t100'] = FmLt_all_dEye_right_modind[1]
@@ -2147,19 +2152,19 @@ class Population:
 
         for ind, row in self.data.iterrows():
             deflection_at_pref_direction = [row['FmLt_leftsacc_avg_gaze_shift_dEye'],row['FmLt_rightsacc_avg_gaze_shift_dEye']][int(row['pref_gazeshift_direction_ind'])]
-            norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(deflection_at_pref_direction))
+            norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['deflection_at_pref_direction']))
             self.data.at[ind, 'pref_gazeshift_psth'] = norm_deflection.astype(object)
 
             deflection_at_pref_direction = [row['FmLt_leftsacc_avg_comp_dEye'],row['FmLt_rightsacc_avg_comp_dEye']][int(row['pref_gazeshift_direction_ind'])]
-            norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(deflection_at_pref_direction))
+            norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['deflection_at_pref_direction']))
             self.data.at[ind, 'pref_comp_psth'] = norm_comp_deflection.astype(object)
 
             deflection_at_pref_direction = [row['FmLt_leftsacc_avg_gaze_shift_dEye'],row['FmLt_rightsacc_avg_gaze_shift_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
-            norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(deflection_at_pref_direction))
+            norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['deflection_at_pref_direction']))
             self.data.at[ind, 'nonpref_gazeshift_psth'] = norm_deflection.astype(object)
 
             deflection_at_pref_direction = [row['FmLt_leftsacc_avg_comp_dEye'],row['FmLt_rightsacc_avg_comp_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
-            norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(deflection_at_pref_direction))
+            norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['deflection_at_pref_direction']))
             self.data.at[ind, 'nonpref_comp_psth'] = norm_comp_deflection.astype(object)
 
             if np.sum(self.data['has_dark'])==len(self.data):
@@ -2179,26 +2184,32 @@ class Population:
                 self.data.at[ind, 'nonpref_comp_psth_FmDk'] = dark_comp_norm_opp.astype(object)
 
         norm_deflection = flatten_series(self.data['pref_gazeshift_psth'])
+
         if self.exptype=='hffm':
             # create the clustering model
             km = KMeans(n_clusters=5)
             km.fit_predict(norm_deflection)
             Z = km.labels_
-            dump(km, os.path.join(self.savepath,'dEye_PSTH_km_clust.joblib'))
+
+            with open(os.path.join(self.savepath,'dEye_PSTH_km_clust.pickle'), 'wb') as f:
+                pickle.dump(km, f)
+
+            reduced_data = PCA(n_components=2).fit_transform(norm_deflection)
+            h = .02
+            plt.figure()
+            plt.title('PCA of dEye PSTH clusters (k=5)')
+            plt.scatter(reduced_data[:,0], reduced_data[:,1], c=Z, s=8, cmap='Set2')
+            plt.tight_layout(); self.poppdf.savefig(); plt.close()
+            np.save(file=os.path.join(self.savepath,'dEye_PSTH_pca.npy'), arr=reduced_data)
+        
         elif self.exptype=='ltdk':
             # load in the clustering model from the hf/fm experiment data
-            km = load(os.path.join(self.savepath,'dEye_PSTH_km_clust.joblib'))
-            km.predict(norm_deflection)
-            Z = km.labels_
+            with open(os.path.join(self.savepath,'dEye_PSTH_km_clust.pickle'), 'rb') as f:
+                km = pickle.load(f)
+
+            Z = km.predict(norm_deflection)
         
-        reduced_data = PCA(n_components=2).fit_transform(norm_deflection)
-        h = .02
-        plt.figure()
-        plt.title('PCA of dEye PSTH clusters (k=5)')
-        plt.scatter(reduced_data[:,0], reduced_data[:,1], c=Z, s=8, cmap='Set2')
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
         self.data['mov_kmclust'] = Z
-        np.save(file=os.path.join(self.savepath,'dEye_PSTH_pca.npy'), arr=reduced_data)
 
         plt.subplots(2,3, figsize=(15,10))
         mean_cluster = dict()
@@ -2323,57 +2334,57 @@ class Population:
             self.deye_cluster_props(labels, 'movcluster', 'nonpref_gazeshift_psth_FmDk', 'dark gaze-shift opposite', filter_has_dark=True)
             self.deye_cluster_props(labels, 'movcluster', 'nonpref_comp_psth_FmDk', 'dark comp opposite', filter_has_dark=True)
 
-            labels = sorted(self.data['movcluster'].unique())
-            stims = ['pref_gazeshift_psth','pref_comp_psth','nonpref_gazeshift_psth','nonpref_comp_psth',
-                    'pref_gazeshift_psth_FmDk','pref_comp_psth_FmDk','nonpref_gazeshift_psth_FmDk','nonpref_comp_psth_FmDk']
-            stim_titles = ['pref gaze shift','pref comp','opp gaze shift','opp comp','dark pref gaze shift','dark pref comp','dark opp gaze shift','dark opp comp']
-            for label_count, label in enumerate(labels):
-                tempcolor = self.deye_psth_cmap[label_count]
-                cluster = self.data[self.data['movcluster']==label]
-                plt.subplots(2,4,figsize=(14,9))
-                for stim_count in range(8):
-                    stim = stims[stim_count]
-                    stim_name = stim_titles[stim_count]
-                    if 'dark' in stim_name:
-                        usecluster = cluster[cluster['has_dark']]
-                    else:
-                        usecluster = cluster
-                    plt.subplot(2,4,stim_count+1)
-                    for ind, row in usecluster.iterrows():
-                        plt.plot(self.trange_x, usecluster.loc[ind, stim], color=tempcolor, alpha=0.2)
-                    if len(usecluster[stim]) > 0:
-                        plt.plot(self.trange_x, np.nanmean(flatten_series(usecluster[stim]), 0), 'k')
-                    plt.xlim([-0.25,0.5])
-                    plt.title(stim_name)
-                    plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
-                    plt.ylim([-0.8,0.8])
-                plt.tight_layout(); self.poppdf.savefig(); plt.close()
+            # labels = sorted(self.data['movcluster'].unique())
+            # stims = ['pref_gazeshift_psth','pref_comp_psth','nonpref_gazeshift_psth','nonpref_comp_psth',
+            #         'pref_gazeshift_psth_FmDk','pref_comp_psth_FmDk','nonpref_gazeshift_psth_FmDk','nonpref_comp_psth_FmDk']
+            # stim_titles = ['pref gaze shift','pref comp','opp gaze shift','opp comp','dark pref gaze shift','dark pref comp','dark opp gaze shift','dark opp comp']
+            # for label_count, label in enumerate(labels):
+            #     tempcolor = self.deye_psth_cmap[label_count]
+            #     cluster = self.data[self.data['movcluster']==label]
+            #     plt.subplots(2,4,figsize=(14,9))
+            #     for stim_count in range(8):
+            #         stim = stims[stim_count]
+            #         stim_name = stim_titles[stim_count]
+            #         if 'dark' in stim_name:
+            #             usecluster = cluster[cluster['has_dark']]
+            #         else:
+            #             usecluster = cluster
+            #         plt.subplot(2,4,stim_count+1)
+            #         for ind, row in usecluster.iterrows():
+            #             plt.plot(self.trange_x, usecluster.loc[ind, stim], color=tempcolor, alpha=0.2)
+            #         if len(usecluster[stim]) > 0:
+            #             plt.plot(self.trange_x, np.nanmean(flatten_series(usecluster[stim]), 0), 'k')
+            #         plt.xlim([-0.25,0.5])
+            #         plt.title(stim_name)
+            #         plt.vlines(0, -1, 1, linestyles='dotted', colors='k')
+            #         plt.ylim([-0.8,0.8])
+            #     plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
-            props = ['FmDk_theta_modind','FmDk_phi_modind','FmDk_roll_modind','FmDk_pitch_modind',
-                    'FmDk_gyrox_modind','FmDk_gyroy_modind','FmDk_gyroz_modind',
-                    'FmLt_theta_modind','FmLt_phi_modind','FmLt_roll_modind','FmLt_pitch_modind',
-                    'FmLt_gyrox_modind','FmLt_gyroy_modind','FmLt_gyroz_modind']
-            prop_labels = ['dark theta modulation','dark phi modulation','dark roll modulation','dark pitch modulation',
-                    'dark gyro x modulation','dark gyro y modulation','dark gyro z modulation',
-                    'light theta modulation','light phi modulation','light roll modulation','light pitch modulation',
-                    'light gyro x modulation','light gyro y modulation','light gyro z modulation']
-            self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movcluster', self.deye_psth_cmap)
+        #     props = ['FmDk_theta_modind','FmDk_phi_modind','FmDk_roll_modind','FmDk_pitch_modind',
+        #             'FmDk_gyrox_modind','FmDk_gyroy_modind','FmDk_gyroz_modind',
+        #             'FmLt_theta_modind','FmLt_phi_modind','FmLt_roll_modind','FmLt_pitch_modind',
+        #             'FmLt_gyrox_modind','FmLt_gyroy_modind','FmLt_gyroz_modind']
+        #     prop_labels = ['dark theta modulation','dark phi modulation','dark roll modulation','dark pitch modulation',
+        #             'dark gyro x modulation','dark gyro y modulation','dark gyro z modulation',
+        #             'light theta modulation','light phi modulation','light roll modulation','light pitch modulation',
+        #             'light gyro x modulation','light gyro y modulation','light gyro z modulation']
+        #     self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movcluster', self.deye_psth_cmap)
 
-        if np.sum(self.data['has_hf'])>1:
-            plt.figure()
-            plt.subplots(2,2)
-            labels = sorted([i for i in self.data['movcluster'].unique() if i != 'unresponsive'])
-            for count, name in enumerate(labels):
-                lower = -0.5; upper = 1.5; dt = 0.1
-                bins = np.arange(lower, upper+dt, dt)
-                all_psth = flatten_series(self.data['Gt_grating_psth'][self.data['movcluster']==name])
-                mean_psth = np.nanmean(all_psth, 0)
-                plt.subplot(2,2,count+1)
-                plt.plot(bins[0:-1]+dt/2, mean_psth)
-                plt.title(name+' grat psth')
-                plt.xlabel('time'); plt.ylabel('sp/sec')
-                plt.ylim([0, np.nanmax(mean_psth)*1.2])
-            plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        # if np.sum(self.data['has_hf'])>1:
+        #     plt.figure()
+        #     plt.subplots(2,2)
+        #     labels = sorted([i for i in self.data['movcluster'].unique() if i != 'unresponsive'])
+        #     for count, name in enumerate(labels):
+        #         lower = -0.5; upper = 1.5; dt = 0.1
+        #         bins = np.arange(lower, upper+dt, dt)
+        #         all_psth = flatten_series(self.data['Gt_grating_psth'][self.data['movcluster']==name])
+        #         mean_psth = np.nanmean(all_psth, 0)
+        #         plt.subplot(2,2,count+1)
+        #         plt.plot(bins[0:-1]+dt/2, mean_psth)
+        #         plt.title(name+' grat psth')
+        #         plt.xlabel('time'); plt.ylabel('sp/sec')
+        #         plt.ylim([0, np.nanmax(mean_psth)*1.2])
+        #     plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
     def position_around_saccade(self, movement):
         sessions = [i for i in self.data['session'].unique() if type(i) != float]
@@ -2557,8 +2568,9 @@ class Population:
         print('dEye clustering')
         self.deye_clustering()
 
-        print('SbCs')
-        self.find_SbCs_and_trGratPsth()
+        if self.exptype == 'hffm':
+            print('SbCs')
+            self.find_SbCs_and_trGratPsth()
 
         if extras:
             print('dhead and deye around time of gaze shifting eye movements')
