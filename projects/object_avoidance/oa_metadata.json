@@ -1,0 +1,34 @@
+{
+    "path": "/path/to/all/recordings/",
+    "090121":{
+        "G6CK3LT": {"oa": {"num_positions": 7}},
+        "G6CK3RT": {"oa": {"num_positions": 7}}
+    },
+    "090221":{
+        "G6CK3LT": {"oa": {"num_positions": 7}}
+    },
+    "090321":{
+        "G6CK3LT": {"oa": {"num_positions": 7}},
+        "G6CK3RT": {"oa": {"num_positions": 7}}
+    },
+    "090621":{
+        "G6CK3LT": {"oa": {"num_positions": 7}},
+        "G6CK3RT": {"oa": {"num_positions": 6}}
+    },
+    "090721":{
+        "G6CK3LT": {"oa": {"num_positions": 6}},
+        "G6CK3RT": {"oa": {"num_positions": 9}}
+    },
+    "090821":{
+        "G6CK3LT": {"oa": {"num_positions": 5}},
+        "G6CK3RT": {"oa": {"num_positions": 5}}
+    },
+    "090921":{
+        "G6CK3LT": {"oa": {"num_positions": 5}, "oa1": {"num_positions": 7}},
+        "G6CK3RT": {"oa": {"num_positions": 5}, "oa1": {"num_positions": 5}}
+    },
+    "091321":{
+        "G6CK3LT": {"oa": {"num_positions": 4}, "oa1": {"num_positions": 9}},
+        "G6CK3RT": {"oa": {"num_positions": 3}, "oa1": {"num_positions": 3}}
+    }
+}
