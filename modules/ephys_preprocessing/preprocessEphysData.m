@@ -7,7 +7,7 @@ json_path = 'C:/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys/config/channe
 % options for probe name are: [default16, NN_H16, default64, NN_H64_LP, DB_P64_3, DB_P64_8, DB_P128_6]
 % default16 and default64 are ordered sequences (i.e. no remaping done)
 % all remappings should be 1 (not 0) referenced
-probe = 'DB_P64_3';
+probe = 'DB_P128_6';
 
 % get required params for applyCARtoDat
 [chanMap, nchan, subset] = getProbeMap(probe, json_path);
