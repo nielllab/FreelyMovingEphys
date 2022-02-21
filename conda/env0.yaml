@@ -21,6 +21,7 @@ dependencies:
   - xarray=0.16
   - tqdm
   - pytables
+  - umap-learn
   - pip:
     - "deeplabcut[gui]"
     - astropy
