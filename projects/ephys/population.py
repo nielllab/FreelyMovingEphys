@@ -2229,14 +2229,14 @@ class Population:
 
             if np.sum(self.data['has_dark'])==len(self.data):
                 dark_gaze_shift = [row['FmDk_leftsacc_avg_gaze_shift_dEye'],row['FmDk_rightsacc_avg_gaze_shift_dEye']][int(row['pref_gazeshift_direction_ind'])]
-                dark_gaze_shift_norm = ((dark_gaze_shift-np.nanmean(dark_gaze_shift)) / np.nanmax(np.abs(dark_gaze_shift)))
+                dark_gaze_shift_norm = (dark_gaze_shift-np.nanmean(dark_gaze_shift)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
                 dark_comp = [row['FmDk_leftsacc_avg_comp_dEye'],row['FmDk_rightsacc_avg_comp_dEye']][int(row['pref_gazeshift_direction_ind'])]
-                dark_comp_norm = ((dark_comp-np.nanmean(dark_comp)) / np.nanmax(np.abs(dark_comp)))
+                dark_comp_norm = (dark_comp-np.nanmean(dark_comp)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
 
                 dark_gaze_shift_opp = [row['FmDk_leftsacc_avg_gaze_shift_dEye'],row['FmDk_rightsacc_avg_gaze_shift_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
-                dark_gaze_shift_norm_opp = ((dark_gaze_shift_opp-np.nanmean(dark_gaze_shift_opp)) / np.nanmax(np.abs(dark_gaze_shift_opp)))
+                dark_gaze_shift_norm_opp = (dark_gaze_shift_opp-np.nanmean(dark_gaze_shift_opp)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
                 dark_comp_opp = [row['FmDk_leftsacc_avg_comp_dEye'],row['FmDk_rightsacc_avg_comp_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
-                dark_comp_norm_opp = ((dark_comp_opp-np.nanmean(dark_comp_opp)) / np.nanmax(np.abs(dark_comp_opp)))
+                dark_comp_norm_opp = (dark_comp_opp-np.nanmean(dark_comp_opp)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
 
                 self.data.at[ind, 'pref_gazeshift_psth_FmDk'] = dark_gaze_shift_norm.astype(object)
                 self.data.at[ind, 'pref_comp_psth_FmDk'] = dark_comp_norm.astype(object)

@@ -19,7 +19,11 @@ class OpticFlow:
         self.ephys_path = find('*fm1*_ephys_props.h5',base_path)[0]
         self.save_name = os.path.join(base_path,'fm1_optic_flow.npz')
 
-    def calc_optic_flow(self, crop_pix=10, win=5, lag_list=[-2,-1,0,1,2]):
+        self.win = 5
+        self.crop_pix = 10
+        self.lag_list = [-2, -1, 0, 1, 2]
+
+    def calc_optic_flow(self):
         """
         lag_list: sta lags
         win: number of frames for window of optic flow
@@ -40,9 +44,15 @@ class OpticFlow:
         print('calculating optic flow')
         # loop over all frames to get optic flow
         for f in tqdm(np.arange(1,fr,1)):
-            flow = cv2.calcOpticalFlowFarneback(wc_data[f,:,:],wc_data[f+1,:,:], None, 0.5, 3, win, 3, 5, 1.2, 0)
+            flow = cv2.calcOpticalFlowFarneback(wc_data[f,:,:],wc_data[f+1,:,:], None, 0.5, 3, self.win, 3, 5, 1.2, 0)
             flow_data[f,:,:,0] = flow[:,:,0]
             flow_data[f,:,:,1] = flow[:,:,1]
+
+        dropframes = []
+        for f in range(flow_data.shape[0]):
+            if np.sum(np.isnan(flow_data[f,:,:]))>0:
+                dropframes.append(f)
+        flow_data = np.delete(flow_data, dropframes, 0)
 
         # get active times from gyro
         nan_idxs = []
@@ -85,16 +95,19 @@ class OpticFlow:
             activity_state_bool = activity_state_bools[state_num].astype(bool)
             activity_state_name = activity_state_names[state_num]
 
+            spike_bool = [False if f in dropframes else val for f, val in enumerate(activity_state_bool)]
+            video_bool = [val for f, val in enumerate(activity_state_bool) if f not in dropframes]
+
             print(activity_state_name)
             
             # filter for current def of activity
             # also need to crop worldcam to get rid of shifter artifacts
             raw_nsp = data['model_nsp'].copy()
-            state_nsp = raw_nsp[activity_state_bool]
+            state_nsp = raw_nsp[spike_bool,:]
             
             raw_flow_data = flow_data.copy()
             raw_flow_data = np.vstack((np.zeros((2,raw_flow_data.shape[1],raw_flow_data.shape[2],raw_flow_data.shape[3])),raw_flow_data))
-            state_flow = raw_flow_data[activity_state_bool, crop_pix:-crop_pix, crop_pix:-crop_pix]
+            state_flow = raw_flow_data[video_bool, self.crop_pix:-self.crop_pix, self.crop_pix:-self.crop_pix]
 
             num_cells = np.size(state_nsp,1)
             
@@ -105,10 +118,10 @@ class OpticFlow:
             flow_amp_mnsub = flow_amp.copy() # copy for z-scoring
             flow_amp_mnsub -= flow_amp_mn # subtract mean from flow data
             flow_amp_mnsub /= flow_amp_std # divide by standard deviation
-            rolled_vid = np.hstack([np.roll(flow_amp_mnsub, nframes, axis=0) for nframes in lag_list]) # incorporate lags
+            rolled_vid = np.hstack([np.roll(flow_amp_mnsub, nframes, axis=0) for nframes in self.lag_list]) # incorporate lags
             model_vid = rolled_vid.reshape(flow_amp_mnsub.shape[0],-1) # reshape for sta calculation
             sta = (model_vid.T @ state_nsp)/np.sum(state_nsp,0,keepdims=True) # get sta
-            flow_amp_sta = sta.T.reshape((num_cells,len(lag_list)) + flow_amp_mnsub.shape[1:]) #reshape flow amp sta into [unit,lag,x,y]
+            flow_amp_sta = sta.T.reshape((num_cells,len(self.lag_list)) + flow_amp_mnsub.shape[1:]) #reshape flow amp sta into [unit,lag,x,y]
 
             # optic flow vector
             flow_mn = np.mean(state_flow, axis=0) # calculate flow mean
@@ -116,10 +129,10 @@ class OpticFlow:
             flow_data_mnsub = state_flow.copy() # copy flow data to be z-scored
             flow_data_mnsub -= flow_mn # subtract mean from flow data
             flow_data_mnsub /= flow_std # divide by standard deviation
-            rolled_vid = np.hstack([np.roll(flow_data_mnsub, nframes, axis=0) for nframes in lag_list]) # incorporate lags
+            rolled_vid = np.hstack([np.roll(flow_data_mnsub, nframes, axis=0) for nframes in self.lag_list]) # incorporate lags
             model_vid = rolled_vid.reshape(flow_data_mnsub.shape[0],-1) # reshape flow data for sta
             sta = (model_vid.T @ state_nsp)/np.sum(state_nsp,0,keepdims=True) # calculate flow sta
-            flow_vector_sta = sta.T.reshape((num_cells,len(lag_list)) + flow_data_mnsub.shape[1:]) # reshape flow sta into [unit,lag,x,y,U/V]
+            flow_vector_sta = sta.T.reshape((num_cells,len(self.lag_list)) + flow_data_mnsub.shape[1:]) # reshape flow sta into [unit,lag,x,y,U/V]
             
             flow_amp_dict[activity_state_name] = flow_amp_sta
             flow_vec_dict[activity_state_name] = flow_vector_sta
