@@ -48,35 +48,19 @@ def check_subdir(basepath, path):
     else:
         return os.path.join(basepath, path)
 
-def list_subdirs(root_dir, name_only=False):
+def list_subdirs(rootdir, givepath=False):
     """ List subdirectories in a root directory.
-
-    Parameters
-    --------
-    root_dir : str
-        Root direction that subdirectories are in.
-    name_only : bool
-        When True, returns the name of subdirectories. When False,
-        returns the full path to that directory including the
-        name.
-
-    Returns
-    --------
-    dirnames : list
-        List of directories as strings.
     """
-    dirnames = []
-    
-    if not name_only:
-        for _, dirs, _ in os.walk(root_dir):
-            for rec_dir in dirs:
-                dirnames.append(rec_dir)
-    elif name_only:
-        for _, _, filenames in os.walk(root_dir):
-            for name in filenames:
-                dirnames.append(name)
-            break
-    return dirnames
+    paths = []; names = []
+    for item in os.scandir(rootdir):
+        if os.path.isdir(item):
+            if item.name[0]!='.':
+                paths.append(item.path)
+                names.append(item.name)
+    if givepath:
+        return paths
+    elif not givepath:
+        return names
 
 def auto_recording_name(recording_path):
     """ Parse file names in recording path to build name of the recording.

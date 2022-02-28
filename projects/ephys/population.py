@@ -282,6 +282,66 @@ class Population:
         panel.axis('equal')
         # panel.set_title(movstate + ' amp')
 
+    def add_avalible_RcSn_psth(self):
+        self.data['has_hfpsth'] = False
+
+        # set up and create empty columns
+        dummy_psth = np.zeros([83])*np.nan
+        psth_series = pd.Series([])
+        for i in range(len(self.data)):
+            psth_series[i] = dummy_psth.astype(object)
+        for col in ['Rc_psth','Sn_all_psth','Sn_l2d_psth','Sn_d2l_psth','Sn_onlyglobal_psth']:
+            self.data[col] = psth_series.copy().astype(object)
+        dummy_vals = np.zeros([2])*np.nan
+        dummy_series = pd.Series([])
+        for i in range(len(self.data)):
+            dummy_series[i] = dummy_vals.astype(object)
+        self.data['Wn_rf_cent'] = dummy_series.copy().astype(object)
+
+        # add it for each unit
+        sessions = self.data['original_session_path'].unique()
+        for session_path in sessions:
+            psth_files = find('addtlhf_props.npz', session_path)
+            if psth_files:
+                print('reading '+psth_files[0])
+                psth_data = np.load(psth_files[0])
+                # reversing checkerboard
+                rc_psth = psth_data['rc'] # shape is [unit#, time]
+                # sparse noise
+                sn_psth = psth_data['sn'] # shape is [unit#, time, all/l2d/d2l/only_global]
+                # receptive field centers
+                rf_xy = psth_data['rf'] # shape is [unit#, x/y]
+                
+                # just the current session
+                use_inds = [os.path.samefile(p, session_path) for p in self.data['original_session_path']]
+                for i, ind in enumerate(self.data[use_inds].index.values):
+                    self.data.at[ind, 'has_hfpsth'] = True
+                    self.data.at[ind, 'Rc_psth'] = rc_psth[i,:]
+                    self.data.at[ind, 'Wn_rf_cent'] = rf_xy[i,:]
+                    self.data.at[ind, 'Sn_all_psth'] = sn_psth[i,:,0]
+                    self.data.at[ind, 'Sn_on_psth'] = sn_psth[i,:,1]
+                    self.data.at[ind, 'Sn_off_psth'] = sn_psth[i,:,2]
+                    self.data.at[ind, 'Sn_background_psth'] = sn_psth[i,:,3]
+
+    def rc_psth(self, panel, tightx=True):
+        panel.plot(self.trange_x, self.current_row['Rc_psth'], color='k')
+        panel.set_ylim([0,np.nanmax(self.current_row['Rc_psth'])*1.2])
+        panel.set_title('RevChecker PSTH')
+        panel.set_ylabel('sec')
+        panel.set_xlabel('sp/sec')
+        if tightx:
+            panel.set_xlim([-0.2,0.4])
+
+    def sn_psth(self, panel, tightx=True):
+        panel.plot(self.trange_x, self.current_row['Sn_l2d_psth'], color='k')
+        panel.plot(self.trange_x, self.current_row['Sn_d2l_psth'], color='lightgray')
+        panel.set_ylim([0,np.nanmax(self.current_row['Rc_psth'])*1.2])
+        panel.set_title('SparseNoise PSTH')
+        panel.set_ylabel('sec')
+        panel.set_xlabel('sp/sec')
+        if tightx:
+            panel.set_xlim([-0.2,0.4])
+
     def tuning_modulation_index(self, tuning):
         tuning = tuning[~np.isnan(tuning)]
         modind = (np.max(tuning) - np.min(tuning)) / (np.max(tuning) + np.min(tuning))
@@ -484,7 +544,7 @@ class Population:
         else:
             return False
 
-    def summarize_units(self):
+    def summarize_units(self, use_pop_outputs=False):
         pdf = PdfPages(os.path.join(self.savepath, 'unit_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
 
         if 'FmDk_theta' in self.data.columns:
@@ -507,7 +567,7 @@ class Population:
             self.current_row = row
 
             # set up page
-            self.figure = plt.figure(constrained_layout=True, figsize=(60,45))
+            self.figure = plt.figure(constrained_layout=True, figsize=(30,22))
             self.spec = gridspec.GridSpec(ncols=7, nrows=10, figure=self.figure)
 
             # page title
@@ -832,6 +892,9 @@ class Population:
                                         movstate=movstates[i])
                     self.optic_flow_amp(panel=stateamps[i],
                                     movstate=movstates[i])
+
+            if use_pop_outputs:
+                self.modulation_scatters()
 
             # set up panels for dark figures
             fig_fmdark_gyro_z_tuning = self.figure.add_subplot(self.spec[7,0])
