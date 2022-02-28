@@ -22,7 +22,8 @@ class AddtlHF:
         self.Rc_world = xr.open_dataset(find('*hf4_revchecker*_world.nc', base_path)[0])
 
         self.Sn_dStim_thresh = 1e5
-        self.Sn_rf_change_thresh = 20
+        self.Sn_rf_change_thresh = 30
+        self.frameshift = 4
 
         model_dt = 0.025
         self.trange = np.arange(-1, 1.1, model_dt)
@@ -41,16 +42,26 @@ class AddtlHF:
         stim_history = vid[:,y*2,x*2]
         return stim_history, x, y
 
-    def sort_lum(self, unit_stim, eventT, eyeT, flips):
+    def sort_lum(self, unit_stim, eventT, eyeT, flips, ):
         event_eyeT = np.zeros(len(eventT))
         for i, t in enumerate(eventT):
             event_eyeT[i] = eyeT[np.argmin(np.abs(t-eyeT))]
-        rf_l2d = event_eyeT.copy(); rf_d2l = event_eyeT.copy(); only_global = event_eyeT.copy()
+        rf_off = event_eyeT.copy(); rf_on = event_eyeT.copy(); only_global = event_eyeT.copy()
         gray = np.nanmedian(unit_stim)
-        rf_l2d = rf_l2d[unit_stim[flips]<(gray-self.Sn_rf_change_thresh)] # light-to-dark transitions, as a timestamp in ephys eyeT timebase
-        rf_d2l = rf_d2l[unit_stim[flips]>(gray+self.Sn_rf_change_thresh)] # same for dark-to-light transitions
-        only_global = only_global[(unit_stim[flips]>(gray-self.Sn_rf_change_thresh)) & (unit_stim[flips]<(gray+self.Sn_rf_change_thresh))] # stim did not change from baseline enoguh
-        return event_eyeT, rf_l2d, rf_d2l, only_global
+        
+        off_bool = unit_stim[flips+self.frameshift]<(gray-self.Sn_rf_change_thresh)
+        offT = rf_off[off_bool] # light-to-dark transitions, as a timestamp in ephys eyeT timebase
+        offInds = flips[np.where(off_bool)[0]]
+        
+        on_bool = unit_stim[flips+self.frameshift]>(gray+self.Sn_rf_change_thresh)
+        onT = rf_on[on_bool] # same for dark-to-light transitions
+        onInds = flips[np.where(on_bool)[0]]
+        
+        background_bool = (unit_stim[flips+self.frameshift]>(gray-self.Sn_rf_change_thresh)) & (unit_stim[flips+self.frameshift]<(gray+self.Sn_rf_change_thresh))
+        backgroundT = only_global[background_bool] # stim did not change from baseline enoguh
+        backgroundInds = flips[np.where(background_bool)[0]]
+        
+        return event_eyeT, offT, offInds, onT, onInds, backgroundT, backgroundInds
     
     def calc_Sn_psth(self):
         vid = self.Sn_world.WORLD_video.values.astype(np.uint8).astype(float)
@@ -66,16 +77,16 @@ class AddtlHF:
         eventT = flipT - ephysT0
 
         rf_xy = np.zeros([len(self.Sn_ephys.index.values),2]) # [unit#, x/y]
-        Sn_psth = np.zeros([len(self.Sn_ephys.index.values), len(self.trange_x), 4]) # shape = [unit#, time, all/ltd/d2l/not_rf]
+        Sn_psth = np.zeros([len(self.Sn_ephys.index.values), len(self.trange_x), 4]) # shape = [unit#, time, all/ltd/on/not_rf]
         for i, ind in tqdm(enumerate(self.Sn_ephys.index.values)):
             unit_sta = self.Wn_ephys.loc[ind, 'Wn_spike_triggered_average']
             unit_stim, rf_xy[i,0], rf_xy[i,1] = self.calc_RF_stim(unit_sta, vid)
-            all_eventT, rf_l2d_eventT, rf_d2l_eventT, only_global_eventT = self.sort_lum(unit_stim, eventT, eyeT, flips)
+            all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(unit_stim, eventT, eyeT, flips)
             unit_spikeT = self.Sn_ephys.loc[ind, 'spikeT']
             Sn_psth[i,:,0] = self.calc_psth(unit_spikeT, all_eventT)
-            Sn_psth[i,:,1] = self.calc_psth(unit_spikeT, rf_l2d_eventT)
-            Sn_psth[i,:,2] = self.calc_psth(unit_spikeT, rf_d2l_eventT)
-            Sn_psth[i,:,3] = self.calc_psth(unit_spikeT, only_global_eventT)
+            Sn_psth[i,:,1] = self.calc_psth(unit_spikeT, offT)
+            Sn_psth[i,:,2] = self.calc_psth(unit_spikeT, onT)
+            Sn_psth[i,:,3] = self.calc_psth(unit_spikeT, backgroundT)
 
         self.Sn_psth = Sn_psth
         self.rf_xy = rf_xy
