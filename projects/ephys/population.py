@@ -290,13 +290,16 @@ class Population:
         psth_series = pd.Series([])
         for i in range(len(self.data)):
             psth_series[i] = dummy_psth.astype(object)
-        for col in ['Rc_psth','Sn_all_psth','Sn_l2d_psth','Sn_d2l_psth','Sn_onlyglobal_psth']:
+        for col in ['Rc_psth','Sn_on_all_psth','Sn_on_darkstim_psth','Sn_on_lightstim_psth',
+                    'Sn_on_background_psth','Sn_off_all_psth','Sn_off_darkstim_psth',
+                    'Sn_off_lightstim_psth','Sn_off_background_psth']:
             self.data[col] = psth_series.copy().astype(object)
         dummy_vals = np.zeros([2])*np.nan
         dummy_series = pd.Series([])
         for i in range(len(self.data)):
             dummy_series[i] = dummy_vals.astype(object)
-        self.data['Wn_rf_cent'] = dummy_series.copy().astype(object)
+        self.data['Wn_rf_on_cent'] = dummy_series.copy().astype(object)
+        self.data['Wn_rf_off_cent'] = dummy_series.copy().astype(object)
 
         # add it for each unit
         sessions = self.data['original_session_path'].unique()
@@ -308,7 +311,8 @@ class Population:
                 # reversing checkerboard
                 rc_psth = psth_data['rc'] # shape is [unit#, time]
                 # sparse noise
-                sn_psth = psth_data['sn'] # shape is [unit#, time, all/l2d/d2l/only_global]
+                sn_on_psth = psth_data['sn_on'] # shape is [unit#, time, all/l2d/d2l/only_global]
+                sn_off_psth = psth_data['sn_off'] # shape is [unit#, time, all/l2d/d2l/only_global]
                 # receptive field centers
                 rf_xy = psth_data['rf'] # shape is [unit#, x/y]
                 
@@ -317,11 +321,18 @@ class Population:
                 for i, ind in enumerate(self.data[use_inds].index.values):
                     self.data.at[ind, 'has_hfpsth'] = True
                     self.data.at[ind, 'Rc_psth'] = rc_psth[i,:]
-                    self.data.at[ind, 'Wn_rf_cent'] = rf_xy[i,:]
-                    self.data.at[ind, 'Sn_all_psth'] = sn_psth[i,:,0]
-                    self.data.at[ind, 'Sn_on_psth'] = sn_psth[i,:,1]
-                    self.data.at[ind, 'Sn_off_psth'] = sn_psth[i,:,2]
-                    self.data.at[ind, 'Sn_background_psth'] = sn_psth[i,:,3]
+                    self.data.at[ind, 'Wn_rf_on_cent'] = rf_xy[i,:2]
+                    self.data.at[ind, 'Wn_rf_off_cent'] = rf_xy[i,2:]
+
+                    self.data.at[ind, 'Sn_on_all_psth'] = sn_on_psth[i,:,0]
+                    self.data.at[ind, 'Sn_on_darkstim_psth'] = sn_on_psth[i,:,1]
+                    self.data.at[ind, 'Sn_on_lightstim_psth'] = sn_on_psth[i,:,2]
+                    self.data.at[ind, 'Sn_on_background_psth'] = sn_on_psth[i,:,3]
+
+                    self.data.at[ind, 'Sn_off_all_psth'] = sn_off_psth[i,:,0]
+                    self.data.at[ind, 'Sn_off_darkstim_psth'] = sn_off_psth[i,:,1]
+                    self.data.at[ind, 'Sn_off_lightstim_psth'] = sn_off_psth[i,:,2]
+                    self.data.at[ind, 'Sn_off_background_psth'] = sn_off_psth[i,:,3]
 
     def rc_psth(self, panel, tightx=True):
         panel.plot(self.trange_x, self.current_row['Rc_psth'], color='k')

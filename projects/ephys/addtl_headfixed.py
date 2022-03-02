@@ -38,26 +38,34 @@ class AddtlHF:
 
     def calc_RF_stim(self, unit_sta, vid):
         flat_unit_sta = unit_sta.copy().flatten()
-        y, x = np.unravel_index(np.argmax(flat_unit_sta), unit_sta.shape)
-        stim_history = vid[:,y*2,x*2]
-        return stim_history, x, y
+        on_y, on_x = np.unravel_index(np.argmax(flat_unit_sta), unit_sta.shape)
+        off_y, off_x = np.unravel_index(np.argmin(flat_unit_sta), unit_sta.shape)
+        on_stim_history = vid[:,on_y*2,on_x*2]
+        off_stim_history = vid[:,off_y*2,off_x*2]
+        return on_stim_history, (on_x, on_y), off_stim_history, (off_x, off_y)
 
-    def sort_lum(self, unit_stim, eventT, eyeT, flips, ):
+    def sort_lum(self, unit_stim, eventT, eyeT, flips):
         event_eyeT = np.zeros(len(eventT))
         for i, t in enumerate(eventT):
             event_eyeT[i] = eyeT[np.argmin(np.abs(t-eyeT))]
-        rf_off = event_eyeT.copy(); rf_on = event_eyeT.copy(); only_global = event_eyeT.copy()
         gray = np.nanmedian(unit_stim)
         
-        off_bool = unit_stim[flips+self.frameshift]<(gray-self.Sn_rf_change_thresh)
+        shifted_flips = flips+self.frameshift
+        if np.max(shifted_flips) > (unit_stim.size-self.frameshift):
+            shifted_flips = shifted_flips[:-1]
+            event_eyeT = event_eyeT[:-1]
+            
+        rf_off = event_eyeT.copy(); rf_on = event_eyeT.copy(); only_global = event_eyeT.copy()
+
+        off_bool = unit_stim[shifted_flips]<(gray-self.Sn_rf_change_thresh)
         offT = rf_off[off_bool] # light-to-dark transitions, as a timestamp in ephys eyeT timebase
         offInds = flips[np.where(off_bool)[0]]
         
-        on_bool = unit_stim[flips+self.frameshift]>(gray+self.Sn_rf_change_thresh)
+        on_bool = unit_stim[shifted_flips]>(gray+self.Sn_rf_change_thresh)
         onT = rf_on[on_bool] # same for dark-to-light transitions
         onInds = flips[np.where(on_bool)[0]]
         
-        background_bool = (unit_stim[flips+self.frameshift]>(gray-self.Sn_rf_change_thresh)) & (unit_stim[flips+self.frameshift]<(gray+self.Sn_rf_change_thresh))
+        background_bool = (unit_stim[shifted_flips]>(gray-self.Sn_rf_change_thresh)) & (unit_stim[shifted_flips]<(gray+self.Sn_rf_change_thresh))
         backgroundT = only_global[background_bool] # stim did not change from baseline enoguh
         backgroundInds = flips[np.where(background_bool)[0]]
         
@@ -76,19 +84,31 @@ class AddtlHF:
         flipT = worldT[flips]
         eventT = flipT - ephysT0
 
-        rf_xy = np.zeros([len(self.Sn_ephys.index.values),2]) # [unit#, x/y]
-        Sn_psth = np.zeros([len(self.Sn_ephys.index.values), len(self.trange_x), 4]) # shape = [unit#, time, all/ltd/on/not_rf]
+        rf_xy = np.zeros([len(self.Sn_ephys.index.values),4]) # [unit#, on x, on y, off x, off y]
+        on_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), len(self.trange_x), 4]) # shape = [unit#, time, all/ltd/on/not_rf]
+        off_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), len(self.trange_x), 4])
         for i, ind in tqdm(enumerate(self.Sn_ephys.index.values)):
             unit_sta = self.Wn_ephys.loc[ind, 'Wn_spike_triggered_average']
-            unit_stim, rf_xy[i,0], rf_xy[i,1] = self.calc_RF_stim(unit_sta, vid)
-            all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(unit_stim, eventT, eyeT, flips)
+            on_stim_history, on_xy, off_stim_history, off_xy = self.calc_RF_stim(unit_sta, vid)
+            rf_xy[i,0] = on_xy[0]; rf_xy[i,1] = on_xy[1]
+            rf_xy[i,2] = off_xy[0]; rf_xy[i,3] = off_xy[1]
+            # on subunit
+            all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(on_stim_history, eventT, eyeT, flips)
             unit_spikeT = self.Sn_ephys.loc[ind, 'spikeT']
-            Sn_psth[i,:,0] = self.calc_psth(unit_spikeT, all_eventT)
-            Sn_psth[i,:,1] = self.calc_psth(unit_spikeT, offT)
-            Sn_psth[i,:,2] = self.calc_psth(unit_spikeT, onT)
-            Sn_psth[i,:,3] = self.calc_psth(unit_spikeT, backgroundT)
+            on_Sn_psth[i,:,0] = self.calc_psth(unit_spikeT, all_eventT)
+            on_Sn_psth[i,:,1] = self.calc_psth(unit_spikeT, offT)
+            on_Sn_psth[i,:,2] = self.calc_psth(unit_spikeT, onT)
+            on_Sn_psth[i,:,3] = self.calc_psth(unit_spikeT, backgroundT)
+            # off subunit
+            all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(off_stim_history, eventT, eyeT, flips)
+            unit_spikeT = self.Sn_ephys.loc[ind, 'spikeT']
+            off_Sn_psth[i,:,0] = self.calc_psth(unit_spikeT, all_eventT)
+            off_Sn_psth[i,:,1] = self.calc_psth(unit_spikeT, offT)
+            off_Sn_psth[i,:,2] = self.calc_psth(unit_spikeT, onT)
+            off_Sn_psth[i,:,3] = self.calc_psth(unit_spikeT, backgroundT)
 
-        self.Sn_psth = Sn_psth
+        self.on_Sn_psth = on_Sn_psth
+        self.off_Sn_psth = off_Sn_psth
         self.rf_xy = rf_xy
 
     def calc_Rc_psth(self):
@@ -115,4 +135,4 @@ class AddtlHF:
 
     def save(self):
         print('saving '+self.savepath)
-        np.savez(self.savepath, sn=self.Sn_psth, rc=self.Rc_psth, rf=self.rf_xy)
+        np.savez(self.savepath, sn_on=self.on_Sn_psth, sn_off=self.off_Sn_psth, rc=self.Rc_psth, rf=self.rf_xy)
