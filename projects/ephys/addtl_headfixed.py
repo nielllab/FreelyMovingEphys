@@ -14,7 +14,7 @@ class AddtlHF:
     def __init__(self, base_path):
         self.savepath = os.path.join(base_path,'addtlhf_props.npz')
 
-        self.Wn_ephys = pd.read_hdf(find('*hf1_wn*_ephys_props.h5',base_path)[0])
+        # self.Wn_ephys = pd.read_hdf(find('*hf1_wn*_ephys_props.h5',base_path)[0])
         self.Sn_ephys = pd.read_hdf(find('*hf2_*_ephys_props.h5',base_path)[0])
         self.Rc_ephys = pd.read_hdf(find('*hf4_revchecker*_ephys_props.h5',base_path)[0])
         # self.FmLt_ephys = pd.open_hdf(find('*fm1*_ephys_props.h5',base_path)[0])
@@ -88,7 +88,7 @@ class AddtlHF:
         on_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), len(self.trange_x), 4]) # shape = [unit#, time, all/ltd/on/not_rf]
         off_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), len(self.trange_x), 4])
         for i, ind in tqdm(enumerate(self.Sn_ephys.index.values)):
-            unit_sta = self.Wn_ephys.loc[ind, 'Wn_spike_triggered_average']
+            unit_sta = self.Sn_ephys.loc[ind, 'Sn_spike_triggered_average']
             on_stim_history, on_xy, off_stim_history, off_xy = self.calc_RF_stim(unit_sta, vid)
             rf_xy[i,0] = on_xy[0]; rf_xy[i,1] = on_xy[1]
             rf_xy[i,2] = off_xy[0]; rf_xy[i,3] = off_xy[1]

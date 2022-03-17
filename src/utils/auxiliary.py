@@ -44,3 +44,25 @@ def flatten_series(s):
         a[count,:] = data
         count += 1
     return a
+
+def find_index_in_list(a, subset):
+    """
+    Parameters
+    --------
+    a : list
+        list of values
+    subset : list
+        list of values shorter than a, which may exist in a
+    
+    Returns
+    --------
+    (idx, )
+    """
+    if not subset:
+        return
+    subset_len = len(subset)
+    first_val = subset[0]
+    for idx, item in enumerate(a):
+        if item == first_val:
+            if a[idx:idx+subset_len] == subset:
+                yield tuple(range(idx, idx+subset_len))
