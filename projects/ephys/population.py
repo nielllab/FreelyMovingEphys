@@ -2910,51 +2910,51 @@ class Population:
             left = eyeT[(np.append(dEye, 0) > self.low_sacc_thresh)]
             right = eyeT[(np.append(dEye, 0) < -self.low_sacc_thresh)]
             # save saccade times
-            self.data.at[ind, stim+'_leftsacc_times'] = left; self.data.at[ind, stim+'_rightsacc_times'] = right
+            self.data.at[ind, stim+'_leftsacc_times'] = left.astype(object); self.data.at[ind, stim+'_rightsacc_times'] = right.astype(object)
             # save neural activity around saccades
-            self.data.at[ind, stim+'_leftsacc_avg'] =  self.calc_psth(spikeT, left)
-            self.data.at[ind, stim+'_rightsacc_avg'] =  self.calc_psth(spikeT, right)
+            self.data.at[ind, stim+'_leftsacc_avg'] =  self.calc_psth(spikeT, left).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg'] =  self.calc_psth(spikeT, right).astype(object)
 
             # all head movements
             left = eyeT[(np.append(dHead, 0) > self.low_sacc_thresh)]
             right = eyeT[(np.append(dHead, 0) < -self.low_sacc_thresh)]
             # save saccade times
-            self.data.at[ind, stim+'_leftsacc_dHead_times'] = left; self.data.at[ind, stim+'_rightsacc_dHead_times'] = right
+            self.data.at[ind, stim+'_leftsacc_dHead_times'] = left.astype(object); self.data.at[ind, stim+'_rightsacc_dHead_times'] = right.astype(object)
             # save neural activity around saccades
-            self.data.at[ind, stim+'_leftsacc_dHead_avg'] =  self.calc_psth(spikeT, left)
-            self.data.at[ind, stim+'_rightsacc_dHead_avg'] =  self.calc_psth(spikeT, right)
+            self.data.at[ind, stim+'_leftsacc_dHead_avg'] =  self.calc_psth(spikeT, left).astype(object)
+            self.data.at[ind, stim+'_rightsacc_dHead_avg'] =  self.calc_psth(spikeT, right).astype(object)
 
             # gaze-shift dEye
-            left_gaze_dEye = eyeT[(np.append(self.dEye_dps, 0) > self.high_sacc_thresh) & (np.append(dGaze,0) > self.high_sacc_thresh)]
-            right_gaze_dEye = eyeT[(np.append(self.dEye_dps, 0) < -self.high_sacc_thresh) & (np.append(dGaze, 0) < -self.high_sacc_thresh)]
-            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dEye_times'] = left_gaze_dEye; self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dEye_times'] = right_gaze_dEye
-            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dEye'] =  self.calc_psth(spikeT, left_gaze_dEye)
-            self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dEye'] =  self.calc_psth(spikeT, right_gaze_dEye)
+            left_gaze_dEye = eyeT[(np.append(dEye, 0) > self.high_sacc_thresh) & (np.append(dGaze,0) > self.high_sacc_thresh)]
+            right_gaze_dEye = eyeT[(np.append(dEye, 0) < -self.high_sacc_thresh) & (np.append(dGaze, 0) < -self.high_sacc_thresh)]
+            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dEye_times'] = left_gaze_dEye.astype(object); self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dEye_times'] = right_gaze_dEye.astype(object)
+            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dEye'] =  self.calc_psth(spikeT, left_gaze_dEye).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dEye'] =  self.calc_psth(spikeT, right_gaze_dEye).astype(object)
             
             # comp dEye
-            left_comp_dEye = eyeT[(np.append(self.dEye_dps, 0) > self.low_sacc_thresh) & (np.append(dGaze, 0) < self.gaze_sacc_thresh)]
-            right_comp_dEye = eyeT[(np.append(self.dEye_dps, 0) < -self.low_sacc_thresh) & (np.append(dGaze, 0) > -self.gaze_sacc_thresh)]
+            left_comp_dEye = eyeT[(np.append(dEye, 0) > self.low_sacc_thresh) & (np.append(dGaze, 0) < self.gaze_sacc_thresh)]
+            right_comp_dEye = eyeT[(np.append(dEye, 0) < -self.low_sacc_thresh) & (np.append(dGaze, 0) > -self.gaze_sacc_thresh)]
             left_comp_dEye = self.apply_win_to_comp_sacc(left_comp_dEye, left_gaze_dEye)
             right_comp_dEye = self.apply_win_to_comp_sacc(right_comp_dEye, right_gaze_dEye)
-            self.data.at[ind, stim+'_leftsacc_avg_comp_dEye_times'] = left_comp_dEye; self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dEye_times'] = right_comp_dEye
-            self.data.at[ind, stim+'_leftsacc_avg_comp_dEye'] =  self.calc_psth(spikeT, left_comp_dEye)
-            self.data.at[ind, stim+'_rightsacc_avg_comp_dEye'] =  self.calc_psth(spikeT, right_comp_dEye)
+            self.data.at[ind, stim+'_leftsacc_avg_comp_dEye_times'] = left_comp_dEye.astype(object); self.data.at[ind, stim+'_rightsacc_avg_comp_dEye_times'] = right_comp_dEye.astype(object)
+            self.data.at[ind, stim+'_leftsacc_avg_comp_dEye'] =  self.calc_psth(spikeT, left_comp_dEye).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg_comp_dEye'] =  self.calc_psth(spikeT, right_comp_dEye).astype(object)
             
             # gaze-shift dHead
             left_gaze_dHead = eyeT[(np.append(dHead, 0) > self.low_sacc_thresh) & (np.append(dGaze, 0) > self.low_sacc_thresh)]
             right_gaze_dHead = eyeT[(np.append(dHead, 0) < -self.low_sacc_thresh) & (np.append(dGaze, 0) < -self.low_sacc_thresh)]
-            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dHead_times'] = left_gaze_dHead; self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dHead_times'] = right_gaze_dHead
-            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dEye'] =  self.calc_psth(spikeT, left_gaze_dHead)
-            self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dEye'] =  self.calc_psth(spikeT, right_gaze_dHead)
+            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dHead_times'] = left_gaze_dHead.astype(object); self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dHead_times'] = right_gaze_dHead.astype(object)
+            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dHead'] =  self.calc_psth(spikeT, left_gaze_dHead).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dHead'] =  self.calc_psth(spikeT, right_gaze_dHead).astype(object)
             
             # comp dHead
             left_comp_dHead = eyeT[(np.append(dHead,0) > self.low_sacc_thresh) & (np.append(dGaze, 0) < self.gaze_sacc_thresh)]
             right_comp_dHead = eyeT[(np.append(dHead,0) < -self.low_sacc_thresh) & (np.append(dGaze,0) > -self.gaze_sacc_thresh)]
             left_comp_dHead = self.apply_win_to_comp_sacc(left_comp_dHead, left_gaze_dHead)
             right_comp_dHead = self.apply_win_to_comp_sacc(right_comp_dHead, right_gaze_dHead)
-            self.data.at[ind, stim+'_leftsacc_avg_comp_dHead_times'] = left_comp_dHead; self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dHead_times'] = right_comp_dHead
-            self.data.at[ind, stim+'_leftsacc_avg_comp_dEye'] =  self.calc_psth(spikeT, left_comp_dHead)
-            self.data.at[ind, stim+'_rightsacc_avg_comp_dEye'] =  self.calc_psth(spikeT, right_comp_dHead)
+            self.data.at[ind, stim+'_leftsacc_avg_comp_dHead_times'] = left_comp_dHead.astype(object); self.data.at[ind, stim+'_rightsacc_avg_comp_dHead_times'] = right_comp_dHead.astype(object)
+            self.data.at[ind, stim+'_leftsacc_avg_comp_dHead'] =  self.calc_psth(spikeT, left_comp_dHead).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg_comp_dHead'] =  self.calc_psth(spikeT, right_comp_dHead).astype(object)
 
     def summarize_population(self, extras=False):
         # print('applying activity thresholds')
