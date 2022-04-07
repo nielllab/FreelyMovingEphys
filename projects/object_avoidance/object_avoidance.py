@@ -1,5 +1,4 @@
 import json, os, cv2
-
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -10,9 +9,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 from sklearn.cluster import KMeans
 import matplotlib.colors as mcolors
 
-from utils.base import BaseInput
-from utils.topcam import Topcam
-from utils.aux_funcs import find, list_subdirs, list_subdirs_nonrecursive, flatten_series
+from src.base import BaseInput
+from src.topcam import Topcam
+from src.utils.auxiliary import flatten_series, find_index_in_list
+from src.utils.path import find
 
 class AvoidanceTrial(BaseInput):
     def __init__(self, s_input, path_input, metadata_input):
@@ -40,17 +40,19 @@ class AvoidanceTrial(BaseInput):
             self.data[x_cols[i]+'_cm'] = self.data.loc[:,x_cols[i]] / self.pxls2cm
             self.data[y_cols[i]+'_cm'] = self.data.loc[:,y_cols[i]] / self.pxls2cm
 
+    def setup_trial(self, c, odd):
+
     def make_task_df(self):
-        num_odd_trails = np.min([len(self.s['poke1_ts']), len(self.s['poke2_ts'])])
+        num_odd_trials = np.min([len(self.s['poke1_ts']), len(self.s['poke2_ts'])])
         df1 = pd.DataFrame([])
         count = -1
-        for c in range(num_odd_trails):
+        for c in range(num_odd_trials):
             # odd
             count += 1
             df1.at[count, 'first_poke'] = self.s['poke1_ts'][c]
             df1.at[count, 'second_poke'] = self.s['poke2_ts'][c]
             time = self.s['top1_ts']; time = time[time > df1.loc[count,'first_poke']]; time = time[time < df1.loc[count,'second_poke']]
-            df1.at[count, 'trail_timestamps'] = time.astype(object)
+            df1.at[count, 'trial_timestamps'] = time.astype(object)
             start_stop_inds = (int(np.where([self.s['top1_ts']==time[0]])[1]), int(np.where([self.s['top1_ts']==time[-1]])[1]))
             for pos in list(self.positions['point_loc'].values):
                 df1.at[count, pos] = np.array(self.positions.loc[start_stop_inds[0]:start_stop_inds[1], pos]).astype(object)
@@ -61,13 +63,18 @@ class AvoidanceTrial(BaseInput):
                 df1.at[count, 'first_poke'] = self.s['poke2_ts'][c]
                 df1.at[count, 'second_poke'] = self.s['poke1_ts'][c+1]
                 time = self.s['top1_ts']; time = time[time > df1.loc[count,'first_poke']]; time = time[time < df1.loc[count,'second_poke']]
-                df1.at[count, 'trail_timestamps'] = time.astype(object)
+                vidframes = np.array(list(find_index_in_list(list(self.s['top1_ts']), list(time))))
+                df1.at[count, 'recording_timestamps'] = self.s['top1_ts'].astype(object)
+                df1.at[count, 'trial_timestamps'] = time.astype(object)
+                df1.at[count, 'trial_vidframes'] = vidframes.astype(object)
                 start_stop_inds = (int(np.where([self.s['top1_ts']==time[0]])[1]), int(np.where([self.s['top1_ts']==time[-1]])[1]))
                 for pos in list(self.positions['point_loc'].values):
                     df1.at[count, pos] = np.array(self.positions.loc[start_stop_inds[0]:start_stop_inds[1], pos]).astype(object)
                 df1.at[count, 'len'] = start_stop_inds[1] - start_stop_inds[0]
         df1['animal'] = self.s['animal']; df1['date'] = self.s['date']; df1['task'] = self.s['task']
         self.data = df1
+
+    def drop_lickport_times(self, ):
 
     def get_median_trace(self, df):
         fake_time = np.linspace(0,1,100)
@@ -132,44 +139,6 @@ class AvoidanceTrial(BaseInput):
         else:
             return False
 
-    def get_row_for_timestamp(self, df, seek_timestamp):
-        for ind, row in df.iterrows():
-            if seek_timestamp in row['trail_timestamps']:
-                return row
-
-    def plot_frame(self, vid_arr, timestamps, df, seek_frame, return_as_array=False):
-        seek_timestamp = timestamps[seek_frame]
-        row = self.get_row_for_timestamp(df, seek_timestamp)
-        if row is None:
-            if return_as_array:
-                return np.zeros(np.shape(vid_arr[0]))
-            elif not return_as_array:
-                plt.figure()
-                plt.imshow(np.zeros(np.shape(vid_arr[0])), cmap='gray')
-                plt.show()
-        row_time_index = np.where(row['trail_timestamps']==seek_timestamp)
-        current_ang = row['head_angle'][row_time_index][0]
-        x1 = row['nose_x'][row_time_index]
-        y1 = row['nose_y'][row_time_index]
-        x2 = x1+60 * np.cos(current_ang)
-        y2 = y1+60 * np.sin(current_ang)
-        frame = vid_arr[seek_frame,:,:]
-        fig = plt.figure()
-        plt.imshow(frame, cmap='gray')
-        plt.plot((x1,x2), (y1,y2), '-')
-        row_time_index = row_time_index[0][0]
-        plt.plot(row['nose_x'][:row_time_index], row['nose_y'][:row_time_index],'r.')
-        plt.plot(row['leftear_x'][:row_time_index], row['leftear_y'][:row_time_index], 'g.')
-        plt.plot(row['rightear_x'][:row_time_index], row['rightear_y'][:row_time_index], 'g.')
-        if not return_as_array:
-            plt.show()
-        elif return_as_array:
-            fig.canvas.draw()
-            frame_as_array = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-            frame_as_array = frame_as_array.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-            plt.close()
-            return frame_as_array
-
     def add_tracking(self, name, path):
         tc = Topcam(self.generic_camconfig, name, path, self.camname)
         tc.gather_files()
@@ -181,6 +150,14 @@ class AvoidanceTrial(BaseInput):
 
     def pillar_avoidance(self):
         self.make_task_df()
+
+        # label odd/even trials (i.e. moving leftwards or moving rightwards?)
+        self.data['odd'] = np.nan
+        for i, ind in enumerate(self.data.index.values):
+            if ind%2 == 0: # odd values
+                self.data.at[ind, 'odd'] = True
+            elif ind%2 == 1:
+                self.data.at[ind, 'odd'] = False
 
         dist_to_posts = np.median(self.data['arenaTR_x'].iloc[0],0) - np.median(self.data['arenaTL_x'].iloc[0],0)
         self.pxls2cm = dist_to_posts/self.dist_across_arena
@@ -194,15 +171,19 @@ class AvoidanceTrial(BaseInput):
         for ind, row in self.data.iterrows():
             for x in ['b','w']:
                 xvals = np.stack([row['obstacle'+x+'TL_x_cm'], row['obstacle'+x+'TR_x_cm'], row['obstacle'+x+'BL_x_cm'], row['obstacle'+x+'BR_x_cm']]).astype(float)
-                self.data.at[ind, x+'obstacle_x_cm'] = np.nanmean(xvals)
+                xvals_cm = np.stack([row['obstacle'+x+'TL_x_cm'], row['obstacle'+x+'TR_x_cm'], row['obstacle'+x+'BL_x_cm'], row['obstacle'+x+'BR_x_cm']]).astype(float)
+                self.data.at[ind, x+'obstacle_x'] = np.nanmean(xvals)
+                self.data.at[ind, x+'obstacle_x_cm'] = np.nanmean(xvals_cm)
                 self.data.at[ind, x+'obstacle_x_std'] = np.mean(np.nanstd(xvals, axis=1))
                 yvals = np.stack([row['obstaclewTL_y_cm'], row['obstaclewTR_y_cm'], row['obstaclewBL_y_cm'], row['obstaclewBR_y_cm']]).astype(float)
-                self.data.at[ind, x+'obstacle_y_cm'] = np.nanmean(yvals)
+                yvals_cm = np.stack([row['obstaclewTL_y_cm'], row['obstaclewTR_y_cm'], row['obstaclewBL_y_cm'], row['obstaclewBR_y_cm']]).astype(float)
+                self.data.at[ind, x+'obstacle_y'] = np.nanmean(yvals)
+                self.data.at[ind, x+'obstacle_y_cm'] = np.nanmean(yvals_cm)
                 self.data.at[ind, x+'obstacle_y_std'] = np.mean(np.nanstd(yvals, axis=1))
 
         # animal speed
         for ind, row in self.data.iterrows():
-            temp_time = np.diff(row['trail_timestamps'])
+            temp_time = np.diff(row['trial_timestamps'])
             x = np.diff(row['nose_x_cm']); y = np.diff(row['nose_y_cm'])
             if len(x) == len(temp_time):
                 xspeed = list((x/temp_time)**2)
@@ -459,7 +440,7 @@ class AvoidanceTrial(BaseInput):
 
     def get_row_for_timestamp(self, df, seek_timestamp):
         for ind, row in df.iterrows():
-            if seek_timestamp in row['trail_timestamps']:
+            if seek_timestamp in row['trial_timestamps']:
                 return row
 
     def plot_frame(self, vid_arr, timestamps, df, seek_frame, return_as_array=False):
@@ -472,7 +453,7 @@ class AvoidanceTrial(BaseInput):
                 plt.figure()
                 plt.imshow(np.zeros(np.shape(vid_arr[0])), cmap='gray')
                 plt.show()
-        row_time_index = np.where(row['trail_timestamps']==seek_timestamp)
+        row_time_index = np.where(row['trial_timestamps']==seek_timestamp)
         current_ang = row['head_angle'][row_time_index][0]
         x1 = row['nose_x'][row_time_index]
         y1 = row['nose_y'][row_time_index]
@@ -572,7 +553,7 @@ class AvoidanceTrial(BaseInput):
 
         # animal speed
         for ind, row in self.data.iterrows():
-            temp_time = np.diff(row['trail_timestamps'])
+            temp_time = np.diff(row['trial_timestamps'])
             x = np.diff(row['nose_x_cm']); y = np.diff(row['nose_y_cm'])
             if len(x) == len(temp_time):
                 xspeed = list((x/temp_time)**2)
@@ -855,7 +836,8 @@ class AvoidanceSession(BaseInput):
             self.is_gap_detection = True
 
         if self.is_pillar_avoidance:
-            self.dlc_project = '/home/niell_lab/Documents/deeplabcut_projects/object_avoidance-Mike-2021-08-31/config.yaml'
+            self.dlc_project = {'light':'/home/niell_lab/Documents/deeplabcut_projects/object_avoidance-Mike-2021-08-31/config.yaml',
+                                'dark':None}
         elif self.is_gap_detection:
             self.dlc_project = {'light':'/home/niell_lab/Documents/deeplabcut_projects/gap_determination-Kana-2021-10-19/config.yaml',
                                 'dark':'/home/niell_lab/Documents/deeplabcut_projects/dark_gap_determination-Kana-2021-11-08/config.yaml'}
@@ -875,8 +857,13 @@ class AvoidanceSession(BaseInput):
             }
         }
 
-    def change_dlc_project(self, project_path):
-        self.dlc_project = project_path
+    def change_dlc_project(self, project_paths):
+        """
+        project_paths should be a dict like... {'light':/path/to/config.yaml, 'dark':/path/to/config.yaml}
+        """
+        # update object
+        self.dlc_project = project_paths
+        # also update config
         self.generic_camconfig['paths']['dlc_projects'][self.camname] = self.dlc_project
 
     def preprocess(self):
@@ -898,6 +885,13 @@ class AvoidanceSession(BaseInput):
                     name = '_'.join(os.path.splitext(os.path.split([i for i in find('*.avi', recording_dir) if all(bad not in i for bad in ['plot','IR','rep11','betafpv','side_gaze','._'])][0])[1])[0].split('_')[:-2])
                     tc = Topcam(config=camconfig, recording_name=name, recording_path=recording_dir, camname=self.camname)
                     tc.pose_estimation()
+                    tc.gather_camera_files()
+                    tc.pack_position_data()
+                    tc.pack_video_frames()
+                    tc.pt_names = list(tc.xrpts['point_loc'].values)
+                    tc.filter_likelihood()
+                    tc.get_head_body_yaw()
+                    tc.save_params()
 
     def gather_all_sessions(self):
         data_dict = {'date': [],
@@ -954,6 +948,3 @@ class AvoidanceSession(BaseInput):
                     trial.make_videos()
             except:
                 pass
-
-    # def summarize(self):
-

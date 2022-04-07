@@ -28,6 +28,9 @@ mpl.rcParams.update({'font.size': 25})
 from src.utils.path import find
 from src.utils.auxiliary import flatten_series
 
+def to_color(r,g,b):
+    return (r/255, g/255, b/255)
+
 class Population:
     def __init__(self, savepath, metadata_path=None):
         self.metadata_path = metadata_path
@@ -40,10 +43,22 @@ class Population:
         self.trange = np.arange(-1, 1.1, self.model_dt)
         self.trange_x = 0.5*(self.trange[0:-1]+ self.trange[1:])
         self.cmap_orientation = ['#fec44f','#ec7014','#993404','#000000'] # [low, mid, high, spont]
-        self.cmap_movclusts = ['k', cm.Dark2(0), cm.Dark2(2), cm.Dark2(3), cm.Dark2(5), cm.Dark2(7)] # [all, early, late, biphasic, negative, unresponsive]
+        self.cmap_movclusts = {
+            'all': 'k',
+            'movement': to_color(230,135,45), # orange
+            'early': to_color(44,140,109), # green
+            'late': to_color(46,131,232), # blue
+            'biphasic': to_color(222,190,43), # yellow
+            'negative': to_color(111,61,175), # purple
+            'unresponsive': 'dimgray'
+        }
         self.cmap_celltype = ['sandybrown', 'olivedrab'] # [exc, inh]
         self.cmap_sacc = ['steelblue','coral'] # [right, left]
         self.cmap_special2 = ['dimgray','deepskyblue']
+
+        self.high_sacc_thresh = 300 # deg/sec
+        self.low_sacc_thresh = 180 # deg/sec
+        self.gaze_sacc_thresh = 60 # deg/sec
 
         self.trange_win = [37,53]
         self.trange_twin = self.trange_x[self.trange_win[0]:self.trange_win[1]]
@@ -163,15 +178,19 @@ class Population:
         self.data['index'] = self.data.index.values
         self.data.reset_index(inplace=True)
 
-    def save(self, fname):
-        pickle_path = os.path.join(self.savepath, fname+'.pickle')
+    def save(self, fname, savedir=None):
+        if savedir is None:
+            savedir = self.savepath
+        pickle_path = os.path.join(savedir, fname+'.pickle')
         if os.path.isfile(pickle_path):
             os.remove(pickle_path)
         print('saving to '+pickle_path)
         self.data.to_pickle(pickle_path)
 
-    def load(self, fname):
-        pickle_path = os.path.join(self.savepath, fname+'.pickle')
+    def load(self, fname, savedir=None):
+        if savedir is None:
+            savedir = self.savepath
+        pickle_path = os.path.join(savedir, fname+'.pickle')
         print('reading from '+pickle_path)
         self.data = pd.read_pickle(pickle_path)
 
@@ -1574,21 +1593,17 @@ class Population:
 
         pdf.close()
 
-    def cluster_population_by_waveform(self):
-        plt.subplots(2,4, figsize=(20,10))
-        plt.subplot(2,4,1)
+    def putative_celltype(self):
         self.data['norm_waveform'] = self.data['waveform']
         for ind, row in self.data.iterrows():
             if type(row['waveform']) == list:
                 starting_val = np.mean(row['waveform'][:6])
                 center_waveform = [i-starting_val for i in row['waveform']]
                 norm_waveform = center_waveform / -np.min(center_waveform)
-                plt.plot(norm_waveform)
                 self.data.at[ind, 'waveform_trough_width'] = len(norm_waveform[norm_waveform < -0.2])
                 self.data.at[ind, 'AHP'] = norm_waveform[27]
                 self.data.at[ind, 'waveform_peak'] = norm_waveform[18]
                 self.data.at[ind, 'norm_waveform'] = norm_waveform
-        plt.ylim([-1,1]); plt.ylabel('millivolts'); plt.xlabel('msec')
 
         km_labels = KMeans(n_clusters=2).fit(list(self.data['norm_waveform'][self.data['waveform_peak'] < 0].to_numpy())).labels_
         # make inhibitory is always group 0
@@ -1610,47 +1625,46 @@ class Population:
             elif row['waveform_km_label'] == 1:
                 self.data.at[ind, 'exc_or_inh'] = 'exc'
 
-        plt.subplot(2,4,2)
-        for ind, row in self.data.iterrows():
-            if row['exc_or_inh'] == 'inh':
-                plt.plot(row['norm_waveform'], 'g')
-            elif row['exc_or_inh'] == 'exc':
-                plt.plot(row['norm_waveform'], 'b')
+        # for ind, row in self.data.iterrows():
+        #     if row['exc_or_inh'] == 'inh':
+        #         plt.plot(row['norm_waveform'], 'g')
+        #     elif row['exc_or_inh'] == 'exc':
+        #         plt.plot(row['norm_waveform'], 'b')
 
-        plt.subplot(2,4,3)
-        plt.plot(self.data['waveform_trough_width'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='inh'], self.data['AHP'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='inh'], 'g.')
-        plt.plot(self.data['waveform_trough_width'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], self.data['AHP'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], 'b.')
-        plt.ylabel('AHP'); plt.xlabel('waveform trough width')
-        self.greenpatch = mpatches.Patch(color='g', label='inhibitory')
-        self.bluepatch = mpatches.Patch(color='b', label='excitatory')
-        plt.legend(handles=[self.bluepatch, self.greenpatch])
+        # plt.subplot(2,4,3)
+        # plt.plot(self.data['waveform_trough_width'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='inh'], self.data['AHP'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='inh'], 'g.')
+        # plt.plot(self.data['waveform_trough_width'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], self.data['AHP'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], 'b.')
+        # plt.ylabel('AHP'); plt.xlabel('waveform trough width')
+        # self.greenpatch = mpatches.Patch(color='g', label='inhibitory')
+        # self.bluepatch = mpatches.Patch(color='b', label='excitatory')
+        # plt.legend(handles=[self.bluepatch, self.greenpatch])
 
-        plt.subplot(2,4,4)
-        plt.hist(self.data['waveform_trough_width'], bins=range(3,35))
-        plt.xlabel('trough width')
+        # plt.subplot(2,4,4)
+        # plt.hist(self.data['waveform_trough_width'], bins=range(3,35))
+        # plt.xlabel('trough width')
 
-        plt.subplot(2,4,5)
-        plt.xlabel('AHP')
-        plt.hist(self.data['AHP'], bins=60)
-        plt.xlim([-1,1])
+        # plt.subplot(2,4,5)
+        # plt.xlabel('AHP')
+        # plt.hist(self.data['AHP'], bins=60)
+        # plt.xlim([-1,1])
 
-        plt.subplot(2,4,6)
-        plt.plot(self.data['waveform_trough_width'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='inh'], self.data['AHP'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='inh'], 'g.')
-        plt.plot(self.data['waveform_trough_width'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], self.data['AHP'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], 'b.')
-        plt.ylabel('AHP'); plt.xlabel('waveform trough width')
+        # plt.subplot(2,4,6)
+        # plt.plot(self.data['waveform_trough_width'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='inh'], self.data['AHP'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='inh'], 'g.')
+        # plt.plot(self.data['waveform_trough_width'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], self.data['AHP'][self.data['waveform_peak'] < 0][self.data['exc_or_inh']=='exc'], 'b.')
+        # plt.ylabel('AHP'); plt.xlabel('waveform trough width')
 
-        if np.sum(self.data['has_hf'])>1:
-            print('depth plot')
-            plt.subplot(2,4,7)
-            plt.hist(self.data['Wn_depth_from_layer5'][self.data['exc_or_inh']=='inh'], color='g', bins=np.arange(-600,600,25), alpha=0.3, orientation='horizontal')
-            plt.hist(self.data['Wn_depth_from_layer5'][self.data['exc_or_inh']=='exc'], color='b', bins=np.arange(-600,600,25), alpha=0.3, orientation='horizontal')
-            plt.xlabel('channels above or below center of layer 5')
-            plt.gca().invert_yaxis(); plt.plot([0,10],[0,0],'k')
+        # if np.sum(self.data['has_hf'])>1:
+        #     print('depth plot')
+        #     plt.subplot(2,4,7)
+        #     plt.hist(self.data['Wn_depth_from_layer5'][self.data['exc_or_inh']=='inh'], color='g', bins=np.arange(-600,600,25), alpha=0.3, orientation='horizontal')
+        #     plt.hist(self.data['Wn_depth_from_layer5'][self.data['exc_or_inh']=='exc'], color='b', bins=np.arange(-600,600,25), alpha=0.3, orientation='horizontal')
+        #     plt.xlabel('channels above or below center of layer 5')
+        #     plt.gca().invert_yaxis(); plt.plot([0,10],[0,0],'k')
 
-        plt.subplot(2,4,8)
-        plt.axis('off')
+        # plt.subplot(2,4,8)
+        # plt.axis('off')
 
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        # plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
     def plot_running_average(self, xvar, yvar, n, filter_for=None, force_range=None, along_y=False,
                             use_median=False, abs=False, show_legend=False):
@@ -1726,35 +1740,35 @@ class Population:
                 self.data.at[i, 'Wn_max_contrast_rate'] = np.nan
                 self.data.at[i, 'Wn_evoked_rate'] = np.nan
         
-        exc_crf = flatten_series(self.data['Wn_contrast_tuning'][self.data['exc_or_inh']=='exc'])
-        inh_crf = flatten_series(self.data['Wn_contrast_tuning'][self.data['exc_or_inh']=='inh'])
+        # exc_crf = flatten_series(self.data['Wn_contrast_tuning'][self.data['exc_or_inh']=='exc'])
+        # inh_crf = flatten_series(self.data['Wn_contrast_tuning'][self.data['exc_or_inh']=='inh'])
 
-        plt.subplots(2,3, figsize=(15,10))
+        # plt.subplots(2,3, figsize=(15,10))
 
-        plt.subplot(2,3,1)
-        plt.bar(['responsive', 'not responsive'], height=[len(self.data[self.data['responsive_to_contrast']==True])/len(self.data), len(self.data[self.data['responsive_to_contrast']==False])/len(self.data)])
-        plt.title('fraction responsive to contrast'); plt.ylim([0,1])
+        # plt.subplot(2,3,1)
+        # plt.bar(['responsive', 'not responsive'], height=[len(self.data[self.data['responsive_to_contrast']==True])/len(self.data), len(self.data[self.data['responsive_to_contrast']==False])/len(self.data)])
+        # plt.title('fraction responsive to contrast'); plt.ylim([0,1])
 
-        if np.sum(self.data['has_hf'])>1:
-            fig = self.plot_running_average('Wn_spont_rate', 'Wn_depth_from_layer5', (2,3,2), force_range=np.arange(-650,750,100),
-                                            along_y=True, use_median=True, show_legend=True)
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast spont rate (sp/sec)')
+        # if np.sum(self.data['has_hf'])>1:
+        #     fig = self.plot_running_average('Wn_spont_rate', 'Wn_depth_from_layer5', (2,3,2), force_range=np.arange(-650,750,100),
+        #                                     along_y=True, use_median=True, show_legend=True)
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast spont rate (sp/sec)')
 
-            fig = self.plot_running_average('Wn_max_contrast_rate', 'Wn_depth_from_layer5', (2,3,3), force_range=np.arange(-650,750,100),
-                                            along_y=True, use_median=True, show_legend=False)
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('max contrast rate (sp/sec)')
+        #     fig = self.plot_running_average('Wn_max_contrast_rate', 'Wn_depth_from_layer5', (2,3,3), force_range=np.arange(-650,750,100),
+        #                                     along_y=True, use_median=True, show_legend=False)
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('max contrast rate (sp/sec)')
 
-            fig = self.plot_running_average('Wn_evoked_rate', 'Wn_depth_from_layer5', (2,3,4), force_range=np.arange(-650,750,100),
-                                            along_y=True, use_median=True, show_legend=False)
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast evoked rate (sp/sec)')
+        #     fig = self.plot_running_average('Wn_evoked_rate', 'Wn_depth_from_layer5', (2,3,4), force_range=np.arange(-650,750,100),
+        #                                     along_y=True, use_median=True, show_legend=False)
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast evoked rate (sp/sec)')
 
-            fig = self.plot_running_average('Wn_contrast_modind', 'Wn_depth_from_layer5', (2,3,5), force_range=np.arange(-650,750,100),
-                                            along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_contrast':True})
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast modulation index')
+        #     fig = self.plot_running_average('Wn_contrast_modind', 'Wn_depth_from_layer5', (2,3,5), force_range=np.arange(-650,750,100),
+        #                                     along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_contrast':True})
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('contrast modulation index')
 
-        plt.subplot(2,3,6); plt.axis('off')
+        # plt.subplot(2,3,6); plt.axis('off')
         
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        # plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
     def neural_response_to_gratings(self):
         for sf in ['low','mid','high']:
@@ -1804,131 +1818,129 @@ class Population:
                 tf_pref = ((mean_for_tf[0]*1)+(mean_for_tf[1]*2))/np.sum(mean_for_tf)
                 self.data.at[ind, 'tf_pref'] = tf_pref
 
-        plt.subplots(6,6, figsize=(30,30))
+        # plt.subplots(6,6, figsize=(30,30))
 
-        plt.subplot(6,6,1)
-        plt.bar(['responsive', 'not responsive'], height=[len(self.data[self.data['responsive_to_gratings']==True])/len(self.data), len(self.data[self.data['responsive_to_gratings']==False])/len(self.data)])
-        plt.title('fraction responsive to gratings'); plt.ylim([0,1])
+        # plt.subplot(6,6,1)
+        # plt.bar(['responsive', 'not responsive'], height=[len(self.data[self.data['responsive_to_gratings']==True])/len(self.data), len(self.data[self.data['responsive_to_gratings']==False])/len(self.data)])
+        # plt.title('fraction responsive to gratings'); plt.ylim([0,1])
 
-        if np.sum(self.data['has_hf'])>1:
-            fig = self.plot_running_average('Gt_drift_spont', 'Wn_depth_from_layer5', (6,6,2), force_range=np.arange(-650,750,100),
-                                            along_y=True, use_median=True, show_legend=False)
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('gratings spont rate')
+        # if np.sum(self.data['has_hf'])>1:
+        #     fig = self.plot_running_average('Gt_drift_spont', 'Wn_depth_from_layer5', (6,6,2), force_range=np.arange(-650,750,100),
+        #                                     along_y=True, use_median=True, show_legend=False)
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('gratings spont rate')
 
-            fig = self.plot_running_average('Gt_evoked_rate', 'Wn_depth_from_layer5', (6,6,3), force_range=np.arange(-650,750,100),
-                                            along_y=True, use_median=True, show_legend=False)
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('gratings evoked rate')
+        #     fig = self.plot_running_average('Gt_evoked_rate', 'Wn_depth_from_layer5', (6,6,3), force_range=np.arange(-650,750,100),
+        #                                     along_y=True, use_median=True, show_legend=False)
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('gratings evoked rate')
 
-        plt.subplot(6,6,4)
-        plt.hist(self.data['sf_pref'][self.data['responsive_to_gratings']==True][self.data['exc_or_inh']=='inh'], color='g', alpha=0.3, bins=np.arange(1,3.25,0.25))
-        plt.hist(self.data['sf_pref'][self.data['responsive_to_gratings']==True][self.data['exc_or_inh']=='exc'], color='b', alpha=0.3, bins=np.arange(1,3.25,0.25))
-        plt.xlabel('sf pref'); plt.ylabel('unit count')
+        # plt.subplot(6,6,4)
+        # plt.hist(self.data['sf_pref'][self.data['responsive_to_gratings']==True][self.data['exc_or_inh']=='inh'], color='g', alpha=0.3, bins=np.arange(1,3.25,0.25))
+        # plt.hist(self.data['sf_pref'][self.data['responsive_to_gratings']==True][self.data['exc_or_inh']=='exc'], color='b', alpha=0.3, bins=np.arange(1,3.25,0.25))
+        # plt.xlabel('sf pref'); plt.ylabel('unit count')
 
-        plt.subplot(6,6,5)
-        plt.hist(self.data['tf_pref'][self.data['responsive_to_gratings']==True][self.data['exc_or_inh']=='inh'], color='g', alpha=0.3, bins=np.arange(1,2.125,0.125))
-        plt.hist(self.data['tf_pref'][self.data['responsive_to_gratings']==True][self.data['exc_or_inh']=='exc'], color='b', alpha=0.3, bins=np.arange(1,2.125,0.125))
-        plt.xlabel('tf pref'); plt.ylabel('unit count')
+        # plt.subplot(6,6,5)
+        # plt.hist(self.data['tf_pref'][self.data['responsive_to_gratings']==True][self.data['exc_or_inh']=='inh'], color='g', alpha=0.3, bins=np.arange(1,2.125,0.125))
+        # plt.hist(self.data['tf_pref'][self.data['responsive_to_gratings']==True][self.data['exc_or_inh']=='exc'], color='b', alpha=0.3, bins=np.arange(1,2.125,0.125))
+        # plt.xlabel('tf pref'); plt.ylabel('unit count')
 
-        self.data['tf_pref_cps'] = 2 + (6 * self.data['tf_pref'])
-        self.data['sf_pref_cpd'] = 0.02 * 4 ** self.data['sf_pref']
+        self.data['tf_pref_cps'] = 2 + (6 * (row['tf_pref']-1))
+        self.data['sf_pref_cpd'] = 0.02 * 4 ** (row['sf_pref']-1)
         self.data['grat_speed_dps'] = self.data['tf_pref_cps'] / self.data['sf_pref_cpd']
 
         ### orientation selectivity
-        if np.sum(self.data['has_hf'])>1:
-            fig = self.plot_running_average('osi_for_sf_pref', 'Wn_depth_from_layer5', (6,6,6), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=True, filter_for={'responsive_to_gratings':True})
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('osi for pref sf')
+        # if np.sum(self.data['has_hf'])>1:
+        #     fig = self.plot_running_average('osi_for_sf_pref', 'Wn_depth_from_layer5', (6,6,6), force_range=np.arange(-650,750,100),
+        #                                 along_y=True, use_median=True, show_legend=True, filter_for={'responsive_to_gratings':True})
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('osi for pref sf')
 
-        fig = self.plot_running_average('FmLt_gyrox_modind', 'osi_for_sf_pref', (6,6,7), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('osi for pref sf'); plt.xlabel('gyro x modulation')
+        # fig = self.plot_running_average('FmLt_gyrox_modind', 'osi_for_sf_pref', (6,6,7), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('osi for pref sf'); plt.xlabel('gyro x modulation')
 
-        fig = self.plot_running_average('FmLt_gyroy_modind', 'osi_for_sf_pref', (6,6,8), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('osi for pref sf'); plt.xlabel('gyro y modulation')
+        # fig = self.plot_running_average('FmLt_gyroy_modind', 'osi_for_sf_pref', (6,6,8), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('osi for pref sf'); plt.xlabel('gyro y modulation')
 
-        fig = self.plot_running_average('FmLt_gyroz_modind', 'osi_for_sf_pref', (6,6,9), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('osi for pref sf'); plt.xlabel('gyro z modulation')
+        # fig = self.plot_running_average('FmLt_gyroz_modind', 'osi_for_sf_pref', (6,6,9), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('osi for pref sf'); plt.xlabel('gyro z modulation')
 
-        fig = self.plot_running_average('FmLt_roll_modind', 'osi_for_sf_pref', (6,6,10), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('osi for pref sf'); plt.xlabel('head roll modulation')
+        # fig = self.plot_running_average('FmLt_roll_modind', 'osi_for_sf_pref', (6,6,10), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('osi for pref sf'); plt.xlabel('head roll modulation')
 
-        fig = self.plot_running_average('FmLt_pitch_modind', 'osi_for_sf_pref', (6,6,11), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('osi for pref sf'); plt.xlabel('head pitch modulation')
+        # fig = self.plot_running_average('FmLt_pitch_modind', 'osi_for_sf_pref', (6,6,11), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('osi for pref sf'); plt.xlabel('head pitch modulation')
 
-        fig = self.plot_running_average('FmLt_theta_modind', 'osi_for_sf_pref', (6,6,12), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('osi for pref sf'); plt.xlabel('theta modulation')
+        # fig = self.plot_running_average('FmLt_theta_modind', 'osi_for_sf_pref', (6,6,12), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('osi for pref sf'); plt.xlabel('theta modulation')
 
-        fig = self.plot_running_average('FmLt_phi_modind', 'osi_for_sf_pref', (6,6,13), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('osi for pref sf'); plt.xlabel('phi modulation')
+        # fig = self.plot_running_average('FmLt_phi_modind', 'osi_for_sf_pref', (6,6,13), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('osi for pref sf'); plt.xlabel('phi modulation')
 
         ### direction selectivity
-        if np.sum(self.data['has_hf'])>1:
-            fig = self.plot_running_average('dsi_for_sf_pref', 'Wn_depth_from_layer5', (6,6,14), force_range=np.arange(-650,750,100),
-                                        along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('dsi for pref sf')
+        # if np.sum(self.data['has_hf'])>1:
+        #     fig = self.plot_running_average('dsi_for_sf_pref', 'Wn_depth_from_layer5', (6,6,14), force_range=np.arange(-650,750,100),
+        #                                 along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('dsi for pref sf')
 
-        fig = self.plot_running_average('FmLt_gyrox_modind', 'dsi_for_sf_pref', (6,6,15), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('dsi for pref sf'); plt.xlabel('gyro x modulation')
+        # fig = self.plot_running_average('FmLt_gyrox_modind', 'dsi_for_sf_pref', (6,6,15), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('dsi for pref sf'); plt.xlabel('gyro x modulation')
 
-        fig = self.plot_running_average('FmLt_gyroy_modind', 'dsi_for_sf_pref', (6,6,16), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('dsi for pref sf'); plt.xlabel('gyro y modulation')
+        # fig = self.plot_running_average('FmLt_gyroy_modind', 'dsi_for_sf_pref', (6,6,16), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('dsi for pref sf'); plt.xlabel('gyro y modulation')
 
-        fig = self.plot_running_average('FmLt_gyroz_modind', 'dsi_for_sf_pref', (6,6,17), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('dsi for pref sf'); plt.xlabel('gyro z modulation')
+        # fig = self.plot_running_average('FmLt_gyroz_modind', 'dsi_for_sf_pref', (6,6,17), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('dsi for pref sf'); plt.xlabel('gyro z modulation')
 
-        fig = self.plot_running_average('FmLt_roll_modind', 'dsi_for_sf_pref', (6,6,18), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('dsi for pref sf'); plt.xlabel('head roll modulation')
+        # fig = self.plot_running_average('FmLt_roll_modind', 'dsi_for_sf_pref', (6,6,18), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('dsi for pref sf'); plt.xlabel('head roll modulation')
 
-        fig = self.plot_running_average('FmLt_pitch_modind', 'dsi_for_sf_pref', (6,6,19), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('dsi for pref sf'); plt.xlabel('head pitch modulation')
+        # fig = self.plot_running_average('FmLt_pitch_modind', 'dsi_for_sf_pref', (6,6,19), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('dsi for pref sf'); plt.xlabel('head pitch modulation')
 
-        fig = self.plot_running_average('FmLt_theta_modind', 'dsi_for_sf_pref', (6,6,20), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('dsi for pref sf'); plt.xlabel('theta modulation')
+        # fig = self.plot_running_average('FmLt_theta_modind', 'dsi_for_sf_pref', (6,6,20), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('dsi for pref sf'); plt.xlabel('theta modulation')
 
-        fig = self.plot_running_average('FmLt_phi_modind', 'dsi_for_sf_pref', (6,6,21), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('dsi for pref sf'); plt.xlabel('phi modulation')
+        # fig = self.plot_running_average('FmLt_phi_modind', 'dsi_for_sf_pref', (6,6,21), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('dsi for pref sf'); plt.xlabel('phi modulation')
 
-        if np.sum(self.data['has_hf'])>1:
-            fig = self.plot_running_average('sf_pref', 'Wn_depth_from_layer5', (6,6,22), force_range=np.arange(-650,750,100),
-                                            along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('sf pref')
+        # if np.sum(self.data['has_hf'])>1:
+        #     fig = self.plot_running_average('sf_pref', 'Wn_depth_from_layer5', (6,6,22), force_range=np.arange(-650,750,100),
+        #                                     along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('sf pref')
 
-            fig = self.plot_running_average('tf_pref', 'Wn_depth_from_layer5', (6,6,23), force_range=np.arange(-650,750,100),
-                                            along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('tf pref')
+        #     fig = self.plot_running_average('tf_pref', 'Wn_depth_from_layer5', (6,6,23), force_range=np.arange(-650,750,100),
+        #                                     along_y=True, use_median=True, show_legend=False, filter_for={'responsive_to_gratings':True})
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('tf pref')
 
         ### gratings speed
-        if np.sum(self.data['has_hf'])>1:
-            fig = self.plot_running_average('grat_speed_dps', 'Wn_depth_from_layer5', (6,6,24), force_range=np.arange(-650,750,100),
-                                            along_y=True, use_median=True, show_legend=True, filter_for={'responsive_to_gratings':True})
-            plt.ylabel('depth relative to layer 5'); plt.xlabel('grat speed (deg/sec)')
+        # if np.sum(self.data['has_hf'])>1:
+        #     fig = self.plot_running_average('grat_speed_dps', 'Wn_depth_from_layer5', (6,6,24), force_range=np.arange(-650,750,100),
+        #                                     along_y=True, use_median=True, show_legend=True, filter_for={'responsive_to_gratings':True})
+        #     plt.ylabel('depth relative to layer 5'); plt.xlabel('grat speed (deg/sec)')
 
-        fig = self.plot_running_average('FmLt_gyrox_modind', 'grat_speed_dps', (6,6,25), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('grat speed (deg/sec)'); plt.xlabel('gyro x modulation')
+        # fig = self.plot_running_average('FmLt_gyrox_modind', 'grat_speed_dps', (6,6,25), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('grat speed (deg/sec)'); plt.xlabel('gyro x modulation')
 
-        fig = self.plot_running_average('FmLt_gyroy_modind', 'grat_speed_dps', (6,6,26), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('grat speed (deg/sec)'); plt.xlabel('gyro y modulation')
+        # fig = self.plot_running_average('FmLt_gyroy_modind', 'grat_speed_dps', (6,6,26), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('grat speed (deg/sec)'); plt.xlabel('gyro y modulation')
 
-        fig = self.plot_running_average('FmLt_gyroz_modind', 'grat_speed_dps', (6,6,27), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('grat speed (deg/sec)'); plt.xlabel('gyro z modulation')
+        # fig = self.plot_running_average('FmLt_gyroz_modind', 'grat_speed_dps', (6,6,27), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('grat speed (deg/sec)'); plt.xlabel('gyro z modulation')
 
-        fig = self.plot_running_average('FmLt_roll_modind', 'grat_speed_dps', (6,6,28), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('grat speed (deg/sec)'); plt.xlabel('head roll modulation')
+        # fig = self.plot_running_average('FmLt_roll_modind', 'grat_speed_dps', (6,6,28), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('grat speed (deg/sec)'); plt.xlabel('head roll modulation')
 
-        fig = self.plot_running_average('FmLt_pitch_modind', 'grat_speed_dps', (6,6,29), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('grat speed (deg/sec)'); plt.xlabel('head pitch modulation')
+        # fig = self.plot_running_average('FmLt_pitch_modind', 'grat_speed_dps', (6,6,29), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('grat speed (deg/sec)'); plt.xlabel('head pitch modulation')
 
-        fig = self.plot_running_average('FmLt_theta_modind', 'grat_speed_dps', (6,6,30), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('grat speed (deg/sec)'); plt.xlabel('theta modulation')
+        # fig = self.plot_running_average('FmLt_theta_modind', 'grat_speed_dps', (6,6,30), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('grat speed (deg/sec)'); plt.xlabel('theta modulation')
 
-        fig = self.plot_running_average('FmLt_phi_modind', 'grat_speed_dps', (6,6,31), filter_for={'responsive_to_gratings':True})
-        plt.ylabel('grat speed (deg/sec)'); plt.xlabel('phi modulation')
+        # fig = self.plot_running_average('FmLt_phi_modind', 'grat_speed_dps', (6,6,31), filter_for={'responsive_to_gratings':True})
+        # plt.ylabel('grat speed (deg/sec)'); plt.xlabel('phi modulation')
 
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        # plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
     def spike_rate_by_stim(self):
-
         self.get_animal_activity()
-
         for ind, row in self.data.iterrows():
             if self.is_empty_cell(row, 'FmLt_spikeT'):
                 self.data.at[ind,'FmLt_rec_rate'] = len(row['FmLt_spikeT']) / (row['FmLt_spikeT'][-1] - row['FmLt_spikeT'][0])
@@ -1968,102 +1980,102 @@ class Population:
             else:
                 self.data.at[ind, 'fires_2sp_sec'] = False
 
-        if np.sum(self.data['has_hf'])>1:
-            plt.subplots(4,6, figsize=(25,20))
-            if self.exptype == 'hffm':
-                fig = self.plot_running_average('FmLt_roll_modind', 'Wn_depth_from_layer5', (4,6,1), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=True, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('light head roll modulation')
-            if self.exptype == 'ltdk':
-                fig = self.plot_running_average('FmDk_roll_modind', 'Wn_depth_from_layer5', (4,6,2), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head roll modulation')
-            if self.exptype == 'hffm':
-                fig = self.plot_running_average('FmLt_pitch_modind', 'Wn_depth_from_layer5', (4,6,3), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('light head pitch modulation')
-            if self.exptype == 'ltdk':
-                fig = self.plot_running_average('FmDk_pitch_modind', 'Wn_depth_from_layer5', (4,6,4), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head pitch modulation')
-            if self.exptype == 'hffm':
-                fig = self.plot_running_average('FmLt_theta_modind', 'Wn_depth_from_layer5', (4,6,5), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('light head theta modulation')
-            if self.exptype == 'ltdk':
-                fig = self.plot_running_average('FmDk_theta_modind', 'Wn_depth_from_layer5', (4,6,6), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head theta modulation')
-            if self.exptype == 'hffm':
-                fig = self.plot_running_average('FmLt_phi_modind', 'Wn_depth_from_layer5', (4,6,7), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('light head phi modulation')
-            if self.exptype == 'ltdk':
-                fig = self.plot_running_average('FmDk_phi_modind', 'Wn_depth_from_layer5', (4,6,8), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head phi modulation')
-            if self.exptype == 'hffm':
-                fig = self.plot_running_average('FmLt_gyrox_modind', 'Wn_depth_from_layer5', (4,6,9), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro x modulation')
-            if self.exptype == 'ltdk':
-                fig = self.plot_running_average('FmDk_gyrox_modind', 'Wn_depth_from_layer5', (4,6,10), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro x modulation')
-            if self.exptype == 'hffm':
-                fig = self.plot_running_average('FmLt_gyroy_modind', 'Wn_depth_from_layer5', (4,6,11), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro y modulation')
-            if self.exptype == 'ltdk':
-                fig = self.plot_running_average('FmDk_gyroy_modind', 'Wn_depth_from_layer5', (4,6,12), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro y modulation')
-            if self.exptype == 'hffm':
-                fig = self.plot_running_average('FmLt_gyroz_modind', 'Wn_depth_from_layer5', (4,6,13), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro z modulation')
-            if self.exptype == 'ltdk':
-                fig = self.plot_running_average('FmDk_gyroz_modind', 'Wn_depth_from_layer5', (4,6,14), force_range=np.arange(-650,750,100),
-                                                along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
-                plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro z modulation')
+        # if np.sum(self.data['has_hf'])>1:
+            # plt.subplots(4,6, figsize=(25,20))
+            # if self.exptype == 'hffm':
+            #     fig = self.plot_running_average('FmLt_roll_modind', 'Wn_depth_from_layer5', (4,6,1), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=True, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('light head roll modulation')
+            # if self.exptype == 'ltdk':
+            #     fig = self.plot_running_average('FmDk_roll_modind', 'Wn_depth_from_layer5', (4,6,2), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head roll modulation')
+            # if self.exptype == 'hffm':
+            #     fig = self.plot_running_average('FmLt_pitch_modind', 'Wn_depth_from_layer5', (4,6,3), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('light head pitch modulation')
+            # if self.exptype == 'ltdk':
+            #     fig = self.plot_running_average('FmDk_pitch_modind', 'Wn_depth_from_layer5', (4,6,4), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head pitch modulation')
+            # if self.exptype == 'hffm':
+            #     fig = self.plot_running_average('FmLt_theta_modind', 'Wn_depth_from_layer5', (4,6,5), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('light head theta modulation')
+            # if self.exptype == 'ltdk':
+            #     fig = self.plot_running_average('FmDk_theta_modind', 'Wn_depth_from_layer5', (4,6,6), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head theta modulation')
+            # if self.exptype == 'hffm':
+            #     fig = self.plot_running_average('FmLt_phi_modind', 'Wn_depth_from_layer5', (4,6,7), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('light head phi modulation')
+            # if self.exptype == 'ltdk':
+            #     fig = self.plot_running_average('FmDk_phi_modind', 'Wn_depth_from_layer5', (4,6,8), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('dark head phi modulation')
+            # if self.exptype == 'hffm':
+            #     fig = self.plot_running_average('FmLt_gyrox_modind', 'Wn_depth_from_layer5', (4,6,9), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro x modulation')
+            # if self.exptype == 'ltdk':
+            #     fig = self.plot_running_average('FmDk_gyrox_modind', 'Wn_depth_from_layer5', (4,6,10), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro x modulation')
+            # if self.exptype == 'hffm':
+            #     fig = self.plot_running_average('FmLt_gyroy_modind', 'Wn_depth_from_layer5', (4,6,11), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro y modulation')
+            # if self.exptype == 'ltdk':
+            #     fig = self.plot_running_average('FmDk_gyroy_modind', 'Wn_depth_from_layer5', (4,6,12), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro y modulation')
+            # if self.exptype == 'hffm':
+            #     fig = self.plot_running_average('FmLt_gyroz_modind', 'Wn_depth_from_layer5', (4,6,13), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('light gyro z modulation')
+            # if self.exptype == 'ltdk':
+            #     fig = self.plot_running_average('FmDk_gyroz_modind', 'Wn_depth_from_layer5', (4,6,14), force_range=np.arange(-650,750,100),
+            #                                     along_y=True, use_median=False, show_legend=False, filter_for={'fires_2sp_sec':True})
+            #     plt.ylabel('depth relative to layer 5'); plt.xlabel('dark gyro z modulation')
         
-            if self.exptype == 'ltdk':
-                plt.subplot(4,6,15)
-                plt.plot(self.data['FmLt_roll_modind'], self.data['FmDk_roll_modind'], 'k.', markersize=3)
-                plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
-                plt.title('head roll modulation')
+            # if self.exptype == 'ltdk':
+            #     plt.subplot(4,6,15)
+            #     plt.plot(self.data['FmLt_roll_modind'], self.data['FmDk_roll_modind'], 'k.', markersize=3)
+            #     plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
+            #     plt.title('head roll modulation')
 
-                plt.subplot(4,6,16)
-                plt.plot(self.data['FmLt_pitch_modind'], self.data['FmDk_pitch_modind'], 'k.', markersize=3)
-                plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
-                plt.title('head pitch modulation')
+            #     plt.subplot(4,6,16)
+            #     plt.plot(self.data['FmLt_pitch_modind'], self.data['FmDk_pitch_modind'], 'k.', markersize=3)
+            #     plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
+            #     plt.title('head pitch modulation')
 
-                plt.subplot(4,6,17)
-                plt.plot(self.data['FmLt_theta_modind'], self.data['FmDk_theta_modind'], 'k.', markersize=3)
-                plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
-                plt.title('theta modulation')
+            #     plt.subplot(4,6,17)
+            #     plt.plot(self.data['FmLt_theta_modind'], self.data['FmDk_theta_modind'], 'k.', markersize=3)
+            #     plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
+            #     plt.title('theta modulation')
 
-                plt.subplot(4,6,18)
-                plt.plot(self.data['FmLt_phi_modind'], self.data['FmDk_phi_modind'], 'k.', markersize=3)
-                plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
-                plt.title('phi modulation')
+            #     plt.subplot(4,6,18)
+            #     plt.plot(self.data['FmLt_phi_modind'], self.data['FmDk_phi_modind'], 'k.', markersize=3)
+            #     plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
+            #     plt.title('phi modulation')
 
-                plt.subplot(4,6,19)
-                plt.plot(self.data['FmLt_gyrox_modind'], self.data['FmDk_gyrox_modind'], 'k.', markersize=3)
-                plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
-                plt.title('gyro x modulation')
+            #     plt.subplot(4,6,19)
+            #     plt.plot(self.data['FmLt_gyrox_modind'], self.data['FmDk_gyrox_modind'], 'k.', markersize=3)
+            #     plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
+            #     plt.title('gyro x modulation')
 
-                plt.subplot(4,6,20)
-                plt.plot(self.data['FmLt_gyroy_modind'], self.data['FmDk_gyroy_modind'], 'k.', markersize=3)
-                plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
-                plt.title('gyro y modulation')
+            #     plt.subplot(4,6,20)
+            #     plt.plot(self.data['FmLt_gyroy_modind'], self.data['FmDk_gyroy_modind'], 'k.', markersize=3)
+            #     plt.plot([0,1],[0,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
+            #     plt.title('gyro y modulation')
 
-                plt.subplot(4,6,21)
-                plt.plot(self.data['FmLt_gyroz_modind'], self.data['FmDk_gyroz_modind'], 'k.', markersize=3)
-                plt.plot([-1,1],[-1,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
-                plt.title('gyro z modulation')
+            #     plt.subplot(4,6,21)
+            #     plt.plot(self.data['FmLt_gyroz_modind'], self.data['FmDk_gyroz_modind'], 'k.', markersize=3)
+            #     plt.plot([-1,1],[-1,1], 'r:'); plt.xlabel('light'); plt.ylabel('dark')
+            #     plt.title('gyro z modulation')
 
-            plt.tight_layout(); self.poppdf.savefig(); plt.close()
+            # plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
     def get_peak_trough(self, wv, baseline):
         wv = [i-baseline for i in wv]
@@ -2112,91 +2124,132 @@ class Population:
         return [(np.max(np.abs(a))-np.mean(a)) / np.std(a), (np.max(np.abs(b))-np.mean(b)) / np.std(b)]
 
     def split_cluster_by_compensatory_modulation(self, cluster_name, save_key):
-        this_cluster = flatten_series(self.data['nonpref_comp_psth'][self.data['movcluster']==cluster_name])
+        this_cluster = flatten_series(self.data['nonpref_comp_psth'][self.data['sacccluster']==cluster_name])
         km_labels = KMeans(n_clusters=2).fit(this_cluster).labels_
         cluster0mean = np.nanmean(this_cluster[km_labels==0], 0)
         cluster1mean = np.nanmean(this_cluster[km_labels==1], 0)
         comp_responsive = np.argmax(self.comparative_z_score(cluster0mean, cluster1mean))
-        inds = self.data['nonpref_comp_psth'][self.data['movcluster']==cluster_name].index.values
+        inds = self.data['nonpref_comp_psth'][self.data['sacccluster']==cluster_name].index.values
         for i in range(np.size(this_cluster, 0)):
             real_ind = inds[i]
             self.data.at[real_ind, save_key] = (True if km_labels[i]==comp_responsive else False)
-        plt.subplots(1,2,figsize=(5,10))
-        plt.subplot(2,1,1)
-        just_gaze = flatten_series(self.data['nonpref_comp_psth'][self.data['movcluster']==cluster_name][self.data[save_key]==False])
-        also_comp = flatten_series(self.data['nonpref_comp_psth'][self.data['movcluster']==cluster_name][self.data[save_key]==True])
-        plt.plot(self.trange_x, just_gaze.T, alpha=0.4)
-        plt.ylim([-0.8,0.8]); plt.xlim([-0.25,0.5]); plt.title(cluster_name+' only gaze-shifting')
-        plt.ylabel('norm spike rate'); plt.xlabel('sec')
-        plt.plot(self.trange_x, np.nanmean(just_gaze,0), 'k')
-        plt.subplot(2,1,2)
-        plt.plot(self.trange_x, also_comp.T, alpha=0.4)
-        plt.ylim([-0.8,0.8]); plt.xlim([-0.25,0.5]); plt.title(cluster_name+' gaze-shifting and compensatory')
-        plt.plot(self.trange_x, np.nanmean(also_comp,0), 'k')
-        plt.ylabel('norm spike rate'); plt.xlabel('sec')
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        # plt.subplots(1,2,figsize=(5,10))
+        # plt.subplot(2,1,1)
+        # just_gaze = flatten_series(self.data['nonpref_comp_psth'][self.data['movcluster']==cluster_name][self.data[save_key]==False])
+        # also_comp = flatten_series(self.data['nonpref_comp_psth'][self.data['movcluster']==cluster_name][self.data[save_key]==True])
+        # plt.plot(self.trange_x, just_gaze.T, alpha=0.4)
+        # plt.ylim([-0.8,0.8]); plt.xlim([-0.25,0.5]); plt.title(cluster_name+' only gaze-shifting')
+        # plt.ylabel('norm spike rate'); plt.xlabel('sec')
+        # plt.plot(self.trange_x, np.nanmean(just_gaze,0), 'k')
+        # plt.subplot(2,1,2)
+        # plt.plot(self.trange_x, also_comp.T, alpha=0.4)
+        # plt.ylim([-0.8,0.8]); plt.xlim([-0.25,0.5]); plt.title(cluster_name+' gaze-shifting and compensatory')
+        # plt.plot(self.trange_x, np.nanmean(also_comp,0), 'k')
+        # plt.ylabel('norm spike rate'); plt.xlabel('sec')
+        # plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
-    def deye_cluster_props(self, labels, data_key, attr, title, filter_has_dark=False):
-        plt.subplots(int(np.ceil(len(labels)/2)),2,figsize=(9,int(np.ceil(len(labels)*2))))
-        for count, label in enumerate(labels):
-            cluster = self.data[self.data[data_key]==label]
-            if filter_has_dark:
-                cluster = cluster[cluster['has_dark']]
-            plt.subplot(int(np.ceil(len(labels)/2)),2,count+1)
-            for ind, row in cluster.iterrows():
-                plt.plot(self.trange_x, row[attr], alpha=0.2)
-            plt.plot(self.trange_x, np.mean(cluster[attr], 0), 'k')
-            plt.xlim([-0.25,0.5]); plt.title(label+' '+title)
-            plt.vlines(0, -1, 1, linestyles='dotted', colors='k'); plt.ylim([-0.8,0.8])
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+    # def deye_cluster_props(self, labels, data_key, attr, title, filter_has_dark=False):
+    #     plt.subplots(int(np.ceil(len(labels)/2)),2,figsize=(9,int(np.ceil(len(labels)*2))))
+    #     for count, label in enumerate(labels):
+    #         cluster = self.data[self.data[data_key]==label]
+    #         if filter_has_dark:
+    #             cluster = cluster[cluster['has_dark']]
+    #         plt.subplot(int(np.ceil(len(labels)/2)),2,count+1)
+    #         for ind, row in cluster.iterrows():
+    #             plt.plot(self.trange_x, row[attr], alpha=0.2)
+    #         plt.plot(self.trange_x, np.mean(cluster[attr], 0), 'k')
+    #         plt.xlim([-0.25,0.5]); plt.title(label+' '+title)
+    #         plt.vlines(0, -1, 1, linestyles='dotted', colors='k'); plt.ylim([-0.8,0.8])
+    #     plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
-    def deye_cluster_avg(self, labels, data_key):
-        plt.figure(figsize=(8,6))
-        for count, label in enumerate(labels):
-            cluster = flatten_series(self.data['pref_gazeshift_psth'][self.data[data_key]==label])
-            cluster_mean = np.nanmean(cluster, 0)
-            plt.plot(self.trange_x, cluster_mean, label=label, linewidth=5)
-            plt.legend()
-            plt.xlim([-0.25,0.5])
-            plt.vlines(0,-1,1,linestyles='dotted',colors='k')
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+    # def deye_cluster_avg(self, labels, data_key):
+    #     plt.figure(figsize=(8,6))
+    #     for count, label in enumerate(labels):
+    #         cluster = flatten_series(self.data['pref_gazeshift_psth'][self.data[data_key]==label])
+    #         cluster_mean = np.nanmean(cluster, 0)
+    #         plt.plot(self.trange_x, cluster_mean, label=label, linewidth=5)
+    #         plt.legend()
+    #         plt.xlim([-0.25,0.5])
+    #         plt.vlines(0,-1,1,linestyles='dotted',colors='k')
+    #     plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
-    def deye_psth_cluster_visual_responses(self, labels, props, prop_labels, data_key):
-        plt.subplots(len(props),1,figsize=(16,int(len(props)*5)))
-        for fig_count, prop in enumerate(props):
-            ax = plt.subplot(len(props),1,fig_count+1)
-            for label_count, label in enumerate(labels):
-                if np.sum(self.data['has_hf'])==len(self.data):
-                    if 'Wn' in prop:
-                        s = self.data[prop][self.data['responsive_to_contrast']==True][self.data[data_key]==label].dropna()
-                    else:
-                        s = self.data[prop][self.data['responsive_to_gratings']==True][self.data[data_key]==label].dropna()
-                else:
-                        s = self.data[prop][self.data[data_key]==label].dropna()
-                s_mean = np.nanmean(s)
-                stderr = np.nanstd(s) / np.sqrt(np.size(s,0))
-                lbound = label_count-0.2; ubound = label_count+0.2
-                x_jitter = np.random.uniform(lbound, ubound, np.size(s,0))
-                plt.plot(x_jitter, np.array(s), '.')
-                plt.hlines(s_mean, lbound, ubound, linewidth=5)
-                plt.vlines(label_count, s_mean-stderr, s_mean+stderr, linewidth=5)
-            ax.set_xticks(np.arange(len(labels)))
-            ax.set_xticklabels(labels)
-            plt.ylabel(prop_labels[fig_count])
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+    # def deye_psth_cluster_visual_responses(self, labels, props, prop_labels, data_key):
+    #     plt.subplots(len(props),1,figsize=(16,int(len(props)*5)))
+    #     for fig_count, prop in enumerate(props):
+    #         ax = plt.subplot(len(props),1,fig_count+1)
+    #         for label_count, label in enumerate(labels):
+    #             if np.sum(self.data['has_hf'])==len(self.data):
+    #                 if 'Wn' in prop:
+    #                     s = self.data[prop][self.data['responsive_to_contrast']==True][self.data[data_key]==label].dropna()
+    #                 else:
+    #                     s = self.data[prop][self.data['responsive_to_gratings']==True][self.data[data_key]==label].dropna()
+    #             else:
+    #                     s = self.data[prop][self.data[data_key]==label].dropna()
+    #             s_mean = np.nanmean(s)
+    #             stderr = np.nanstd(s) / np.sqrt(np.size(s,0))
+    #             lbound = label_count-0.2; ubound = label_count+0.2
+    #             x_jitter = np.random.uniform(lbound, ubound, np.size(s,0))
+    #             plt.plot(x_jitter, np.array(s), '.')
+    #             plt.hlines(s_mean, lbound, ubound, linewidth=5)
+    #             plt.vlines(label_count, s_mean-stderr, s_mean+stderr, linewidth=5)
+    #         ax.set_xticks(np.arange(len(labels)))
+    #         ax.set_xticklabels(labels)
+    #         plt.ylabel(prop_labels[fig_count])
+    #     plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
-    def gratings_polar_plot(self, attr, labels, num_bins=8):
-        fig = plt.subplots(3,int(np.ceil((len(labels)+1)/3)),figsize=(15,15))
-        ax = plt.subplot(3,int(np.ceil((len(labels)+1)/3)),1,projection='polar')
-        s = self.data[attr][(self.data['dsi_for_sf_pref']>0.33) | (self.data['osi_for_sf_pref']>0.33)]
-        ax.bar(np.linspace(0,(2*np.pi)-np.deg2rad(360/num_bins),num_bins), np.histogram(s, bins=num_bins)[0], width=(2*np.pi)/num_bins, bottom=0, alpha=0.5)
-        plt.title('all')
-        for count, label in enumerate(labels):
-            s = self.data[attr][self.data['responsive_to_gratings']==True][(self.data['dsi_for_sf_pref']>0.33) | (self.data['osi_for_sf_pref']>0.33)][self.data['movcluster']==label]
-            ax = plt.subplot(3,int(np.ceil((len(labels)+1)/3)),count+2,projection='polar')
-            ax.bar(np.linspace(0,(2*np.pi)-np.deg2rad(360/num_bins),num_bins), np.histogram(s, bins=num_bins)[0], width=(2*np.pi)/num_bins, bottom=0, alpha=0.5)
-            plt.title(label+' (cells='+str(len(s))+')')
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+    # def gratings_polar_plot(self, attr, labels, num_bins=8):
+    #     fig = plt.subplots(3,int(np.ceil((len(labels)+1)/3)),figsize=(15,15))
+    #     ax = plt.subplot(3,int(np.ceil((len(labels)+1)/3)),1,projection='polar')
+    #     s = self.data[attr][(self.data['dsi_for_sf_pref']>0.33) | (self.data['osi_for_sf_pref']>0.33)]
+    #     ax.bar(np.linspace(0,(2*np.pi)-np.deg2rad(360/num_bins),num_bins), np.histogram(s, bins=num_bins)[0], width=(2*np.pi)/num_bins, bottom=0, alpha=0.5)
+    #     plt.title('all')
+    #     for count, label in enumerate(labels):
+    #         s = self.data[attr][self.data['responsive_to_gratings']==True][(self.data['dsi_for_sf_pref']>0.33) | (self.data['osi_for_sf_pref']>0.33)][self.data['movcluster']==label]
+    #         ax = plt.subplot(3,int(np.ceil((len(labels)+1)/3)),count+2,projection='polar')
+    #         ax.bar(np.linspace(0,(2*np.pi)-np.deg2rad(360/num_bins),num_bins), np.histogram(s, bins=num_bins)[0], width=(2*np.pi)/num_bins, bottom=0, alpha=0.5)
+    #         plt.title(label+' (cells='+str(len(s))+')')
+    #     plt.tight_layout(); self.poppdf.savefig(); plt.close()
+
+    def modind(self, a, b):
+        """
+        value of 1 means a is more significant
+        value of -1 means b is more significant
+        """
+        mi = (a - b) / (a + b)
+        return mi
+
+    def calc_direction_pref_index(self):
+        for ind, row in self.data[self.data['fr']>2].iterrows():
+            if row['sacccluster'] in ['early','late','biphasic','negative']:
+                if row['pref_gazeshift_direction']=='L':
+                    pref_gaze = row['pref_gazeshift_psth'][self.trange_win[0]:self.trange_win[1]]
+                    nonpref_gaze = row['nonpref_gazeshift_psth'][self.trange_win[0]:self.trange_win[1]]
+                    pref_comp = row['pref_comp_psth'][self.trange_win[0]:self.trange_win[1]]
+                    nonpref_comp= row['nonpref_comp_psth'][self.trange_win[0]:self.trange_win[1]]
+                elif row['pref_gazeshift_direction']=='R':
+                    pref_gaze = row['pref_gazeshift_psth'][self.trange_win[0]:self.trange_win[1]]
+                    nonpref_gaze = row['nonpref_gazeshift_psth'][self.trange_win[0]:self.trange_win[1]]
+                    pref_comp = row['pref_comp_psth'][self.trange_win[0]:self.trange_win[1]]
+                    nonpref_comp= row['nonpref_comp_psth'][self.trange_win[0]:self.trange_win[1]]
+                
+                if row['pref_gazeshift_direction']=='L':
+                    left_gaze = pref_gaze; right_gaze = nonpref_gaze
+                    left_comp = pref_comp; right_comp = nonpref_comp
+                elif row['pref_gazeshift_direction']=='R':
+                    right_gaze = pref_gaze; left_gaze = nonpref_gaze
+                    right_comp = pref_comp; left_comp = nonpref_comp
+                
+                self.data.at[ind, 'gaze_sacc_rlMI'] = self.modind(np.max(right_gaze), np.max(left_gaze))
+                self.data.at[ind, 'comp_sacc_rlMI'] = self.modind(np.max(right_comp), np.max(left_comp))
+                self.data.at[ind, 'gaze_sacc_pnpMI'] = self.modind(np.max(pref_gaze), np.max(nonpref_gaze))
+                self.data.at[ind, 'comp_sacc_pnpMI'] = self.modind(np.max(pref_comp), np.max(nonpref_comp))
+            
+        if self.exptype=='hffm' and row['responsive_to_gratings']:
+            ori = row['Gt_ori_tuning_mean_tf']
+            best_sf = ori[:,np.argmax(np.mean(ori,0))]
+            left_grat = best_sf[0]
+            right_grat = best_sf[4]
+            self.data.at[ind, 'gratings_rlMI'] = self.modind(right_grat, left_grat)
 
     def label_movcluster(self, psth, baseline, hthresh=0.17, el_bound=0.075):
         """
@@ -2258,22 +2311,22 @@ class Population:
         zwin = [35,55]
         for ind, row in self.data.iterrows():
             # direction preference
-            left_deflection = row['FmLt_leftsacc_avg_gaze_shift_dEye']
-            right_deflection = row['FmLt_rightsacc_avg_gaze_shift_dEye']
+            left_deflection = row['FmLt_leftsacc_avg_gaze_shift_dHead']
+            right_deflection = row['FmLt_rightsacc_avg_gaze_shift_dHead']
             left_right_index = np.argmax(np.abs(self.comparative_z_score(left_deflection[zwin[0]:zwin[1]], right_deflection[zwin[0]:zwin[1]])))
             saccade_direction_pref = ['L','R'][left_right_index]
             self.data.at[ind, 'pref_gazeshift_direction'] = saccade_direction_pref; self.data.at[ind, 'pref_gazeshift_direction_ind'] = left_right_index
-            self.data.at[ind, 'pref_gazeshift_raw_psth'] = ([row['FmLt_leftsacc_avg_gaze_shift_dEye'], row['FmLt_rightsacc_avg_gaze_shift_dEye']][int(left_right_index)]).astype(object)
+            self.data.at[ind, 'pref_gazeshift_raw_psth'] = ([row['FmLt_leftsacc_avg_gaze_shift_dHead'], row['FmLt_rightsacc_avg_gaze_shift_dHead']][int(left_right_index)]).astype(object)
             # direction preference for compensatory movements
-            left_deflection = row['FmLt_leftsacc_avg_comp_dEye']
-            right_deflection = row['FmLt_rightsacc_avg_comp_dEye']
+            left_deflection = row['FmLt_leftsacc_avg_comp_dHead']
+            right_deflection = row['FmLt_rightsacc_avg_comp_dHead']
             left_right_index = np.argmax(np.abs(self.comparative_z_score(left_deflection[zwin[0]:zwin[1]], right_deflection[zwin[0]:zwin[1]])))
             saccade_direction_pref = ['L','R'][left_right_index]
             self.data.at[ind, 'pref_comp_direction'] = saccade_direction_pref; self.data.at[ind, 'pref_comp_direction_ind'] = left_right_index
         for ind, row in self.data.iterrows():
             # more compensatory or more gaze-shifting?
-            comp_deflection = [row['FmLt_leftsacc_avg_comp_dEye'],row['FmLt_rightsacc_avg_comp_dEye']][int(row['pref_comp_direction_ind'])]
-            gazeshift_deflection = [row['FmLt_leftsacc_avg_gaze_shift_dEye'],row['FmLt_rightsacc_avg_gaze_shift_dEye']][int(row['pref_gazeshift_direction_ind'])]
+            comp_deflection = [row['FmLt_leftsacc_avg_comp_dHead'],row['FmLt_rightsacc_avg_comp_dHead']][int(row['pref_comp_direction_ind'])]
+            gazeshift_deflection = [row['FmLt_leftsacc_avg_gaze_shift_dHead'],row['FmLt_rightsacc_avg_gaze_shift_dHead']][int(row['pref_gazeshift_direction_ind'])]
             comp_gazeshift_zscores = [(np.max(np.abs(comp_deflection))-np.mean(comp_deflection)) / np.std(comp_deflection), (np.max(np.abs(gazeshift_deflection))-np.mean(gazeshift_deflection)) / np.std(gazeshift_deflection)]
             comp_gazeshift_index = np.argmax(np.abs(comp_gazeshift_zscores))
             is_more_gazeshift = ['comp','gaze_shift'][comp_gazeshift_index]
@@ -2285,31 +2338,31 @@ class Population:
         self.data['nonpref_comp_psth_FmDk'] = np.array(np.nan).astype(object)
 
         for ind, row in self.data.iterrows():
-            deflection_at_pref_direction = [row['FmLt_leftsacc_avg_gaze_shift_dEye'],row['FmLt_rightsacc_avg_gaze_shift_dEye']][int(row['pref_gazeshift_direction_ind'])]
+            deflection_at_pref_direction = [row['FmLt_leftsacc_avg_gaze_shift_dHead'],row['FmLt_rightsacc_avg_gaze_shift_dHead']][int(row['pref_gazeshift_direction_ind'])]
             norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
             self.data.at[ind, 'pref_gazeshift_psth'] = norm_deflection.astype(object)
 
-            deflection_at_pref_direction = [row['FmLt_leftsacc_avg_comp_dEye'],row['FmLt_rightsacc_avg_comp_dEye']][int(row['pref_gazeshift_direction_ind'])]
+            deflection_at_pref_direction = [row['FmLt_leftsacc_avg_comp_dHead'],row['FmLt_rightsacc_avg_comp_dHead']][int(row['pref_gazeshift_direction_ind'])]
             norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
             self.data.at[ind, 'pref_comp_psth'] = norm_comp_deflection.astype(object)
 
-            deflection_at_pref_direction = [row['FmLt_leftsacc_avg_gaze_shift_dEye'],row['FmLt_rightsacc_avg_gaze_shift_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
+            deflection_at_pref_direction = [row['FmLt_leftsacc_avg_gaze_shift_dHead'],row['FmLt_rightsacc_avg_gaze_shift_dHead']][1-int(row['pref_gazeshift_direction_ind'])]
             norm_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
             self.data.at[ind, 'nonpref_gazeshift_psth'] = norm_deflection.astype(object)
 
-            deflection_at_pref_direction = [row['FmLt_leftsacc_avg_comp_dEye'],row['FmLt_rightsacc_avg_comp_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
+            deflection_at_pref_direction = [row['FmLt_leftsacc_avg_comp_dHead'],row['FmLt_rightsacc_avg_comp_dHead']][1-int(row['pref_gazeshift_direction_ind'])]
             norm_comp_deflection = (deflection_at_pref_direction-np.nanmean(deflection_at_pref_direction)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
             self.data.at[ind, 'nonpref_comp_psth'] = norm_comp_deflection.astype(object)
 
             if np.sum(self.data['has_dark'])==len(self.data):
-                dark_gaze_shift = [row['FmDk_leftsacc_avg_gaze_shift_dEye'],row['FmDk_rightsacc_avg_gaze_shift_dEye']][int(row['pref_gazeshift_direction_ind'])]
+                dark_gaze_shift = [row['FmDk_leftsacc_avg_gaze_shift_dHead'],row['FmDk_rightsacc_avg_gaze_shift_dHead']][int(row['pref_gazeshift_direction_ind'])]
                 dark_gaze_shift_norm = (dark_gaze_shift-np.nanmean(dark_gaze_shift)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
-                dark_comp = [row['FmDk_leftsacc_avg_comp_dEye'],row['FmDk_rightsacc_avg_comp_dEye']][int(row['pref_gazeshift_direction_ind'])]
+                dark_comp = [row['FmDk_leftsacc_avg_comp_dHead'],row['FmDk_rightsacc_avg_comp_dHead']][int(row['pref_gazeshift_direction_ind'])]
                 dark_comp_norm = (dark_comp-np.nanmean(dark_comp)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
 
-                dark_gaze_shift_opp = [row['FmDk_leftsacc_avg_gaze_shift_dEye'],row['FmDk_rightsacc_avg_gaze_shift_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
+                dark_gaze_shift_opp = [row['FmDk_leftsacc_avg_gaze_shift_dHead'],row['FmDk_rightsacc_avg_gaze_shift_dHead']][1-int(row['pref_gazeshift_direction_ind'])]
                 dark_gaze_shift_norm_opp = (dark_gaze_shift_opp-np.nanmean(dark_gaze_shift_opp)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
-                dark_comp_opp = [row['FmDk_leftsacc_avg_comp_dEye'],row['FmDk_rightsacc_avg_comp_dEye']][1-int(row['pref_gazeshift_direction_ind'])]
+                dark_comp_opp = [row['FmDk_leftsacc_avg_comp_dHead'],row['FmDk_rightsacc_avg_comp_dHead']][1-int(row['pref_gazeshift_direction_ind'])]
                 dark_comp_norm_opp = (dark_comp_opp-np.nanmean(dark_comp_opp)) / np.nanmax(np.abs(row['pref_gazeshift_raw_psth']))
 
                 self.data.at[ind, 'pref_gazeshift_psth_FmDk'] = dark_gaze_shift_norm.astype(object)
@@ -2326,11 +2379,11 @@ class Population:
 
             explvar = pca.explained_variance_
 
-            plt.figure()
-            plt.plot(explvar)
-            plt.xlabel('PCAs'); plt.ylabel('explained variance')
-            plt.vlines(pcas_cutoff, 0, explvar[0], colors='k', linestyle='dotted')
-            plt.tight_layout(); self.poppdf.savefig(); plt.close()
+            # plt.figure()
+            # plt.plot(explvar)
+            # plt.xlabel('PCAs'); plt.ylabel('explained variance')
+            # plt.vlines(pcas_cutoff, 0, explvar[0], colors='k', linestyle='dotted')
+            # plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
             proj = pca.transform(unit_modulations)
             gproj = proj[:,:pcas_cutoff]
@@ -2369,25 +2422,25 @@ class Population:
             mean_baseline = np.nanmean(clustermeans[l, :self.trange_win[0]])
             cluster_to_cell_type[l] = self.label_movcluster(mean_response, mean_baseline)
         for ind, row in self.data.iterrows():
-            self.data.at[ind, 'movcluster'] = cluster_to_cell_type[row['mov_kmclust']]
+            self.data.at[ind, 'sacccluster'] = cluster_to_cell_type[row['mov_kmclust']]
 
-        plt.subplots(2,3, figsize=(15,10))
+        # plt.subplots(2,3, figsize=(15,10))
         mean_cluster = dict()
         for label in range(5):
-            plt.subplot(2,3,label+1)
-            plt.title('cluster='+str(label)+' count='+str(len(self.data['pref_gazeshift_psth'][self.data['mov_kmclust']==label].dropna())))
-            inhibitory = flatten_series(self.data['pref_gazeshift_psth'][self.data['mov_kmclust']==label][self.data['exc_or_inh']=='inh'])
-            for i in range(len(inhibitory)):
-                plt.plot(self.trange_x, inhibitory[i], 'g', alpha=0.1, linewidth=1)
-            excitatory = flatten_series(self.data['pref_gazeshift_psth'][self.data['mov_kmclust']==label][self.data['exc_or_inh']=='exc'])
-            for i in range(len(excitatory)):
-                plt.plot(self.trange_x, excitatory[i], 'b', alpha=0.1, linewidth=1)
+            # plt.subplot(2,3,label+1)
+            # plt.title('cluster='+str(label)+' count='+str(len(self.data['pref_gazeshift_psth'][self.data['mov_kmclust']==label].dropna())))
+            # inhibitory = flatten_series(self.data['pref_gazeshift_psth'][self.data['mov_kmclust']==label][self.data['exc_or_inh']=='inh'])
+            # for i in range(len(inhibitory)):
+            #     plt.plot(self.trange_x, inhibitory[i], 'g', alpha=0.1, linewidth=1)
+            # excitatory = flatten_series(self.data['pref_gazeshift_psth'][self.data['mov_kmclust']==label][self.data['exc_or_inh']=='exc'])
+            # for i in range(len(excitatory)):
+            #     plt.plot(self.trange_x, excitatory[i], 'b', alpha=0.1, linewidth=1)
             all_units = flatten_series(self.data['pref_gazeshift_psth'][self.data['mov_kmclust']==label])
-            plt.plot(self.trange_x, np.nanmean(all_units, axis=0), 'k', linewidth=3)
-            plt.xlim([-0.5,0.75]); plt.ylabel('norm spike rate'); plt.xlabel('sec')
+            # plt.plot(self.trange_x, np.nanmean(all_units, axis=0), 'k', linewidth=3)
+            # plt.xlim([-0.5,0.75]); plt.ylabel('norm spike rate'); plt.xlabel('sec')
             mean_cluster[label] = np.nanmean(all_units, axis=0)
-        plt.legend(handles=[self.bluepatch, self.greenpatch])
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        # plt.legend(handles=[self.bluepatch, self.greenpatch])
+        # plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
         cluster_to_cell_type = dict()
         for cluster_num, orig_cluster in mean_cluster.items():
@@ -2397,52 +2450,57 @@ class Population:
             p, t = self.get_peak_trough(cluster_mean[38:50], baseline)
             cluster_to_cell_type[cluster_num] = self.get_cluster_props(p, t)
         for ind, row in self.data.iterrows():
-            self.data.at[ind, 'movcluster'] = cluster_to_cell_type[row['mov_kmclust']]
+            self.data.at[ind, 'sacccluster_no_movement'] = cluster_to_cell_type[row['mov_kmclust']]
+
+        self.calc_direction_pref_index()
+        self.data['sacccluster'] = self.data['sacccluster_no_movement']
+        for ind, row in self.data.iterrows():
+            if np.abs(row['gaze_sacc_rlMI']) >= 0.33:
+                self.data.at[ind, 'sacccluster'] = 'movement'
 
         self.split_cluster_by_compensatory_modulation('biphasic', 'biphasic_comp_responsive')
         self.split_cluster_by_compensatory_modulation('early', 'early_comp_responsive')
         self.split_cluster_by_compensatory_modulation('late', 'late_comp_responsive')
         self.split_cluster_by_compensatory_modulation('negative', 'negative_comp_responsive')
 
-        props = ['dsi_for_sf_pref', 'osi_for_sf_pref', 'Wn_contrast_modind', 'sf_pref', 'tf_pref', 'grat_speed_dps']
-        prop_labels = ['dsi','osi','contrast modulation','sf pref','tf pref', 'grat speed (deg/sec)']
+        # props = ['dsi_for_sf_pref', 'osi_for_sf_pref', 'Wn_contrast_modind', 'sf_pref', 'tf_pref', 'grat_speed_dps']
+        # prop_labels = ['dsi','osi','contrast modulation','sf pref','tf pref', 'grat speed (deg/sec)']
+        # labels = sorted(self.data['movcluster'].unique())
+        # self.deye_cluster_avg(labels, 'movcluster')
+        # self.deye_cluster_props(labels, 'movcluster', 'pref_gazeshift_psth', 'gaze-shift pref')
+        # self.deye_cluster_props(labels, 'movcluster', 'pref_comp_psth', 'comp pref')
+        # self.deye_cluster_props(labels, 'movcluster', 'nonpref_gazeshift_psth', 'gaze-shift opposite')
+        # self.deye_cluster_props(labels, 'movcluster', 'nonpref_comp_psth', 'comp opposite')
 
-        labels = sorted(self.data['movcluster'].unique())
-        self.deye_cluster_avg(labels, 'movcluster')
-        self.deye_cluster_props(labels, 'movcluster', 'pref_gazeshift_psth', 'gaze-shift pref')
-        self.deye_cluster_props(labels, 'movcluster', 'pref_comp_psth', 'comp pref')
-        self.deye_cluster_props(labels, 'movcluster', 'nonpref_gazeshift_psth', 'gaze-shift opposite')
-        self.deye_cluster_props(labels, 'movcluster', 'nonpref_comp_psth', 'comp opposite')
+        # if np.sum(self.data['has_hf'])>1:
+        #     plt.subplots(3,3, figsize=(14,14))
+        #     for count, label in enumerate(labels):
+        #         plt.subplot(3,3,count+1)
+        #         tempcolor = self.cmap_movclusts[count+1]
+        #         plt.hist(self.data['Wn_depth_from_layer5'][self.data['movcluster']==label], bins=list(np.arange(-650,650+100,100)), orientation='horizontal', color=tempcolor)
+        #         plt.title(label); plt.ylabel('depth')
+        #         plt.gca().invert_yaxis()
+        #     plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
-        if np.sum(self.data['has_hf'])>1:
-            plt.subplots(3,3, figsize=(14,14))
-            for count, label in enumerate(labels):
-                plt.subplot(3,3,count+1)
-                tempcolor = self.cmap_movclusts[count+1]
-                plt.hist(self.data['Wn_depth_from_layer5'][self.data['movcluster']==label], bins=list(np.arange(-650,650+100,100)), orientation='horizontal', color=tempcolor)
-                plt.title(label); plt.ylabel('depth')
-                plt.gca().invert_yaxis()
-            plt.tight_layout(); self.poppdf.savefig(); plt.close()
+            # self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movcluster')
 
-            self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movcluster')
+            # labels = sorted(self.data['movcluster'].unique())
+            # self.deye_cluster_avg(labels, 'movcluster')
+            # self.deye_cluster_props(labels, 'movcluster', 'pref_gazeshift_psth', 'gaze-shift pref')
+            # self.deye_cluster_props(labels, 'movcluster', 'pref_comp_psth', 'comp pref')
+            # self.deye_cluster_props(labels, 'movcluster', 'nonpref_gazeshift_psth', 'gaze-shift opposite')
+            # self.deye_cluster_props(labels, 'movcluster', 'nonpref_comp_psth', 'comp opposite')
 
-            labels = sorted(self.data['movcluster'].unique())
-            self.deye_cluster_avg(labels, 'movcluster')
-            self.deye_cluster_props(labels, 'movcluster', 'pref_gazeshift_psth', 'gaze-shift pref')
-            self.deye_cluster_props(labels, 'movcluster', 'pref_comp_psth', 'comp pref')
-            self.deye_cluster_props(labels, 'movcluster', 'nonpref_gazeshift_psth', 'gaze-shift opposite')
-            self.deye_cluster_props(labels, 'movcluster', 'nonpref_comp_psth', 'comp opposite')
+            # self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movcluster')
 
-            self.deye_psth_cluster_visual_responses(labels, props, prop_labels, 'movcluster')
-
-        if np.sum(self.data['has_hf'])>1:
-            plt.subplots(3,3, figsize=(14,14))
-            for count, label in enumerate(labels):
-                plt.subplot(3,3,count+1)
-                plt.hist(self.data['Wn_depth_from_layer5'][self.data['movcluster']==label], bins=list(np.arange(-650,650+100,100)), orientation='horizontal')
-                plt.title(label); plt.ylabel('depth')
-                plt.gca().invert_yaxis()
-            plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        # if np.sum(self.data['has_hf'])>1:
+        #     plt.subplots(3,3, figsize=(14,14))
+        #     for count, label in enumerate(labels):
+        #         plt.subplot(3,3,count+1)
+        #         plt.hist(self.data['Wn_depth_from_layer5'][self.data['sacccluster']==label], bins=list(np.arange(-650,650+100,100)), orientation='horizontal')
+        #         plt.title(label); plt.ylabel('depth')
+        #         plt.gca().invert_yaxis()
+        #     plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
         for ind, row in self.data[self.data['has_hf']].iterrows():
             ori_tuning = np.mean(row['Gt_ori_tuning_tf'],2) # [orientation, sf, tf]
@@ -2466,33 +2524,33 @@ class Population:
             self.data.at[ind, 'Gt_best_direction'] = prefered_direction[best_sf_ind]
             self.data.at[ind, 'Gt_best_orientation'] = prefered_orientation[best_sf_ind]
         
-        if np.sum(self.data['has_hf'])>1:
-            self.gratings_polar_plot('Gt_best_orientation', labels)
+        # if np.sum(self.data['has_hf'])>1:
+        #     self.gratings_polar_plot('Gt_best_orientation', labels)
 
-        key_data = np.zeros([len(labels),2])
-        for label_count, label in enumerate(labels):
-            num_inh = len(self.data[self.data['movcluster']==label][self.data['exc_or_inh']=='inh'])
-            num_exc = len(self.data[self.data['movcluster']==label][self.data['exc_or_inh']=='exc'])
-            if num_inh > 0:
-                key_data[label_count, 0] = num_inh / len(self.data[self.data['exc_or_inh']=='inh'])
-            if num_exc > 0:
-                key_data[label_count, 1] = num_exc / len(self.data[self.data['exc_or_inh']=='exc'])
-        fig, ax = plt.subplots(1,1, figsize=(17,6))
-        x = np.arange(len(labels))
-        width = 0.35
-        plt.bar(x - width/2, key_data[:,0], width=width, label='inhibitory', color='g')
-        plt.bar(x + width/2, key_data[:,1], width=width, label='excitatory', color='b')
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels)
-        ax.legend()
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+        # key_data = np.zeros([len(labels),2])
+        # for label_count, label in enumerate(labels):
+        #     num_inh = len(self.data[self.data['sacccluster']==label][self.data['exc_or_inh']=='inh'])
+        #     num_exc = len(self.data[self.data['sacccluster']==label][self.data['exc_or_inh']=='exc'])
+        #     if num_inh > 0:
+        #         key_data[label_count, 0] = num_inh / len(self.data[self.data['exc_or_inh']=='inh'])
+        #     if num_exc > 0:
+        #         key_data[label_count, 1] = num_exc / len(self.data[self.data['exc_or_inh']=='exc'])
+        # fig, ax = plt.subplots(1,1, figsize=(17,6))
+        # x = np.arange(len(labels))
+        # width = 0.35
+        # plt.bar(x - width/2, key_data[:,0], width=width, label='inhibitory', color='g')
+        # plt.bar(x + width/2, key_data[:,1], width=width, label='excitatory', color='b')
+        # ax.set_xticks(x)
+        # ax.set_xticklabels(labels)
+        # ax.legend()
+        # plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
-        if np.sum(self.data['has_dark'])==len(self.data):
-            labels = sorted(self.data['movcluster'].unique())
-            self.deye_cluster_props(labels, 'movcluster', 'pref_gazeshift_psth_FmDk', 'dark gaze-shift pref', filter_has_dark=True)
-            self.deye_cluster_props(labels, 'movcluster', 'pref_comp_psth_FmDk', 'dark comp pref', filter_has_dark=True)
-            self.deye_cluster_props(labels, 'movcluster', 'nonpref_gazeshift_psth_FmDk', 'dark gaze-shift opposite', filter_has_dark=True)
-            self.deye_cluster_props(labels, 'movcluster', 'nonpref_comp_psth_FmDk', 'dark comp opposite', filter_has_dark=True)
+        # if np.sum(self.data['has_dark'])==len(self.data):
+        #     labels = sorted(self.data['movcluster'].unique())
+        #     self.deye_cluster_props(labels, 'movcluster', 'pref_gazeshift_psth_FmDk', 'dark gaze-shift pref', filter_has_dark=True)
+        #     self.deye_cluster_props(labels, 'movcluster', 'pref_comp_psth_FmDk', 'dark comp pref', filter_has_dark=True)
+        #     self.deye_cluster_props(labels, 'movcluster', 'nonpref_gazeshift_psth_FmDk', 'dark gaze-shift opposite', filter_has_dark=True)
+        #     self.deye_cluster_props(labels, 'movcluster', 'nonpref_comp_psth_FmDk', 'dark comp opposite', filter_has_dark=True)
 
             # labels = sorted(self.data['movcluster'].unique())
             # stims = ['pref_gazeshift_psth','pref_comp_psth','nonpref_gazeshift_psth','nonpref_comp_psth',
@@ -2603,28 +2661,28 @@ class Population:
                 if np.max(trange_inds) < len(dhead):
                     dhead_mov_left[sind,:] = dhead[np.array(trange_inds)]
             
-            plt.subplot(n_sessions,4,count)
-            count += 1
-            plt.plot(self.trange_x, np.nanmean(deye_mov_right,0), color='tab:blue')
-            plt.plot(self.trange_x, np.nanmean(deye_mov_left,0), color='red')
-            plt.title(session + movement)
-            plt.ylabel('deye')
-            plt.subplot(n_sessions,4,count)
-            count += 1
-            plt.plot(self.trange_x, np.nancumsum(np.nanmean(deye_mov_right,0)), color='tab:blue')
-            plt.plot(self.trange_x, np.nancumsum(np.nanmean(deye_mov_left,0)), color='red')
-            plt.ylabel('cumulative deye')
-            plt.subplot(n_sessions,4,count)
-            count += 1
-            plt.plot(self.trange_x, np.nanmean(dhead_mov_right,0), color='tab:blue')
-            plt.plot(self.trange_x, np.nanmean(dhead_mov_left,0), color='red')
-            plt.ylabel('dhead')
-            plt.subplot(n_sessions,4,count)
-            count += 1
-            plt.plot(self.trange_x, np.nancumsum(np.nanmean(dhead_mov_right,0)), color='tab:blue')
-            plt.plot(self.trange_x, np.nancumsum(np.nanmean(dhead_mov_left,0)), color='red')
-            plt.ylabel('cumulative dhead')
-        plt.tight_layout(); self.poppdf.savefig(); plt.close()
+            # plt.subplot(n_sessions,4,count)
+            # count += 1
+            # plt.plot(self.trange_x, np.nanmean(deye_mov_right,0), color='tab:blue')
+            # plt.plot(self.trange_x, np.nanmean(deye_mov_left,0), color='red')
+            # plt.title(session + movement)
+            # plt.ylabel('deye')
+            # plt.subplot(n_sessions,4,count)
+            # count += 1
+            # plt.plot(self.trange_x, np.nancumsum(np.nanmean(deye_mov_right,0)), color='tab:blue')
+            # plt.plot(self.trange_x, np.nancumsum(np.nanmean(deye_mov_left,0)), color='red')
+            # plt.ylabel('cumulative deye')
+            # plt.subplot(n_sessions,4,count)
+            # count += 1
+            # plt.plot(self.trange_x, np.nanmean(dhead_mov_right,0), color='tab:blue')
+            # plt.plot(self.trange_x, np.nanmean(dhead_mov_left,0), color='red')
+            # plt.ylabel('dhead')
+            # plt.subplot(n_sessions,4,count)
+            # count += 1
+            # plt.plot(self.trange_x, np.nancumsum(np.nanmean(dhead_mov_right,0)), color='tab:blue')
+            # plt.plot(self.trange_x, np.nancumsum(np.nanmean(dhead_mov_left,0)), color='red')
+            # plt.ylabel('cumulative dhead')
+        # plt.tight_layout(); self.poppdf.savefig(); plt.close()
 
     def set_activity_thresh(self, method='min_active', light_val=14, dark_val=7):
         """ Set threshold for how active an animal is before the session can be included in population analysis.
@@ -2699,11 +2757,216 @@ class Population:
             self.data.at[ind, 'is_SbC'] = isSbC
             self.data.at[ind, 'is_grat_trpsth'] = isgrat_trpsth
 
+    def calc_firing_rates_hffm(self):
+        model_dt = 0.025
+        for ind, row in self.data.iterrows():
+            modelT = np.arange(0, np.nanmax(row['FmLt_eyeT']), model_dt)
+            
+            # timing is off sometimes... using eyeT instead of worldT to get maximum length
+            # and they can be different by a few frames
+            diff = len(modelT) - len(row['FmLt_rate'])
+            if diff>0: # modelT is longer
+                modelT = modelT[:-diff]
+            elif diff<0: # modelT is shorted
+                for i in range(np.abs(diff)):
+                    modelT = np.append(modelT, modelT[-1]+model_dt)
+            model_gz = interp1d(row['FmLt_imuT'], row['FmLt_gyro_z'], bounds_error=False)(modelT)
+            model_active = np.convolve(np.abs(model_gz), np.ones(int(1/model_dt)), 'same') / len(np.ones(int(1/model_dt)))
+            self.data.at[ind, 'FmLt_model_active'] = model_active.astype(object)
+            self.data.at[ind, 'FmLt_modelT'] = modelT.astype(object)
+            
+            modelT = np.arange(0, np.nanmax(row['Wn_eyeT']), model_dt)
+            diff = len(modelT) - len(row['Wn_rate'])
+            if diff>0: # modelT is longer
+                modelT = modelT[:-diff]
+            elif diff<0: # modelT is shorted
+                for i in range(np.abs(diff)):
+                    modelT = np.append(modelT, modelT[-1]+model_dt)
+            ballT = np.linspace(row['Wn_eyeT'][0], row['Wn_eyeT'][-1], row['Wn_ballspeed'].values.shape[0])
+            model_speed = interp1d(ballT, row['Wn_ballspeed'].values, bounds_error=False)(modelT)
+            self.data.at[ind, 'Wn_modelT'] = modelT.astype(object)
+            self.data.at[ind, 'Wn_ball_speed'] = model_speed.astype(object)
+
+        for ind, row in self.data.iterrows():
+            self.data.at[ind,'FmLt_active_fr'] = (np.sum(row['FmLt_rate'][row['FmLt_model_active']>40])) / np.size(row['FmLt_modelT'][row['FmLt_model_active']>40])
+            self.data.at[ind,'FmLt_inactive_fr'] = (np.sum(row['FmLt_rate'][row['FmLt_model_active']<40])) / np.size(row['FmLt_modelT'][row['FmLt_model_active']<40])
+            self.data.at[ind,'Wn_active_fr'] = (np.sum(row['Wn_rate'][row['Wn_ball_speed']>=1.0])) / np.size(row['Wn_modelT'][row['Wn_ball_speed']>=1.0])
+            self.data.at[ind,'Wn_inactive_fr'] = (np.sum(row['Wn_rate'][row['Wn_ball_speed']<1.0])) / np.size(row['Wn_modelT'][row['Wn_ball_speed']<1.0])
+
+    def calc_firing_rates_ltdk(self):
+        model_dt = 0.025
+        for ind, row in self.data.iterrows():
+            modelT = np.arange(0, np.nanmax(row['FmLt_eyeT']), model_dt)
+            
+            # timing is off sometimes... using eyeT instead of worldT to get maximum length
+            # and they can be different by a few frames
+            diff = len(modelT) - len(row['FmLt_rate'])
+            if diff>0: # modelT is longer
+                modelT = modelT[:-diff]
+            elif diff<0: # modelT is shorted
+                for i in range(np.abs(diff)):
+                    modelT = np.append(modelT, modelT[-1]+model_dt)
+            model_gz = interp1d(row['FmLt_imuT'], row['FmLt_gyro_z'], bounds_error=False)(modelT)
+            model_active = np.convolve(np.abs(model_gz), np.ones(int(1/model_dt)), 'same') / len(np.ones(int(1/model_dt)))
+            self.data.at[ind, 'FmLt_model_active'] = model_active.astype(object)
+            self.data.at[ind, 'FmLt_modelT'] = modelT.astype(object)
+            
+            modelT = np.arange(0, np.nanmax(row['FmDk_eyeT']), model_dt)
+            diff = len(modelT) - len(row['FmDk_rate'])
+            if diff>0: # modelT is longer
+                modelT = modelT[:-diff]
+            elif diff<0: # modelT is shorted
+                for i in range(np.abs(diff)):
+                    modelT = np.append(modelT, modelT[-1]+model_dt)
+            model_gz = interp1d(row['FmDk_imuT'], row['FmDk_gyro_z'], bounds_error=False)(modelT)
+            model_active = np.convolve(np.abs(model_gz), np.ones(int(1/model_dt)), 'same') / len(np.ones(int(1/model_dt)))
+            self.data.at[ind, 'FmDk_model_active'] = model_active.astype(object)
+            self.data.at[ind, 'FmDk_modelT'] = modelT.astype(object)
+        
+        self.data['FmLt_fr'] = ((self.data['FmLt_rate'].apply(np.sum)*0.025) / self.data['FmLt_eyeT'].apply(np.nanmax)).to_numpy()
+        self.data['FmDk_fr'] = ((self.data['FmDk_rate'].apply(np.sum)*0.025) / self.data['FmDk_eyeT'].apply(np.nanmax)).to_numpy()
+
+        FmLt_fr = np.zeros([len(self.data.index.values)])
+        FmDk_fr = np.zeros([len(self.data.index.values)])
+        for ind, row in self.data.iterrows():
+            self.data.at[ind,'FmLt_active_fr'] = (np.sum(row['FmLt_rate'][row['FmLt_model_active']>40])) / np.size(row['FmLt_modelT'][row['FmLt_model_active']>40])
+            self.data.at[ind,'FmLt_inactive_fr'] = (np.sum(row['FmLt_rate'][row['FmLt_model_active']<40])) / np.size(row['FmLt_modelT'][row['FmLt_model_active']<40])
+            self.data.at[ind,'FmDk_active_fr'] = (np.sum(row['FmDk_rate'][row['FmDk_model_active']>40])) / np.size(row['FmDk_modelT'][row['FmDk_model_active']>40])
+            self.data.at[ind,'FmDk_inactive_fr'] = (np.sum(row['FmDk_rate'][row['FmDk_model_active']<40])) / np.size(row['FmDk_modelT'][row['FmDk_model_active']<40])
+
+    def norm_PSTH(self, x, pref=None, bckgnd=None):
+        if pref is None:
+            pref = x.copy()
+        if bckgnd is not None:
+            return (x-x[bckgnd]) / np.nanmax(np.abs(pref))
+        else:
+            return (x-np.mean(bckgnd)) / np.nanmax(np.abs(pref))
+
+    def PSTH_for_SnRc(self, bval=39):
+        bval = 39
+        for ind, row in self.data.iterrows():
+            self.data.at[ind, 'norm_Rc_psth'] = self.norm_PSTH(row['Rc_psth'], bckgnd=bval).astype(object)
+            if not np.isnan(row['Sn_on_background_psth']).all():
+                Sn_selective_on = row['Sn_on_lightstim_psth'] - row['Sn_on_background_psth']
+                self.data.at[ind, 'norm_Sn_selective_on'] = self.norm_PSTH(Sn_selective_on, bckgnd=bval).astype(object)
+                self.data.at[ind, 'norm_Sn_background_on'] = self.norm_PSTH(row['Sn_on_background_psth'], bckgnd=bval).astype(object)
+            if not np.isnan(row['Sn_off_background_psth']).all():
+                Sn_selective_off = row['Sn_off_darkstim_psth'] - row['Sn_off_background_psth']
+                self.data.at[ind, 'norm_Sn_selective_off'] = self.norm_PSTH(Sn_selective_off, bckgnd=bval).astype(object)
+                self.data.at[ind, 'norm_Sn_background_off'] = self.norm_PSTH(row['Sn_off_background_psth'], bckgnd=bval).astype(object)
+            if not np.isnan(row['Sn_on_all_psth']).all():
+                self.data.at[ind, 'norm_Sn_on_all_psth'] = self.norm_PSTH(row['Sn_on_all_psth'], bckgnd=bval).astype(object)
+        
+        # selective response?
+        thresh = 1.5
+        self.data['has_on_Sn_selective_resp'] = False
+        self.data['has_off_Sn_selective_resp'] = False
+        ons = np.zeros(len(self.data.index.values))
+        offs = np.zeros(len(self.data.index.values))
+        i = 0
+        for ind, row in self.data.iterrows():
+            on = np.abs(row['norm_Sn_selective_on'])
+            off = np.abs(row['norm_Sn_selective_off'])
+            on_zscore = (np.max(on[35:45]) - np.mean(on)) / (np.std(on))
+            off_zscore = (np.max(on[35:45]) - np.mean(off)) / (np.std(on))
+            ons[i] = on_zscore
+            offs[i] = off_zscore
+            if on_zscore >= thresh:
+                self.data.at[ind, 'has_on_Sn_selective_resp'] = True
+            if off_zscore >= thresh:
+                self.data.at[ind, 'has_off_Sn_selective_resp'] = True
+            i += 1
+    
+    def calc_psth(self, spikeT, eventT):
+        psth = np.zeros(self.trange.size-1)
+        for s in np.array(eventT):
+            hist, _ = np.histogram(spikeT-s, self.trange)
+            psth = psth + hist / (eventT.size*np.diff(self.trange))
+        return psth
+
+    def apply_win_to_comp_sacc(self, comp, gazeshift, win=0.25):
+        bad_comp = np.array([c for c in comp for g in gazeshift if ((g>(c-win)) & (g<(c+win)))])
+        comp_times = np.delete(comp, np.isin(comp, bad_comp))
+        return comp_times
+
+    def recalc_saccades(self, stim='FmLt'):
+        """
+        need to recalculate for a few changes:
+         - slightly different thresholds, not changed much
+         - recalculate compensatory movements
+            * previously, comp. saccades were contaminated with neural signals
+                from gaze-shifting saccades that came right before the comp movement
+            * now, if a gaze shift happened 250 msec BEFORE or AFTER any compensatory
+                movement, that movement is removed
+        """
+        for ind, row in tqdm(self.data.iterrows()):
+            eyeT = row[stim+'_eyeT']
+            dEye = row[stim+'_dEye_dps']
+            dHead = row[stim+'_dHead']
+            dGaze = row[stim+'_dGaze']
+            spikeT = row[stim+'_spikeT']
+
+            # all eye movements
+            left = eyeT[(np.append(dEye, 0) > self.low_sacc_thresh)]
+            right = eyeT[(np.append(dEye, 0) < -self.low_sacc_thresh)]
+            # save saccade times
+            self.data.at[ind, stim+'_leftsacc_times'] = left.astype(object); self.data.at[ind, stim+'_rightsacc_times'] = right.astype(object)
+            # save neural activity around saccades
+            self.data.at[ind, stim+'_leftsacc_avg'] =  self.calc_psth(spikeT, left).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg'] =  self.calc_psth(spikeT, right).astype(object)
+
+            # all head movements
+            left = eyeT[(np.append(dHead, 0) > self.low_sacc_thresh)]
+            right = eyeT[(np.append(dHead, 0) < -self.low_sacc_thresh)]
+            # save saccade times
+            self.data.at[ind, stim+'_leftsacc_dHead_times'] = left.astype(object); self.data.at[ind, stim+'_rightsacc_dHead_times'] = right.astype(object)
+            # save neural activity around saccades
+            self.data.at[ind, stim+'_leftsacc_dHead_avg'] =  self.calc_psth(spikeT, left).astype(object)
+            self.data.at[ind, stim+'_rightsacc_dHead_avg'] =  self.calc_psth(spikeT, right).astype(object)
+
+            # gaze-shift dEye
+            left_gaze_dEye = eyeT[(np.append(dEye, 0) > self.high_sacc_thresh) & (np.append(dGaze,0) > self.high_sacc_thresh)]
+            right_gaze_dEye = eyeT[(np.append(dEye, 0) < -self.high_sacc_thresh) & (np.append(dGaze, 0) < -self.high_sacc_thresh)]
+            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dEye_times'] = left_gaze_dEye.astype(object); self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dEye_times'] = right_gaze_dEye.astype(object)
+            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dEye'] =  self.calc_psth(spikeT, left_gaze_dEye).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dEye'] =  self.calc_psth(spikeT, right_gaze_dEye).astype(object)
+            
+            # comp dEye
+            left_comp_dEye = eyeT[(np.append(dEye, 0) > self.low_sacc_thresh) & (np.append(dGaze, 0) < self.gaze_sacc_thresh)]
+            right_comp_dEye = eyeT[(np.append(dEye, 0) < -self.low_sacc_thresh) & (np.append(dGaze, 0) > -self.gaze_sacc_thresh)]
+            left_comp_dEye = self.apply_win_to_comp_sacc(left_comp_dEye, left_gaze_dEye)
+            right_comp_dEye = self.apply_win_to_comp_sacc(right_comp_dEye, right_gaze_dEye)
+            self.data.at[ind, stim+'_leftsacc_avg_comp_dEye_times'] = left_comp_dEye.astype(object); self.data.at[ind, stim+'_rightsacc_avg_comp_dEye_times'] = right_comp_dEye.astype(object)
+            self.data.at[ind, stim+'_leftsacc_avg_comp_dEye'] =  self.calc_psth(spikeT, left_comp_dEye).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg_comp_dEye'] =  self.calc_psth(spikeT, right_comp_dEye).astype(object)
+            
+            # gaze-shift dHead
+            left_gaze_dHead = eyeT[(np.append(dHead, 0) > self.low_sacc_thresh) & (np.append(dGaze, 0) > self.low_sacc_thresh)]
+            right_gaze_dHead = eyeT[(np.append(dHead, 0) < -self.low_sacc_thresh) & (np.append(dGaze, 0) < -self.low_sacc_thresh)]
+            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dHead_times'] = left_gaze_dHead.astype(object); self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dHead_times'] = right_gaze_dHead.astype(object)
+            self.data.at[ind, stim+'_leftsacc_avg_gaze_shift_dHead'] =  self.calc_psth(spikeT, left_gaze_dHead).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg_gaze_shift_dHead'] =  self.calc_psth(spikeT, right_gaze_dHead).astype(object)
+            
+            # comp dHead
+            left_comp_dHead = eyeT[(np.append(dHead,0) > self.low_sacc_thresh) & (np.append(dGaze, 0) < self.gaze_sacc_thresh)]
+            right_comp_dHead = eyeT[(np.append(dHead,0) < -self.low_sacc_thresh) & (np.append(dGaze,0) > -self.gaze_sacc_thresh)]
+            left_comp_dHead = self.apply_win_to_comp_sacc(left_comp_dHead, left_gaze_dHead)
+            right_comp_dHead = self.apply_win_to_comp_sacc(right_comp_dHead, right_gaze_dHead)
+            self.data.at[ind, stim+'_leftsacc_avg_comp_dHead_times'] = left_comp_dHead.astype(object); self.data.at[ind, stim+'_rightsacc_avg_comp_dHead_times'] = right_comp_dHead.astype(object)
+            self.data.at[ind, stim+'_leftsacc_avg_comp_dHead'] =  self.calc_psth(spikeT, left_comp_dHead).astype(object)
+            self.data.at[ind, stim+'_rightsacc_avg_comp_dHead'] =  self.calc_psth(spikeT, right_comp_dHead).astype(object)
+
     def summarize_population(self, extras=False):
         # print('applying activity thresholds')
         # self.set_activity_thresh()
 
-        self.poppdf = PdfPages(os.path.join(self.savepath, 'population_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
+        # self.poppdf = PdfPages(os.path.join(self.savepath, 'population_summary_'+datetime.today().strftime('%m%d%y')+'.pdf'))
+
+        print('recalculating FmLt saccades')
+        self.recalc_saccades(stim='FmLt')
+        if self.exptype == 'ltdk':
+            print('recalculating FmDk saccades')
+            self.recalc_saccades(stim='FmDk')
 
         print('clustering by waveform')
         self.cluster_population_by_waveform()
@@ -2729,6 +2992,16 @@ class Population:
         if self.exptype == 'hffm':
             print('SbCs')
             self.find_SbCs_and_trGratPsth()
+            print('firing rates')
+            self.calc_firing_rates_hffm()
+
+        if self.exptype == 'ltdk':
+            print('firing rates')
+            self.calc_firing_rates_ltdk()
+
+        if self.exptype == 'hffm':
+            print('sparese noise and revchecker')
+            self.PSTH_for_SnRc()
 
         if extras:
             print('dhead and deye around time of gaze shifting eye movements')
@@ -2740,7 +3013,7 @@ class Population:
             print('dhead and deye around time of compensatory head movements')
             self.position_around_saccade('head_comp')
 
-        self.poppdf.close()
+        # self.poppdf.close()
 
     def process(self):
         self.gather_data()
@@ -2756,5 +3029,3 @@ class Population:
 
         self.summarize_population()
         self.save_as_pickle(stage='population')
-
-
