@@ -1,4 +1,5 @@
-import os, cv2, warnings
+import os, cv2, warnings, sys
+sys.path.insert(0, '/home/niell_lab/Documents/github/FreelyMovingEphys/')
 import pandas as pd
 import numpy as np
 from scipy.signal import argrelmax
@@ -6,13 +7,51 @@ import xarray as xr
 from scipy.interpolate import interp1d
 from tqdm import tqdm
 warnings.filterwarnings('ignore')
+from sklearn.neighbors import KernelDensity
 
-from src.utils.path import find
+from src.utils.path import find, list_subdirs
 from src.utils.auxiliary import flatten_series
 
+def calc_kde_sdf(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win=1000):
+    """
+    bandwidth (in msec)
+    resample_size (msec)
+    edgedrop (msec to drop at the start and end of the window so eliminate artifacts of filtering)
+    win = 1000msec before and after
+    """
+    # some conversions
+    bandwidth = bandwidth/1000 # msec to sec
+    resample_size = resample_size/1000 # msec to sec
+    win = win/1000 # msec to sec
+    edgedrop = edgedrop/1000
+    edgedrop_ind = int(edgedrop/resample_size)
+
+    # setup time bins
+    bins = np.arange(-win-edgedrop, win+edgedrop+resample_size, resample_size)
+
+    # get timestamp of spikes relative to events in eventT
+    sps = []
+    for i, t in enumerate(eventT):
+        sp = spikeT-t
+        sp = sp[(sp <= (win+edgedrop)) & (sp >= (-win-edgedrop))] # only keep spikes in this window
+        sps.extend(sp)
+    sps = np.array(sps) # all values in here are between -1 and 1
+
+    # set minimum number of spikes
+    if len(sps) < 5:
+        return np.zeros(2001)*np.nan, np.zeros(2001)*np.nan
+
+    # kernel density estimation
+    kernel = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(sps[:,np.newaxis])
+    density = kernel.score_samples(bins[:,np.newaxis])
+    sdf = np.exp(density)*(np.size(sps)/np.size(eventT)) # convert back to spike rate
+    sdf = sdf[edgedrop_ind:-edgedrop_ind]
+    bins = bins[edgedrop_ind:-edgedrop_ind]
+
+    return bins, sdf
 class AddtlHF:
     def __init__(self, base_path):
-        self.savepath = os.path.join(base_path,'addtlhf_props.npz')
+        self.savepath = os.path.join(base_path,'addtlhf_props1.npz')
 
         # self.Wn_ephys = pd.read_hdf(find('*hf1_wn*_ephys_props.h5',base_path)[0])
         self.Sn_ephys = pd.read_hdf(find('*hf2_*_ephys_props.h5',base_path)[0])
@@ -85,27 +124,29 @@ class AddtlHF:
         eventT = flipT - ephysT0
 
         rf_xy = np.zeros([len(self.Sn_ephys.index.values),4]) # [unit#, on x, on y, off x, off y]
-        on_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), len(self.trange_x), 4]) # shape = [unit#, time, all/ltd/on/not_rf]
-        off_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), len(self.trange_x), 4])
+        on_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), 2001, 4]) # shape = [unit#, time, all/ltd/on/not_rf]
+        off_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), 2001, 4])
         for i, ind in tqdm(enumerate(self.Sn_ephys.index.values)):
             unit_sta = self.Sn_ephys.loc[ind, 'Sn_spike_triggered_average']
             on_stim_history, on_xy, off_stim_history, off_xy = self.calc_RF_stim(unit_sta, vid)
             rf_xy[i,0] = on_xy[0]; rf_xy[i,1] = on_xy[1]
             rf_xy[i,2] = off_xy[0]; rf_xy[i,3] = off_xy[1]
+            # spikes
+            unit_spikeT = self.Sn_ephys.loc[ind, 'spikeT']
+            if len(unit_spikeT)<5: # if a unit never fired during revchecker
+                continue
             # on subunit
             all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(on_stim_history, eventT, eyeT, flips)
-            unit_spikeT = self.Sn_ephys.loc[ind, 'spikeT']
-            on_Sn_psth[i,:,0] = self.calc_psth(unit_spikeT, all_eventT)
-            on_Sn_psth[i,:,1] = self.calc_psth(unit_spikeT, offT)
-            on_Sn_psth[i,:,2] = self.calc_psth(unit_spikeT, onT)
-            on_Sn_psth[i,:,3] = self.calc_psth(unit_spikeT, backgroundT)
+            on_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT)[1]
+            on_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT)[1]
+            on_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT)[1]
+            on_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT)[1]
             # off subunit
             all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(off_stim_history, eventT, eyeT, flips)
-            unit_spikeT = self.Sn_ephys.loc[ind, 'spikeT']
-            off_Sn_psth[i,:,0] = self.calc_psth(unit_spikeT, all_eventT)
-            off_Sn_psth[i,:,1] = self.calc_psth(unit_spikeT, offT)
-            off_Sn_psth[i,:,2] = self.calc_psth(unit_spikeT, onT)
-            off_Sn_psth[i,:,3] = self.calc_psth(unit_spikeT, backgroundT)
+            off_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT)[1]
+            off_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT)[1]
+            off_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT)[1]
+            off_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT)[1]
 
         self.on_Sn_psth = on_Sn_psth
         self.off_Sn_psth = off_Sn_psth
@@ -126,13 +167,52 @@ class AddtlHF:
         stim_state = interp1d(worldT[:-1]-ephysT0, label_diff, bounds_error=False)(eyeT)
         eventT = eyeT[np.where((stim_state<-0.1)+(stim_state>0.1))]
 
-        Rc_psth = np.zeros([len(self.Rc_ephys.index.values), len(self.trange_x)]) # shape = [unit#, time]
+        Rc_psth = np.zeros([len(self.Rc_ephys.index.values), 2001]) # shape = [unit#, time]
         for i, ind in tqdm(enumerate(self.Rc_ephys.index.values)):
             unit_spikeT = self.Rc_ephys.loc[ind, 'spikeT']
-            Rc_psth[i,:] = self.calc_psth(unit_spikeT, eventT)
+            if len(unit_spikeT)<5: # if a unit never fired during revchecker
+                continue
+            Rc_psth[i,:] = calc_kde_sdf(unit_spikeT, eventT)[1]
 
         self.Rc_psth = Rc_psth
 
     def save(self):
         print('saving '+self.savepath)
         np.savez(self.savepath, sn_on=self.on_Sn_psth, sn_off=self.off_Sn_psth, rc=self.Rc_psth, rf=self.rf_xy)
+
+def main():
+    base_path = '/home/niell_lab/Mounts/Goeppert/nlab-nas/Dylan/freely_moving_ephys/ephys_recordings/'
+    recordings = [
+        # '062921/G6HCK1ALTRN',
+        '070921/J553RT',
+        '100821/J559TT',
+        '101521/J559NC',
+        '101621/J559NC',
+        '102621/J558NC',
+        '102721/J558NC',
+        '102821/J570LT',
+        '110321/J558LT',
+        '110421/J558LT',
+        '110421/J569LT',
+        '110521/J569LT',
+        '122021/J581RT',
+        '020222/J577TT',
+        '020322/J577TT',
+        '020422/J577RT',
+        '020522/J577RT'
+    ]
+    for i, r in enumerate(recordings):
+        recpath = os.path.join(base_path, r)
+        recnames = list_subdirs(recpath)
+        if 'hf1_wn' not in recnames:
+            continue
+        print(r)
+        ahf = AddtlHF(recpath)
+        print('sparse noise')
+        ahf.calc_Sn_psth()
+        print('reversing checkerboard')
+        ahf.calc_Rc_psth()
+        ahf.save()
+
+if __name__ == '__main__':
+    main()
