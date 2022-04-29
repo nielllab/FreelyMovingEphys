@@ -716,9 +716,9 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_label):
             usePts = (use>=var_range[j]) & (use<var_range[j+1])
             tuning[i,j] = np.nanmean(scatter[i, usePts])
             tuning_err[i,j] = np.nanstd(scatter[i, usePts]) / np.sqrt(np.count_nonzero(usePts))
-    fig = plt.subplots(np.ceil(n_units/7).astype('int'),7,figsize=(35,np.int(np.ceil(n_units/3))),dpi=50)
+    fig = plt.subplots(int(np.ceil(n_units/7)),7,figsize=(35,np.int(np.ceil(n_units/3))),dpi=50)
     for i, ind in enumerate(goodcells.index):
-        plt.subplot(np.ceil(n_units/10),10,i+1)
+        plt.subplot(int(np.ceil(n_units/7)),7,i+1)
         plt.errorbar(var_cent,tuning[i,:],yerr=tuning_err[i,:])
         try:
             plt.ylim(0,np.nanmax(tuning[i,:]*1.2))
