@@ -8,7 +8,6 @@ main:
   undistort: true
   pose_estimation: false
   parameters: false
-  glm_rf: false
   ephys: false
 
 paths:

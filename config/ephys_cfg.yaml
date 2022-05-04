@@ -8,7 +8,6 @@ main:
   undistort: true
   pose_estimation: true
   parameters: true
-  glm_rf: false
   ephys: true
 
 paths:
@@ -22,10 +21,10 @@ paths:
   sidecam_mtx: E:/freely_moving_ephys/camera_calibration_params/side_checkerboard_calib.npz
   # paths to dlc project config.yaml files
   dlc_projects:
-    REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams7-dylan-2021-09-13/config.yaml
+    REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams8-dylan-2021-10-12/config.yaml
     TOP1: E:/freely_moving_ephys/deeplabcut_projects/EphysTopCam2-dylan-2021-11-16/config.yaml
   # channel maps json
-  channel_map_path: C:/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys-dmm/config/channel_maps.json
+  channel_map_path: C:/Users/Niell Lab/Documents/GitHub/FreelyMovingEphys/config/channel_maps.json
 
 options:
   # list of recordings to process

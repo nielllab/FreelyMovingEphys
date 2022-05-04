@@ -8,7 +8,7 @@ import argparse
 def make_window(theme):
     sg.theme(theme)
     options_layout =  [[sg.Text('Select the model of ephys probe used.')],
-                       [sg.Combo(values=('default16', 'NN_H16', 'default64', 'NN_H64-LP', 'DB_P64-3', 'DB_P64-8', 'DB_P128-6'), default_value='default16', readonly=True, k='-COMBO-', enable_events=True)],
+                       [sg.Combo(values=('default16', 'NN_H16', 'default64', 'NN_H64-LP', 'DB_P64-3', 'DB_P64-8', 'DB_P128-6','DB_128-D'), default_value='default16', readonly=True, k='-COMBO-', enable_events=True)],
                        [sg.Text('Select the whitenoise recording directory.')],
                        [sg.Button('Open hf1_wn directory')]]
     logging_layout = [[sg.Text('Run this module')],
