@@ -305,7 +305,7 @@ class Population:
         self.data['has_hfpsth'] = False
 
         # set up and create empty columns
-        dummy_psth = np.zeros([83])*np.nan
+        dummy_psth = np.zeros([2001])*np.nan
         psth_series = pd.Series([])
         for i in range(len(self.data)):
             psth_series[i] = dummy_psth.astype(object)
@@ -323,7 +323,7 @@ class Population:
         # add it for each unit
         sessions = self.data['original_session_path'].unique()
         for session_path in sessions:
-            psth_files = find('addtlhf_props.npz', session_path)
+            psth_files = find('addtlhf_props1.npz', session_path)
             if psth_files:
                 print('reading '+psth_files[0])
                 psth_data = np.load(psth_files[0])
@@ -352,6 +352,8 @@ class Population:
                     self.data.at[ind, 'Sn_off_darkstim_psth'] = sn_off_psth[i,:,1]
                     self.data.at[ind, 'Sn_off_lightstim_psth'] = sn_off_psth[i,:,2]
                     self.data.at[ind, 'Sn_off_background_psth'] = sn_off_psth[i,:,3]
+            else:
+                print('no files found')
 
     def rc_psth(self, panel, tightx=True):
         panel.plot(self.trange_x, self.current_row['Rc_psth'], color='k')
