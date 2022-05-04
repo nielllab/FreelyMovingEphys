@@ -11,7 +11,6 @@ from src.eyecam import Eyecam
 from src.topcam import Topcam
 from src.worldcam import Worldcam
 from src.sidecam import Sidecam
-# from src.glm_rf import FitGLM
 from src.freelymoving import FreelyMovingLight, FreelyMovingDark
 from src.headfixed import HeadFixedGratings, HeadFixedWhiteNoise, HeadFixedReversingCheckboard, HeadFixedSparseNoise
 
@@ -151,8 +150,6 @@ class Session:
                 rb = RunningBall(self.config, recording_name, recording_path)
                 rb.process()
 
-    # def calc_glm_rf(self):
-
     def ephys_analysis(self):
         self.get_session_recordings()
         for _, recording_path in self.recordings_dict.items():
@@ -179,8 +176,6 @@ class Session:
     def run_main(self):
         if self.config['main']['deinterlace'] or self.config['main']['undistort'] or self.config['main']['pose_estimation'] or self.config['main']['parameters']:
             self.preprocessing()
-        # if self.config['main']['glm_rf']:
-        #     self.glm_rf()
         if self.config['main']['ephys']:
             self.ephys_analysis()
 
