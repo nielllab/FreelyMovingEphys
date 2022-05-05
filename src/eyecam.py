@@ -178,6 +178,10 @@ class Eyecam(Camera):
             x_vals = x_vals.iloc[:,:-5]
             y_vals = y_vals.iloc[:,:-5]
             likelihood = likelihood_in[:,:-5]
+        elif self.config['internals']['eye_corners_first']:
+            x_vals = x_vals.iloc[:,2:]
+            y_vals = y_vals.iloc[:,2:]
+            likelihood = likelihood_in[:,2:]
         
         # drop tear/outer eye points
         if self.config['internals']['eye_has_reflection'] and self.config['internals']['subtract_reflection_position']:

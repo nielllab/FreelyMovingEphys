@@ -113,7 +113,7 @@ class Session:
 
             recording_name = auto_recording_name(recording_path)
 
-            print('preprocessing '+recording_name)
+            print('preprocessing {} (path= {})'.format(recording_name, recording_path))
 
             # skip this recording if it was acquired while the animal was transfered between ball and arena
             if 'transfer' in recording_name or 'test' in recording_name:
@@ -122,7 +122,12 @@ class Session:
             # get a list of cameras in the current recording
             recording_cams = []
             for p in ['REYE','LEYE','Reye','Leye','Side','SIDE','TOP1','TOP2','TOP3','WORLD','World']:
+                date_str = recording_name.split('_')[0]
+                animal_str = recording_name.split('_')[1]
+                rec_str = recording_name.split('_')[3]
                 if find(recording_name+'_'+p+'.avi', recording_path) != []:
+                    recording_cams.append(p)
+                elif self.config['internals']['eye_corners_first'] and (find('{}_{}_*_{}_{}.avi'.format(date_str, animal_str, rec_str, p), recording_path) != []):
                     recording_cams.append(p)
 
             for camname in recording_cams:

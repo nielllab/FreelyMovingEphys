@@ -54,6 +54,7 @@ internals:
   eye_has_reflection: true
   # dlc eyecam network has both corners of the eye (tear duct) labeled?
   eye_has_corners: true
+  eye_corners_first: false
   # whether or not to subtract the center of the ir spot's reflection on the eye from the labeled points around the eye
   subtract_reflection_position: true
   # pupil cyclotorsion
