@@ -1187,6 +1187,7 @@ files(n).topoydata = '120621_J581RT_RIG2_MAP\120621_J581RT_RIG2_MAP_TOPOY\120621
 % files(n).topoydata = '092621_J566LN_RIG2_MAP\092621_J566LN_RIG2_MAP_TOPOY\092621_J566LN_RIG2_MAP_TOPOY_0001';
 % files(n).rignum = 'rig2'; %%% or 'rig1'
 % files(n).monitor = 'land'; %%% for topox and y
+<<<<<<< Updated upstream:projects/widefield/widefieldMapping.m
 % files(n).label = 'camk2 gc6';
 % files(n).notes = 'good imaging session';
 
@@ -1495,6 +1496,31 @@ files(n).topox =  '120621_J581LT_RIG2_MAP\120621_J581LT_RIG2_MAP_TOPOX\120621_J5
 files(n).topoxdata = '120621_J581LT_RIG2_MAP\120621_J581LT_RIG2_MAP_TOPOX\120621_J581LT_RIG2_MAP_TOPOX_0001';
 files(n).topoy =  '120621_J581LT_RIG2_MAP\120621_J581LT_RIG2_MAP_TOPOY\120621_J581LT_RIG2_MAP_TOPOYmaps.mat';
 files(n).topoydata = '120621_J581LT_RIG2_MAP\120621_J581LT_RIG2_MAP_TOPOY\120621_J581LT_RIG2_MAP_TOPOY_0001';
+=======
+% files(n).label = 'wt';
+% files(n).notes = '';
+% 
+% n=n+1;
+% files(n).subj = 'J594NC';
+% files(n).expt = '041622';
+% files(n).topox =  '041622_J594NC_RIG2_MAP\041622_J594NC_RIG2_MAP_TOPOX\041622_J594NC_RIG2_MAP_TOPOXmaps.mat';
+% files(n).topoxdata = '041622_J594NC_RIG2_MAP\041622_J594NC_RIG2_MAP_TOPOX\041622_J594NC_RIG2_MAP_TOPOX_00000';
+% files(n).topoy =  '041622_J594NC_RIG2_MAP\041622_J594NC_RIG2_MAP_TOPOY\041622_J594NC_RIG2_MAP_TOPOYmaps.mat';
+% files(n).topoydata = '041622_J594NC_RIG2_MAP\041622_J594NC_RIG2_MAP_TOPOY\041622_J594NC_RIG2_MAP_TOPOY_00000';
+% files(n).rignum = 'rig2'; %%% or 'rig1'
+% files(n).monitor = 'land'; %%% for topox and y
+% files(n).label = 'wt';
+% files(n).notes = '';
+
+
+n=n+1;
+files(n).subj = 'J606NC';
+files(n).expt = '050322';
+files(n).topox =  '050322_J606NC_RIG2_MAP\050322_J606NC_RIG2_MAP_TOPOX\050322_J606NC_RIG2_MAP_TOPOXmaps.mat';
+files(n).topoxdata = '050322_J606NC_RIG2_MAP\050322_J606NC_RIG2_MAP_TOPOX\050322_J606NC_RIG2_MAP_TOPOX_00000';
+files(n).topoy =  '050322_J606NC_RIG2_MAP\050322_J606NC_RIG2_MAP_TOPOY\050322_J606NC_RIG2_MAP_TOPOYmaps.mat';
+files(n).topoydata = '050322_J606NC_RIG2_MAP\050322_J606NC_RIG2_MAP_TOPOY\050322_J606NC_RIG2_MAP_TOPOY_00000';
+>>>>>>> Stashed changes:widefield/widefieldMapping.m
 files(n).rignum = 'rig2'; %%% or 'rig1'
 files(n).monitor = 'land'; %%% for topox and y
 files(n).label = 'camk2 gc6';
