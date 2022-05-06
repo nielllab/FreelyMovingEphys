@@ -1,4 +1,4 @@
-from modules.prelim_sorted_rf import prelim_sorted_rf
+from modules.prelim_sorted_rf.prelim_sorted_rf import main as prelim_sorted_rf
 import PySimpleGUI as sg
 
 def make_window(theme):

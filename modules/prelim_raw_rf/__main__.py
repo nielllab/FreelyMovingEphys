@@ -1,7 +1,7 @@
 """
 __main__.py
 """
-from modules.prelim_raw_rf import prelim_raw_rf
+from modules.prelim_raw_rf.prelim_raw_rf import main as prelim_raw_rf
 import PySimpleGUI as sg
 import argparse
 
