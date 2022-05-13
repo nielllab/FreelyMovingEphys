@@ -10,7 +10,7 @@ warnings.filterwarnings("ignore")
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', type=str, default='G:/Kris/ephys_cfg.yaml')
+    parser.add_argument('-c', '--config', type=str)
     args = parser.parse_args()
     return args
 

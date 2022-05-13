@@ -440,7 +440,7 @@ class Camera(BaseInput):
             elif not self.config['internals']['follow_strict_naming']:
                 # video
                 avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
-                self.video_path = next(path for path in avi_paths if self.camname in path)
+                self.video_path = next(path for path in avi_paths if self.camname in path and 'plot' not in path)
                 # timestamps
                 csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
                 if csv_paths != []:
