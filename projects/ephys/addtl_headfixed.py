@@ -12,7 +12,7 @@ from sklearn.neighbors import KernelDensity
 from src.utils.path import find, list_subdirs
 from src.utils.auxiliary import flatten_series
 
-def calc_kde_sdf(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win=1000):
+def calc_kde_sdf(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win=1000, shift_half=False):
     """
     bandwidth (in msec)
     resample_size (msec)
@@ -28,6 +28,10 @@ def calc_kde_sdf(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win
 
     # setup time bins
     bins = np.arange(-win-edgedrop, win+edgedrop+resample_size, resample_size)
+ 
+    if shift_half:
+        # shift everything forward so that t=0 is centered between frame 0 and frame 1
+        eventT = eventT + (1/120)
 
     # get timestamp of spikes relative to events in eventT
     sps = []
@@ -51,7 +55,7 @@ def calc_kde_sdf(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win
     return bins, sdf
 class AddtlHF:
     def __init__(self, base_path):
-        self.savepath = os.path.join(base_path,'addtlhf_props1.npz')
+        self.savepath = os.path.join(base_path,'addtlhf_props2.npz')
 
         # self.Wn_ephys = pd.read_hdf(find('*hf1_wn*_ephys_props.h5',base_path)[0])
         self.Sn_ephys = pd.read_hdf(find('*hf2_*_ephys_props.h5',base_path)[0])
@@ -109,6 +113,17 @@ class AddtlHF:
         backgroundInds = flips[np.where(background_bool)[0]]
         
         return event_eyeT, offT, offInds, onT, onInds, backgroundT, backgroundInds
+
+    def shift_forward(self, a, timedict):
+        """
+        a is an array
+        b is a dict
+        """
+
+        out = np.zeros(a.size)
+        for i,x in enumerate(a):
+            out[i] = timedict[np.round(x, 7)]
+        return out
     
     def calc_Sn_psth(self):
         vid = self.Sn_world.WORLD_video.values.astype(np.uint8).astype(float)
@@ -120,8 +135,8 @@ class AddtlHF:
         dStim = np.sum(np.abs(np.diff(vid, axis=0)), axis=(1,2))
         flips = np.argwhere((dStim[1:]>self.Sn_dStim_thresh) * (dStim[:-1]<self.Sn_dStim_thresh)).flatten()
 
-        flipT = worldT[flips]
-        eventT = flipT - ephysT0
+        eventT = worldT[flips+1] - ephysT0
+        eventT1 = dict(zip(np.round(eventT,7), np.round((worldT[flips+2] - ephysT0),7)))
 
         rf_xy = np.zeros([len(self.Sn_ephys.index.values),4]) # [unit#, on x, on y, off x, off y]
         on_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), 2001, 4]) # shape = [unit#, time, all/ltd/on/not_rf]
@@ -137,16 +152,16 @@ class AddtlHF:
                 continue
             # on subunit
             all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(on_stim_history, eventT, eyeT, flips)
-            on_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT)[1]
-            on_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT)[1]
-            on_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT)[1]
-            on_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT)[1]
+            on_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT, shift_half=True)[1]
+            on_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT, shift_half=True)[1]
+            on_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT, shift_half=True)[1]
+            on_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT, shift_half=True)[1]
             # off subunit
             all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(off_stim_history, eventT, eyeT, flips)
-            off_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT)[1]
-            off_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT)[1]
-            off_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT)[1]
-            off_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT)[1]
+            off_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT, shift_half=True)[1]
+            off_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT, shift_half=True)[1]
+            off_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT, shift_half=True)[1]
+            off_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT, shift_half=True)[1]
 
         self.on_Sn_psth = on_Sn_psth
         self.off_Sn_psth = off_Sn_psth
@@ -178,13 +193,13 @@ class AddtlHF:
 
     def save(self):
         print('saving '+self.savepath)
-        np.savez(self.savepath, sn_on=self.on_Sn_psth, sn_off=self.off_Sn_psth, rc=self.Rc_psth, rf=self.rf_xy)
+        np.savez(self.savepath, sn_on=self.on_Sn_psth, sn_off=self.off_Sn_psth, rf=self.rf_xy)# rc=self.Rc_psth, )
 
 def main():
     base_path = '/home/niell_lab/Mounts/Goeppert/nlab-nas/Dylan/freely_moving_ephys/ephys_recordings/'
     recordings = [
         # '062921/G6HCK1ALTRN',
-        '070921/J553RT',
+        # '070921/J553RT'#,
         '100821/J559TT',
         '101521/J559NC',
         '101621/J559NC',
@@ -210,8 +225,8 @@ def main():
         ahf = AddtlHF(recpath)
         print('sparse noise')
         ahf.calc_Sn_psth()
-        print('reversing checkerboard')
-        ahf.calc_Rc_psth()
+        # print('reversing checkerboard')
+        # ahf.calc_Rc_psth()
         ahf.save()
 
 if __name__ == '__main__':
