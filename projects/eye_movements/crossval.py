@@ -36,6 +36,19 @@ def calc_kde_sdf(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win
 
     return sdf
 
+def apply_win_to_comp_sacc(comp, gazeshift, win=0.25):
+    bad_comp = np.array([c for c in comp for g in gazeshift if ((g>(c-win)) & (g<(c+win)))])
+    comp_times = np.delete(comp, np.isin(comp, bad_comp))
+    return comp_times
+
+def keep_first_saccade(eventT, win=0.020):
+    duplicates = set([])
+    for t in eventT:
+        new = eventT[((eventT-t)<win) & ((eventT-t)>0)]
+        duplicates.update(list(new))
+    out = np.sort(np.setdiff1d(eventT, np.array(list(duplicates)), assume_unique=True))
+    return out
+
 def main():
 
     df = pd.read_pickle('/home/niell_lab/Desktop/hffm_050922_sn_update.pickle')
