@@ -589,7 +589,7 @@ class Ephys(BaseInput):
             self.ephys_data = self.ephys_data.reset_index()
             self.ephys_data = self.ephys_data.drop('index', axis=1)
         # spike times
-        self.ephys_data['spikeTraw'] = self.ephys_data['spikeT']
+        self.ephys_data['spikeTraw'] = self.ephys_data['spikeT'].copy()
         # select good cells from phy2
         self.cells = self.ephys_data.loc[self.ephys_data['group']=='good']
         self.units = self.cells.index.values

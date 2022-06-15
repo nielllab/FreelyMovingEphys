@@ -1,5 +1,5 @@
 import os, cv2, warnings, sys
-sys.path.insert(0, '/home/niell_lab/Documents/github/FreelyMovingEphys/')
+sys.path.insert(0, '/home/niell_lab/Documents/GitHub/FreelyMovingEphys/')
 import pandas as pd
 import numpy as np
 from scipy.signal import argrelmax
@@ -52,7 +52,7 @@ def calc_kde_sdf(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win
     sdf = sdf[edgedrop_ind:-edgedrop_ind]
     bins = bins[edgedrop_ind:-edgedrop_ind]
 
-    return bins, sdf
+    return sdf
 class AddtlHF:
     def __init__(self, base_path):
         self.savepath = os.path.join(base_path,'addtlhf_props2.npz')
@@ -112,18 +112,7 @@ class AddtlHF:
         backgroundT = only_global[background_bool] # stim did not change from baseline enoguh
         backgroundInds = flips[np.where(background_bool)[0]]
         
-        return event_eyeT, offT, offInds, onT, onInds, backgroundT, backgroundInds
-
-    def shift_forward(self, a, timedict):
-        """
-        a is an array
-        b is a dict
-        """
-
-        out = np.zeros(a.size)
-        for i,x in enumerate(a):
-            out[i] = timedict[np.round(x, 7)]
-        return out
+        return event_eyeT, offT, onT, backgroundT
     
     def calc_Sn_psth(self):
         vid = self.Sn_world.WORLD_video.values.astype(np.uint8).astype(float)
@@ -136,7 +125,6 @@ class AddtlHF:
         flips = np.argwhere((dStim[1:]>self.Sn_dStim_thresh) * (dStim[:-1]<self.Sn_dStim_thresh)).flatten()
 
         eventT = worldT[flips+1] - ephysT0
-        eventT1 = dict(zip(np.round(eventT,7), np.round((worldT[flips+2] - ephysT0),7)))
 
         rf_xy = np.zeros([len(self.Sn_ephys.index.values),4]) # [unit#, on x, on y, off x, off y]
         on_Sn_psth = np.zeros([len(self.Sn_ephys.index.values), 2001, 4]) # shape = [unit#, time, all/ltd/on/not_rf]
@@ -148,20 +136,28 @@ class AddtlHF:
             rf_xy[i,2] = off_xy[0]; rf_xy[i,3] = off_xy[1]
             # spikes
             unit_spikeT = self.Sn_ephys.loc[ind, 'spikeT']
-            if len(unit_spikeT)<5: # if a unit never fired during revchecker
+            if len(unit_spikeT)<10: # if a unit never fired during revchecker
                 continue
             # on subunit
-            all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(on_stim_history, eventT, eyeT, flips)
-            on_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT, shift_half=True)[1]
-            on_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT, shift_half=True)[1]
-            on_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT, shift_half=True)[1]
-            on_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT, shift_half=True)[1]
+            all_eventT, offT, onT, backgroundT = self.sort_lum(on_stim_history, eventT, eyeT, flips)
+            if len(offT)==0 or len(onT)==0:
+                on_Sn_psth[i,:,:] = np.nan
+                continue
+            # print('all={} off={}, on={}, background={}'.format(len(all_eventT), len(offT), len(onT), len(backgroundT)))
+            on_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT, shift_half=True)
+            on_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT, shift_half=True)
+            on_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT, shift_half=True)
+            on_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT, shift_half=True)
             # off subunit
-            all_eventT, offT, _, onT, _, backgroundT, _ = self.sort_lum(off_stim_history, eventT, eyeT, flips)
-            off_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT, shift_half=True)[1]
-            off_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT, shift_half=True)[1]
-            off_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT, shift_half=True)[1]
-            off_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT, shift_half=True)[1]
+            all_eventT, offT, onT, backgroundT = self.sort_lum(off_stim_history, eventT, eyeT, flips)
+            if len(offT)==0 or len(onT)==0:
+                on_Sn_psth[i,:,:] = np.nan
+                continue
+            # print('all={} off={}, on={}, background={}'.format(len(all_eventT), len(offT), len(onT), len(backgroundT)))
+            off_Sn_psth[i,:,0] = calc_kde_sdf(unit_spikeT, all_eventT, shift_half=True)
+            off_Sn_psth[i,:,1] = calc_kde_sdf(unit_spikeT, offT, shift_half=True)
+            off_Sn_psth[i,:,2] = calc_kde_sdf(unit_spikeT, onT, shift_half=True)
+            off_Sn_psth[i,:,3] = calc_kde_sdf(unit_spikeT, backgroundT, shift_half=True)
 
         self.on_Sn_psth = on_Sn_psth
         self.off_Sn_psth = off_Sn_psth
@@ -185,15 +181,15 @@ class AddtlHF:
         Rc_psth = np.zeros([len(self.Rc_ephys.index.values), 2001]) # shape = [unit#, time]
         for i, ind in tqdm(enumerate(self.Rc_ephys.index.values)):
             unit_spikeT = self.Rc_ephys.loc[ind, 'spikeT']
-            if len(unit_spikeT)<5: # if a unit never fired during revchecker
+            if len(unit_spikeT)<10: # if a unit never fired during revchecker
                 continue
-            Rc_psth[i,:] = calc_kde_sdf(unit_spikeT, eventT)[1]
+            Rc_psth[i,:] = calc_kde_sdf(unit_spikeT, eventT)
 
         self.Rc_psth = Rc_psth
 
     def save(self):
         print('saving '+self.savepath)
-        np.savez(self.savepath, sn_on=self.on_Sn_psth, sn_off=self.off_Sn_psth, rf=self.rf_xy)# rc=self.Rc_psth, )
+        np.savez(self.savepath, sn_on=self.on_Sn_psth, sn_off=self.off_Sn_psth, rf=self.rf_xy, rc=self.Rc_psth)
 
 def main():
     base_path = '/home/niell_lab/Mounts/Goeppert/nlab-nas/Dylan/freely_moving_ephys/ephys_recordings/'

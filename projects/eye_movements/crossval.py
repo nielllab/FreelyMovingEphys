@@ -36,17 +36,33 @@ def calc_kde_sdf(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win
 
     return sdf
 
+def apply_win_to_comp_sacc(comp, gazeshift, win=0.25):
+    bad_comp = np.array([c for c in comp for g in gazeshift if ((g>(c-win)) & (g<(c+win)))])
+    comp_times = np.delete(comp, np.isin(comp, bad_comp))
+    return comp_times
+
+def keep_first_saccade(eventT, win=0.020):
+    duplicates = set([])
+    for t in eventT:
+        new = eventT[((eventT-t)<win) & ((eventT-t)>0)]
+        duplicates.update(list(new))
+    out = np.sort(np.setdiff1d(eventT, np.array(list(duplicates)), assume_unique=True))
+    return out
+
 def main():
 
-    df = pd.read_pickle('/home/niell_lab/Desktop/hffm_050922_sn_update.pickle')
+    df = pd.read_pickle('/home/niell_lab/Desktop/hffm_060622.pickle')
 
     train_psth = np.zeros([len(df.index.values), 2001])
     test_psth = np.zeros([len(df.index.values), 2001])
+    print('num cells = {}'.format(len(df.index.values)))
     for i, ind in tqdm(enumerate(df.index.values)):
-        if df.loc[ind, 'pref_gazeshift_direction']=='L':
+        if df.loc[ind, 'pref_gazeshift_direction']=='left':
             fullT = df.loc[ind, 'FmLt_gazeshift_left_saccTimes_dHead'].copy().astype(float)
-        elif df.loc[ind, 'pref_gazeshift_direction']=='R':
+        elif df.loc[ind, 'pref_gazeshift_direction']=='right':
             fullT = df.loc[ind, 'FmLt_gazeshift_right_saccTimes_dHead'].copy().astype(float)
+        else:
+            print(df.loc[ind, 'pref_gazeshift_direction'])
         
         train_inds = np.random.choice(np.arange(0, fullT.size), size=int(np.floor(fullT.size/2)), replace=False)
         test_inds = np.arange(0, fullT.size)
@@ -60,8 +76,8 @@ def main():
         train_psth[i,:] = calc_kde_sdf(spikeT, train)
         test_psth[i,:] = calc_kde_sdf(spikeT, test)
 
-    np.save('/home/niell_lab/Desktop/train_psth1.npy', train_psth)
-    np.save('/home/niell_lab/Desktop/test_psth1.npy', test_psth)
+    np.save('/home/niell_lab/Desktop/train_psth.npy', train_psth)
+    np.save('/home/niell_lab/Desktop/test_psth.npy', test_psth)
 
 if __name__ == '__main__':
     main()
