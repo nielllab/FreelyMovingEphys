@@ -26,6 +26,8 @@ class Topcam(Camera):
         # i.e. distance (in cm) from left to right posts of the arena
         # used to get conversion of pixels to cm in topdown camera view
         self.dist_cm = 39
+        # if none of the corner pts tracked, use this default value
+        self.default_pxls2cm = 0.06764573
 
         self.make_all_plots = False
         self.make_speed_yaw_video = False
@@ -138,6 +140,8 @@ class Topcam(Camera):
         right = tb+'r_'+mp+'_corner_x'
         dist_pxls = np.nanmedian(self.xrpts.sel(point_loc=right)) - np.nanmedian(self.xrpts.sel(point_loc=left))
         pxls2cm = dist_pxls / self.dist_cm
+        if np.isnan(pxls2cm):
+            pxls2cm = self.default_pxls2cm
 
         # topdown speed using neck point
         smooth_x = convfilt(nanmedfilt(self.xrpts.sel(point_loc='center_neck_x').values, 7).squeeze(), box_pts=20)
