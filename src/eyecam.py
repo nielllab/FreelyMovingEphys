@@ -184,14 +184,17 @@ class Eyecam(Camera):
             likelihood = likelihood_in[:,2:]
         
         # drop tear/outer eye points
-        if self.config['internals']['eye_has_reflection'] and self.config['internals']['subtract_reflection_position']:
-            x_vals = x_vals.iloc[:,:-2]
-            y_vals = y_vals.iloc[:,:-2]
-            likelihood = likelihood[:,:-2]
-        if not self.config['internals']['eye_has_reflection'] and self.config['internals']['subtract_reflection_position']:
-            x_vals = x_vals.iloc[:,:-2]
-            y_vals = y_vals.iloc[:,:-2]
-            likelihood = likelihood_in[:,:-2]
+        if self.config['internals']['eye_has_corners']:
+            if self.config['internals']['eye_has_reflection'] and self.config['internals']['subtract_reflection_position']:
+                x_vals = x_vals.iloc[:,:-2]
+                y_vals = y_vals.iloc[:,:-2]
+                likelihood = likelihood[:,:-2]
+            if not self.config['internals']['eye_has_reflection'] and self.config['internals']['subtract_reflection_position']:
+                x_vals = x_vals.iloc[:,:-2]
+                y_vals = y_vals.iloc[:,:-2]
+                likelihood = likelihood_in[:,:-2]
+        else:
+            likelihood = likelihood_in
 
         # get bools of when a frame is usable with the right number of points above threshold
         if self.config['internals']['subtract_reflection_position']:
