@@ -18,10 +18,10 @@ from tqdm import tqdm
 from astropy.convolution import convolve
 import matplotlib.patches as mpatches
 
-from src.utils.path import find, list_subdirs
-from src.utils.correlation import nanxcorr
-from src.utils.filter import nanmedfilt
-from src.base import Camera
+from fmEphys.utils.path import find, list_subdirs
+from fmEphys.utils.correlation import nanxcorr
+from fmEphys.utils.filter import nanmedfilt
+from fmEphys.utils.base import Camera
 
 class Eyecam(Camera):
     """ Processing for head-mounted eye-facing camera.

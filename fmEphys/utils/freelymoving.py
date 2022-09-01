@@ -8,7 +8,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from src.ephys import Ephys
+from fmEphys.utils.ephys import Ephys
 
 class FreelyMovingLight(Ephys):
     def __init__(self, config, recording_name, recording_path):

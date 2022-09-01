@@ -1,10 +1,7 @@
-"""
-FreelyMovingEphys/modules/session_analysis/__main__.py
-"""
 import argparse, warnings
 import PySimpleGUI as sg
 
-from src.run import Session
+from fmEphys.utils.run import Session
 
 warnings.filterwarnings("ignore")
 

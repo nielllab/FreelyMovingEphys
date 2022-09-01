@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from matplotlib.backends.backend_pdf import PdfPages
 
-from src.base import BaseInput
-from src.worldcam import Worldcam
-from src.ephys import Ephys
-from src.utils.path import find, auto_recording_name
+from fmEphys.utils.base import BaseInput
+from fmEphys.utils.worldcam import Worldcam
+from fmEphys.utils.ephys import Ephys
+from fmEphys.utils.path import find, auto_recording_name
 
 class PrelimRF(Ephys):
     def __init__(self, binary_path, probe):

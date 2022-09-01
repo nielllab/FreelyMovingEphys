@@ -1,18 +1,19 @@
 """
 FreelyMovingEphys/src/run.py
 """
-import yaml, os
+import yaml
+import os
 import pandas as pd
 
-from src.utils.path import find, list_subdirs, auto_recording_name
-from src.ball import RunningBall
-from src.imu import Imu
-from src.eyecam import Eyecam
-from src.topcam import Topcam
-from src.worldcam import Worldcam
-from src.sidecam import Sidecam
-from src.freelymoving import FreelyMovingLight, FreelyMovingDark
-from src.headfixed import HeadFixedGratings, HeadFixedWhiteNoise, HeadFixedReversingCheckboard, HeadFixedSparseNoise
+from fmEphys.utils.path import find, list_subdirs, auto_recording_name
+from fmEphys.utils.ball import RunningBall
+from fmEphys.utils.imu import Imu
+from fmEphys.utils.eyecam import Eyecam
+from fmEphys.utils.topcam import Topcam
+from fmEphys.utils.worldcam import Worldcam
+from fmEphys.utils.sidecam import Sidecam
+from fmEphys.utils.freelymoving import FreelyMovingLight, FreelyMovingDark
+from fmEphys.utils.headfixed import HeadFixedGratings, HeadFixedWhiteNoise, HeadFixedReversingCheckboard, HeadFixedSparseNoise
 
 class Session:
     """ Preprocessing and analysis of an individual session.

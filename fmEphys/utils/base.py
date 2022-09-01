@@ -11,7 +11,7 @@ os.environ["DLClight"] = "True"
 import deeplabcut
 from scipy.io import loadmat
 
-from src.utils.path import find, list_subdirs
+from fmEphys.utils.path import find, list_subdirs
 
 class BaseInput:
     """ Base preprocessing input data.

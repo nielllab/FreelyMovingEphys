@@ -2,8 +2,8 @@
 
 import sys, os
 sys.path.insert(0, r'C:\Users\nlab\Desktop\GitHub Code\FreelyMovingEphys')
-from src.run import Session
-from src.sidecam import Sidecam
+from fmEphys.utils.run import Session
+from fmEphys.utils.sidecam import Sidecam
 import os,fnmatch
 import deeplabcut as dlc
 

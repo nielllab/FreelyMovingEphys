@@ -1,12 +1,12 @@
-# install: conda env create -f env0.yaml
-# update:  conda env update -f env0.yaml
+# install: conda env create -f environment.yml
+# update:  conda env update -f environment.yml
 
 # for linux, replace
 #   - "deeplabcut[gui]"
 # with
 #   - deeplabcut
 
-name: ephys0
+name: ephys1
 channels:
   - conda-forge
   - defaults
@@ -30,3 +30,4 @@ dependencies:
     - netcdf4
     - opencv-python
     - scipy==1.6.2
+    - ray

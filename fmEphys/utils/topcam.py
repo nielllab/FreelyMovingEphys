@@ -16,8 +16,8 @@ else:
     mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
 from matplotlib.animation import FFMpegWriter
 
-from src.base import Camera
-from src.utils.filter import nanmedfilt, convfilt
+from fmEphys.utils.base import Camera
+from fmEphys.utils.filter import nanmedfilt, convfilt
 
 class Topcam(Camera):
     def __init__(self, config, recording_name, recording_path, camname):

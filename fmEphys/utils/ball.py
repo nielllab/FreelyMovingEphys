@@ -7,9 +7,9 @@ import numpy as np
 import xarray as xr
 from scipy.interpolate import interp1d
 
-from src.utils.filter import convfilt
-from src.base import BaseInput
-from src.utils.path import find
+from fmEphys.utils.filter import convfilt
+from fmEphys.utils.base import BaseInput
+from fmEphys.utils.path import find
 
 class RunningBall(BaseInput):
     """ Preprocess data from spherical treadmill, with movement recorded by optical mouse.

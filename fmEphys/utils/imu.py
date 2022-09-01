@@ -7,8 +7,8 @@ import numpy as np
 import os, yaml
 from time import time
 
-from src.base import BaseInput
-from src.utils.path import find
+from fmEphys.utils.base import BaseInput
+from fmEphys.utils.path import find
 
 class Imu(BaseInput):
     def __init__(self, config, recording_name, recording_path):

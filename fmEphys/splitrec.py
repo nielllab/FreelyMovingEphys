@@ -4,8 +4,8 @@ FreelyMovingEphys/modules/split_recordings/split_recordings.py
 import argparse
 import PySimpleGUI as sg
 
-from src.utils.auxiliary import str_to_bool
-from src.prelim import RawEphys
+from fmEphys.utils.auxiliary import str_to_bool
+from fmEphys.utils.prelim import RawEphys
 
 def get_args():
     parser = argparse.ArgumentParser()
