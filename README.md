@@ -2,7 +2,7 @@
 Preprocessing and analysis for electrophysiology experiments in freely moving mice.
 
 ## Setup
-Create the "ephys1" conda environment with `conda env create -f environment`. Activate the environment with `conda activate ephys1` and run `pip install -e .` to install the code base in your "ephys1" environment as a package named "fmEphys".
+Create the "ephys1" conda environment with `conda env create -f environment.yml`. Activate the environment with `conda activate ephys1` and run `pip install -e .` to install the code base in your "ephys1" environment as a package named "fmEphys".
 
 ## Use
 
