@@ -1,38 +1,47 @@
-"""
-FreelyMovingEphys/src/worldcam.py
-"""
-import os, sys
-import xarray as xr
 
-from fmEphys.utils.base import Camera
 
-class Worldcam(Camera):
-    def __init__(self, config, recording_name, recording_path, camname):
-        Camera.__init__(self, config, recording_name, recording_path, camname)
-        
-    def save_params(self):
-        self.xrpts.name = self.camname+'_times'
-        self.xrframes.name = self.camname+'_video'
-        merged_data = [self.xrpts, self.xrframes]
+import os
+import numpy as np
 
-        self.safe_merge(merged_data)
-        self.data.to_netcdf(os.path.join(self.recording_path,str(self.recording_name+'_world.nc')),engine='netcdf4',encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
+import fmEphys
 
-    def process(self):
-        if self.config['main']['deinterlace'] and not self.config['internals']['flip_headcams']['run']:
-            self.deinterlace()
-        elif not self.config['main']['deinterlace'] and self.config['internals']['flip_headcams']['run']:
-            self.flip_headcams()
-        elif self.config['main']['deinterlace'] and self.config['internals']['flip_headcams']['run']:
-            print('Config options deinterlace and flip_headcams are both True, which conflict with each other.')
-            sys.exit()
+def preprocess_worldcam(cfg=None, rpath=None):
 
-        if self.config['main']['parameters']:
-            if self.config['main']['undistort']:
-                self.undistort()
-            self.gather_camera_files()
-            if self.config['main']['undistort']:
-                self.video_path = self.calibvid_path
-            self.pack_position_data()
-            self.pack_video_frames()
-            self.save_params()
+    cfg = fmEphys.get_cfg(cfg)
+
+    if rpath is not None:
+        cfg['rpath'] = rpath
+
+    if ('rname' not in cfg.keys()) or (cfg['rname'] is None):
+        cfg['rname'] = fmEphys.get_rec_name(cfg['rpath'])
+
+    # Find the video
+    raw_vid_path = fmEphys.find('*{}*{}*.avi'.format(cfg['rname'], cfg['camname']), cfg['rpath'], mr=True)
+    print('Preprocessing worldcam video {}'.format(raw_vid_path))
+
+    # Deinterlace
+    vid_path = fmEphys.deinterlace(raw_vid_path)
+
+    # Fix camera warp
+    sp = fmEphys.make_avi_savepath(raw_vid_path, 'deinter')
+    vid_path = fmEphys.fix_distortion(vid_path, cfg['camMtx_wc'], savepath=sp)
+
+    # Read in video and format as an array
+    vidarr = fmEphys.avi2arr(vid_path, ds=0.25)
+    nF = np.shape(vidarr, 0)
+
+    # Read in timestamps
+    raw_camT_path = fmEphys.find('*{}*{}*BonsaiTS.csv'.format(cfg['rname'], cfg['camname']), cfg['rpath'], mr=True)
+    camT = fmEphys.read_time(raw_camT_path, dlen=nF)
+
+    # Save everything together
+    worldcam_data = {
+        'video_ds': vidarr,
+        'time': camT,
+        'options': cfg
+    }
+
+    savecamname = cfg['camname'].lower()
+    savepath = os.path.join(cfg['rname'], '{}_{}_preprocessing.h5'.format(cfg['rname'], savecamname))
+
+    fmEphys.write_h5(savepath, worldcam_data)

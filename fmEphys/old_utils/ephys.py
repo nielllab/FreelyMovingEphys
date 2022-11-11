@@ -22,7 +22,7 @@ if platform.system() == 'Linux':
 else:
     mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
 
-from fmEphys.utils.base import BaseInput
+from fmEphys.utils.helper import BaseInput
 from fmEphys.utils.correlation import nanxcorr
 from fmEphys.utils.path import find, list_subdirs
 

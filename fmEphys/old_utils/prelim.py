@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from matplotlib.backends.backend_pdf import PdfPages
 
-from fmEphys.utils.base import BaseInput
+from fmEphys.utils.helper import BaseInput
 from fmEphys.utils.worldcam import Worldcam
 from fmEphys.utils.ephys import Ephys
 from fmEphys.utils.path import find, auto_recording_name

@@ -1,0 +1,22 @@
+# Animal directory path
+apath: /path/to/animal/
+
+# [default16, NN_H16, default64, NN_H64-LP, DB_P64-3, DB_P64-8, DB_P128-6, DB_P128-D])
+probe: default16
+
+steps:
+  deinterlace: true
+  fixDistortion: true
+  dlc: true
+  behavior: true
+  rec: true
+  stim: true
+
+# Replace default internal options. This should be a file path to a new .yml file which
+# follows the format of /fmEphys/utils/options.yml
+options_path: false
+
+dlcPath_reye: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams8-dylan-2021-10-12/config.yaml
+dlcPath_top: E:/freely_moving_ephys/deeplabcut_projects/EphysTopCam2-dylan-2021-11-16/config.yaml
+
+camMtx_wc: E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz

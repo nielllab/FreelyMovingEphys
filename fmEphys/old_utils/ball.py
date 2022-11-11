@@ -8,7 +8,7 @@ import xarray as xr
 from scipy.interpolate import interp1d
 
 from fmEphys.utils.filter import convfilt
-from fmEphys.utils.base import BaseInput
+from fmEphys.utils.helper import BaseInput
 from fmEphys.utils.path import find
 
 class RunningBall(BaseInput):

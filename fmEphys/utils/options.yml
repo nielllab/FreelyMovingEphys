@@ -1,0 +1,114 @@
+
+# Default options
+# These are filled in if not given
+# i.e. anything listed in the ephys_cfg.yml file will
+# overridethe same key in this options.yml file
+
+# Pipeline options
+steps:
+  deinterlace: true
+  fixDistortion: true
+  dlc: true
+  behavior: true
+  rec: true
+  stim: true
+
+make_diagnostic_videos: false
+
+# Restrict which recordings types are analyzed (case-sensitive))
+# e.g. [hf1_wn, fm1]
+# when this is left blank, every directory will be analyzed
+use_recordings: []
+ignore_recordings: []
+# restrict which recordings are analyzed or ignored (must be all lower case
+# even if the data have capitalization in them)
+# options: reye, leye, world, top1, top2, top3, side, treadmill, imu
+# if it's left blank, everything will be analyzed
+use_data: [] # list
+ignore_data: [] # list
+
+# DLC
+l_thresh: 0.99
+delete_dlc_files: false
+
+# Topcam
+top_arena_cm: 39 # distance across arena in horizontal direction in cm (used to convert pxls to cm)
+top_pxls2cm: 0.06764573 # this is only a default value used if DLC couldn't track corners of the arena
+# if body yaw is within +/- X deg of movement vector, the mouse is moving forward
+# and, if the body yaw is +/- 180-X deg of movement vector, the mouse is moving backwards
+forward_thresh: 40 # deg
+# if body is moving faster than X cm/sec, mouse is running
+running_thresh: 2 # cm/sec
+
+# Pupil fitting
+IRspot_is_labeled: true
+do_eyecam_spotsub: true
+canthus_is_labeled: true
+ellipticity_thresh: 0.85 # maximum ratio of ellipse shortaxis to longaxis during ellipse fit of pupil
+distance_thresh: 4.1 # maximum acceptable distance (cm) that each frame's point can be from the mean position of that eye point across the recording
+pupil_pxl2cm: 24 # scale factor for camera from pixels to cm on eye
+ellipse_calN: 8 # number of ellipse points required for calibration
+ellipse_useN: 7 # ellipse pts required to call a frame 'good'
+reflection_useN: 5 # IR reflection on pupil, pts needed to call a frame 'good'
+radius_max: 50 # (pixels) maximum acceptable number of pixels for radius of the pupil
+
+# Ephys
+ephys_samprate: 30000 # kHz
+default_ephys_offset: 0.1 # s
+default_ephys_drift_rate: -0.000114 #s
+
+# IMU
+imu_ds: 100
+imu_samprate: 30000 # kHz
+includes_TTL: false
+
+# Treadmill
+tdml_pxl2cm: 2840
+tdml_samprate: 200 # ms
+tdml_x: 960 # screen center that the mouse is reset to
+tdml_y: 540
+tdml_resamprate: 0.008 # sec
+
+# Preprocessing
+vid_ds: 0.25 # factor by which to downsample videos before packing into .nc
+rotate_eyecam: true
+rotate_worldcam: true
+
+# These are ignored unless they are blank in the main cfg.yml file
+probe: default16
+dlcPath_reye: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams8-dylan-2021-10-12/config.yaml
+dlcPath_top: E:/freely_moving_ephys/deeplabcut_projects/EphysTopCam2-dylan-2021-11-16/config.yaml
+camMtx_wc: E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz
+
+
+
+# horizontal distance between corners of the arena
+# i.e. distance (in cm) from left to right posts of the arena
+# used to get conversion of pixels to cm in topdown camera view
+dist_cm: 39
+# if none of the corner pts tracked, use this default value
+default_pxls2cm: 0.06764573
+# definitions of state
+# if body yaw is within +/- X deg of movement vector, the mouse is moving forward
+# and, if the body yaw is +/- 180-X deg of movement vector, the mouse is moving backwards
+forward_thresh: 40 # deg
+# if body is moving faster than X cm/sec, it is running
+running_thresh: 2 # cm/sec
+
+
+# Expected camera name formats. This is the default expected capitalization when
+# reading the initial data in will save out all files as all lower calse (e.g.,
+# 'world', 'reye'). 
+raw_names:
+  reye: REYE
+  treadmill: BALLMOUSE
+  ephys: Ephys
+  world: WORLD
+  top: TOP1
+  imu: IMU
+
+eye_labels:
+  pupil: ['pt1','pt2','pt3','pt4','pt5','pt6','pt7','pt8']
+  spot: ['spot1','spot2','spot3','spot4']
+  spot_center: ['spot_cent']
+  other: ['tear','outer']

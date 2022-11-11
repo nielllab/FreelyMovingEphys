@@ -1,0 +1,21 @@
+# Animal directory path
+apath: /home/niell_lab/Data/freely_moving_ephys/ephys_recordings/070921/J553RT
+
+# [default16, NN_H16, default64, NN_H64-LP, DB_P64-3, DB_P64-8, DB_P128-6, DB_P128-D]
+probe: DB_P128-6
+
+steps:
+  preprocess_videos: true
+  preprocess_behavior: true
+  analyze_stimulus: true
+
+# Replace default internal options. This should be a file path to a new .yml file which
+# follows the format of /fmEphys/utils/options.yml
+options_path: false
+
+dlcPath_reye: /home/niell_lab/Documents/Projects/freely_moving_ephys/deeplabcut_projects/EphysEyeCams8-dylan-2021-10-12/config.yaml
+dlcPath_top: /home/niell_lab/Documents/Projects/freely_moving_ephys/deeplabcut_projects/EphysTopCam2-dylan-2021-11-16/config.yaml
+
+camMtx_wc: /home/niell_lab/Documents/Projects/freely_moving_ephys/camera_distortion/worldcam_matrix_012521.npz
+
+use_recordings: [hf4_revchecker]

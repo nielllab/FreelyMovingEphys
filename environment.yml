@@ -18,16 +18,16 @@ dependencies:
   - ffmpeg
   - matplotlib
   - scikit-image
-  - xarray=0.16
+  - xarray
   - tqdm
   - pytables
   - umap-learn
   - pip:
-    - "deeplabcut[gui]"
+    - deeplabcut==2.2.0.6
     - astropy
     - wavio
     - pysimplegui
     - netcdf4
     - opencv-python
-    - scipy==1.6.2
+    - scipy
     - ray

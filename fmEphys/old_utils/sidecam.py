@@ -4,7 +4,7 @@ FreelyMovingEphys/src/sidecam.py
 import os, sys
 import xarray as xr
 
-from fmEphys.utils.base import Camera
+from fmEphys.utils.helper import Camera
 
 class Sidecam(Camera):
     def __init__(self, config, recording_name, recording_path, camname):

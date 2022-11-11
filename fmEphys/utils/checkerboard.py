@@ -1,0 +1,4 @@
+""" Checkerboard stimulus responses.
+
+
+"""
