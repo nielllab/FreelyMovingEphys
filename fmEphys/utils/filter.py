@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.signal import butter, sosfiltfilt
+import scipy.signal
  
 def convfilt(y, box_pts=10):
    """ Smooth values in an array using a convolutional window.
@@ -91,10 +91,9 @@ def nanmedfilt(A, sz=5):
    i2 = sub_to_ind(np.shape(B.T),valid,i2)
    M[:,valid] = 0.5*(B.flatten('F')[i1.astype(int)-1] + B.flatten('F')[i2.astype(int)-1])
    M = np.reshape(M, np.shape(A))
+
    return M
 
-### default values give you the LFP
-# filt_ephys = utils.filter.
 def butterfilt(arr, lowcut, highcut, fs, order):
     """ Apply filter to ephys LFP along time dimension, axis=0.
 
@@ -113,9 +112,7 @@ def butterfilt(arr, lowcut, highcut, fs, order):
     nyq = 0.5 * fs # Nyquist frequency
     low = lowcut / nyq # low cutoff
     high = highcut / nyq # high cutoff
-    sos = butter(order, [low, high], btype='bandpass', output='sos')
-    filt = sosfiltfilt(sos, arr, axis=0)
+    sos = scipy.signal.butter(order, [low, high], btype='bandpass', output='sos')
+    filt = scipy.signal.sosfiltfilt(sos, arr, axis=0)
+    
     return filt
-
-def calc_LFP():
-    returnbutter(ephys, lowcut=1, highcut=300, order=5)
