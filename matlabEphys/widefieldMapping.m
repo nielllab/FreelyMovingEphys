@@ -1,5 +1,5 @@
-%% DOCUMENT TITLE
-% INTRODUCTORY TEXT
+%% Widefield retinotopic mapping
+%
 %%
 close all
 clear all

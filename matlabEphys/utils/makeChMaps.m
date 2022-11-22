@@ -1,4 +1,4 @@
-%% generate kilosort maps
+%% Generate kilosort maps
 
 %% DB P128-6
 
