@@ -1,25 +1,37 @@
+"""body.py
 
+Calculate movement and position properties of freely moving mice using
+position data previously calculated.
+
+"""
 
 import os
-import cv2
-import platform
-from tqdm import tqdm
-
 import numpy as np
-import pandas as pd
-
-import matplotlib as mpl
-from matplotlib import cm
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 import fmEphys
 
+
 def filter_likelihood(position_data, thresh=0.99):
+    """Filter position data using the likleihood values.
+
+    Parameters
+    ----------
+    position_data : dict
+        Position data for the top cam.
+    thresh : float, optional
+        Threshold value (between 0 and 1), by default 0.99.
+
+    Returns
+    -------
+    filt_positions : dict
+        Position data, where timepoints below threshold are replaced with np.nan.
+    useF : np.array
+        Array with the shape (position, time) as bool values indicating every frame
+        where a position was above or below the likleihood threshold.
     """
-    ..., thresh=cfg['lik_thresh'])
-    """
-    
+
     # Get the column names
     pt_names = list(position_data.keys())
     x_cols = [i for i in pt_names if '_x' in i]
@@ -49,22 +61,99 @@ def filter_likelihood(position_data, thresh=0.99):
 
     return filt_positions, useF
 
+
 def wide_smooth(x):
+    """Helper function to median filter data and smooth it with a wide box
+    convolution.
+
+    Parameters
+    ----------
+    x : np.array
+        1D array.
+
+    Returns
+    -------
+    np.array
+        Smoothed data.
+    """
     return fmEphys.convfilt(fmEphys.nanmedfilt(x, 7).squeeze(), box_pts=20)
 
+
 def narrow_smooth(x):
+    """Helper function to median filter data and smooth it with a narrow box
+    convolution.
+
+    Parameters
+    ----------
+    x : np.array
+        1D array.
+
+    Returns
+    -------
+    np.array
+        Smoothed data.
+    """
     return fmEphys.convfilt(fmEphys.nanmedfilt(x, 7).squeeze())
 
-def calc_speed(x, y, pxls2cm=1, fps=60):
-    """
-    important to smooth position data before using this
-    otherwise, small jitter will look like frame-to-frame movement
 
-    returns cm/sec if pxls/cm is given
+def calc_speed(x, y, pxls2cm=1, fps=60):
+    """Calculate speed from x/y coordinates of a single position.
+
+    It is important to smooth position data before calculating speed with this
+    function. Without smoothing, directionless jitter of positions from pose
+    tracking would be appear as frame-to-frame locomotion.
+
+    Without a conversion factor for video pixels to centimters, the speed will
+    be returned in units of pxls/cm. If the
+
+    Parameters
+    ----------
+    x : np.array
+        x position or a single tracked point.
+    y : np.array
+        y position or a single tracked point.
+    pxls2cm : int or float, optional
+        Conversion factor from video pixels to centimeters. Should be a small
+        float, by default 1.
+    fps : int, optional
+        Sample rate in units of frames per second, by default 60.
+
+    Returns
+    -------
+    np.array
+        Speed.
     """
+
     return np.sqrt(np.diff((x*fps) / pxls2cm)**2 + np.diff((y*fps) / pxls2cm)**2)
 
 def calc_yaw(left_y, right_y, left_x, right_x, rotate=False):
+    """Calculate yaw using four positions.
+
+    If you are measuring head angle and using the two ears, set `rotate` to True
+    and add 90 degrees so that you measure yaw along the correct axis.
+
+    Parameters
+    ----------
+    left_y : np.aray
+        1D position array.
+    right_y : np.aray
+        1D position array.
+    left_x : np.aray
+        1D position array.
+    right_x : np.aray
+        1D position array.
+    rotate : bool, optional
+        If the points are perpendicular to the angle you want to measure, you
+        can rotate the angle by 90 degrees in the positive direction, by default
+        False.
+
+    Returns
+    -------
+    yaw_rad : np.array
+        1D arrya of yaw over time in units of radians.
+    yaw_deg : np.array
+        1D arrya of yaw over time in units of degrees.
+    """
 
     yaw_rad = np.arctan2((left_y - right_y), (left_x - right_x))
 
@@ -76,6 +165,22 @@ def calc_yaw(left_y, right_y, left_x, right_x, rotate=False):
     return yaw_rad, yaw_deg
 
 def track_body(cfg, rpath=None):
+    """_summary_
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    cfg : _type_
+        _description_
+    rpath : _type_, optional
+        _description_, by default None
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
 
     cfg = fmEphys.get_cfg(cfg)
 
@@ -256,6 +361,7 @@ def track_body(cfg, rpath=None):
     pdf.savefig()
     plt.close()
 
+    ### Diagnostic figures
 
     fig, [ax0,ax1] = plt.subplots(1, 2, figsize=(11,8.5), dpi=300)
 
@@ -273,37 +379,48 @@ def track_body(cfg, rpath=None):
 
     ax0.plot(xbounds, ybounds, 'k-')
 
+
+    ### New panel in the figure
+
+    # Plot all necl positions.
     for f in range(startF, startF+maxF):
 
         ax1.plot(neck_x[f], neck_y[f], '.', color=cmap[f-startF])
 
+    # Plot the arena corners.
     ax1.plot(xbounds, ybounds, 'k-')
 
+    # Bint he speed data so that we can easily apply a colormap.
     speed_bins = np.linspace(0, int(np.ceil(np.nanmax(speed) / 3)))
     
     spdcolors = plt.cm.magma(speed_bins)
+
     for f in np.arange(startF, startF+maxF+10, 10):
 
+        # Color the arrow by the speed of the animal using the magma colormap.
         if ~np.isnan(speed[f]):
             usecolor = spdcolors[np.argmin(np.abs(speed[f] - speed_bins))]
         else:
             continue
 
+        # positions
         x0 = neck_x[f]
         y0 = neck_y[f]
+        # displacement
         dX = 15 * np.cos(head_yaw_rad[f])
         dY = 15 * np.sin(head_yaw_rad[f])
         
+        # draw an arrow showing the vector of movement
         ax1.arrow(x0, y0, dX, dY, facecolor=usecolor, width=7, edgecolor='k')
 
     fig.tight_layout()
     pdf.savefig()
     plt.close()
 
+    # Close the pdf and write the file.
     pdf.close()
 
-    # collect data into xarray
-    # start by adding properties to save in a list
+    # Collect movement data into a dictionary.
     movement_data = {
         'speed': speed,
         'head_yaw_rad': head_yaw_rad,
@@ -317,10 +434,11 @@ def track_body(cfg, rpath=None):
         'is_stationary': is_stationary
     }
 
+    # Join the movment data with other data from this camera.
     return_dict = {
-        'position_data': position_data,
+        'positions': position_data,
         'time': topT,
-        'movement_data': movement_data
+        'movement': movement_data
     }
 
     return return_dict
