@@ -48,24 +48,31 @@ def get_cfg(cfg_in=None, opts_in=None):
     return merge_cfg
 
 def assign_stim_name(a):
+    """
+    return in pattern:
+        full_stim_description, abbrev
+    
+    """
 
     # Free movement
     if all([x in a for x in ['fm','light']]) or ('fm' in a and 'dark' not in a):
-        return 'fm_light'
+        return 'fm_light', 'FmLt'
     if all([x in a for x in ['fm','dark']]):
-        return 'fm_dark'
+        return 'fm_dark', 'FmDk'
 
     # White noise
     if ('wn' in a):
-        return 'hf_white_noise'
+        return 'hf_white_noise', 'Wn'
 
     # Gratings
     if ('grat' in a and 'static' not in a):
-        return 'hf_drift_gratings'
+        return 'hf_drift_gratings', 'GtDf'
+
     if all([x in a for x in ['grat','static','500ms']]) and ('ISI' not in a):
-        return 'hf_static_gratings'
+        return 'hf_static_gratings', 'GtSt'
+
     if all([x in a for x in ['grat','static','500ms','ISI']]):
-        return 'hf_staticISI_gratings'
+        return 'hf_staticISI_gratings', 'GtSI'
 
     # Flashed sparse noise
     if all([x in a for x in ['sp','noiseflash']]) and ('500ms' not in a):
@@ -135,10 +142,10 @@ def get_probe_sites(name=None):
     """
 
     # Get path
-    probe_file_path = os.path.join(os.getcwd(), 'probes.yml')
+    probe_file_path = os.path.join(os.getcwd(), 'probes.json')
 
     # Read yaml files
-    site_dict = fmEphys.read_yaml(probe_file_path)
+    site_dict = fmEphys.read_json(probe_file_path)
 
     if name is not None:
         out = site_dict[name]

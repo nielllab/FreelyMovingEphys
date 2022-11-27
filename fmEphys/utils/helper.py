@@ -263,6 +263,18 @@ def series_to_arr(s):
     for i, vals in enumerate(s):
         a[i,:] = vals
     return a
+
+def series_to_list(s, flat=False):
+    """Collapse Series of lists to a list of lists
+    This is necessary (instead of to a numpy array) if they can all have different values
+    """
+    out = []
+    for i, vals in enumerate(s):
+        if not flat:
+            out.append(out)
+        else:
+            out.extend(vals)
+    return out
     
 def merge_uneven_xr(objs, dim_name='frame'):
     """Merge DataArrays of unequal lengths.
@@ -345,3 +357,29 @@ def split_xyl(pts):
     likeli.drop(columns=[0], inplace=True)
     
     return x_pos, y_pos, likeli
+
+def empty_obj_col(n_cells, sz):
+    """
+    df is the dataframe
+    sz is the length of values for each 
+    it is okay for the values to be different sizes for differnet cells
+    add an empty column to a pandas dataframe, for columns that will store arrays as an object
+
+    after running this, you can add the new column as
+        df['NewColumnName'] = empty_obj_col(115, 2001)
+    for a recording with 115 cells and where the array of data for each cell
+    has the length 2001 (as is the case for KDE PSTHs)
+    """
+
+    empty_arr = np.zeros(sz)*np.nan
+
+    # Create an empty array of NaNs with 
+    _sdata = np.zeros(n_cells)*np.nan
+    empty_series = pd.Series(_sdata.astype(object))
+
+    for i in range(empty_series.index.values):
+        empty_series[i] = empty_arr.copy().astype(object)
+
+    return empty_series
+
+
