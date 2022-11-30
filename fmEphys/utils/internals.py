@@ -1,6 +1,7 @@
 
 
 import os
+import json
 
 import fmEphys
 
@@ -96,6 +97,40 @@ def assign_stim_name(a):
     if all([x in a for x in ['hf','worldcam','10s']]):
         return 'hf_10s_world'
 
+def get_path(cfg, key, pathdict=None):
+
+    if pathdict is None:
+        # The expected file path
+        json_path = os.path.join(cfg['_rpath'], 'recpaths.json')
+        
+        if os.path.isfile(json_path):
+            # Read it if it already exists
+            pathdict = json.load(json_path)
+        elif not os.path.isfile(json_path):
+            # Make a blank recpaths.json file if one does not already exist
+            default_json = os.path.join(os.getcwd(), 'recpaths.json')
+            pathdict = json.load(default_json)
+            json.dump(pathdict, json_path)
+        
+    if pathdict['rpath'] is None:
+        pathdict['rpath'] = cfg['_rpath']
+
+    if pathdict[key] is not None:
+        name = pathdict[key]['name']
+        path = pathdict[key]['name']
+        name = pathdict[key]['name']
+    
+    if pathdict[key] is None:
+
+    if pathdict[key] is None:
+        print('Key does not exist in ')
+
+    
+
+    '_reye_preprocessing.h5'
+
+    cfg['recpaths'] = ['world_h5']
+
 def set_cfg_paths(cfg):
 
     session_dict = {}
@@ -181,3 +216,6 @@ def get_rec_name(path):
     
     return name
 
+def create_file_json():
+
+    

@@ -4,23 +4,19 @@
 """
 
 from tqdm import tqdm
-
 import numpy as np
-
 import cv2
 import scipy.interpolate
 
 import fmEphys
 
-def find_flip_times():
+def find_flip_times(cfg):
 
+    worldcam_data_path = fmEphys.get_path('world_h5')
+    eyecam_data_path = fmEphys.get_path('eye_h5')
 
-def calc_flash_PSTH(rpath):
-    """Calculate neural response to flashed stimulus as PSTH.
-    """
-
-    worldcam_data_path = fmEphys.find()
     worldcam_data = fmEphys.read_h5(worldcam_data_path)
+    eyecam_data = fmEphys.read_h5(eyecam_data_path)
 
     vid = worldcam_data['video'].astype(np.uint8)
     stimT = worldcam_data['time']
@@ -46,6 +42,14 @@ def calc_flash_PSTH(rpath):
     stim_state = scipy.interpolate.interp1d(worldT[:-1]-ephysT0, label_diff,
                                             bounds_error=False)(eyeT)
     eventT = eyeT[np.where((stim_state < -0.1)+(stim_state > 0.1))]
+
+
+def calc_flash_PSTH(rpath):
+    """Calculate neural response to flashed stimulus as PSTH.
+    """
+
+    
+
 
     n_cells = np.size(spikeT,0)
     all_psth = np.zeros([n_cells, 2001]) # shape = [unit#, time]

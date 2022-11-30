@@ -1,0 +1,40 @@
+{
+    "stim": null,
+    "probe": null,
+    "rpath": null,
+    "rabrv": null,
+    "apath": null,
+    "rname": null,
+    "stimname": null,
+    
+    "world_vid": {"name": null, "search": null},
+    "world_vid_deinter": {"name": null, "search": null},
+    "world_vid_unwarp": {"name": null, "search": "WORLD-deinter"},
+    "world_time": null,
+    "world_h5": null,
+
+    "eye_vid": null,
+    "eye_vid_deinter": null,
+    "eye_time": null,
+    "eye_h5": null,
+    "eye_dlc": null,
+
+    "top_vid": null,
+    "top_dlc": null,
+    "top_time": null,
+    "top_h5": null,
+
+    "imu_bin": null,
+    "imu_h5": null,
+
+    "ephys_bin": null,
+    "ephys_merged_bin": null,
+    "ephys_mat": null,
+    "ephys_time": null,
+    "ephys_json": null,
+
+    "treadmill_csv": null,
+    "treadmill_h5": null,
+
+    "analysis_h5": null
+}

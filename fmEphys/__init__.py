@@ -133,3 +133,7 @@ from .utils.plot import (
     plot_all_STA,
     plot_all_STV
 )
+
+from .utils.ephys import (
+    do_data_split
+)

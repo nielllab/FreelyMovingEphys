@@ -386,7 +386,7 @@ def freely_moving(cfg):
     # Calculate a PSTH for all cells and movementt types
     for _saccade_type, _saccade_times in saccade_events.items():
 
-        all_eyehead_psth[_saccade_type] = fmEphys.calc_all_PSTH(spike_times, eventT)
+        all_eyehead_psth[_saccade_type] = fmEphys.calc_all_PSTH(spike_times, _saccade_times)
 
 
     # Get active periods (based on gyro)

@@ -130,8 +130,3 @@ def read_yaml(path):
 def write_yaml(savedict, path):
     with open(path, 'w') as outfile:
         yaml.dump(savedict, outfile, default_flow_style=False)
-
-def read_json(path):
-    with open(path, 'r') as fp:
-        out_dict = json.load(fp)
-    return out_dict
