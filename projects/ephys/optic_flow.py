@@ -8,8 +8,8 @@ import matplotlib as mpl
 from tqdm import tqdm
 from scipy.interpolate import interp1d
 
-import src.utils.save as ioh5
-from src.utils.path import find
+import fmEphys.utils.save as ioh5
+from fmEphys.utils.path import find
 
 class OpticFlow:
     def __init__(self, base_path):
