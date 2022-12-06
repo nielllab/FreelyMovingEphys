@@ -1,9 +1,8 @@
 
 
 from .pipeline import pipeline
-from .splitrec import splitrec
-from .prelimRF_raw import prelimRF_raw
-from .prelimRF_sort import prelimRF_sort
+from .splitRec import splitrec
+from .quickRF import quickRF
 
 from .utils.run import Session
 
@@ -18,6 +17,9 @@ from .utils.base import (
     BaseInput,
     Camera
 )
+
+from .utils.prelimRF_sort import prelimRF_sort
+from .utils.prelimRF_raw import prelimRF_raw
 
 from .utils.filter import (
     convfilt,
@@ -64,4 +66,11 @@ from .utils.headfixed import (
     HeadFixedWhiteNoise,
     HeadFixedReversingCheckboard,
     HeadFixedSparseNoise
+)
+
+
+
+from .utils.video import (
+    deinterlace,
+    
 )

@@ -21,5 +21,5 @@ def splitrec():
     rephys.format_spikes()
 
 if __name__ == '__main__':
-    split_rec()
+    splitrec()
     

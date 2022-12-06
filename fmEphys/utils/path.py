@@ -3,6 +3,17 @@ FreelyMovingEphys/src/utils/path.py
 """
 import os
 import fnmatch
+import numpy as np
+from time import time
+
+def choose_most_recent(paths):
+    
+    deltas = np.zeros(len(paths))
+    for i, f in enumerate(paths):
+        deltas[i] = time.time() - os.path.getmtime(f)
+    ind = np.argmin(deltas)
+    use_f = paths[ind]
+    return use_f
 
 def find(pattern, path):
     """ Glob for subdirectories.
