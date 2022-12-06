@@ -7,9 +7,24 @@ import PySimpleGUI as sg
 
 import h5py
 import numpy as np
+import pandas as pd
 import xarray as xr
 from scipy.io import savemat
 
+
+def read_DLC_data(path, multianimal=False):
+
+    pts = pd.read_hdf(path)
+
+    if multianimal is False:
+        # Organize columns
+        pts.columns = [' '.join(col[:][1:3]).strip() for col in pts.columns.values]
+        pts = pts.rename(columns={pts.columns[n]: pts.columns[n].replace(' ', '_') for n in range(len(pts.columns))})
+
+    elif multianimal is True:
+        pts.columns = ['_'.join(col[:][1:]).strip() for col in pts.columns.values]
+
+    return pts
 
 def write_h5(filename, dic):
     """

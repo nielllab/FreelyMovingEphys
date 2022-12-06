@@ -94,3 +94,26 @@ def nanmedfilt(A, sz=5):
     M[:,valid] = 0.5*(B.flatten('F')[i1.astype(int)-1] + B.flatten('F')[i2.astype(int)-1])
     M = np.reshape(M, np.shape(A))
     return M
+
+def butterfilt(arr, lowcut, highcut, fs, order):
+    """ Apply filter to ephys LFP along time dimension, axis=0.
+
+    Parameters:
+    lfp (np.array): ephys LFP with shape (time, channel)
+    filt (str): should be either 'band' or 'high' for a bandpass or
+        lowpass filter
+    lowcut (int): low end of frequency cut off
+    highcut (int): high end of frequency cut off
+    fs (int): sample rate
+    order (int): order of filter
+
+    Returns:
+    filt (np.array): filtered data with shape (time, channel)
+    """
+    nyq = 0.5 * fs # Nyquist frequency
+    low = lowcut / nyq # low cutoff
+    high = highcut / nyq # high cutoff
+    sos = scipy.signal.butter(order, [low, high], btype='bandpass', output='sos')
+    filt = scipy.signal.sosfiltfilt(sos, arr, axis=0)
+    
+    return filt

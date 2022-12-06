@@ -1,9 +1,11 @@
 """
 Video preprocessing.
 """
+import os
+import argparse
+import subprocess
 
 import cv2
-import os, subprocess, argparse
 import numpy as np
 from tqdm import tqdm
 
