@@ -1,17 +1,23 @@
-from glob import glob
-import os, cv2, subprocess
+
+import os
+import subprocess
 from tqdm import tqdm
-from multiprocessing import freeze_support
-import matplotlib.pyplot as plt
+from glob import glob
 import PySimpleGUI as sg
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
 import xarray as xr
-from matplotlib.backends.backend_pdf import PdfPages
-from scipy.interpolate import interp1d
-from datetime import datetime
 
-from fmEphys.utils.path import find
+import scipy.interpolate
+
+import cv2
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+
+import fmEphys
 
 def open_time(path, dlc_len=None, force_shift=False):
     """ Read in the timestamps for a camera and adjust to deinterlaced video length if needed
@@ -268,8 +274,8 @@ def deinterlace_data(config, vid_list=None, time_list=None):
     data_path = config['animal_dir']
     # find all the files assuming no specific files are listed
     if vid_list is None:
-        avi_list = find('*.avi', data_path)
-        csv_list = find('*.csv', data_path)
+        avi_list = fmEphys.find('*.avi', data_path)
+        csv_list = fmEphys.find('*.csv', data_path)
     # if a specific list of videos is provided, ignore the config file's data path
     elif vid_list is not None:
         avi_list = vid_list.copy()
@@ -367,7 +373,7 @@ def calibrate_new_world_vids(config):
     # unpack camera properties
     mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
     # iterate through eye videos and save out a copy which has had distortions removed
-    world_list = find('*WORLDdeinter*.avi', config['animal_dir'])
+    world_list = fmEphys.find('*WORLDdeinter*.avi', config['animal_dir'])
     for world_vid in world_list:
         if 'plot' not in world_vid:
             savepath = '_'.join(world_vid.split('_')[:-1])+'_WORLDcalib.avi'
@@ -424,7 +430,7 @@ def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_label):
     for j in range(len(var_range)-1):
         var_cent[j] = 0.5*(var_range[j] + var_range[j+1])
     for i, ind in enumerate(goodcells.index):
-        rateInterp = interp1d(t[0:-1], goodcells.at[ind,'rate'], bounds_error=False)
+        rateInterp = scipy.interpolate.interp1d(t[0:-1], goodcells.at[ind,'rate'], bounds_error=False)
         scatter[i,:] = rateInterp(useT)
         for j in range(len(var_range)-1):
             usePts = (use>=var_range[j]) & (use<var_range[j+1])
@@ -611,7 +617,7 @@ def prelim_sorted_rf(whitenoise_directory, probe):
     calibrate_new_world_vids(temp_config)
     # organize nomenclature
     trial_units = []; name_check = []; path_check = []
-    for avi in find('*.avi', temp_config['animal_dir']):
+    for avi in fmEphys.find('*.avi', temp_config['animal_dir']):
         bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
         if temp_config['parameters']['follow_strict_naming'] is True:
             if all(bad not in avi for bad in bad_list):
@@ -636,8 +642,8 @@ def prelim_sorted_rf(whitenoise_directory, probe):
         temp_config['trial_path'] = trial_unit[0]
         t_name = trial_unit[1]
         # find the timestamps and video for all camera inputs
-        trial_cam_csv = find(('*BonsaiTS*.csv'), temp_config['trial_path'])
-        trial_cam_avi = find(('*.avi'), temp_config['trial_path'])
+        trial_cam_csv = fmEphys.find(('*BonsaiTS*.csv'), temp_config['trial_path'])
+        trial_cam_avi = fmEphys.find(('*.avi'), temp_config['trial_path'])
         trial_cam_csv = [x for x in trial_cam_csv if x != []]
         trial_cam_avi = [x for x in trial_cam_avi if x != []]
         # filter the list of files for the current trial to get the world view of this side
@@ -700,7 +706,7 @@ def prelim_sorted_rf(whitenoise_directory, probe):
         contrast = np.empty(worldT.size)
         for i in range(worldT.size):
             contrast[i] = np.std(img_norm[i,:,:])
-        newc = interp1d(worldT,contrast,fill_value="extrapolate")
+        newc = scipy.interpolate.interp1d(worldT,contrast,fill_value="extrapolate")
         # bin ephys spike times as spike rate / s
         dt = 0.025
         t = np.arange(0, np.max(worldT),dt)
@@ -714,7 +720,7 @@ def prelim_sorted_rf(whitenoise_directory, probe):
         contrast_interp = newc(t[0:-1])
         # worldcam interp and set floor to values
         img_norm[img_norm<-2] = -2
-        movInterp = interp1d(worldT,img_norm,axis=0, bounds_error=False) # added extrapolate for cases where x_new is below interpolation range
+        movInterp = scipy.interpolate.interp1d(worldT,img_norm,axis=0, bounds_error=False) # added extrapolate for cases where x_new is below interpolation range
         # raster
         raster_fig = plot_spike_raster(goodcells)
         pdf.savefig()
@@ -772,7 +778,7 @@ def make_window(theme):
                sg.Tab('Run', logging_layout)]], key='-TAB GROUP-')]]
     return sg.Window('Preliminary whitenoise receptive field mapping', layout)
 
-def win_main():
+def prelimRF_sort():
     window = make_window(sg.theme())
     while True:
         event, values = window.read(timeout=100)
@@ -790,4 +796,5 @@ def win_main():
     exit(0)
 
 if __name__ == '__main__':
-    win_main()
+    prelimRF_sort()
+    

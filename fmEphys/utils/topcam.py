@@ -1,27 +1,23 @@
 """
 FreelyMovingEphys/src/topcam.py
 """
+
+import os
+from tqdm import tqdm
+
 import numpy as np
 import xarray as xr
-import os, cv2, platform
-from tqdm import tqdm
+
+import cv2
+
 import matplotlib.pyplot as plt
-import pandas as pd
-from matplotlib import cm
-import matplotlib.backends.backend_pdf
-import matplotlib as mpl
-if platform.system() == 'Linux':
-    mpl.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
-else:
-    mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
-from matplotlib.animation import FFMpegWriter
+from matplotlib.backends.backend_pdf import PdfPages
 
-from fmEphys.utils.base import Camera
-from fmEphys.utils.filter import nanmedfilt, convfilt
+import fmEphys
 
-class Topcam(Camera):
+class Topcam(fmEphys.Camera):
     def __init__(self, config, recording_name, recording_path, camname):
-        Camera.__init__(self, config, recording_name, recording_path, camname)
+        fmEphys.Camera.__init__(self, config, recording_name, recording_path, camname)
         # horizontal distance between corners of the arena
         # i.e. distance (in cm) from left to right posts of the arena
         # used to get conversion of pixels to cm in topdown camera view
@@ -86,7 +82,7 @@ class Topcam(Camera):
         out_vid.release()
 
     def get_head_body_yaw(self):
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(self.recording_path, (self.recording_name + '_' + self.camname + '_tracking_figs.pdf')))
+        pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_' + self.camname + '_tracking_figs.pdf')))
 
         # get timestamps
         topT = self.xrpts.timestamps.copy()
@@ -144,8 +140,8 @@ class Topcam(Camera):
             pxls2cm = self.default_pxls2cm
 
         # topdown speed using neck point
-        smooth_x = convfilt(nanmedfilt(self.xrpts.sel(point_loc='center_neck_x').values, 7).squeeze(), box_pts=20)
-        smooth_y = convfilt(nanmedfilt(self.xrpts.sel(point_loc='center_neck_y').values, 7).squeeze(), box_pts=20)
+        smooth_x = fmEphys.convfilt(fmEphys.nanmedfilt(self.xrpts.sel(point_loc='center_neck_x').values, 7).squeeze(), box_pts=20)
+        smooth_y = fmEphys.convfilt(fmEphys.nanmedfilt(self.xrpts.sel(point_loc='center_neck_y').values, 7).squeeze(), box_pts=20)
         top_speed = np.sqrt(np.diff((smooth_x*60) / pxls2cm)**2 + np.diff((smooth_y*60) / pxls2cm)**2)
         top_speed[top_speed>25] = np.nan
 
@@ -160,10 +156,10 @@ class Topcam(Camera):
         plt.tight_layout(); pdf.savefig(); plt.close()
 
         # get head angle from ear points
-        lear_x = nanmedfilt(self.xrpts.sel(point_loc='left_ear_x').values, 7).squeeze()
-        lear_y = nanmedfilt(self.xrpts.sel(point_loc='left_ear_y').values, 7).squeeze()
-        rear_x = nanmedfilt(self.xrpts.sel(point_loc='right_ear_x').values, 7).squeeze()
-        rear_y = nanmedfilt(self.xrpts.sel(point_loc='right_ear_y').values, 7).squeeze()
+        lear_x = fmEphys.nanmedfilt(self.xrpts.sel(point_loc='left_ear_x').values, 7).squeeze()
+        lear_y = fmEphys.nanmedfilt(self.xrpts.sel(point_loc='left_ear_y').values, 7).squeeze()
+        rear_x = fmEphys.nanmedfilt(self.xrpts.sel(point_loc='right_ear_x').values, 7).squeeze()
+        rear_y = fmEphys.nanmedfilt(self.xrpts.sel(point_loc='right_ear_y').values, 7).squeeze()
         head_yaw = np.arctan2((lear_y - rear_y), (lear_x - rear_x)) + np.deg2rad(90) # rotate 90deg because ears are perpendicular to head yaw
         head_yaw_deg = np.rad2deg(head_yaw % (2*np.pi))
 
@@ -173,10 +169,10 @@ class Topcam(Camera):
         plt.tight_layout(); pdf.savefig(); plt.close()
 
         # body angle from neck and back points
-        neck_x = nanmedfilt(self.xrpts.sel(point_loc='center_neck_x').values, 7).squeeze()
-        neck_y = nanmedfilt(self.xrpts.sel(point_loc='center_neck_y').values, 7).squeeze()
-        back_x = nanmedfilt(self.xrpts.sel(point_loc='center_haunch_x').values, 7).squeeze()
-        back_y = nanmedfilt(self.xrpts.sel(point_loc='center_haunch_y').values, 7).squeeze()
+        neck_x = fmEphys.nanmedfilt(self.xrpts.sel(point_loc='center_neck_x').values, 7).squeeze()
+        neck_y = fmEphys.nanmedfilt(self.xrpts.sel(point_loc='center_neck_y').values, 7).squeeze()
+        back_x = fmEphys.nanmedfilt(self.xrpts.sel(point_loc='center_haunch_x').values, 7).squeeze()
+        back_y = fmEphys.nanmedfilt(self.xrpts.sel(point_loc='center_haunch_y').values, 7).squeeze()
         body_yaw = np.arctan2((neck_y - back_y), (neck_x - back_x))
         body_yaw_deg = np.rad2deg(body_yaw % (2*np.pi))
 

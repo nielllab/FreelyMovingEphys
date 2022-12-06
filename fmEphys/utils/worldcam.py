@@ -1,14 +1,15 @@
 """
 FreelyMovingEphys/src/worldcam.py
 """
-import os, sys
+import os
+import sys
 import xarray as xr
 
-from fmEphys.utils.base import Camera
+import fmEphys
 
-class Worldcam(Camera):
+class Worldcam(fmEphys.Camera):
     def __init__(self, config, recording_name, recording_path, camname):
-        Camera.__init__(self, config, recording_name, recording_path, camname)
+        fmEphys.Camera.__init__(self, config, recording_name, recording_path, camname)
         
     def save_params(self):
         self.xrpts.name = self.camname+'_times'

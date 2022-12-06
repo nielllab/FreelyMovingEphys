@@ -2,24 +2,24 @@
 FreelyMovingEphys/src/prelim.py
 """
 import os
-import numpy as np
 from glob import glob
 from tqdm import tqdm
+
+import numpy as np
 import pandas as pd
+
 import matplotlib.pyplot as plt
-from scipy.io import loadmat
 from matplotlib.backends.backend_pdf import PdfPages
 
-from fmEphys.utils.base import BaseInput
-from fmEphys.utils.worldcam import Worldcam
-from fmEphys.utils.ephys import Ephys
-from fmEphys.utils.path import find, auto_recording_name
+import scipy.io
 
-class PrelimRF(Ephys):
+import fmEphys
+
+class PrelimRF(fmEphys.Ephys):
     def __init__(self, binary_path, probe):
         head, _ = os.path.split(binary_path)
         self.recording_path = head
-        self.recording_name = auto_recording_name(head)
+        self.recording_name = fmEphys.auto_recording_name(head)
         self.probe = probe
         self.num_channels = next(int(num) for num in ['128','64','16'] if num in self.probe)
         self.n_cells = self.num_channels
@@ -47,7 +47,7 @@ class PrelimRF(Ephys):
     def minimal_process(self):
         self.detail_pdf = PdfPages(os.path.join(self.recording_name, 'prelim_raw_whitenoise.pdf'))
 
-        wc = Worldcam(self.generic_config, self.recording_name, self.recording_path, 'WORLD')
+        wc = fmEphys.Worldcam(self.generic_config, self.recording_name, self.recording_path, 'WORLD')
         self.worldT = wc.read_timestamp_file()
         self.world_vid = wc.pack_video_frames(usexr=False, dwsmpl=0.25)
         
@@ -86,19 +86,14 @@ class PrelimRF(Ephys):
 
         self.detail_pdf.close()
 
-    # def full_process(self):
-
-# class PrelimDepth(Ephys):
-#     def __init__(self, binary_path, probe):
-
-class RawEphys(BaseInput):
+class RawEphys(fmEphys.BaseInput):
     def __init__(self, merge_file):
         self.merge_file = merge_file
         self.ephys_samprate = 30000
 
     def format_spikes(self):
         # open 
-        merge_info = loadmat(self.merge_file)
+        merge_info = scipy.io.loadmat(self.merge_file)
         fileList = merge_info['fileList']
         pathList = merge_info['pathList']
         nSamps = merge_info['nSamps']

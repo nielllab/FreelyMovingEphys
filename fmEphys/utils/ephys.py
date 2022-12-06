@@ -1,39 +1,37 @@
 """
 FreelyMovingEphys/src/ephys.py
 """
-import os, json, cv2, platform, subprocess
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+
+import os
+import json
+import subprocess
+from tqdm import tqdm
+from itertools import chain
+
 import numpy as np
 import pandas as pd
 import xarray as xr
-from scipy.signal import butter, sosfiltfilt
-from tqdm import tqdm
-import scipy.linalg as linalg
-import scipy.sparse as sparse
-import scipy.signal as signal
-from scipy.interpolate import interp1d
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
+import scipy.signal
+import scipy.linalg
+import scipy.sparse
+import scipy.interpolate
+import scipy.ndimage
+
+import cv2
 import wavio
-from sklearn.linear_model import LinearRegression
-from scipy.ndimage import shift as imshift
-from itertools import chain
-if platform.system() == 'Linux':
-    mpl.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
-else:
-    mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
 
-from fmEphys.utils.base import BaseInput
-from fmEphys.utils.correlation import nanxcorr
-from fmEphys.utils.path import find, list_subdirs
+import sklearn.neighbors
+import sklearn.linear_model
 
-import numpy as np
-import pandas as pd
-from sklearn.neighbors import KernelDensity
-from tqdm import tqdm
+import fmEphys
 
-class Ephys(BaseInput):
+class Ephys(fmEphys.BaseInput):
     def __init__(self, config, recording_name, recording_path):
-        BaseInput.__init__(self, config, recording_name, recording_path)
+        fmEphys.BaseInput.__init__(self, config, recording_name, recording_path)
 
         # save figures into a pdf?
         # if false, figures will be shown and not saved
@@ -125,8 +123,8 @@ class Ephys(BaseInput):
         nyq = 0.5 * fs # Nyquist frequency
         low = lowcut / nyq # low cutoff
         high = highcut / nyq # high cutoff
-        sos = butter(order, [low, high], btype='bandpass', output='sos')
-        filt = sosfiltfilt(sos, lfp, axis=0)
+        sos = scipy.signal.butter(order, [low, high], btype='bandpass', output='sos')
+        filt = scipy.signal.sosfiltfilt(sos, lfp, axis=0)
         return filt
 
     def spike_raster(self):
@@ -216,7 +214,7 @@ class Ephys(BaseInput):
         elif not self.figs_in_pdf:
             plt.show()
 
-        gyro_z_interp = interp1d(self.imuT, self.gyro_z, bounds_error=False)
+        gyro_z_interp = scipy.interpolate.interp1d(self.imuT, self.gyro_z, bounds_error=False)
         plt.subplots(1,2)
         plt.subplot(1,2,1)
         plt.plot(self.eyeT[0:-1], self.dEye, label='dEye')
@@ -236,8 +234,8 @@ class Ephys(BaseInput):
 
     def estimate_shift_worldcam(self, max_frames=3600, num_iter=5000, term_eps=1e-4):
         # get eye displacement for each worldcam frame
-        th_interp = interp1d(self.eyeT, self.theta, bounds_error=False)
-        phi_interp = interp1d(self.eyeT, self.phi, bounds_error=False)
+        th_interp = scipy.interpolate.interp1d(self.eyeT, self.theta, bounds_error=False)
+        phi_interp = scipy.interpolate.interp1d(self.eyeT, self.phi, bounds_error=False)
         dTheta = np.diff(th_interp(self.worldT))
         dPhi = np.diff(phi_interp(self.worldT))
         # calculate x-y shift for each worldcam frame  
@@ -260,8 +258,8 @@ class Ephys(BaseInput):
                 yshift[i] = np.nan
         # perform regression to predict frameshift based on eye shifts
         # set up models
-        xmodel = LinearRegression()
-        ymodel = LinearRegression()
+        xmodel = sklearn.linear_model.LinearRegression()
+        ymodel = sklearn.linear_model.LinearRegression()
         # eye data as predictors
         eyeData = np.zeros([max_frames, 2])
         eyeData[:,0] = dTheta[0:max_frames]
@@ -414,7 +412,7 @@ class Ephys(BaseInput):
         for j in range(len(variable_range)-1):
             var_cent[j] = 0.5*(variable_range[j] + variable_range[j+1])
         for i, ind in enumerate(self.cells.index):
-            rateInterp = interp1d(self.model_t[0:-1], self.cells.at[ind,'rate'], bounds_error=False)
+            rateInterp = scipy.interpolate.interp1d(self.model_t[0:-1], self.cells.at[ind,'rate'], bounds_error=False)
             scatter[i,:] = rateInterp(useT)
             for j in range(len(variable_range)-1):
                 usePts = (variable>=variable_range[j]) & (variable<variable_range[j+1])
@@ -483,17 +481,17 @@ class Ephys(BaseInput):
         # set up prior matrix (regularizer)
         # L2 prior
         Imat = np.eye(nk)
-        Imat = linalg.block_diag(Imat, np.zeros((1,1)))
+        Imat = scipy.linalg.block_diag(Imat, np.zeros((1,1)))
         # smoothness prior
         consecutive = np.ones((nk, 1))
         consecutive[nks[1]-1::nks[1]] = 0
         diff = np.zeros((1,2))
         diff[0,0] = -1
         diff[0,1] = 1
-        Dxx = sparse.diags((consecutive @ diff).T, np.array([0, 1]), (nk-1, nk))
-        Dxy = sparse.diags((np.ones((nk,1))@ diff).T, np.array([0, nks[1]]), (nk - nks[1], nk))
+        Dxx = scipy.sparse.diags((consecutive @ diff).T, np.array([0, 1]), (nk-1, nk))
+        Dxy = scipy.sparse.diags((np.ones((nk,1))@ diff).T, np.array([0, nks[1]]), (nk - nks[1], nk))
         Dx = Dxx.T @ Dxx + Dxy.T @ Dxy
-        D  = linalg.block_diag(Dx.toarray(), np.zeros((1,1)))      
+        D  = scipy.linalg.block_diag(Dx.toarray(), np.zeros((1,1)))      
         # summed prior matrix
         Cinv = D + Imat
         lag_list = [-4,-2,0,2,4]
@@ -849,11 +847,11 @@ class Ephys(BaseInput):
             t2 = t1 + 60
             offset = np.zeros(np.shape(t1))
             ccmax = np.zeros(np.shape(t1))
-            imu_interp = interp1d(self.imuT_raw, self.gyro_z)
+            imu_interp = scipy.interpolate.interp1d(self.imuT_raw, self.gyro_z)
             for tstart in tqdm(range(len(t1))):
                 for l in range(len(lag_range)):
                     try:
-                        c, lag = nanxcorr(-self.dEye[t1[tstart]*60 : t2[tstart]*60] , imu_interp(self.eyeT[t1[tstart]*60 : t2[tstart]*60]+lag_range[l]), 1)
+                        c, lag = fmEphys.nanxcorr(-self.dEye[t1[tstart]*60 : t2[tstart]*60] , imu_interp(self.eyeT[t1[tstart]*60 : t2[tstart]*60]+lag_range[l]), 1)
                         cc[l] = c[1]
                     except:
                         cc[l] = np.nan
@@ -865,7 +863,7 @@ class Ephys(BaseInput):
             self.check_imu_eye_alignment(t1, offset, ccmax)
     
             # fit regression to timing drift
-            model = LinearRegression()
+            model = sklearn.linear_model.LinearRegression()
             dataT = np.array(self.eyeT[t1*60 + 30*60])
             model.fit(dataT[~np.isnan(offset)].reshape(-1,1), offset[~np.isnan(offset)]) 
             self.ephys_offset = model.intercept_
@@ -882,11 +880,11 @@ class Ephys(BaseInput):
     def estimate_visual_scene(self):
         # get needed x/y correction
         self.estimate_shift_worldcam()
-        theta_interp = interp1d(self.eyeT, self.theta, bounds_error=False)
-        phi_interp = interp1d(self.eyeT, self.phi, bounds_error=False)
+        theta_interp = scipy.interpolate.interp1d(self.eyeT, self.theta, bounds_error=False)
+        phi_interp = scipy.interpolate.interp1d(self.eyeT, self.phi, bounds_error=False)
         # apply to each frame
         for f in tqdm(range(np.shape(self.world_vid)[0])):
-            self.world_vid[f,:,:] = imshift(self.world_vid[f,:,:],(-np.int8(theta_interp(self.worldT[f])*self.ycorrection[0] + phi_interp(self.worldT[f])*self.ycorrection[1]),
+            self.world_vid[f,:,:] = scipy.ndimage.shift(self.world_vid[f,:,:],(-np.int8(theta_interp(self.worldT[f])*self.ycorrection[0] + phi_interp(self.worldT[f])*self.ycorrection[1]),
                                                                    -np.int8(theta_interp(self.worldT[f])*self.xcorrection[0] + phi_interp(self.worldT[f])*self.xcorrection[1])))
 
     def drop_static_worldcam_pxls(self):
@@ -936,7 +934,7 @@ class Ephys(BaseInput):
         self.small_world_vid = np.zeros((sz[0], np.int(sz[1]*dwnsmpl), np.int(sz[2]*dwnsmpl)))
         for f in range(sz[0]):
             self.small_world_vid[f,:,:] = cv2.resize(self.img_norm[f,:,:],(np.int(sz[2]*dwnsmpl),np.int(sz[1]*dwnsmpl)))
-        mov_interp = interp1d(self.worldT, self.small_world_vid, axis=0, bounds_error=False)
+        mov_interp = scipy.interpolate.interp1d(self.worldT, self.small_world_vid, axis=0, bounds_error=False)
 
         # model video for STAs, STVs, etc.
         nks = np.shape(self.small_world_vid[0,:,:])
@@ -947,14 +945,14 @@ class Ephys(BaseInput):
         self.model_vid[np.isnan(self.model_vid)] = 0
     
     def topcam_props_at_new_timebase(self):
-        self.top_speed_interp = interp1d(self.topT, self.top_speed, bounds_error=False)(self.eyeT)
-        self.top_forward_run_interp = interp1d(self.topT, self.top_forward_run, bounds_error=False)(self.eyeT)
-        self.top_fine_motion_interp = interp1d(self.topT, self.top_fine_motion, bounds_error=False)(self.eyeT)
-        self.top_backward_run_interp = interp1d(self.topT, self.top_backward_run, bounds_error=False)(self.eyeT)
-        self.top_immobility_interp = interp1d(self.topT, self.top_immobility, bounds_error=False)(self.eyeT)
-        self.top_head_yaw_interp = interp1d(self.topT, self.top_head_yaw, bounds_error=False)(self.eyeT)
-        self.top_body_yaw_interp = interp1d(self.topT, self.top_body_yaw, bounds_error=False)(self.eyeT)
-        self.top_movement_yaw_interp = interp1d(self.topT, self.top_movement_yaw, bounds_error=False)(self.eyeT)
+        self.top_speed_interp = scipy.interpolate.interp1d(self.topT, self.top_speed, bounds_error=False)(self.eyeT)
+        self.top_forward_run_interp = scipy.interpolate.interp1d(self.topT, self.top_forward_run, bounds_error=False)(self.eyeT)
+        self.top_fine_motion_interp = scipy.interpolate.interp1d(self.topT, self.top_fine_motion, bounds_error=False)(self.eyeT)
+        self.top_backward_run_interp = scipy.interpolate.interp1d(self.topT, self.top_backward_run, bounds_error=False)(self.eyeT)
+        self.top_immobility_interp = scipy.interpolate.interp1d(self.topT, self.top_immobility, bounds_error=False)(self.eyeT)
+        self.top_head_yaw_interp = scipy.interpolate.interp1d(self.topT, self.top_head_yaw, bounds_error=False)(self.eyeT)
+        self.top_body_yaw_interp = scipy.interpolate.interp1d(self.topT, self.top_body_yaw, bounds_error=False)(self.eyeT)
+        self.top_movement_yaw_interp = scipy.interpolate.interp1d(self.topT, self.top_movement_yaw, bounds_error=False)(self.eyeT)
 
     def setup_model_spikes(self):
         # sta/stv setup
@@ -966,15 +964,15 @@ class Ephys(BaseInput):
 
     def rough_glm_setup(self):
         # get eye position
-        self.model_theta = interp1d(self.eyeT, self.theta, bounds_error=False)(self.model_t+self.model_dt/2)
-        self.model_phi =interp1d(self.eyeT, self.phi, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.model_theta = scipy.interpolate.interp1d(self.eyeT, self.theta, bounds_error=False)(self.model_t+self.model_dt/2)
+        self.model_phi = scipy.interpolate.interp1d(self.eyeT, self.phi, bounds_error=False)(self.model_t+self.model_dt/2)
         
         # get active times
         if self.fm:
-            self.model_raw_gyro_z = interp1d(self.imuT, (self.gyro_z_raw - np.nanmean(self.gyro_z_raw)*7.5), bounds_error=False)(self.model_t)
-            self.model_gyro_z = interp1d(self.imuT, self.gyro_z, bounds_error=False)(self.model_t)
-            self.model_roll = interp1d(self.imuT, self.roll, bounds_error=False)(self.model_t)
-            self.model_pitch = interp1d(self.imuT, self.pitch, bounds_error=False)(self.model_t)
+            self.model_raw_gyro_z = scipy.interpolate.interp1d(self.imuT, (self.gyro_z_raw - np.nanmean(self.gyro_z_raw)*7.5), bounds_error=False)(self.model_t)
+            self.model_gyro_z = scipy.interpolate.interp1d(self.imuT, self.gyro_z, bounds_error=False)(self.model_t)
+            self.model_roll = scipy.interpolate.interp1d(self.imuT, self.roll, bounds_error=False)(self.model_t)
+            self.model_pitch = scipy.interpolate.interp1d(self.imuT, self.pitch, bounds_error=False)(self.model_t)
             
             self.model_active = np.convolve(np.abs(self.model_raw_gyro_z), np.ones(np.int(1/self.model_dt)), 'same')
             self.model_use = np.where((np.abs(self.model_theta) < self.model_eye_use_thresh) & (np.abs(self.model_phi) < self.model_eye_use_thresh)& (self.model_active > self.model_active_thresh))[0]
@@ -994,13 +992,13 @@ class Ephys(BaseInput):
                                  interpolation=cv2.INTER_LINEAR_EXACT)
             smallvid = smallvid[5:-5, 5:-5]
             resize_img_norm[i,:] = np.reshape(smallvid, np.shape(smallvid)[0]*np.shape(smallvid)[1])
-        self.glm_model_vid = interp1d(self.worldT, resize_img_norm, 'nearest', axis=0, bounds_error=False)(self.model_t)
+        self.glm_model_vid = scipy.interpolate.interp1d(self.worldT, resize_img_norm, 'nearest', axis=0, bounds_error=False)(self.model_t)
         nks = np.shape(smallvid)
         nk = nks[0]*nks[1]
         self.glm_model_vid[np.isnan(self.glm_model_vid)] = 0
 
     def get_active_times_without_glm(self):
-        model_raw_gyro_z = interp1d(self.imuT, (self.gyro_z_raw - np.nanmean(self.gyro_z_raw)*7.5), bounds_error=False)(self.model_t)
+        model_raw_gyro_z = scipy.interpolate.interp1d(self.imuT, (self.gyro_z_raw - np.nanmean(self.gyro_z_raw)*7.5), bounds_error=False)(self.model_t)
         self.model_active = np.convolve(np.abs(model_raw_gyro_z), np.ones(np.int(1/self.model_dt)), 'same')
 
     
@@ -1126,7 +1124,7 @@ class Ephys(BaseInput):
             sps.extend(sp)
         sps = np.array(sps)
 
-        kernel = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(sps[:, np.newaxis])
+        kernel = sklearn.neighbors.KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(sps[:, np.newaxis])
         density = kernel.score_samples(bins[:, np.newaxis])
 
         # Multiply by the # spikes to get spike count per point. Divide
@@ -1150,7 +1148,7 @@ class Ephys(BaseInput):
 
         if self.fm:
             print('deye dhead')
-            self.dHead = interp1d(self.imuT, self.gyro_z, bounds_error=False)(self.eyeT)[:-1]
+            self.dHead = scipy.interpolate.interp1d(self.imuT, self.gyro_z, bounds_error=False)(self.eyeT)[:-1]
             self.dGaze = self.dEye_dps + self.dHead
 
             plt.figure()
@@ -1263,7 +1261,7 @@ class Ephys(BaseInput):
     def movement_tuning(self):
         if self.fm:
             # get active times only
-            active_interp = interp1d(self.model_t, self.model_active, bounds_error=False)
+            active_interp = scipy.interpolate.interp1d(self.model_t, self.model_active, bounds_error=False)
             active_imu = active_interp(self.imuT.values)
             use = np.where(active_imu > 40)
             imuT_use = self.imuT[use]
@@ -1298,8 +1296,8 @@ class Ephys(BaseInput):
             centered_roll = self.roll - np.mean(self.roll)
 
             # interpolate to match eye timing
-            pitch_interp = interp1d(self.imuT, centered_pitch, bounds_error=False)(self.eyeT)
-            roll_interp = interp1d(self.imuT, centered_roll, bounds_error=False)(self.eyeT)
+            pitch_interp = scipy.interpolate.interp1d(self.imuT, centered_pitch, bounds_error=False)(self.eyeT)
+            roll_interp = scipy.interpolate.interp1d(self.imuT, centered_roll, bounds_error=False)(self.eyeT)
 
             # pitch vs theta
             plt.figure()
@@ -1426,7 +1424,7 @@ class Ephys(BaseInput):
         for ch in range(self.num_channels):
             lfp_power_profiles[ch] = np.sqrt(np.mean(filt_ephys[:,ch]**2)) # multiunit LFP power profile
         # median filter
-        lfp_power_profiles_filt = signal.medfilt(lfp_power_profiles)
+        lfp_power_profiles_filt = scipy.signal.medfilt(lfp_power_profiles)
         if self.probe=='DB_P64-8':
             ch_spacing = 25/2
         else:

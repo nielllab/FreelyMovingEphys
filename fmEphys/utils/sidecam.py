@@ -1,14 +1,15 @@
 """
 FreelyMovingEphys/src/sidecam.py
 """
-import os, sys
+import os
+import sys
 import xarray as xr
 
-from fmEphys.utils.base import Camera
+import fmEphys
 
-class Sidecam(Camera):
+class Sidecam(fmEphys.Camera):
     def __init__(self, config, recording_name, recording_path, camname):
-        Camera.__init__(self, config, recording_name, recording_path, camname)
+        fmEphys.Camera.__init__(self, config, recording_name, recording_path, camname)
         
     def save_params(self):
         self.xrpts.name = self.camname+'_times'
@@ -16,7 +17,7 @@ class Sidecam(Camera):
         merged_data = [self.xrpts, self.xrframes]
 
         self.safe_merge(merged_data)
-        self.data.to_netcdf(os.path.join(self.recording_path,str(self.recording_name+'_side.nc')),engine='netcdf4',encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
+        self.data.to_netcdf(os.path.join(self.recording_path, str(self.recording_name+'_side.nc')),engine='netcdf4',encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
 
     def process(self):
         if self.config['main']['undistort']:

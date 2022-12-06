@@ -1,23 +1,28 @@
 """
 FreelyMovingEphys/src/headfixed.py
 """
-import os, cv2
+import os
 from tqdm import tqdm
-from scipy.signal import medfilt
-from sklearn.cluster import KMeans
-import xarray as xr
+
 import numpy as np
 import pandas as pd
+import xarray as xr
+
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-from scipy.interpolate import interp1d
 
-from fmEphys.utils.ephys import Ephys
-from fmEphys.utils.save import write_h5
+import scipy.interpolate
+import scipy.signal
 
-class HeadFixedWhiteNoise(Ephys):
+import cv2
+
+import sklearn.cluster
+
+import fmEphys
+
+class HeadFixedWhiteNoise(fmEphys.Ephys):
     def __init__(self, config, recording_name, recording_path):
-        Ephys.__init__(self, config, recording_name, recording_path)
+        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
         self.fm = False
         self.stim = 'wn'
 
@@ -152,7 +157,7 @@ class HeadFixedWhiteNoise(Ephys):
         savepath = os.path.join(self.recording_path,
                                 '{}_ephys_props.h5'.format(self.recording_name))
 
-        write_h5(savepath, save_dict)
+        fmEphys.write_h5(savepath, save_dict)
 
     def analyze(self):
         # delete the existing h5 file, so that a new one can be written
@@ -173,9 +178,9 @@ class HeadFixedWhiteNoise(Ephys):
         print('saving ephys file')
         self.save_as_df()
 
-class HeadFixedReversingCheckboard(Ephys):
+class HeadFixedReversingCheckboard(fmEphys.Ephys):
     def __init__(self, config, recording_name, recording_path):
-        Ephys.__init__(self, config, recording_name, recording_path)
+        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
 
         self.fm = False
         self.stim = 'rc'
@@ -352,7 +357,7 @@ class HeadFixedReversingCheckboard(Ephys):
                                     2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         label_diff = np.diff(np.ndarray.flatten(labels))
 
-        stim_state = interp1d(worldT[:-1]-self.ephysT0, label_diff, bounds_error=False)(eyeT)
+        stim_state = scipy.interpolate.interp1d(worldT[:-1]-self.ephysT0, label_diff, bounds_error=False)(eyeT)
         eventT = eyeT[np.where((stim_state<-0.1)+(stim_state>0.1))]
 
         Rc_psth = np.zeros([len(self.cells.index.values), 2001]) # shape = [unit#, time]
@@ -509,7 +514,7 @@ class HeadFixedReversingCheckboard(Ephys):
         savepath = os.path.join(self.recording_path,
                                 '{}_ephys_props.h5'.format(self.recording_name))
 
-        write_h5(savepath, save_dict)
+        fmEphys.write_h5(savepath, save_dict)
 
     def analyze(self):
         # delete the existing h5 file, so that a new one can be written
@@ -535,9 +540,9 @@ class HeadFixedReversingCheckboard(Ephys):
         print('saving ephys file')
         self.save_as_df()
 
-class HeadFixedSparseNoise(Ephys):
+class HeadFixedSparseNoise(fmEphys.Ephys):
     def __init__(self, config, recording_name, recording_path):
-        Ephys.__init__(self, config, recording_name, recording_path)
+        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
 
         self.fm = False
         self.stim = 'sn'
@@ -813,7 +818,7 @@ class HeadFixedSparseNoise(Ephys):
         savepath = os.path.join(self.recording_path,
                                 '{}_ephys_props.h5'.format(self.recording_name))
 
-        write_h5(savepath, save_dict)
+        fmEphys.write_h5(savepath, save_dict)
 
     def analyze(self):
         # delete the existing h5 file, so that a new one can be written
@@ -834,9 +839,9 @@ class HeadFixedSparseNoise(Ephys):
         print('saving ephys file')
         self.save_as_df()
         
-class HeadFixedGratings(Ephys):
+class HeadFixedGratings(fmEphys.Ephys):
     def __init__(self, config, recording_name, recording_path):
-        Ephys.__init__(self, config, recording_name, recording_path)
+        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
         self.fm = False
         self.stim = 'gt'
 
@@ -911,7 +916,7 @@ class HeadFixedGratings(Ephys):
         scr_contrast = np.empty(self.worldT.size)
         for i in range(self.worldT.size):
             scr_contrast[i] = np.nanmean(np.abs(self.img_norm[i, ycent-25:ycent+25, xcent-40:xcent+40]))
-        scr_contrast = medfilt(scr_contrast, 11)
+        scr_contrast = scipy.signal.medfilt(scr_contrast, 11)
         stimOn = np.double(scr_contrast>0.5)
         self.stim_start = np.array(self.worldT[np.where(np.diff(stimOn)>0)])
         
@@ -949,7 +954,7 @@ class HeadFixedGratings(Ephys):
         plt.plot(range(15), ori_cat[:15]); plt.xlabel('first 15 stims'); plt.ylabel('ori cat')
         self.diagnostic_pdf.savefig()
 
-        km = KMeans(n_clusters=3).fit(np.reshape(grating_mag, (-1,1)))
+        km = sklearn.cluster.KMeans(n_clusters=3).fit(np.reshape(grating_mag, (-1,1)))
         sf_cat = km.labels_
         order = np.argsort(np.reshape(km.cluster_centers_, 3))
         sf_catnew = sf_cat.copy()
@@ -1205,7 +1210,7 @@ class HeadFixedGratings(Ephys):
         savepath = os.path.join(self.recording_path,
                                 '{}_ephys_props.h5'.format(self.recording_name))
 
-        write_h5(savepath, save_dict)
+        fmEphys.write_h5(savepath, save_dict)
 
     def analyze(self):
         # delete the existing h5 file, so that a new one can be written

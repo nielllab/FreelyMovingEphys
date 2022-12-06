@@ -1,33 +1,34 @@
 """
 FreelyMovingEphys/src/eye.py
 """
-import numpy as np
-import json, os, cv2, sys
-from numpy.linalg import eig
-from scipy import stats
-import xarray as xr
-import pandas as pd
-from math import e as e
-import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.backends.backend_pdf
-from scipy import signal
-from scipy.optimize import curve_fit
-import multiprocessing
+
+import os
+import sys
+import json
 from tqdm import tqdm
-from astropy.convolution import convolve
+import multiprocessing
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+
+import scipy.stats
+import scipy.signal
+import astropy.convolution
+
+import cv2
+
+import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.backends.backend_pdf import PdfPages
 
-from fmEphys.utils.path import find, list_subdirs
-from fmEphys.utils.correlation import nanxcorr
-from fmEphys.utils.filter import nanmedfilt
-from fmEphys.utils.base import Camera
+import fmEphys
 
-class Eyecam(Camera):
+class Eyecam(fmEphys.Camera):
     """ Processing for head-mounted eye-facing camera.
     """
     def __init__(self, config, recording_name, recording_path, camname):
-        Camera.__init__(self, config, recording_name, recording_path, camname)
+        fmEphys.Camera.__init__(self, config, recording_name, recording_path, camname)
 
         self.eye_fig_pts_dwnspl = 100
 
@@ -73,7 +74,7 @@ class Eyecam(Camera):
 
         # eigen decomp
         Q = np.array([[a, b/2],[b/2, c]])
-        eig_val, eig_vec = eig(Q)
+        eig_val, eig_vec = np.linalg.eig(Q)
 
         # get angle to long axis
         if eig_val[0] < eig_val[1]:
@@ -129,13 +130,13 @@ class Eyecam(Camera):
 
     def get_horizontal_vertical_rotation(self):
         # set up the pdf to be saved out with diagnostic figures
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(self.recording_path, (self.recording_name + '_' + self.camname + '_tracking_figs.pdf')))
+        pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_' + self.camname + '_tracking_figs.pdf')))
         
         # if this is a hf recording, read in existing fm camera center, scale, etc.
         # it should run all fm recordings first, so it will be possible to read in fm camera calibration parameters for every hf recording
         if self.config['internals']['force_eyecam_calibration_params'] == 'auto':
             if 'hf' in self.recording_name:
-                path_to_existing_props = sorted(find('*fm_eyecameracalc_props.json', self.config['animal_directory'])) # should always go for fm1 before fm2
+                path_to_existing_props = sorted(fmEphys.find('*fm_eyecameracalc_props.json', self.config['animal_directory'])) # should always go for fm1 before fm2
                 if len(path_to_existing_props) == 0:
                     print('found no existing camera calibration properties from freely moving recording')
                     path_to_existing_props = None
@@ -157,7 +158,7 @@ class Eyecam(Camera):
             else:
                 existing_camera_calib_props = None
         elif self.config['internals']['force_eyecam_calibration_params'] == 'self':
-            calibration_param_file = next(i for i in find('*fm_eyecameracalc_props.json', self.config['recording_path']) if self.camname in i)
+            calibration_param_file = next(i for i in fmEphys.find('*fm_eyecameracalc_props.json', self.config['recording_path']) if self.camname in i)
             with open(calibration_param_file, 'r') as fp:
                 existing_camera_calib_props = json.load(fp)
 
@@ -355,7 +356,7 @@ class Eyecam(Camera):
             xvals = np.linalg.norm(ellipse_params[usegood_eyecalib, 11:13].T - cam_cent, axis=0)
             yvals = scale * np.sqrt(1-(ellipse_params[usegood_eyecalib,6]/ellipse_params[usegood_eyecalib,5])**2)
             calib_mask = ~np.isnan(xvals) & ~np.isnan(yvals)
-            slope, intercept, r_value, p_value, std_err = stats.linregress(xvals[calib_mask], yvals[calib_mask].T)
+            slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(xvals[calib_mask], yvals[calib_mask].T)
         except ValueError:
             print('no good frames that meet criteria... check DLC tracking!')
 
@@ -489,7 +490,7 @@ class Eyecam(Camera):
         """
         print('found ' + str(multiprocessing.cpu_count()) + ' as cpu count for multiprocessing')
         
-        pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(self.recording_path,(self.recording_name+'_'+self.camname+ '_pupil_rotation.pdf')))
+        pdf = PdfPages(os.path.join(self.recording_path,(self.recording_name+'_'+self.camname+ '_pupil_rotation.pdf')))
 
         # set up range of degrees in radians
         rad_range = np.deg2rad(np.arange(360))
@@ -560,11 +561,11 @@ class Eyecam(Camera):
 
                 try:
                     # median filter
-                    rfit_filt = nanmedfilt(rfit, 5)
+                    rfit_filt = fmEphys.nanmedfilt(rfit, 5)
 
                     # subtract baseline because our points aren't perfectly centered on ellipse
                     filtsize = 31
-                    rfit_conv = rfit_filt - convolve(rfit_filt, np.ones(filtsize)/filtsize, boundary='wrap')
+                    rfit_conv = rfit_filt - astropy.convolution.convolve(rfit_filt, np.ones(filtsize)/filtsize, boundary='wrap')
 
                 except ValueError as e: # in case every value in rfit is NaN
                     rfit = np.nan*np.zeros(360)
@@ -622,7 +623,7 @@ class Eyecam(Camera):
 
         # calculate mean as template
         try:
-            template_rfitconv_cc, template_rfit_cc_lags = nanxcorr(rfit_conv_xr[7].values, template, 30)
+            template_rfitconv_cc, template_rfit_cc_lags = fmEphys.nanxcorr(rfit_conv_xr[7].values, template, 30)
             template_nanxcorr = True
         except ZeroDivisionError:
             template_nanxcorr = False
@@ -641,7 +642,7 @@ class Eyecam(Camera):
         # xcorr of two random timepoints
         try:
             t0 = np.random.random_integers(0,totalF-1); t1 = np.random.random_integers(0,totalF-1)
-            rfit2times_cc, rfit2times_lags = nanxcorr(rfit_conv_xr.isel(frame=t0).values, rfit_conv_xr.isel(frame=t1).values, 10)
+            rfit2times_cc, rfit2times_lags = fmEphys.nanxcorr(rfit_conv_xr.isel(frame=t0).values, rfit_conv_xr.isel(frame=t1).values, 10)
             rand_frames = True
         except ZeroDivisionError:
             rand_frames = False
@@ -663,7 +664,7 @@ class Eyecam(Camera):
             # for each frame, get correlation, and shift
             for frame_num in range(0,n): # do all frames
                 try:
-                    xc, lags = nanxcorr(template, pupil_update[frame_num,:], 20)
+                    xc, lags = fmEphys.nanxcorr(template, pupil_update[frame_num,:], 20)
                     c[frame_num] = np.amax(xc) # value of max
                     peaklag = np.argmax(xc) # position of max
                     peak[frame_num] = lags[peaklag]
@@ -693,8 +694,8 @@ class Eyecam(Camera):
         shift_nan[c < 0.35] = np.nan
         shift_nan = shift_nan - np.nanmedian(shift_nan)
         shift_nan[shift_nan >= 20] = np.nan; shift_nan[shift_nan <= -20] = np.nan # get rid of very large shifts
-        shift_smooth = signal.medfilt(shift_nan,3)  # median filt to get rid of outliers
-        shift_smooth = convolve(shift_nan, np.ones(win)/win)  # convolve to smooth and fill in nans
+        shift_smooth = scipy.signal.medfilt(shift_nan,3)  # median filt to get rid of outliers
+        shift_smooth = astropy.convolution.convolve(shift_nan, np.ones(win)/win)  # convolve to smooth and fill in nans
         shift_smooth = shift_smooth - np.nanmedian(shift_smooth)
 
         plt.figure()

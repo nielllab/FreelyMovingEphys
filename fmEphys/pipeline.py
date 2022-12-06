@@ -1,19 +1,15 @@
-import argparse, warnings
+import argparse
+import warnings
 import PySimpleGUI as sg
 
-from fmEphys.utils.run import Session
+import fmEphys
 
 warnings.filterwarnings("ignore")
 
-def get_args():
+def pipeline():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str)
     args = parser.parse_args()
-    return args
-
-if __name__ == '__main__':
-
-    args = get_args()
 
     if args.config is None:
         # if no path was given as an argument, open a dialog box
@@ -21,5 +17,10 @@ if __name__ == '__main__':
     else:
         config_path = args.config
 
-    sess = Session(config_path)
+    sess = fmEphys.Session(config_path)
     sess.run_main()
+
+
+if __name__ == '__main__':
+
+    pipeline()

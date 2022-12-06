@@ -1,17 +1,27 @@
+
+
+import os
+import json
+import argparse
 from glob import glob
-import os, cv2, json
-from multiprocessing import freeze_support
-import matplotlib.pyplot as plt
-import numpy as np
 from tqdm import tqdm
+import PySimpleGUI as sg
 from datetime import datetime
+
+import numpy as np
 import pandas as pd
 import xarray as xr
+
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-from scipy.interpolate import interp1d
-from scipy.signal import butter, sosfiltfilt
-import PySimpleGUI as sg
-import argparse
+
+import cv2
+
+import scipy.signal
+import scipy.interpolate
+
+import fmEphys
+
 
 def read_ephys_bin(binary_path, probe_name, do_remap=True, mapping_json=None):
     """
@@ -64,8 +74,8 @@ def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):
     nyq = 0.5 * fs # Nyquist frequency
     low = lowcut / nyq # low cutoff
     high = highcut / nyq # high cutoff
-    sos = butter(order, [low, high], btype='bandpass', output='sos')
-    return sosfiltfilt(sos, data, axis=0)
+    sos = scipy.signal.butter(order, [low, high], btype='bandpass', output='sos')
+    return scipy.signal.sosfiltfilt(sos, data, axis=0)
 
 def open_time(path, dlc_len=None, force_shift=False):
     """ Read in the timestamps for a camera and adjust to deinterlaced video length if needed
@@ -213,7 +223,7 @@ def prelim_raw_rf(whitenoise_directory, probe):
     img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
     img_norm = img_norm * (std_im>20/255)
     img_norm[img_norm<-2] = -2
-    movInterp = interp1d(worldT, img_norm, axis=0, bounds_error=False)
+    movInterp = scipy.interpolate.interp1d(worldT, img_norm, axis=0, bounds_error=False)
     plt.subplots(np.size(filt_ephys,1),1,figsize=(5,int(np.ceil(np.size(filt_ephys,1)/2))))
     print('getting receptive fields and plotting')
     all_spikeT = []
@@ -257,16 +267,17 @@ def win_main():
     window.close()
     exit(0)
 
-def get_args():
+def prelimRF_raw():
     parser = argparse.ArgumentParser()
     parser.add_argument('--wn_dir', type=str, default=None)
     parser.add_argument('--probe', type=str, default=None)
     args = parser.parse_args()
-    return args
 
-if __name__ == '__main__':
-    args = get_args()
     if args.wn_dir is None or args.probe is None:
         win_main()
     else:
         prelim_raw_rf(args.wn_dir, args.probe)
+
+if __name__ == '__main__':
+    prelimRF_raw()
+    

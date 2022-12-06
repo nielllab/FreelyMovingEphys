@@ -1,20 +1,23 @@
 """
 FreelyMovingEphys/src/freelymoving.py
 """
-import os, cv2
-import pandas as pd
-import numpy as np
+import os
 from tqdm import tqdm
+
+import numpy as np
+import pandas as pd
 import xarray as xr
+
+import cv2
+
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from fmEphys.utils.ephys import Ephys
-from fmEphys.utils.save import write_h5
+import fmEphys
 
-class FreelyMovingLight(Ephys):
+class FreelyMovingLight(fmEphys.Ephys):
     def __init__(self, config, recording_name, recording_path):
-        Ephys.__init__(self, config, recording_name, recording_path)
+        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
 
         self.fm = True
         self.stim = 'lt'
@@ -252,7 +255,7 @@ class FreelyMovingLight(Ephys):
         savepath = os.path.join(self.recording_path,
                                 '{}_ephys_props.h5'.format(self.recording_name))
 
-        write_h5(savepath, save_dict)
+        fmEphys.write_h5(savepath, save_dict)
 
     def analyze(self):
         # delete the existing h5 file, so that a new one can be written
@@ -275,9 +278,9 @@ class FreelyMovingLight(Ephys):
         print('saving ephys file')
         self.save_as_df()
 
-class FreelyMovingDark(Ephys):
+class FreelyMovingDark(fmEphys.Ephys):
     def __init__(self, config, recording_name, recording_path):
-        Ephys.__init__(self, config, recording_name, recording_path)
+        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
         
         self.fm = True
         self.stim = 'dk'
@@ -489,7 +492,7 @@ class FreelyMovingDark(Ephys):
         savepath = os.path.join(self.recording_path,
                                 '{}_ephys_props.h5'.format(self.recording_name))
 
-        write_h5(savepath, save_dict)
+        fmEphys.write_h5(savepath, save_dict)
 
     def analyze(self):
         # delete the existing h5 file, so that a new one can be written

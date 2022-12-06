@@ -1,20 +1,10 @@
 """
 FreelyMovingEphys/src/run.py
 """
-import yaml
 import os
-import pandas as pd
+import yaml
 
-from fmEphys.utils.path import find, list_subdirs, auto_recording_name
-from fmEphys.utils.ball import RunningBall
-from fmEphys.utils.imu import Imu
-from fmEphys.utils.eyecam import Eyecam
-from fmEphys.utils.topcam import Topcam
-from fmEphys.utils.worldcam import Worldcam
-from fmEphys.utils.sidecam import Sidecam
-from fmEphys.utils.freelymoving import FreelyMovingLight, FreelyMovingDark
-from fmEphys.utils.headfixed import HeadFixedGratings, HeadFixedWhiteNoise, HeadFixedReversingCheckboard, HeadFixedSparseNoise
-
+import fmEphys
 class Session:
     """ Preprocessing and analysis of an individual session.
     """
@@ -86,9 +76,9 @@ class Session:
 
     def get_session_recordings(self):
         if self.config['internals']['follow_strict_directory_naming']:
-            recording_names = [i for i in list_subdirs(self.config['animal_directory']) if 'hf' in i or 'fm' in i]
+            recording_names = [i for i in fmEphys.list_subdirs(self.config['animal_directory']) if 'hf' in i or 'fm' in i]
         elif not self.config['internals']['follow_strict_directory_naming']:
-            recording_names = list_subdirs(self.config['animal_directory'])
+            recording_names = fmEphys.list_subdirs(self.config['animal_directory'])
         if self.config['options']['recording_list'] != []:
             recording_names = [i for i in recording_names if i in self.config['options']['recording_list']]
         recording_names = [i for i in recording_names if 'transfer' not in i and 'test' not in i]
@@ -99,8 +89,8 @@ class Session:
         self.recordings_dict = dict(zip(sorted_keys, [recordings_dict[k] for k in sorted_keys]))
 
     def clear_dlc(self):
-        h5_list = find('*DLC*.h5',self.config['animal_directory'])
-        pickle_list = find('*DLC*.pickle',self.config['animal_directory'])
+        h5_list = fmEphys.find('*DLC*.h5',self.config['animal_directory'])
+        pickle_list = fmEphys.find('*DLC*.pickle',self.config['animal_directory'])
         file_list = h5_list + pickle_list
         for item in file_list:
             os.remove(item)
@@ -115,7 +105,7 @@ class Session:
         # iterate through recordings in the session
         for _, recording_path in self.recordings_dict.items():
 
-            recording_name = auto_recording_name(recording_path)
+            recording_name = fmEphys.auto_recording_name(recording_path)
 
             print('preprocessing {} (path= {})'.format(recording_name, recording_path))
 
@@ -129,57 +119,57 @@ class Session:
                 date_str = recording_name.split('_')[0]
                 animal_str = recording_name.split('_')[1]
                 rec_str = recording_name.split('_')[3]
-                if find(recording_name+'_'+p+'.avi', recording_path) != []:
+                if fmEphys.find(recording_name+'_'+p+'.avi', recording_path) != []:
                     recording_cams.append(p)
-                elif self.config['internals']['eye_corners_first'] and (find('{}_{}_*_{}_{}.avi'.format(date_str, animal_str, rec_str, p), recording_path) != []):
+                elif self.config['internals']['eye_corners_first'] and (fmEphys.find('{}_{}_*_{}_{}.avi'.format(date_str, animal_str, rec_str, p), recording_path) != []):
                     recording_cams.append(p)
 
             for camname in recording_cams:
                 if camname.lower() in ['reye','leye']:
                     print(recording_name + ' for input: ' + camname)
-                    ec = Eyecam(self.config, recording_name, recording_path, camname)
+                    ec = fmEphys.Eyecam(self.config, recording_name, recording_path, camname)
                     ec.safe_process(show=True)
                 elif camname.lower() in ['world']:
                     print(recording_name + ' for input: ' + camname)
-                    wc = Worldcam(self.config, recording_name, recording_path, camname)
+                    wc = fmEphys.Worldcam(self.config, recording_name, recording_path, camname)
                     wc.safe_process(show=True)
                 elif camname.lower() in ['top1','top2','top3'] and 'dark' not in recording_name:
                     print(recording_name + ' for input: ' + camname)
-                    tc = Topcam(self.config, recording_name, recording_path, camname)
+                    tc = fmEphys.Topcam(self.config, recording_name, recording_path, camname)
                     tc.safe_process(show=True)
                 elif camname.lower() in ['side']:
-                    sc = Sidecam(self.config, recording_name, recording_path, camname)
+                    sc = fmEphys.Sidecam(self.config, recording_name, recording_path, camname)
                     sc.safe_process(show=True)
-            if find(recording_name+'_IMU.bin', recording_path) != []:
+            if fmEphys.find(recording_name+'_IMU.bin', recording_path) != []:
                 print(recording_name + ' for input: IMU')
-                imu = Imu(self.config, recording_name, recording_path)
+                imu = fmEphys.Imu(self.config, recording_name, recording_path)
                 imu.process()
-            if find(recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', recording_path) != []:
+            if fmEphys.find(recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', recording_path) != []:
                 print(recording_name + ' for input: head-fixed running ball')
-                rb = RunningBall(self.config, recording_name, recording_path)
+                rb = fmEphys.RunningBall(self.config, recording_name, recording_path)
                 rb.process()
 
     def ephys_analysis(self):
         self.get_session_recordings()
         for _, recording_path in self.recordings_dict.items():
-            recording_name = auto_recording_name(recording_path)
+            recording_name = fmEphys.auto_recording_name(recording_path)
             if ('fm' in recording_name and 'light' in recording_name) or ('fm' in recording_name and 'light' not in recording_name and 'dark' not in recording_name):
-                ephys = FreelyMovingLight(self.config, recording_name, recording_path)
+                ephys = fmEphys.FreelyMovingLight(self.config, recording_name, recording_path)
                 ephys.analyze()
             elif 'fm' in recording_name and 'dark' in recording_name:
-                ephys = FreelyMovingDark(self.config, recording_name, recording_path)
+                ephys = fmEphys.FreelyMovingDark(self.config, recording_name, recording_path)
                 ephys.analyze()
             elif 'wn' in recording_name:
-                ephys = HeadFixedWhiteNoise(self.config, recording_name, recording_path)
+                ephys = fmEphys.HeadFixedWhiteNoise(self.config, recording_name, recording_path)
                 ephys.analyze()
             elif 'grat' in recording_name:
-                ephys = HeadFixedGratings(self.config, recording_name, recording_path)
+                ephys = fmEphys.HeadFixedGratings(self.config, recording_name, recording_path)
                 ephys.analyze()
             elif 'sp' in recording_name and 'noise' in recording_name:
-                ephys = HeadFixedSparseNoise(self.config, recording_name, recording_path)
+                ephys = fmEphys.HeadFixedSparseNoise(self.config, recording_name, recording_path)
                 ephys.analyze()
             elif 'revchecker' in recording_name:
-                ephys = HeadFixedReversingCheckboard(self.config, recording_name, recording_path)
+                ephys = fmEphys.HeadFixedReversingCheckboard(self.config, recording_name, recording_path)
                 ephys.analyze()
 
     def run_main(self):

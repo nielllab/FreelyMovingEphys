@@ -1,23 +1,25 @@
 """
 FreelyMovingEphys/src/imu.py
 """
-import xarray as xr
-import pandas as pd
-import numpy as np
-import os, yaml
+import os
+import yaml
+
 from time import time
 
-from fmEphys.utils.base import BaseInput
-from fmEphys.utils.path import find
+import numpy as np
+import pandas as pd
+import xarray as xr
 
-class Imu(BaseInput):
+import fmEphys
+
+class Imu(fmEphys.BaseInput):
     def __init__(self, config, recording_name, recording_path):
-        BaseInput.__init__(self, config, recording_name, recording_path)
+        fmEphys.BaseInput.__init__(self, config, recording_name, recording_path)
 
     def gather_imu_files(self):
-        csv_paths = [x for x in find(('*BonsaiBoardTS*.csv'), self.recording_path) if x != []]
+        csv_paths = [x for x in fmEphys.find(('*BonsaiBoardTS*.csv'), self.recording_path) if x != []]
         self.imu_timestamps_path = next(i for i in csv_paths if 'Ephys_' in i)
-        self.imu_path = find(self.recording_name+'_IMU.bin', self.recording_path)[0]
+        self.imu_path = fmEphys.find(self.recording_name+'_IMU.bin', self.recording_path)[0]
 
     def process(self):
         """ Read an 8-channel binary file of variable length

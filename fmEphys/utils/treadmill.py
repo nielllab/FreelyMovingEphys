@@ -5,17 +5,15 @@ import os
 import pandas as pd
 import numpy as np
 import xarray as xr
-from scipy.interpolate import interp1d
+import scipy.interpolate
 
-from fmEphys.utils.filter import convfilt
-from fmEphys.utils.base import BaseInput
-from fmEphys.utils.path import find
+import fmEphys
 
-class RunningBall(BaseInput):
+class RunningBall(fmEphys.BaseInput):
     """ Preprocess data from spherical treadmill, with movement recorded by optical mouse.
     """
     def __init__(self, config, recording_name, recording_path):
-        BaseInput.__init__(self, config, recording_name, recording_path)
+        fmEphys.BaseInput.__init__(self, config, recording_name, recording_path)
         # output sample rate (data will be set up to match this sample rate,
         # since there is not constant sample rate for optical mouse data
         # from Bonsai)
@@ -56,7 +54,7 @@ class RunningBall(BaseInput):
         self.data.to_netcdf(os.path.join(self.recording_path, str(self.recording_name + '_speed.nc')))
 
     def gather_ball_files(self):
-        self.running_ball_path = find(self.recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', self.recording_path)[0]
+        self.running_ball_path = fmEphys.find(self.recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', self.recording_path)[0]
 
     def treadmill_speed(self):
         """ Track the movement of the ball for headfixed recordings.
@@ -75,8 +73,10 @@ class RunningBall(BaseInput):
         t0 = time[0]; t_end = time[-1]
         arange_time = np.arange(t0, t_end, self.ball_samprate)
         # interpolation of xpos, ypos 
-        xinterp = interp1d(time, x_pos, bounds_error=False, kind='nearest')(arange_time)
-        yinterp = interp1d(time, y_pos, bounds_error=False, kind='nearest')(arange_time)
+        xinterp = scipy.interpolate.interp1d(time, x_pos,
+                            bounds_error=False, kind='nearest')(arange_time)
+        yinterp = scipy.interpolate.interp1d(time, y_pos,
+                            bounds_error=False, kind='nearest')(arange_time)
         # if no timestamp within 30ms, set interpolated val to 0
         full_x = self.sparse_to_constant_timebase(time, arange_time, xinterp)
         full_y = self.sparse_to_constant_timebase(time, arange_time, yinterp)
@@ -84,7 +84,7 @@ class RunningBall(BaseInput):
         xpersec = full_x[:-1] / np.diff(arange_time)
         ypersec = full_y[:-1] / np.diff(arange_time)
         # speed
-        speed = convfilt(np.sqrt(xpersec**2 + ypersec**2), 10)
+        speed = fmEphys.convfilt(np.sqrt(xpersec**2 + ypersec**2), 10)
         # collect all data
         all_data = pd.DataFrame([time, full_x, full_y, xpersec, ypersec, speed]).T
         all_data.columns = ['timestamps','cm_x','cm_y','x_persec','y_persec','speed_cmpersec']

@@ -1,17 +1,20 @@
 """
 FreelyMovingEphys/src/base.py
 """
-import os, subprocess, math, cv2
+import os
+import cv2
+import math
+import subprocess
 import numpy as np
 import pandas as pd
 import xarray as xr
-from datetime import datetime
 from tqdm import tqdm
+from datetime import datetime
+
 os.environ["DLClight"] = "True"
 import deeplabcut
-from scipy.io import loadmat
 
-from fmEphys.utils.path import find, list_subdirs
+import fmEphys
 
 class BaseInput:
     """ Base preprocessing input data.
@@ -142,8 +145,8 @@ class Camera(BaseInput):
                 do_rotation = False
         # search subdirectories if both lists are not given
         if videos is None or timestamps is None:
-            videos = find('*'+self.camname+'*.avi', self.recording_path)
-            timestamps = find('*'+self.camname+'*.csv', self.recording_path)
+            videos = fmEphys.find('*'+self.camname+'*.avi', self.recording_path)
+            timestamps = fmEphys.find('*'+self.camname+'*.csv', self.recording_path)
         # iterate through each video
         for vid in videos:
             current_path = os.path.split(vid)[0]
@@ -190,7 +193,7 @@ class Camera(BaseInput):
                     csv_out.to_csv(csv_out_path, index=False)
 
     def flip_headcams(self):
-        vid_list = find('*'+self.camname+'.avi', self.recording_path)
+        vid_list = fmEphys.find('*'+self.camname+'.avi', self.recording_path)
         for this_avi in vid_list:
             vid_name = os.path.split(this_avi)[1]
             key_pieces = vid_name.split('.')[:-1]
@@ -256,7 +259,7 @@ class Camera(BaseInput):
         # unpack camera properties
         mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
         # iterate through eye videos and save out a copy which has had distortions removed
-        world_list = find('*'+readcamkey+'*.avi', self.config['animal_directory'])
+        world_list = fmEphys.find('*'+readcamkey+'*.avi', self.config['animal_directory'])
         for world_vid in [x for x in world_list if 'plot' not in x and 'calib' not in x]:
             print('undistorting '+ world_vid)
             if self.config['internals']['follow_strict_naming']:
@@ -285,7 +288,7 @@ class Camera(BaseInput):
 
     def auto_contrast(self):
         if self.config['img_correction']['apply_gamma_to_eyecam']:
-            input_list = find('*EYE.avi', self.config['animal_directory'])
+            input_list = fmEphys.find('*EYE.avi', self.config['animal_directory'])
             # iterate through input videos
             for video in input_list:
                 print('correcting gamma for '+video)
@@ -339,15 +342,15 @@ class Camera(BaseInput):
             if self.camname=='REYE' or self.camname=='LEYE':
                 # find all the videos in the data directory that are from the current camera and are deinterlaced
                 if self.config['internals']['follow_strict_naming'] is True:
-                    vids_this_cam = find('*'+self.camname+'*deinter.avi', self.recording_path)
+                    vids_this_cam = fmEphys.find('*'+self.camname+'*deinter.avi', self.recording_path)
                 elif self.config['internals']['follow_strict_naming'] is False:
-                    vids_this_cam = find('*'+self.camname+'*.avi', self.recording_path)
+                    vids_this_cam = fmEphys.find('*'+self.camname+'*.avi', self.recording_path)
                 # remove unflipped videos generated during jumping analysis
-                bad_vids = find('*'+self.camname+'*unflipped*.avi', self.recording_path)
+                bad_vids = fmEphys.find('*'+self.camname+'*unflipped*.avi', self.recording_path)
                 for x in bad_vids:
                     if x in vids_this_cam:
                         vids_this_cam.remove(x)
-                ir_vids = find('*IR*.avi', self.recording_path)
+                ir_vids = fmEphys.find('*IR*.avi', self.recording_path)
                 for x in ir_vids:
                     if x in vids_this_cam:
                         vids_this_cam.remove(x)
@@ -357,9 +360,9 @@ class Camera(BaseInput):
             else:
                 # find all the videos for camera types that don't neeed to be deinterlaced
                 if self.config['internals']['follow_strict_naming'] is True:
-                    vids_this_cam = find('*'+self.camname+'*.avi', self.recording_path)
+                    vids_this_cam = fmEphys.find('*'+self.camname+'*.avi', self.recording_path)
                 elif self.config['internals']['follow_strict_naming'] is False:
-                    vids_this_cam = find('*'+self.camname+'*.avi', self.recording_path)
+                    vids_this_cam = fmEphys.find('*'+self.camname+'*.avi', self.recording_path)
             # analyze the videos with DeepLabCut
             # this gives the function a list of files that it will iterate over with the same DLC config file
             vids2run = [vid for vid in vids_this_cam if 'plot' not in vid]
@@ -419,7 +422,7 @@ class Camera(BaseInput):
     def gather_camera_files(self):
         if self.camname.lower() != 'world':
             # get dlc h5 path
-            h5_paths = [x for x in find('*{}*.h5'.format(self.recording_name), self.recording_path) if x != []]
+            h5_paths = [x for x in fmEphys.find('*{}*.h5'.format(self.recording_name), self.recording_path) if x != []]
             h5_paths = [x for x in h5_paths if 'DLC' in x]
             self.dlc_path = next(path for path in h5_paths if self.camname in path)
         elif self.camname.lower() == 'world': # worldcam will not have h5 files
@@ -432,26 +435,26 @@ class Camera(BaseInput):
                     vidsearchkey = 'deinter'
                 elif 'world' in self.camname.lower():
                     vidsearchkey = 'calib'
-                avi_paths = [x for x in find(('{}*.avi'.format(self.recording_name)), self.recording_path) if x != []]
+                avi_paths = [x for x in fmEphys.find(('{}*.avi'.format(self.recording_name)), self.recording_path) if x != []]
                 self.video_path = next(path for path in avi_paths if self.camname in path and vidsearchkey in path and 'plot' not in path)
                 # timestamps
-                csv_paths = [x for x in find(('{}*BonsaiTS*.csv'.format(self.recording_name)), self.recording_path) if x != []]
+                csv_paths = [x for x in fmEphys.find(('{}*BonsaiTS*.csv'.format(self.recording_name)), self.recording_path) if x != []]
                 self.timestamp_path = next(i for i in csv_paths if self.camname in i and 'formatted' not in i)
             elif not self.config['internals']['follow_strict_naming']:
                 # video
-                avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
+                avi_paths = [x for x in fmEphys.find(('*.avi'), self.recording_path) if x != []]
                 self.video_path = next(path for path in avi_paths if self.camname in path and 'plot' not in path)
                 # timestamps
-                csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
+                csv_paths = [x for x in fmEphys.find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
                 if csv_paths != []:
                     self.timestamp_path = next(i for i in csv_paths if self.camname)
                 else:
                     self.timestamp_path = None
         # all other cameras (i.e. topcam and sidecam)
         else:
-            avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
+            avi_paths = [x for x in fmEphys.find(('*.avi'), self.recording_path) if x != []]
             self.video_path = next(path for path in avi_paths if self.camname in path and 'plot' not in path and 'speed_yaw' not in path)
-            csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
+            csv_paths = [x for x in fmEphys.find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
             self.timestamp_path = next(i for i in csv_paths if self.camname in i)
 
     def pack_video_frames(self, usexr=True, dwnsmpl=None):

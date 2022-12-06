@@ -4,18 +4,12 @@ FreelyMovingEphys/modules/split_recordings/split_recordings.py
 import argparse
 import PySimpleGUI as sg
 
-from fmEphys.utils.auxiliary import str_to_bool
-from fmEphys.utils.prelim import RawEphys
+import fmEphys
 
-def get_args():
+def splitrec():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--matfile', type=str, default=None)
     args = parser.parse_args()
-    return args
-
-if __name__ == '__main__':
-    
-    args = get_args()
 
     if args.matfile is None:
         # if no path was given as an argument, open a dialog box
@@ -23,5 +17,9 @@ if __name__ == '__main__':
     else:
         matfile = args.matfile
 
-    rephys = RawEphys(matfile)
+    rephys = fmEphys.RawEphys(matfile)
     rephys.format_spikes()
+
+if __name__ == '__main__':
+    split_rec()
+    

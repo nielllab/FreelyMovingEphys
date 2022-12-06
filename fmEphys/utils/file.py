@@ -2,10 +2,16 @@
 FreelyMovingEphys/src/utils/save.py
 Modified from https://codereview.stackexchange.com/a/121308
 """
-import numpy as np
-import h5py
+import os
+import PySimpleGUI as sg
 
-def save(filename, dic):
+import h5py
+import numpy as np
+import xarray as xr
+from scipy.io import savemat
+
+
+def write_h5(filename, dic):
     """
     Saves a python dictionary or list, with items that are themselves either
     dictionaries or lists or (in the case of tree-leaves) numpy arrays
@@ -33,7 +39,7 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
         else:
             raise ValueError('Cannot save %s type'%type(item))
 
-def load(filename, ASLIST=False):
+def read_h5(filename, ASLIST=False):
     """
     Default: load a hdf5 file (saved with io_dict_to_hdf5.save function above) as a hierarchical
     python dictionary (as described in the doc_string of io_dict_to_hdf5.save).
@@ -58,3 +64,11 @@ def recursively_load_dict_contents_from_group(h5file, path):
         elif isinstance(item, h5py._hl.group.Group):
             ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
     return ans
+
+def nc2mat():
+    f = sg.popup_get_file('Choose .nc file.')
+    data = xr.open_dataset(f)
+    data_dict = dict(zip(list(data.REYE_ellipse_params['ellipse_params'].values), [data.REYE_ellipse_params.sel(ellipse_params=p).values for p in list(data.REYE_ellipse_params['ellipse_params'].values)]))
+    save_name = os.path.join(os.path.split(f)[0], os.path.splitext(os.path.split(f)[1])[0])+'.mat'
+    print('saving {}'.format(save_name))
+    savemat(save_name, data_dict)

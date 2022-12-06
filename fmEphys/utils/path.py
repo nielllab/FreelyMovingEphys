@@ -1,7 +1,8 @@
 """
 FreelyMovingEphys/src/utils/path.py
 """
-import os, fnmatch
+import os
+import fnmatch
 
 def find(pattern, path):
     """ Glob for subdirectories.
