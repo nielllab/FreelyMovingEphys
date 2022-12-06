@@ -260,7 +260,7 @@ class Camera(BaseInput):
         for world_vid in [x for x in world_list if 'plot' not in x and 'calib' not in x]:
             print('undistorting '+ world_vid)
             if self.config['internals']['follow_strict_naming']:
-                savepath = '_'.join(world_vid.split('_')[:-2])+savecamkey
+                savepath = '_'.join(world_vid.split('_')[:-1])+savecamkey
             elif not self.config['internals']['follow_strict_naming']:
                 head, tail = os.path.splitext(world_vid)
                 savepath = '_'.join(['_'.join(head.split('_')[:-2]), head.split('_')[-1], head.split('_')[-2]+'calib'])+tail
@@ -419,7 +419,7 @@ class Camera(BaseInput):
     def gather_camera_files(self):
         if self.camname.lower() != 'world':
             # get dlc h5 path
-            h5_paths = [x for x in find(('*.h5'), self.recording_path) if x != []]
+            h5_paths = [x for x in find('*{}*.h5'.format(self.recording_name), self.recording_path) if x != []]
             h5_paths = [x for x in h5_paths if 'DLC' in x]
             self.dlc_path = next(path for path in h5_paths if self.camname in path)
         elif self.camname.lower() == 'world': # worldcam will not have h5 files
@@ -432,10 +432,10 @@ class Camera(BaseInput):
                     vidsearchkey = 'deinter'
                 elif 'world' in self.camname.lower():
                     vidsearchkey = 'calib'
-                avi_paths = [x for x in find(('*.avi'), self.recording_path) if x != []]
+                avi_paths = [x for x in find(('{}*.avi'.format(self.recording_name)), self.recording_path) if x != []]
                 self.video_path = next(path for path in avi_paths if self.camname in path and vidsearchkey in path and 'plot' not in path)
                 # timestamps
-                csv_paths = [x for x in find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
+                csv_paths = [x for x in find(('{}*BonsaiTS*.csv'.format(self.recording_name)), self.recording_path) if x != []]
                 self.timestamp_path = next(i for i in csv_paths if self.camname in i and 'formatted' not in i)
             elif not self.config['internals']['follow_strict_naming']:
                 # video
