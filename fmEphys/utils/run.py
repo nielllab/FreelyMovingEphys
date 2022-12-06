@@ -53,6 +53,9 @@ class Session:
         with open(config_path, 'r') as infile:
             self.config = yaml.load(infile, Loader=yaml.FullLoader)
 
+        if 'internals' not in self.config.keys():
+            self.config['internals'] = {}
+
         self.config['internals'] = dict(self.config['internals'], **{
             'crop_for_dlc': crop_for_dlc,
             'filter_dlc_predictions': filter_dlc_predictions,
