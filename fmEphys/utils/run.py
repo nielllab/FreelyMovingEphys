@@ -115,7 +115,7 @@ class Session:
 
             # get a list of cameras in the current recording
             recording_cams = []
-            for p in ['REYE','LEYE','Reye','Leye','Side','SIDE','TOP1','TOP2','TOP3','WORLD','World']:
+            for p in ['REYE','LEYE','SIDE','TOP1','TOP2','TOP3','WORLD']:
                 date_str = recording_name.split('_')[0]
                 animal_str = recording_name.split('_')[1]
                 rec_str = recording_name.split('_')[3]
@@ -140,14 +140,15 @@ class Session:
                 elif camname.lower() in ['side']:
                     sc = fmEphys.Sidecam(self.config, recording_name, recording_path, camname)
                     sc.safe_process(show=True)
-            if fmEphys.find(recording_name+'_IMU.bin', recording_path) != []:
-                print(recording_name + ' for input: IMU')
-                imu = fmEphys.Imu(self.config, recording_name, recording_path)
-                imu.process()
-            if fmEphys.find(recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', recording_path) != []:
-                print(recording_name + ' for input: head-fixed running ball')
-                rb = fmEphys.RunningBall(self.config, recording_name, recording_path)
-                rb.process()
+            if self.config['main']['parameters']:
+                if fmEphys.find(recording_name+'_IMU.bin', recording_path) != []:
+                    print(recording_name + ' for input: IMU')
+                    imu = fmEphys.Imu(self.config, recording_name, recording_path)
+                    imu.process()
+                if fmEphys.find(recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', recording_path) != []:
+                    print(recording_name + ' for input: head-fixed running ball')
+                    rb = fmEphys.RunningBall(self.config, recording_name, recording_path)
+                    rb.process()
 
     def ephys_analysis(self):
         self.get_session_recordings()

@@ -15,6 +15,12 @@ def choose_most_recent(paths):
     use_f = paths[ind]
     return use_f
 
+def up_dir(f, num=1):
+    dir = f
+    for n in range(num):
+        dir = os.path.split(dir)[0]
+    return dir
+
 def find(pattern, path):
     """ Glob for subdirectories.
 

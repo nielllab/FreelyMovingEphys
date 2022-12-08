@@ -1124,6 +1124,10 @@ class Ephys(fmEphys.BaseInput):
             sps.extend(sp)
         sps = np.array(sps)
 
+        if len(sps) < 10:
+            n_bins = int((win * 1000 * 2) + 1)
+            return np.zeros(n_bins)*np.nan
+
         kernel = sklearn.neighbors.KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(sps[:, np.newaxis])
         density = kernel.score_samples(bins[:, np.newaxis])
 
@@ -1193,9 +1197,10 @@ class Ephys(fmEphys.BaseInput):
 
         if (len(self.all_eyeL) + len(self.all_eyeR)) >= 10:
 
-            for ind, _spikeT in tqdm(self.cells['spikeT'].iteritems()):
-                self.leftsacc_avg[ind,:] = self.calc_kde_PSTH(_spikeT, self.all_eyeL)
-                self.rightsacc_avg[ind,:] = self.calc_kde_PSTH(_spikeT, self.all_eyeR)
+            for i, ind in tqdm(enumerate(self.cells.index.values)):
+                _spikeT = self.cells.loc[ind,'spikeT'].copy()
+                self.leftsacc_avg[i,:] = self.calc_kde_PSTH(_spikeT, self.all_eyeL)
+                self.rightsacc_avg[i,:] = self.calc_kde_PSTH(_spikeT, self.all_eyeR)
 
 
         if self.fm:
@@ -1228,13 +1233,14 @@ class Ephys(fmEphys.BaseInput):
             self.leftsacc_avg_comp = np.zeros([len(self.cells.index.values),
                                                 2001])*np.nan
 
-            for ind, _spikeT in tqdm(self.cells['spikeT'].iteritems()):
-                self.rightsacc_avg_gaze_shift[ind,:] = self.calc_kde_PSTH(_spikeT, self.gazeR)
-                self.leftsacc_avg_gaze_shift[ind,:] = self.calc_kde_PSTH(_spikeT, self.gazeL)
+            for i, ind in tqdm(enumerate(self.cells.index.values)):
+                _spikeT = self.cells.loc[ind,'spikeT'].copy()
 
-                self.rightsacc_avg_comp[ind,:] = self.calc_kde_PSTH(_spikeT, self.compR)
-                self.leftsacc_avg_comp[ind,:] = self.calc_kde_PSTH(_spikeT, self.compL)
-            
+                self.rightsacc_avg_gaze_shift[i,:] = self.calc_kde_PSTH(_spikeT, self.gazeR)
+                self.leftsacc_avg_gaze_shift[i,:] = self.calc_kde_PSTH(_spikeT, self.gazeL)
+
+                self.rightsacc_avg_comp[i,:] = self.calc_kde_PSTH(_spikeT, self.compR)
+                self.leftsacc_avg_comp[i,:] = self.calc_kde_PSTH(_spikeT, self.compL)
 
             # left = self.eyeT[(np.append(self.dEye_dps, 0) > self.high_sacc_thresh) & (np.append(self.dGaze,0) > self.high_sacc_thresh)]
             # right = self.eyeT[(np.append(self.dEye_dps, 0) < -self.high_sacc_thresh) & (np.append(self.dGaze, 0) < -self.high_sacc_thresh)]

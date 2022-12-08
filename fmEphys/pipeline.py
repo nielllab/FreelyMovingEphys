@@ -14,22 +14,18 @@ warnings.filterwarnings("ignore")
 def pipeline():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str)
+    parser.add_argument('-l', '--log', type=fmEphys.str_to_bool, default=False)
     args = parser.parse_args()
 
     if args.config is None:
         # if no path was given as an argument, open a dialog box
-        config_path = sg.popup_get_file('Choose animal config.yaml')
+        sg.theme('Default1')
+        config_path = sg.popup_get_file('Choose animal ephys_cfg.yaml')
     else:
         config_path = args.config
 
     if args.log is True:
-        head, _ = os.path.split(config_path)
-
-        date_str, time_str = fmEphys.fmt_now()
-        log_path = os.path.join(head,
-                        'errlog_{}_{}.txt'.format(date_str, time_str))
-
-        logging = fmEphys.Log(log_path)
+        fmEphys.start_log(os.path.split(config_path)[0])
 
     sess = fmEphys.Session(config_path)
     sess.run_main()

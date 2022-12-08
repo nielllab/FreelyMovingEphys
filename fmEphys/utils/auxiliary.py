@@ -1,7 +1,20 @@
 """
 FreelyMovingEphys/src/utils/auxiliary.py
 """
+import os
+import sys
 import numpy as np
+
+import fmEphys
+
+def start_log(head):
+    date_str, time_str = fmEphys.fmt_now()
+
+    log_path = os.path.join(head,
+                    'errlog_{}_{}.out'.format(date_str, time_str))
+
+    with open(log_path, 'w') as f:
+        sys.stdout = f
 
 def str_to_bool(value):
     """ Parse strings to read argparse flag entries in as bool.

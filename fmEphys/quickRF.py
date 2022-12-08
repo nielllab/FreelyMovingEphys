@@ -66,7 +66,7 @@ def make_window(probes_path):
     else:
         return None, None, None
 
-def main():
+def quickRF():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir', type=str, default=None)
@@ -94,3 +94,7 @@ def main():
     elif spike_sorted is True:
 
         fmEphys.prelimRF_sort(wn_dir, use_probe)
+
+if __name__ == '__main__':
+
+    quickRF()

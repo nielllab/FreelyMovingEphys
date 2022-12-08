@@ -38,6 +38,8 @@ class HeadFixedWhiteNoise(fmEphys.Ephys):
                 'spike_triggered_variance',
                 'saccade_rightT',
                 'saccade_leftT',
+                'saccade_rightPSTH',
+                'saccade_leftPSTH',
                 'pupilradius_tuning_bins',
                 'pupilradius_tuning',
                 'pupilradius_tuning_err',
@@ -67,8 +69,10 @@ class HeadFixedWhiteNoise(fmEphys.Ephys):
                 self.contrast_tuning_err[unit_num],
                 self.sta[unit_num],
                 self.stv[unit_num],
-                self.all_eyeR[unit_num],
-                self.all_eyeL[unit_num],
+                self.all_eyeR,
+                self.all_eyeL,
+                self.rightsacc_avg[unit_num],
+                self.leftsacc_avg[unit_num],
                 self.pupilradius_tuning_bins,
                 self.pupilradius_tuning[unit_num],
                 self.pupilradius_tuning_err[unit_num],
@@ -382,6 +386,8 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
                 'spike_triggered_variance',
                 'saccade_rightT',
                 'saccade_leftT',
+                'saccade_rightPSTH',
+                'saccade_leftPSTH',
                 'pupilradius_tuning_bins',
                 'pupilradius_tuning',
                 'pupilradius_tuning_err',
@@ -415,8 +421,10 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
                 self.contrast_tuning_err[unit_num],
                 self.sta[unit_num],
                 self.stv[unit_num],
-                self.all_eyeR[unit_num],
-                self.all_eyeL[unit_num],
+                self.all_eyeR,
+                self.all_eyeL,
+                self.rightsacc_avg[unit_num],
+                self.leftsacc_avg[unit_num],
                 self.pupilradius_tuning_bins,
                 self.pupilradius_tuning[unit_num],
                 self.pupilradius_tuning_err[unit_num],
@@ -664,6 +672,8 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
                 'spike_triggered_variance',
                 'saccade_rightT',
                 'saccade_leftT',
+                'saccade_rightPSTH',
+                'saccade_leftPSTH',
                 'pupilradius_tuning_bins',
                 'pupilradius_tuning',
                 'pupilradius_tuning_err',
@@ -710,8 +720,10 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
                 self.contrast_tuning_err[unit_num],
                 self.sta[unit_num],
                 self.stv[unit_num],
-                self.all_eyeR[unit_num],
-                self.all_eyeL[unit_num],
+                self.all_eyeR,
+                self.all_eyeL,
+                self.rightsacc_avg[unit_num],
+                self.leftsacc_avg[unit_num],
                 self.pupilradius_tuning_bins,
                 self.pupilradius_tuning[unit_num],
                 self.pupilradius_tuning_err[unit_num],
@@ -1046,7 +1058,7 @@ class HeadFixedGratings(fmEphys.Ephys):
         # shape is (cell, ori, sf, tf), so again roll axis=1 to fix gratings orientations
         self.ori_tuning_tf = np.roll(self.ori_tuning_tf, shift=-1, axis=1)
 
-        for c in np.size(self.ori_tuning_tf,0):
+        for c in range(np.size(self.ori_tuning_tf,0)):
 
             _tuning = self.ori_tuning_tf[c,:,:,:].copy()
 
@@ -1071,6 +1083,8 @@ class HeadFixedGratings(fmEphys.Ephys):
                 'spike_triggered_variance',
                 'saccade_rightT',
                 'saccade_leftT',
+                'saccade_rightPSTH',
+                'saccade_leftPSTH',
                 'pupilradius_tuning_bins',
                 'pupilradius_tuning',
                 'pupilradius_tuning_err',
@@ -1098,7 +1112,8 @@ class HeadFixedGratings(fmEphys.Ephys):
                 'grating_rate',
                 'sf_cat',
                 'stim_PSTH',
-                'stimT'
+                'stimT',
+                'worldT'
             ]
             unit_df = pd.DataFrame(pd.Series([
                 self.contrast,
@@ -1107,8 +1122,10 @@ class HeadFixedGratings(fmEphys.Ephys):
                 self.contrast_tuning_err[unit_num],
                 self.sta[unit_num],
                 self.stv[unit_num],
-                self.all_eyeR[unit_num],
-                self.all_eyeL[unit_num],
+                self.all_eyeR,
+                self.all_eyeL,
+                self.rightsacc_avg[unit_num],
+                self.leftsacc_avg[unit_num],
                 self.pupilradius_tuning_bins,
                 self.pupilradius_tuning[unit_num],
                 self.pupilradius_tuning_err[unit_num],
@@ -1127,7 +1144,7 @@ class HeadFixedGratings(fmEphys.Ephys):
                 self.ballspeed_tuning_bins,
                 self.ballspeed_tuning[unit_num],
                 self.ballspeed_tuning_err[unit_num],
-                self.grating_psth[unit_num],
+                self.gt_kde_psth[unit_num],
                 self.grating_ori,
                 self.ori_tuning_meantf[unit_num],
                 self.ori_tuning_tf[unit_num],
@@ -1136,7 +1153,8 @@ class HeadFixedGratings(fmEphys.Ephys):
                 self.grating_rate[unit_num],
                 self.sf_cat[unit_num],
                 self.gt_kde_psth[unit_num],
-                self.stim_onsets_
+                self.stim_onsets_,
+                self.worldT
                 ]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
