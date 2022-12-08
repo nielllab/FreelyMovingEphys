@@ -49,8 +49,6 @@ if ~isfile(json_path)
     addpath(genpath(json_path));
 end
 
-sprintf(json_path)
-
 % Read and decode yml, get the struct of all channel maps
 allProbeData = readJSON(json_path);
 
