@@ -12,15 +12,8 @@ import fmEphys
 class RunningBall(fmEphys.BaseInput):
     """ Preprocess data from spherical treadmill, with movement recorded by optical mouse.
     """
-    def __init__(self, config, recording_name, recording_path):
-        fmEphys.BaseInput.__init__(self, config, recording_name, recording_path)
-        # output sample rate (data will be set up to match this sample rate,
-        # since there is not constant sample rate for optical mouse data
-        # from Bonsai)
-        self.ball_samprate = 0.008
-        # float in seconds, window in which a previous timestamp in
-        # sparse_time must fall, otherwise a zero will be filled in
-        self.timestamp_seek_window = 0.030
+    def __init__(self, cfg, recording_name, recording_path):
+        fmEphys.BaseInput.__init__(self, cfg, recording_name, recording_path)
 
     def sparse_to_constant_timebase(self, sparse_time, arange_time, data):
         """ Adjust optical mouse data to match timestamps with constat time base, filling zeros
@@ -45,7 +38,7 @@ class RunningBall(fmEphys.BaseInput):
         for t in sparse_time:
             ind = np.searchsorted(arange_time, t)
             if ind < len(arange_time):
-                data_out[ind] = (data[ind] if t >= (arange_time[ind]-self.timestamp_seek_window) and t <= arange_time[ind] else 0)
+                data_out[ind] = (data[ind] if t >= (arange_time[ind]-self.cfg['ball_seekwin']) and t <= arange_time[ind] else 0)
         return data_out
 
     def save_params(self):
@@ -59,8 +52,8 @@ class RunningBall(fmEphys.BaseInput):
     def treadmill_speed(self):
         """ Track the movement of the ball for headfixed recordings.
         """
-        # get coordinates on screen where optical mouse is centered out of preprocessing config file
-        screen_center = self.config['internals']['optical_mouse_screen_center']
+        # get coordinates on screen where optical mouse is centered out of preprocessing cfg file
+        screen_center = self.cfg['ball_cent']
         centX = screen_center['x']; centY = screen_center['y']
         # read in one csv file with timestamps, x position, and y position in three columns
         csv_data = pd.read_csv(self.running_ball_path)
@@ -69,12 +62,12 @@ class RunningBall(fmEphys.BaseInput):
         # from this, we can get the timestamps, as seconds since midnight before the recording
         time = self.read_timestamp_series(csv_data['Timestamp.TimeOfDay'])
         # convert center-subtracted pixels into cm
-        x_pos = (csv_data['Value.X']-centX) / self.config['internals']['optical_mouse_pxls_to_cm']
-        y_pos = (csv_data['Value.Y']-centY) / self.config['internals']['optical_mouse_pxls_to_cm']
+        x_pos = (csv_data['Value.X']-centX) / self.cfg['ball_pxl2cm']
+        y_pos = (csv_data['Value.Y']-centY) / self.cfg['ball_pxl2cm']
         # set up new time base
         t0 = time[0]
         t_end = time[-1]
-        arange_time = np.arange(t0, t_end, self.ball_samprate)
+        arange_time = np.arange(t0, t_end, self.cfg['ball_samprate'])
         # interpolation of xpos, ypos 
         xinterp = scipy.interpolate.interp1d(time, x_pos,
                             bounds_error=False, kind='nearest')(arange_time)

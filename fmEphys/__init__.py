@@ -78,7 +78,7 @@ from .utils.headfixed import (
     HeadFixedSparseNoise
 )
 
-from utils.log import Log
+from .utils.log import Log
 
 from .utils.video import (
     deinterlace,

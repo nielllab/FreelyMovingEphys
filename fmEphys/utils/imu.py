@@ -2,7 +2,6 @@
 FreelyMovingEphys/src/imu.py
 """
 import os
-import yaml
 
 from time import time
 
@@ -13,8 +12,8 @@ import xarray as xr
 import fmEphys
 
 class Imu(fmEphys.BaseInput):
-    def __init__(self, config, recording_name, recording_path):
-        fmEphys.BaseInput.__init__(self, config, recording_name, recording_path)
+    def __init__(self, cfg, recording_name, recording_path):
+        fmEphys.BaseInput.__init__(self, cfg, recording_name, recording_path)
 
     def gather_imu_files(self):
         csv_paths = [x for x in fmEphys.find(('*BonsaiBoardTS*.csv'), self.recording_path) if x != []]
@@ -31,7 +30,7 @@ class Imu(fmEphys.BaseInput):
         Parameters:
         imupath (str): imu binary file
         timepath (str): timestamp csv file to imu data
-        config (dict): options
+        cfg (dict): options
         
         Returns:
         imu_out (xr.DataArray): xarray of IMU data
@@ -51,17 +50,17 @@ class Imu(fmEphys.BaseInput):
         # read in binary file
         binary_in = pd.DataFrame(np.fromfile(self.imu_path, dtypes, -1, ''))
         binary_in = binary_in.drop(columns=['none1','none2'])
-        if self.config['internals']['flip_gyro_xy']:
-            temp = binary_in.iloc[:,3].copy()
-            binary_in.iloc[:,3] = binary_in.iloc[:,4].copy()
-            binary_in.iloc[:,4] = temp
+        # if self.cfg['flip_gyro_xy']:
+        #     temp = binary_in.iloc[:,3].copy()
+        #     binary_in.iloc[:,3] = binary_in.iloc[:,4].copy()
+        #     binary_in.iloc[:,4] = temp
             # binary_in.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
         # convert to -5V to 5V
         data = 10 * (binary_in.astype(float)/(2**16) - 0.5)
         # downsample
-        data = data.iloc[::self.config['internals']['imu_dwnsmpl']]
+        data = data.iloc[::self.cfg['imu_dwnsmpl']]
         data = data.reindex(sorted(data.columns), axis=1) # alphabetize columns
-        samp_freq = self.config['internals']['imu_samprate'] / self.config['internals']['imu_dwnsmpl']
+        samp_freq = self.cfg['imu_samprate'] / self.cfg['imu_dwnsmpl']
         # read in timestamps
         csv_data = pd.read_csv(self.imu_timestamps_path).squeeze()
         pdtime = pd.DataFrame(self.read_timestamp_series(csv_data))

@@ -34,26 +34,23 @@ def read_ephys_bin(binary_path, probe_name, do_remap=True, mapping_json=None):
     OUTPUTS
         ephys: ephys DataFrame
     """
-    # get channel number
-    if '16' in probe_name:
-        ch_num = 16
-    elif '64' in probe_name:
-        ch_num = 64
-    elif '128' in probe_name:
-        ch_num = 128
-    if mapping_json is not None:
-        # open file of default mappings
-        with open(mapping_json, 'r') as fp:
-            mappings = json.load(fp)
-        # get the mapping for the probe name used in the current recording
-        ch_remap = mappings[probe_name]
+
+    channel_map_path = os.path.join(os.path.split(__file__)[0], 'probes.json')
+
+    # open channel map file
+    with open(channel_map_path, 'r') as fp:
+        all_maps = json.load(fp)
+        
+    ch_map = all_maps[probe_name]['map']
+    ch_num = all_maps[probe_name]['nCh']
+
     # set up data types to read binary file into
     dtypes = np.dtype([("ch"+str(i),np.uint16) for i in range(0,ch_num)])
     # read in binary file
     ephys = pd.DataFrame(np.fromfile(binary_path, dtypes, -1, ''))
     # remap with known order of channels
     if do_remap is True:
-        ephys = ephys.iloc[:,[i-1 for i in list(ch_remap)]]
+        ephys = ephys.iloc[:,[i-1 for i in list(ch_map)]]
     return ephys
 
 def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):

@@ -8,8 +8,8 @@ import xarray as xr
 import fmEphys
 
 class Worldcam(fmEphys.Camera):
-    def __init__(self, config, recording_name, recording_path, camname):
-        fmEphys.Camera.__init__(self, config, recording_name, recording_path, camname)
+    def __init__(self, cfg, recording_name, recording_path, camname):
+        fmEphys.Camera.__init__(self, cfg, recording_name, recording_path, camname)
         
     def save_params(self):
         self.xrpts.name = self.camname+'_times'
@@ -20,18 +20,15 @@ class Worldcam(fmEphys.Camera):
         self.data.to_netcdf(os.path.join(self.recording_path,str(self.recording_name+'_world.nc')),engine='netcdf4',encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
 
     def process(self):
-        if self.config['main']['deinterlace'] and not self.config['internals']['flip_headcams']['run']:
+        if self.cfg['run']['deinterlace']:
             self.deinterlace()
-        elif not self.config['main']['deinterlace'] and self.config['internals']['flip_headcams']['run']:
+        elif not self.cfg['run']['deinterlace'] and (self.cfg['headcams_hflip'] or self.cfg['headcams_vflip']):
             self.flip_headcams()
-        elif self.config['main']['deinterlace'] and self.config['internals']['flip_headcams']['run']:
-            print('Config options deinterlace and flip_headcams are both True, which conflict with each other.')
-            sys.exit()
 
-        if self.config['main']['undistort']:
+        if self.cfg['run']['undistort']:
             self.undistort()
 
-        if self.config['main']['parameters']:
+        if self.cfg['run']['parameters']:
 
             self.gather_camera_files()
 

@@ -8,8 +8,8 @@ import xarray as xr
 import fmEphys
 
 class Sidecam(fmEphys.Camera):
-    def __init__(self, config, recording_name, recording_path, camname):
-        fmEphys.Camera.__init__(self, config, recording_name, recording_path, camname)
+    def __init__(self, cfg, recording_name, recording_path, camname):
+        fmEphys.Camera.__init__(self, cfg, recording_name, recording_path, camname)
         
     def save_params(self):
         self.xrpts.name = self.camname+'_times'
@@ -20,14 +20,14 @@ class Sidecam(fmEphys.Camera):
         self.data.to_netcdf(os.path.join(self.recording_path, str(self.recording_name+'_side.nc')),engine='netcdf4',encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
 
     def process(self):
-        if self.config['main']['undistort']:
+        if self.cfg['run']['undistort']:
             self.undistort(mtxkey='sidecam_mtx', readcamkey='SIDE', savecamkey='_SIDEcalib.avi', checkervid='sidecam_checkerboard')
             self.video_path = self.calibvid_path
-        if self.config['main']['pose_estimation'] or self.config['main']['parameters']:
+        if self.cfg['run']['pose_estimation'] or self.cfg['run']['parameters']:
             self.gather_camera_files()
-        if self.config['main']['pose_estimation']:
+        if self.cfg['run']['pose_estimation']:
             self.pose_estimation()
-        if self.config['main']['parameters']:
+        if self.cfg['run']['parameters']:
             self.pack_position_data()
             self.pack_video_frames()
             self.save_params()

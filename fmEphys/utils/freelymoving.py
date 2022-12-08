@@ -16,8 +16,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 import fmEphys
 
 class FreelyMovingLight(fmEphys.Ephys):
-    def __init__(self, config, recording_name, recording_path):
-        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
+    def __init__(self, cfg, recording_name, recording_path):
+        fmEphys.Ephys.__init__(self, cfg, recording_name, recording_path)
 
         self.fm = True
         self.stim = 'lt'
@@ -126,7 +126,7 @@ class FreelyMovingLight(fmEphys.Ephys):
                 self.gyroy_tuning_bins,
                 self.gyroy_tuning[unit_num],
                 self.gyroy_tuning_err[unit_num],
-                self.imuT,
+                self.imuT.values,
                 self.gyro_x,
                 self.gyro_y,
                 self.gyro_z,
@@ -208,7 +208,7 @@ class FreelyMovingLight(fmEphys.Ephys):
             'GyroY_tuning': self.gyroy_tuning,
             'GyroY_bins': self.gyroy_tuning_bins,
             'GyroY_err': self.gyroy_tuning_err,
-            'imuT': self.imuT,
+            'imuT': self.imuT.values,
             'gyroZ': self.gyro_z,
             'gyroX': self.gyro_x,
             'gyroY': self.gyro_y,
@@ -279,8 +279,8 @@ class FreelyMovingLight(fmEphys.Ephys):
         self.save_as_df()
 
 class FreelyMovingDark(fmEphys.Ephys):
-    def __init__(self, config, recording_name, recording_path):
-        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
+    def __init__(self, cfg, recording_name, recording_path):
+        fmEphys.Ephys.__init__(self, cfg, recording_name, recording_path)
         
         self.fm = True
         self.stim = 'dk'
@@ -381,7 +381,7 @@ class FreelyMovingDark(fmEphys.Ephys):
                 self.gyroy_tuning_bins,
                 self.gyroy_tuning[unit_num],
                 self.gyroy_tuning_err[unit_num],
-                self.imuT,
+                self.imuT.values,
                 self.gyro_x,
                 self.gyro_y,
                 self.gyro_z,
@@ -454,7 +454,7 @@ class FreelyMovingDark(fmEphys.Ephys):
             'GyroY_tuning': self.gyroy_tuning,
             'GyroY_bins': self.gyroy_tuning_bins,
             'GyroY_err': self.gyroy_tuning_err,
-            'imuT': self.imuT,
+            'imuT': self.imuT.values,
             'gyroZ': self.gyro_z,
             'gyroX': self.gyro_x,
             'gyroY': self.gyro_y,

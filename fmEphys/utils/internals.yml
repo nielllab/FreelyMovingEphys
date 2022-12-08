@@ -1,0 +1,107 @@
+
+
+# list of recordings to process
+# if the list is empty, all subdirectories will be processed
+recording_list: []
+# ephys unit to highlight
+highlight_cell: 0
+# ephys probe type
+# options = [default16, NN_H16, default64, NN_H64-LP, DB_P64-3, DB_P64-8, DB_P128-6])
+probe: default16
+
+worldcam_checkerboard: E:/freely_moving_ephys/camera_calibration_params/betafpv_checkerboard.avi
+
+sidecam_checkerboard: E:/freely_moving_ephys/camera_calibration_params/012822_checkerboard_control_SIDE_0.avi
+sidecam_mtx: E:/freely_moving_ephys/camera_calibration_params/side_checkerboard_calib.npz
+
+# delete existing .h5 and .pickle files saved out from previous DLC analysis
+delete_DLC_h5s: false
+# flip eye and world cameras without deinterlacing
+# can only be used if deinterlace is false
+# This should not be used in general. It's only here in case you want to rotate these cameras *without* deinterlacing
+# them, whihc is never the case. If you switch these to `true` while deinterlacing is also `true`, something unexpected
+# will probably happen
+headcams_hflip: false
+headcams_vlip: false
+# apply an automatic contrast correction to the eyecam videos, getting a gamma value frame-by-frame
+# good for a dark, low-contrast video (slow)
+fix_eyecam_contrast: false
+# dlc eyecam network has the reflection of the ir light labeled?
+eye_lght: true
+# dlc eyecam network has both corners of the eye (tear duct) labeled?
+eye_crnr: true
+eye_crnrs_1st: false
+# whether or not to subtract the center of the ir spot's reflection on the eye from the labeled points around the eye
+eye_lghtsub: true
+# pupil cyclotorsion
+ridge_cyclotorsion: false
+# follow_strict_directory_naming
+# only use animal subdirectories that contain fm or hf
+# if false, all subdirectories will be processed
+strict_dir: true
+# use exact file nomenclature
+# if false, requirements will be relaxed but multiple files may be returned when looking (i.e. deinterlaced and raw videos may be confused)
+strict_name: true
+# change behavior for eyecam calibration parameter use
+# force_eyecam_calibration_params
+# if True, fm will write calibration values and hf recordings will read calibration values from fm for the same session
+# if False, all recordings will use and save their own values for calibration
+share_eyecal: true
+# save diagnostic videos out of preprocessing?
+write_diagnostic_videos: true
+# crop videos prior to pose estimation (bool)
+DLC_crop: false
+# apply median filter to dlc outputs/predictions (bool)
+DLC_filt: false
+# is the topdown camera's dlc network a multianimal project? (bool)
+DLC_topMA: false
+# dlc points with confidence below this value will be set to NaN (float)
+Lthresh: 0.99
+# sample rate of ephys data (int)
+ephys_samprate: 30000
+# maximum ratio of ellipse shortaxis to longaxis during ellipse fit of pupil (float)
+eye_ellthresh: 0.85
+#  maximum acceptable distance in cm that each frame's point can be from the mean position of that eye point across the recording (float)
+eye_distthresh: 4.1
+# scale factor for camera from pixels to cm on eye (float or int)
+# pixels per centimeter
+eye_pxl2cm: 24
+# ellipse_pts_needed_for_calibration
+# only use eyecam frames for camera calibration which have this number of good points around the eye (int)
+eye_calN: 8
+# ellipse_pts_needed_for_eye
+# only use eyecam frames which have this number of good points around the eye (int)
+eye_useN: 7
+#only use eyecam frames which have this number of good points around the reflection of the ir light (int)
+eye_lghtN: 5
+# pupil maximum radius
+# maximum acceptable number of pixels for radius of the pupil (int)
+eye_radthresh: 50
+# factor by which to downsample imu data (int)
+imu_dwnsmpl: 100
+# sample rate of imu data (int)
+imu_samprate: 30000
+# factor by which to downsample videos before packing into .nc (float)
+video_dwnsmpl: 0.25
+# number of frames to write to dianostic .avi (int)
+save_frameN: 3600
+# pixel to cm conversion factor for optical mouse of running ball (int)
+ball_pxl2cm: 2840
+# output sample rate (data will be set up to match this sample rate,
+# since there is not constant sample rate for optical mouse data
+# from Bonsai) in seconds
+ball_samprate: 0.008
+# float in seconds, window in which a previous timestamp in
+# sparse_time must fall, otherwise a zero will be filled in
+ball_seekwin: 0.030
+# coordinates that the treadmill optical mouse resets to in x and y (dict, where the keys `x` and `y` each have a value that is an int)
+ball_cent:
+  x: 960
+  y: 540
+# if eyecam is being deinterlaced, rotate by 180deg (bool)
+rotate_eyecam: True
+# if worldcam is being deinteralced, rotate by 180deg (bool)
+rotate_worldcam: True
+
+
+

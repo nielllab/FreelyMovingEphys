@@ -16,8 +16,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 import fmEphys
 
 class Topcam(fmEphys.Camera):
-    def __init__(self, config, recording_name, recording_path, camname):
-        fmEphys.Camera.__init__(self, config, recording_name, recording_path, camname)
+    def __init__(self, cfg, recording_name, recording_path, camname):
+        fmEphys.Camera.__init__(self, cfg, recording_name, recording_path, camname)
         # horizontal distance between corners of the arena
         # i.e. distance (in cm) from left to right posts of the arena
         # used to get conversion of pixels to cm in topdown camera view
@@ -36,7 +36,7 @@ class Topcam(fmEphys.Camera):
         self.running_thresh = 2 # cm/sec
 
     def filter_likelihood(self):
-        thresh = self.config['internals']['likelihood_threshold']
+        thresh = self.cfg['Lthresh']
         x_cols = [i for i in self.pt_names if '_x' in i]
         y_cols = [i for i in self.pt_names if '_y' in i]
         l_cols = [i for i in self.pt_names if '_likelihood' in i]
@@ -58,10 +58,10 @@ class Topcam(fmEphys.Camera):
         out_vid = cv2.VideoWriter(savepath, fourcc, 60.0, (width, height))
         plot_color0 = (225, 255, 0)
 
-        if self.config['internals']['video_frames_to_save'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
+        if self.cfg['save_frameN'] > int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)):
             num_save_frames = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
         else:
-            num_save_frames = self.config['internals']['video_frames_to_save']
+            num_save_frames = self.cfg['save_frameN']
 
         for frame_num in tqdm(range(0,num_save_frames)):
             ret, frame = vidread.read()
@@ -254,7 +254,7 @@ class Topcam(fmEphys.Camera):
 
         pdf.close()
 
-        if self.config['internals']['diagnostic_preprocessing_videos'] and self.make_speed_yaw_video:
+        if self.cfg['write_diagnostic_videos'] and self.make_speed_yaw_video:
             vid_save_path = os.path.join(self.recording_path,(self.recording_name+'_'+self.camname+'_speed_yaw.avi'))
             start = 1000
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -343,15 +343,15 @@ class Topcam(fmEphys.Camera):
                 engine='netcdf4', encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
 
     def process(self):
-        if self.config['main']['pose_estimation']:
+        if self.cfg['run']['pose_estimation']:
             self.pose_estimation()
-        if self.config['main']['parameters']:
+        if self.cfg['run']['parameters']:
             self.gather_camera_files()
             self.pack_position_data()
             self.pack_video_frames()
             self.pt_names = list(self.xrpts['point_loc'].values)
             self.filter_likelihood()
             self.get_head_body_yaw()
-            if self.config['internals']['diagnostic_preprocessing_videos']:
+            if self.cfg['write_diagnostic_videos']:
                 self.diagnostic_video()
             self.save_params()

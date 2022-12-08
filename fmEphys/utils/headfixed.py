@@ -21,8 +21,8 @@ import sklearn.cluster
 import fmEphys
 
 class HeadFixedWhiteNoise(fmEphys.Ephys):
-    def __init__(self, config, recording_name, recording_path):
-        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
+    def __init__(self, cfg, recording_name, recording_path):
+        fmEphys.Ephys.__init__(self, cfg, recording_name, recording_path)
         self.fm = False
         self.stim = 'wn'
 
@@ -87,13 +87,13 @@ class HeadFixedWhiteNoise(fmEphys.Ephys):
                 self.dEye_dps,
                 self.theta,
                 self.phi,
-                self.ball_speed,
+                self.ball_speed.values,
                 self.ballspeed_tuning_bins,
                 self.ballspeed_tuning[unit_num],
                 self.ballspeed_tuning_err[unit_num],
                 self.lfp_power_profiles,
                 self.lfp_layer5_centers,
-                self.worldT
+                self.worldT.values
             ]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
@@ -136,13 +136,14 @@ class HeadFixedWhiteNoise(fmEphys.Ephys):
             'dEye_dpf': self.dEye,
             'theta': self.theta,
             'phi': self.phi,
-            'ballspeed': self.ball_speed, 
+            'ballspeed': self.ball_speed.values, 
             'ballspeed_tuning_bins': self.ballspeed_tuning_bins,
             'ballspeed_tuning': self.ballspeed_tuning,
             'ballspeed_tuning_err': self.ballspeed_tuning_err,
             'lfp_power_profiles': self.lfp_power_profiles,
             'laminar_position_layer5': self.lfp_layer5_centers,
             'session': self.session_name,
+            'worldT': self.worldT.values,
             'stim': stim
         }
 
@@ -183,8 +184,8 @@ class HeadFixedWhiteNoise(fmEphys.Ephys):
         self.save_as_df()
 
 class HeadFixedReversingCheckboard(fmEphys.Ephys):
-    def __init__(self, config, recording_name, recording_path):
-        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
+    def __init__(self, cfg, recording_name, recording_path):
+        fmEphys.Ephys.__init__(self, cfg, recording_name, recording_path)
 
         self.fm = False
         self.stim = 'rc'
@@ -439,7 +440,7 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
                 self.dEye_dps,
                 self.theta,
                 self.phi,
-                self.ball_speed,
+                self.ball_speed.values,
                 self.ballspeed_tuning_bins,
                 self.ballspeed_tuning[unit_num],
                 self.ballspeed_tuning_err[unit_num],
@@ -449,7 +450,7 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
                 self.layer4_centers,
                 self.Rc_psth[unit_num],
                 self.Rc_eventT,
-                self.worldT
+                self.worldT.values
             ]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
@@ -493,7 +494,7 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
             'dEye_dpf': self.dEye,
             'theta': self.theta,
             'phi': self.phi,
-            'ballspeed': self.ball_speed, 
+            'ballspeed': self.ball_speed.values, 
             'ballspeed_tuning_bins': self.ballspeed_tuning_bins,
             'ballspeed_tuning': self.ballspeed_tuning,
             'ballspeed_tuning_err': self.ballspeed_tuning_err,
@@ -504,7 +505,8 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
             'center_layer4': self.layer4_centers,
             'rev_resp_mean': self.rev_resp_mean,
             'session': self.session_name,
-            'stim': stim
+            'stim': stim,
+            'worldT': self.worldT.values
         }
 
         for key, val in save_dict.items():
@@ -549,8 +551,8 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
         self.save_as_df()
 
 class HeadFixedSparseNoise(fmEphys.Ephys):
-    def __init__(self, config, recording_name, recording_path):
-        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
+    def __init__(self, cfg, recording_name, recording_path):
+        fmEphys.Ephys.__init__(self, cfg, recording_name, recording_path)
 
         self.fm = False
         self.stim = 'sn'
@@ -738,7 +740,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
                 self.dEye_dps,
                 self.theta,
                 self.phi,
-                self.ball_speed,
+                self.ball_speed.values,
                 self.ballspeed_tuning_bins,
                 self.ballspeed_tuning[unit_num],
                 self.ballspeed_tuning_err[unit_num],
@@ -761,7 +763,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
                 self.unit_stim_eventT[unit_num]['onSubunit_eventT_darkT'],
                 self.unit_stim_eventT[unit_num]['onSubunit_eventT_lightT'],
                 self.unit_stim_eventT[unit_num]['onSubunit_eventT_bckgndT'],
-                self.worldT
+                self.worldT.values
             ]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
@@ -804,7 +806,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             'dEye_dpf': self.dEye,
             'theta': self.theta,
             'phi': self.phi,
-            'ballspeed': self.ball_speed, 
+            'ballspeed': self.ball_speed.values, 
             'ballspeed_tuning_bins': self.ballspeed_tuning_bins,
             'ballspeed_tuning': self.ballspeed_tuning,
             'ballspeed_tuning_err': self.ballspeed_tuning_err,
@@ -812,7 +814,8 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             'stim_PSTH_offSubReg': self.off_Sn_psth,
             'stim_PSTH_center_RF_used': self.rf_xy,
             'session': self.session_name,
-            'stim': stim
+            'stim': stim,
+            'worldT': self.worldT.values
         }
 
         for key, val in save_dict.items():
@@ -852,8 +855,8 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
         self.save_as_df()
         
 class HeadFixedGratings(fmEphys.Ephys):
-    def __init__(self, config, recording_name, recording_path):
-        fmEphys.Ephys.__init__(self, config, recording_name, recording_path)
+    def __init__(self, cfg, recording_name, recording_path):
+        fmEphys.Ephys.__init__(self, cfg, recording_name, recording_path)
         self.fm = False
         self.stim = 'gt'
 
@@ -1140,7 +1143,7 @@ class HeadFixedGratings(fmEphys.Ephys):
                 self.dEye_dps,
                 self.theta,
                 self.phi,
-                self.ball_speed,
+                self.ball_speed.values,
                 self.ballspeed_tuning_bins,
                 self.ballspeed_tuning[unit_num],
                 self.ballspeed_tuning_err[unit_num],
@@ -1154,7 +1157,7 @@ class HeadFixedGratings(fmEphys.Ephys):
                 self.sf_cat[unit_num],
                 self.gt_kde_psth[unit_num],
                 self.stim_onsets_,
-                self.worldT
+                self.worldT.values
                 ]),dtype=object).T
             unit_df.columns = cols
             unit_df.index = [ind]
@@ -1197,7 +1200,7 @@ class HeadFixedGratings(fmEphys.Ephys):
             'dEye_dpf': self.dEye,
             'theta': self.theta,
             'phi': self.phi,
-            'ballspeed': self.ball_speed, 
+            'ballspeed': self.ball_speed.values, 
             'ballspeed_tuning_bins': self.ballspeed_tuning_bins,
             'ballspeed_tuning': self.ballspeed_tuning,
             'ballspeed_tuning_err': self.ballspeed_tuning_err,
@@ -1210,7 +1213,8 @@ class HeadFixedGratings(fmEphys.Ephys):
             'spont_rate': self.spont_rate,
             'sf_cat': self.sf_cat,
             'session': self.session_name,
-            'stim': stim
+            'stim': stim,
+            'worldT': self.worldT.values
         }
 
         for key, val in save_dict.items():

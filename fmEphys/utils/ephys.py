@@ -30,8 +30,8 @@ import sklearn.linear_model
 import fmEphys
 
 class Ephys(fmEphys.BaseInput):
-    def __init__(self, config, recording_name, recording_path):
-        fmEphys.BaseInput.__init__(self, config, recording_name, recording_path)
+    def __init__(self, cfg, recording_name, recording_path):
+        fmEphys.BaseInput.__init__(self, cfg, recording_name, recording_path)
 
         # save figures into a pdf?
         # if false, figures will be shown and not saved
@@ -39,15 +39,15 @@ class Ephys(fmEphys.BaseInput):
         # pipeline, where the pdf object might not be defined
         self.figs_in_pdf = True
 
-        self.channel_map_path = self.config['paths']['channel_map_path']
+        self.channel_map_path = os.path.join(os.path.split(__file__)[0], 'probes.json')
 
-        self.highlight_neuron = self.config['options']['neuron_to_highlight']
-        self.save_diagnostic_video = self.config['options']['ephys_videos']
+        self.highlight_neuron = self.cfg['highlight_cell']
+        # self.save_diagnostic_video = self.config['ephys_videos']
         self.do_rough_glm_fit = False
-        self.do_glm_model_preprocessing = self.config['internals']['do_glm_model_preprocessing']
-        self.probe = self.config['options']['probe']
+        self.do_glm_model_preprocessing = False
+        self.probe = self.cfg['probe']
         self.num_channels = next(int(num) for num in ['128','64','16'] if num in self.probe)
-        self.ephys_samprate = self.config['internals']['ephys_samprate']
+        self.ephys_samprate = self.cfg['ephys_samprate']
 
         # timebase
         self.model_dt = 0.025
@@ -93,18 +93,21 @@ class Ephys(fmEphys.BaseInput):
         Returns:
         ephys (pd.DataFrame): ephys data with shape (time, channel)
         """
+        # open channel map file
+        with open(self.channel_map_path, 'r') as fp:
+            all_maps = json.load(fp)
+            
+        ch_map = all_maps[self.probe]['map']
+        num_ch = all_maps[self.probe]['nCh']
+        
         # set up data types to read binary file into
-        dtypes = np.dtype([('ch'+str(i),np.uint16) for i in range(0,self.num_channels)])
+        dtypes = np.dtype([('ch'+str(i),np.uint16) for i in range(0,num_ch)])
         # read in binary file
         ephys = pd.DataFrame(np.fromfile(self.ephys_bin_path, dtypes, -1, ''))
         if do_remap:
-            # open channel map file
-            with open(self.channel_map_path, 'r') as fp:
-                all_maps = json.load(fp)
-            # get channel map for the current probe
-            ch_map = all_maps[self.probe]
             # remap with known order of channels
             ephys = ephys.iloc[:,[i-1 for i in list(ch_map)]]
+
         return ephys
 
     def butter_bandpass(self, lfp, lowcut=1, highcut=300, fs=30000, order=5):
@@ -560,30 +563,27 @@ class Ephys(fmEphys.BaseInput):
         self.glm_rf = sta_all
         self.glm_cc = cc_all
 
-    def diagnostic_video(self):
-        raise NotImplementedError
+    # def diagnostic_audio(self, start=0):
+    #     units = self.cells.index.values
+    #     # timerange
+    #     tr = [start, start+15]
+    #     sp = np.array(self.cells.at[units[self.highlight_neuron],'spikeT']) - tr[0]
+    #     sp = sp[sp>0]
+    #     datarate = 30000
+    #     # compute waveform samples
+    #     tmax = tr[1] - tr[0]
+    #     t = np.linspace(0, tr[1]-tr[0], (tr[1]-tr[0])*self.ephys_samprate, endpoint=False)
+    #     x = np.zeros(np.size(t))
+    #     for spt in sp[sp<tmax]:
+    #         x[np.int64(spt*self.ephys_samprate) : np.int64(spt*self.ephys_samprate +30)] = 1
+    #         x[np.int64(spt*self.ephys_samprate)+31 : np.int64(spt*self.ephys_samprate +60)] = -1
+    #     # write the samples to a file
+    #     self.diagnostic_audio_path = os.path.join(self.recording_path, (self.recording_name+'_unit'+str(self.highlight_neuron)+'.wav'))
+    #     wavio.write(self.diagnostic_audio_path, x, self.ephys_samprate, sampwidth=1)
 
-    def diagnostic_audio(self, start=0):
-        units = self.cells.index.values
-        # timerange
-        tr = [start, start+15]
-        sp = np.array(self.cells.at[units[self.highlight_neuron],'spikeT']) - tr[0]
-        sp = sp[sp>0]
-        datarate = 30000
-        # compute waveform samples
-        tmax = tr[1] - tr[0]
-        t = np.linspace(0, tr[1]-tr[0], (tr[1]-tr[0])*self.ephys_samprate, endpoint=False)
-        x = np.zeros(np.size(t))
-        for spt in sp[sp<tmax]:
-            x[np.int64(spt*self.ephys_samprate) : np.int64(spt*self.ephys_samprate +30)] = 1
-            x[np.int64(spt*self.ephys_samprate)+31 : np.int64(spt*self.ephys_samprate +60)] = -1
-        # write the samples to a file
-        self.diagnostic_audio_path = os.path.join(self.recording_path, (self.recording_name+'_unit'+str(self.highlight_neuron)+'.wav'))
-        wavio.write(self.diagnostic_audio_path, x, self.ephys_samprate, sampwidth=1)
-
-    def merge_video_with_audio(self):
-        merge_mp4_name = os.path.join(self.recording_path, (self.recording_name+'_unit'+str(self.highlight_neuron)+'_merge.mp4'))
-        subprocess.call(['ffmpeg', '-i', self.diagnostic_video_path, '-i', self.diagnostic_audio_path, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
+    # def merge_video_with_audio(self):
+    #     merge_mp4_name = os.path.join(self.recording_path, (self.recording_name+'_unit'+str(self.highlight_neuron)+'_merge.mp4'))
+    #     subprocess.call(['ffmpeg', '-i', self.diagnostic_video_path, '-i', self.diagnostic_audio_path, '-c:v', 'copy', '-c:a', 'aac', '-y', merge_mp4_name])
 
     def open_cells(self, do_sorting=True):
         self.ephys_data = pd.read_json(self.ephys_json_path)
@@ -819,9 +819,6 @@ class Ephys(fmEphys.BaseInput):
         elif not self.fm:
             self.ballT = self.ballT - self.ephysT0
 
-        if self.config['internals']['drop_window_around_missing_data']:
-            # drop a window of frames aroud missing timestamps
-            self.drop_slow_data()
         
         # calculate eye veloctiy
         self.dEye = np.diff(self.theta) # deg/frame
@@ -1435,6 +1432,15 @@ class Ephys(fmEphys.BaseInput):
             ch_spacing = 25/2
         else:
             ch_spacing = 25
+
+        channel_map_path = os.path.join(os.path.split(__file__)[0], 'probes.json')
+
+        # open channel map file
+        with open(channel_map_path, 'r') as fp:
+            all_maps = json.load(fp)
+
+        ch_spacing = all_maps[self.probe]['site_spacing']
+
         if self.num_channels==64:
             norm_profile_sh0 = lfp_power_profiles_filt[:32]/np.max(lfp_power_profiles_filt[:32])
             layer5_cent_sh0 = np.argmax(norm_profile_sh0)
@@ -1539,11 +1545,11 @@ class Ephys(fmEphys.BaseInput):
             self.estimate_visual_scene()
         print('dropping static worldcam pixels')
         self.drop_static_worldcam_pxls()
-        if self.save_diagnostic_video:
-            print('writing diagnostic video')
-            self.diagnostic_video()
-            self.diagnostic_audio()
-            self.merge_video_with_audio()
+        # if self.save_diagnostic_video:
+        #     print('writing diagnostic video')
+        #     self.diagnostic_video()
+        #     self.diagnostic_audio()
+        #     self.merge_video_with_audio()
         if self.fm:
             print('a few more diagnostic figures')
             self.head_and_eye_diagnostics()

@@ -150,11 +150,11 @@ def open_ma_h5(path):
     pts.columns = ['_'.join(col[:][1:]).strip() for col in pts.columns.values]
     return pts
 
-def format_frames(vid_path, config):
+def format_frames(vid_path, cfg):
     """ Add videos to xarray
     Parameters:
     vid_path (str): path to an avi
-    config (dict): options
+    cfg (dict): options
     Returns:
     formatted_frames (xr.DataArray): of video as b/w int8
     """
@@ -163,8 +163,8 @@ def format_frames(vid_path, config):
     # empty array that is the target shape
     # should be number of frames x downsampled height x downsampled width
     all_frames = np.empty([int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)),
-                        int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*config['parameters']['outputs_and_visualization']['dwnsmpl']),
-                        int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*config['parameters']['outputs_and_visualization']['dwnsmpl'])], dtype=np.uint8)
+                        int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*cfg['parameters']['outputs_and_visualization']['dwnsmpl']),
+                        int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*cfg['parameters']['outputs_and_visualization']['dwnsmpl'])], dtype=np.uint8)
     # iterate through each frame
     for frame_num in tqdm(range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)))):
         # read the frame in and make sure it is read in correctly
@@ -173,8 +173,8 @@ def format_frames(vid_path, config):
             break
         # convert to grayyscale
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # downsample the frame by an amount specified in the config file
-        sframe = cv2.resize(frame, (0,0), fx=config['parameters']['outputs_and_visualization']['dwnsmpl'], fy=config['parameters']['outputs_and_visualization']['dwnsmpl'], interpolation=cv2.INTER_NEAREST)
+        # downsample the frame by an amount specified in the cfg file
+        sframe = cv2.resize(frame, (0,0), fx=cfg['parameters']['outputs_and_visualization']['dwnsmpl'], fy=cfg['parameters']['outputs_and_visualization']['dwnsmpl'], interpolation=cv2.INTER_NEAREST)
         # add the downsampled frame to all_frames as int8
         all_frames[frame_num,:,:] = sframe.astype(np.int8)
     # store the combined video frames in an xarray
@@ -185,7 +185,7 @@ def format_frames(vid_path, config):
     del all_frames
     return formatted_frames
 
-def h5_to_xr(pt_path, time_path, view, config):
+def h5_to_xr(pt_path, time_path, view, cfg):
     """ Build an xarray DataArray of the a single camera's dlc point .h5 files and .csv timestamp
     Parameters:
     pt_path (str): filepath to the .h5
@@ -198,7 +198,7 @@ def h5_to_xr(pt_path, time_path, view, config):
     # check that pt_path exists
     if pt_path is not None and pt_path != [] and time_path is not None:
         # open multianimal project with a different function than single animal h5 files
-        if 'TOP' in view and config['pose_estimation']['multianimal_top_project'] is True:
+        if 'TOP' in view and cfg['pose_estimation']['DLC_topMA'] is True:
             # add a step to convert pickle files here?
             pts = open_ma_h5(pt_path)
         # otherwise, use regular h5 file read-in
@@ -248,7 +248,7 @@ def h5_to_xr(pt_path, time_path, view, config):
     # if timestamps are missing, still read in and format as xarray
     elif pt_path is not None and pt_path != [] and time_path is None:
         # open multianimal project with a different function than single animal h5 files
-        if 'TOP' in view and config['pose_estimation']['multianimal_top_project'] is True:
+        if 'TOP' in view and cfg['pose_estimation']['DLC_topMA'] is True:
             # add a step to convert pickle files here?
             pts = open_ma_h5(pt_path)
         # otherwise, use regular h5 file read-in
@@ -260,22 +260,22 @@ def h5_to_xr(pt_path, time_path, view, config):
         xrpts.name = view
     return xrpts
 
-def deinterlace_data(config, vid_list=None, time_list=None):
+def deinterlace_data(cfg, vid_list=None, time_list=None):
     """ Deinterlace videos, shift times to match the new video frame count.
     Searches subdirectories if vid_list and time_list are both None.
     If lists of files are provided, it will not search subdirectories and instead analyze items in those lists.
     Parameters:
-    config (dict): options dict
+    cfg (dict): options dict
     vid_list (list): .avi file paths for videos to deinterlace (optional)
     time_list (list): .csv file paths of timestamps matching videos to deinterlace (optional)
     """
-    # get paths out of the config dictionary
-    data_path = config['animal_dir']
+    # get paths out of the cfg dictionary
+    data_path = cfg['animal_dir']
     # find all the files assuming no specific files are listed
     if vid_list is None:
         avi_list = fmEphys.find('*.avi', data_path)
         csv_list = fmEphys.find('*.csv', data_path)
-    # if a specific list of videos is provided, ignore the config file's data path
+    # if a specific list of videos is provided, ignore the cfg file's data path
     elif vid_list is not None:
         avi_list = vid_list.copy()
         csv_list = time_list.copy()
@@ -306,11 +306,11 @@ def deinterlace_data(config, vid_list=None, time_list=None):
             print('starting to deinterlace and interpolate on ' + key)
             # create save path
             avi_out_path = os.path.join(current_path, (key + 'deinter.avi'))
-            # flip the eye video horizonally and vertically and deinterlace, if this is specified in the config
-            if config['deinterlace']['flip_eye_during_deinter'] is True and ('EYE' in this_avi or 'WORLD' in this_avi):
+            # flip the eye video horizonally and vertically and deinterlace, if this is specified in the cfg
+            if cfg['deinterlace']['flip_eye_during_deinter'] is True and ('EYE' in this_avi or 'WORLD' in this_avi):
                 subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, vflip, hflip, scale=640:480', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
             # or, deinterlace without flipping
-            elif config['deinterlace']['flip_eye_during_deinter'] is False and ('EYE' in this_avi or 'WORLD' in this_avi):
+            elif cfg['deinterlace']['flip_eye_during_deinter'] is False and ('EYE' in this_avi or 'WORLD' in this_avi):
                 subprocess.call(['ffmpeg', '-i', this_avi, '-vf', 'yadif=1:-1:0, scale=640:480', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a', '256k', '-y', avi_out_path])
             # correct the frame count of the video
             # now that it's deinterlaced, the video has 2x the number of frames as before
@@ -359,20 +359,20 @@ def undistort_vid(vidpath, savepath, mtx, dist, rvecs, tvecs):
         out_vid.write(undist_frame)
     out_vid.release()
 
-def calibrate_new_world_vids(config):
+def calibrate_new_world_vids(cfg):
     """
     calibrate novel world videos using previously genreated .npy of parameters
     INPUTS
-        config: options dictionary
+        cfg: options dictionary
     OUTPUTS
         None
     """
     # load the parameters
-    checker_in = np.load(config['calibration']['world_checker_npz'])
+    checker_in = np.load(cfg['calibration']['world_checker_npz'])
     # unpack camera properties
     mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
     # iterate through eye videos and save out a copy which has had distortions removed
-    world_list = fmEphys.find('*WORLDdeinter*.avi', config['animal_dir'])
+    world_list = fmEphys.find('*WORLDdeinter*.avi', cfg['animal_dir'])
     for world_vid in world_list:
         if 'plot' not in world_vid:
             savepath = '_'.join(world_vid.split('_')[:-1])+'_WORLDcalib.avi'
@@ -587,7 +587,7 @@ def plot_STV(goodcells, movInterp, img_norm, worldT):
     return stvAll, fig
 
 def prelimRF_sort(whitenoise_directory, probe):
-    temp_config = {
+    temp_cfg = {
         'animal_dir': whitenoise_directory,
         'deinterlace':{
             'flip_eye_during_deinter': True,
@@ -611,20 +611,20 @@ def prelimRF_sort(whitenoise_directory, probe):
     world_vids = glob(os.path.join(whitenoise_directory, '*WORLD.avi'))
     world_times = glob(os.path.join(whitenoise_directory, '*WORLD_BonsaiTS.csv'))
     # deinterlace world video
-    deinterlace_data(temp_config, world_vids, world_times)
+    deinterlace_data(temp_cfg, world_vids, world_times)
     # apply calibration parameters to world video
-    calibrate_new_world_vids(temp_config)
+    calibrate_new_world_vids(temp_cfg)
     # organize nomenclature
     trial_units = []; name_check = []; path_check = []
-    for avi in fmEphys.find('*.avi', temp_config['animal_dir']):
+    for avi in fmEphys.find('*.avi', temp_cfg['animal_dir']):
         bad_list = ['plot','IR','rep11','betafpv','side_gaze'] # don't use trials that have these strings in their path
-        if temp_config['parameters']['follow_strict_naming'] is True:
+        if temp_cfg['parameters']['strict_name'] is True:
             if all(bad not in avi for bad in bad_list):
                 split_name = avi.split('_')[:-1]
                 trial = '_'.join(split_name)
                 path_to_trial = os.path.join(os.path.split(trial)[0])
                 trial_name = os.path.split(trial)[1]
-        elif temp_config['parameters']['follow_strict_naming'] is False:
+        elif temp_cfg['parameters']['strict_name'] is False:
             if all(bad not in avi for bad in bad_list):
                 trial_path_noext = os.path.splitext(avi)[0]
                 path_to_trial, trial_name_long = os.path.split(trial_path_noext)
@@ -638,29 +638,29 @@ def prelimRF_sort(whitenoise_directory, probe):
     # there should only be one item in trial_units in this case
     # iterate into that
     for trial_unit in trial_units:
-        temp_config['trial_path'] = trial_unit[0]
+        temp_cfg['trial_path'] = trial_unit[0]
         t_name = trial_unit[1]
         # find the timestamps and video for all camera inputs
-        trial_cam_csv = fmEphys.find(('*BonsaiTS*.csv'), temp_config['trial_path'])
-        trial_cam_avi = fmEphys.find(('*.avi'), temp_config['trial_path'])
+        trial_cam_csv = fmEphys.find(('*BonsaiTS*.csv'), temp_cfg['trial_path'])
+        trial_cam_avi = fmEphys.find(('*.avi'), temp_cfg['trial_path'])
         trial_cam_csv = [x for x in trial_cam_csv if x != []]
         trial_cam_avi = [x for x in trial_cam_avi if x != []]
         # filter the list of files for the current trial to get the world view of this side
         world_csv = [i for i in trial_cam_csv if 'WORLD' in i and 'formatted' in i][0]
         world_avi = [i for i in trial_cam_avi if 'WORLD' in i and 'calib' in i][0]
         # make an xarray of timestamps without dlc points, since there aren't any for world camera
-        worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), config=temp_config)
+        worlddlc = h5_to_xr(pt_path=None, time_path=world_csv, view=('WORLD'), cfg=temp_cfg)
         worlddlc.name = 'WORLD_times'
         # make xarray of video frames
-        if temp_config['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
-            xr_world_frames = format_frames(world_avi, temp_config); xr_world_frames.name = 'WORLD_video'
+        if temp_cfg['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
+            xr_world_frames = format_frames(world_avi, temp_cfg); xr_world_frames.name = 'WORLD_video'
         # merge but make sure they're not off in lenght by one value, which happens occasionally
         print('saving nc file of world view...')
-        if temp_config['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
+        if temp_cfg['parameters']['outputs_and_visualization']['save_nc_vids'] is True:
             trial_world_data = safe_xr_merge([worlddlc, xr_world_frames])
-            trial_world_data.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
-        elif temp_config['parameters']['outputs_and_visualization']['save_nc_vids'] is False:
-            worlddlc.to_netcdf(os.path.join(temp_config['trial_path'], str(t_name+'_world.nc')))
+            trial_world_data.to_netcdf(os.path.join(temp_cfg['trial_path'], str(t_name+'_world.nc')), engine='netcdf4', encoding={'WORLD_video':{"zlib": True, "complevel": 4}})
+        elif temp_cfg['parameters']['outputs_and_visualization']['save_nc_vids'] is False:
+            worlddlc.to_netcdf(os.path.join(temp_cfg['trial_path'], str(t_name+'_world.nc')))
         # now start minimal ephys analysis
         print('generating ephys plots')
         pdf = PdfPages(os.path.join(whitenoise_directory, (t_name + '_prelim_wn_figures.pdf')))

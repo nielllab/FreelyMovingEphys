@@ -1,0 +1,49 @@
+# FreelyMovingEphys
+# Pipeline config file
+
+# Path to animal directory
+# e.g., T:/freely_moving_ephys/ephys_recordings/[date]/[animal]/
+animal_directory: /path/to/animal/
+
+# Ephys probe
+# can be any of:
+#     default16, NN_H16, default64, NN_H64_LP,
+#     DB_P64_3, DB_P64_8, DB_P128_6, DB_P64_10_D
+probe: default16
+
+# Pipeline steps
+# Set to False to skip that section of the pipeline.
+run:
+  deinterlace: true
+  undistort: true
+  pose_estimation: true
+  parameters: true
+  stim_analysis: true
+
+# Worldcam len distortion
+# An .npz file of camera distortion info computed from
+# a video of a moving checkerboard (see calcWarp.py)
+worldcam_mtx: E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz
+
+# DeepLabCut projects
+# The path to the main project config.yaml file for
+# eyetracking (REYE) and topdown tracking (TOP1)
+# pose estimation networks.
+dlc_projects:
+  REYE: E:/freely_moving_ephys/deeplabcut_projects/EphysEyeCams8-dylan-2021-10-12/config.yaml
+  TOP1: E:/freely_moving_ephys/deeplabcut_projects/EphysTopCam2-dylan-2021-11-16/config.yaml
+
+
+
+### Additional options
+# There are additional options that can be changed. The default options
+# will be read in from the file ./fmEphys/utils/internals.yml in the
+# FreelyMovingEphys repository. Any option in there that you would like
+# to overwrite can be added to this cfg.yml file. As long as it uses
+# the same key, the value in this cfg.yml will be used and the default
+# in internals.yml will be ignored.
+
+### Syntax notes
+# Do not use quotes for str values
+# true/false bool values are all lower-case
+# 
