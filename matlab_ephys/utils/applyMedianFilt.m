@@ -1,4 +1,4 @@
-function [allData, medianTrace] = applyMedianFilt(nChansTotal, doMedian, subChans, isUint16, chanMap, doFileChoose)
+function [allData, medianTrace] = applyMedianFilt(nChansTotal, doMedian, subChans, isUint16, chanMap, doFileChoose, fileList, pathList)
 % applyMedianFilt Subtract median of each channel. Then, subtract median of
 % each time point.
 % 
@@ -48,7 +48,7 @@ function [allData, medianTrace] = applyMedianFilt(nChansTotal, doMedian, subChan
 % Based on cortex repository by N. Steinmetz
 %
 
-if ~exists('doFileChoose', 'var')
+if ~exist('doFileChoose', 'var') || isempty(doFileChoose)
     doFileChoose = 1;
 end
 
@@ -99,7 +99,7 @@ if doFileChoose==1
     outputFilename = fullfile(p,f);
 end
 
-if ~exists('nf', 'val')
+if ~exist('nf', 'val')
     nf = size(fileList);
 end
 

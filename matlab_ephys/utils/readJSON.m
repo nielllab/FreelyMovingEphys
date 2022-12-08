@@ -4,7 +4,7 @@ function [data] = readJSON(json_path)
 % Niell lab - FreelyMovingEphys
 % Written by DMM, Nov 2022
 %
-
-data = jsondecode(char(fread(fopen(json_path))'));
+f = fopen(json_path);
+data = jsondecode(char(fread(f)'));
 
 end
