@@ -119,23 +119,20 @@ def calc_distortion(path, savepath,
 
         # Find the checkerboard corners
         ret, corners = cv2.findChessboardCorners(gray, (board_w,board_h), None)
+
         if ret == True:
+
             objpoints.append(objp)
+
+            corners2 = cv2.cornerSubPix(gray, corners, (11,11), (-1,-1), criteria)
+
             imgpoints.append(corners)
 
     # Calculate the distortion
     print('Calculating distortion (slow)')
 
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
-
-    # Save the values out
-    camwarp = {
-        'mtx':mtx,
-        'dist':dist,
-        'rvecs':rvecs,
-        'tvecs':tvecs,
-        'source_video':os.path.split(path)[1]
-    }
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints,
+                                                gray.shape[::-1], None, None)
 
     date, time = fmEphys.fmt_now()
     np.savez(savepath,
@@ -154,8 +151,8 @@ def fix_distortion(path, proppath, savepath=None):
     # Unpack camera properties
     mtx = camprops['mtx']
     dist = camprops['dist']
-    rvecs = camprops['rvecs']
-    tvecs = camprops['tvecs']
+    # rvecs = camprops['rvecs']
+    # tvecs = camprops['tvecs']
 
     # Read in video
     cap = cv2.VideoCapture(path)

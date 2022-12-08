@@ -4,6 +4,7 @@ from .pipeline import pipeline
 from .splitRec import splitRec
 from .quickRF import quickRF
 from .makeCfg import makeCfg
+from .calcWarp import calcWarp
 
 from .utils.base import (
     BaseInput,
@@ -23,7 +24,9 @@ from .utils.run import Session
 
 from .utils.auxiliary import (
     str_to_bool,
-    start_log
+    start_log,
+    flatten_series,
+    find_index_in_list
 )
 from .utils.prelim import (
     RawEphys
@@ -46,7 +49,8 @@ from .utils.path import (
 
 from .utils.file import (
     write_h5,
-    read_h5
+    read_h5,
+    read_DLC_data
 )
 
 from .utils.base import (
@@ -82,5 +86,9 @@ from .utils.log import Log
 
 from .utils.video import (
     deinterlace,
-    
+    rotate_video,
+    calc_distortion,
+    fix_distortion,
+    fix_contrast,
+    avi_to_arr
 )

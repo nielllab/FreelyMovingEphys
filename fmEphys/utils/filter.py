@@ -2,6 +2,7 @@
 FreelyMovingEphys/src/utils/filter.py
 """
 import numpy as np
+import scipy.signal
 
 def convfilt(y, box_pts=10):
     """ Smooth values in an array using a convolutional window.
