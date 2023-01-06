@@ -1216,7 +1216,7 @@ class Eyecam(fmEphys.Camera):
         f_name = '{}_{}.nc'.format(self.recording_name, self.camname)
         savepath = os.path.join(self.recording_path, f_name)
 
-        self.data.to_netcdf(f_name, engine='netcdf4',
+        self.data.to_netcdf(savepath, engine='netcdf4',
                     encoding = {
                         self.camname+'_video': {"zlib": True,
                                                 "complevel": 4}})
