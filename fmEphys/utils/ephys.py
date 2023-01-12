@@ -770,16 +770,23 @@ class Ephys(fmEphys.BaseInput):
 
     def open_running_ball(self):
         running_ball_data = xr.open_dataset(self.running_ball_path)
+        
         try:
             running_ball_data = running_ball_data.BALL_data
         except AttributeError:
             running_ball_data = running_ball_data.__xarray_dataarray_variable__
-        try:
-            self.ball_speed = running_ball_data.sel(move_params='speed_cmpersec')
-            self.ballT = running_ball_data.sel(move_params='timestamps')
-        except:
-            self.ball_speed = running_ball_data.sel(frame='speed_cmpersec')
-            self.ballT = running_ball_data.sel(frame='timestamps')
+        
+        # If the mouse was completely stationary and no samples were recorded...
+        if np.isnan(running_ball_data):
+            self.ballT = np.arange(0, self.worldT[-1], self.cfg['ball_samprate'])
+            self.ball_speed = np.zeros(len(self.ballT))
+        else:
+            try:
+                self.ball_speed = running_ball_data.sel(move_params='speed_cmpersec')
+                self.ballT = running_ball_data.sel(move_params='timestamps')
+            except ValueError:
+                self.ball_speed = running_ball_data.sel(frame='speed_cmpersec')
+                self.ballT = running_ball_data.sel(frame='timestamps')
         plt.figure()
         plt.plot(self.ballT, self.ball_speed)
         plt.xlabel('sec'); plt.ylabel('running speed (cm/sec)')

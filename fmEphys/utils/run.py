@@ -73,7 +73,9 @@ class Session:
             for p in ['REYE','LEYE','SIDE','TOP1','TOP2','TOP3','WORLD']:
                 date_str = recording_name.split('_')[0]
                 animal_str = recording_name.split('_')[1]
-                rec_str = recording_name.split('_')[3]
+                rec_str = recording_name.split('_')[4:]
+                if type(rec_str) == list:
+                    rec_str = '_'.join(rec_str)
                 if fmEphys.find(recording_name+'_'+p+'.avi', recording_path) != []:
                     recording_cams.append(p)
                 elif self.cfg['eye_crnrs_1st'] and (fmEphys.find('{}_{}_*_{}_{}.avi'.format(date_str, animal_str, rec_str, p), recording_path) != []):

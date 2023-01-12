@@ -22,7 +22,7 @@ delete_DLC_h5s: false
 # them, whihc is never the case. If you switch these to `true` while deinterlacing is also `true`, something unexpected
 # will probably happen
 headcams_hflip: false
-headcams_vlip: false
+headcams_vflip: false
 # apply an automatic contrast correction to the eyecam videos, getting a gamma value frame-by-frame
 # good for a dark, low-contrast video (slow)
 fix_eyecam_contrast: false
