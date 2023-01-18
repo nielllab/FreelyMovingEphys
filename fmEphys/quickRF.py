@@ -86,7 +86,7 @@ def quickRF():
         
         # If terminal arguments are missing information, open a GUI
         # If no arguments were given, default to a GUI
-        probes_path = os.path.join(os.path.split(__file__), 'utils/probes.json')
+        probes_path = os.path.join(os.path.split(__file__)[0], 'utils/probes.json')
         wn_dir, use_probe, spike_sorted = make_window(probes_path)
     
     if spike_sorted is False:
