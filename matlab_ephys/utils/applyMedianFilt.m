@@ -99,8 +99,8 @@ if doFileChoose==1
     outputFilename = fullfile(p,f);
 end
 
-if ~exist('nf', 'val')
-    nf = size(fileList);
+if ~exist('nf', 'var')
+    nf = length(fileList);
 end
 
 

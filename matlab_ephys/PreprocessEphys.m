@@ -35,6 +35,8 @@ function PreprocessEphys(probe, doMedFilt, isuint16)
 %                      be converted to int16. (1=True, 0=False). Default = 1.
 %
 %
+% example PreprocessEphys('DB_P128_6',1,1)
+%
 % Niell lab - FreelyMovingEphys
 % Written by DMM, 2020
 %
@@ -51,15 +53,17 @@ end
 if ~exist('probe', 'var')
 
     names = listProbes();
+    names = ['', names];
 
-    fig = uifigure(Name='Select probe');
+    fig = uifigure('Name', 'Select probe');
     dd = uidropdown(fig);
     dd.Items = names;
     dd.Value = '';
+   
+    waitfor(dd.Value ~= '');
     
-    if dd.ValueChangedFcn.Edited == 1
-        probe = @dd.Value;
-    end
+    probe = dd.Value;
+    
 end
 
 % Get required probe parameters from the name. This expects the matlab

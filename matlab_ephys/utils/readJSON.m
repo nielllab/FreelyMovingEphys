@@ -6,5 +6,6 @@ function [data] = readJSON(json_path)
 %
 f = fopen(json_path);
 data = jsondecode(char(fread(f)'));
+fclose(f);
 
 end

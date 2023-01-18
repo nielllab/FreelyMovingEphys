@@ -17,7 +17,7 @@ function [names] = listProbes(probe_json_path)
 
 if ~exist('probe_json_path', 'var')
 
-    filePath = matlab.desktop.editor.getActiveFilename;
+    filePath = mfilename('fullpath');
     pathparts = strsplit(filePath,filesep);
     repoPath = strjoin(pathparts(1:end-3),filesep);
     probe_json_path = [repoPath,filesep,'fmEphys',filesep,'utils',filesep,'probes.json'];
@@ -28,6 +28,8 @@ end
 if ~isfile(probe_json_path)
     addpath(genpath(probe_json_path));
 end
+
+disp(probe_json_path);
 
 % Read the probe data
 probeData = readJSON(probe_json_path);

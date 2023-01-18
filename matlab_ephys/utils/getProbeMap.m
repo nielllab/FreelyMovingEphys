@@ -1,4 +1,4 @@
-function [map, nCh, subset] = getProbeMap(probe_name, json_path)
+function [map, nCh, subset] = getProbeMap(probe_name)
 % getProbeMap  Get the sequence of recording sites for a linear probe.
 % 
 %   You can run this without giving the path to a .json file (`json_path`).
@@ -38,12 +38,12 @@ function [map, nCh, subset] = getProbeMap(probe_name, json_path)
 %
 
 % Use expected yml path, if one was not given.
-if ~exist('json_path', 'var')
-    filePath = matlab.desktop.editor.getActiveFilename;
-    pathparts = strsplit(filePath,filesep);
-    repoPath = strjoin(pathparts(1:end-3),filesep);
-    json_path = [repoPath,filesep,'fmEphys',filesep,'utils',filesep,'probes.json'];
-end
+%if ~exist('json_path', 'var')
+filePath = mfilename('fullpath');
+pathparts = strsplit(filePath,filesep);
+repoPath = strjoin(pathparts(1:end-3),filesep);
+json_path = [repoPath,filesep,'fmEphys',filesep,'utils',filesep,'probes.json'];
+%end
 
 if ~isfile(json_path)
     addpath(genpath(json_path));
