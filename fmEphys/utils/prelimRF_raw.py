@@ -190,11 +190,16 @@ def prelimRF_raw(whitenoise_directory, probe):
     worldT = worldT - t0
     print('loading worldcam video')
     vidread = cv2.VideoCapture(world_file)
-    world_vid = np.empty([int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)),
+
+    f_count = int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))
+    if f_count > np.size(worldT):
+        f_count = int(np.size(worldT))
+
+    world_vid = np.empty([f_count,
                         int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*0.25),
                         int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*0.25)], dtype=np.uint8)
     # iterate through each frame
-    for frame_num in range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))):
+    for frame_num in range(0,f_count):
         # read the frame in and make sure it is read in correctly
         ret, frame = vidread.read()
         if not ret:

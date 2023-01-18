@@ -29,13 +29,15 @@ def set_window_layout(probe_opts):
 
 def make_window(probes_path):
 
-    mappings = json.load(probes_path)
+    with open(probes_path, 'r') as fp:
+        mappings = json.load(fp)
+    
     probe_opts = mappings.keys()
 
     sg.theme('Default1')
 
     ready = False
-    w = set_window_layout(probe_opts)
+    w = set_window_layout(list(probe_opts))
 
     while True:
 

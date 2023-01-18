@@ -27,6 +27,9 @@ class HeadFixedWhiteNoise(fmEphys.Ephys):
         self.stim = 'wn'
 
     def save_as_df(self):
+        if type(self.ball_speed) != np.ndarray:
+            self.ball_speed = self.ball_speed.values
+
         unit_data = pd.DataFrame([])
         for unit_num, ind in enumerate(self.cells.index):
             cols = [
@@ -87,7 +90,7 @@ class HeadFixedWhiteNoise(fmEphys.Ephys):
                 self.dEye_dps,
                 self.theta,
                 self.phi,
-                self.ball_speed.values,
+                self.ball_speed,
                 self.ballspeed_tuning_bins,
                 self.ballspeed_tuning[unit_num],
                 self.ballspeed_tuning_err[unit_num],
@@ -110,6 +113,9 @@ class HeadFixedWhiteNoise(fmEphys.Ephys):
         data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
     def save_as_dict(self):
+
+        if type(self.ball_speed) != np.ndarray:
+            self.ball_speed = self.ball_speed.values
 
         stim = 'Wn'
         save_dict = {
@@ -136,7 +142,7 @@ class HeadFixedWhiteNoise(fmEphys.Ephys):
             'dEye_dpf': self.dEye,
             'theta': self.theta,
             'phi': self.phi,
-            'ballspeed': self.ball_speed.values, 
+            'ballspeed': self.ball_speed, 
             'ballspeed_tuning_bins': self.ballspeed_tuning_bins,
             'ballspeed_tuning': self.ballspeed_tuning,
             'ballspeed_tuning_err': self.ballspeed_tuning_err,
@@ -376,6 +382,10 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
         self.Rc_eventT = eventT
 
     def save_as_df(self):
+
+        if type(self.ball_speed) != np.ndarray:
+            self.ball_speed = self.ball_speed.values
+
         unit_data = pd.DataFrame([])
         for unit_num, ind in enumerate(self.cells.index):
             cols = [
@@ -440,7 +450,7 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
                 self.dEye_dps,
                 self.theta,
                 self.phi,
-                self.ball_speed.values,
+                self.ball_speed,
                 self.ballspeed_tuning_bins,
                 self.ballspeed_tuning[unit_num],
                 self.ballspeed_tuning_err[unit_num],
@@ -469,6 +479,9 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
 
     def save_as_dict(self):
 
+        if type(self.ball_speed) != np.ndarray:
+            self.ball_speed = self.ball_speed.values
+
         stim = 'Rc'
         save_dict = {
             'CRF': self.contrast_tuning_bins,
@@ -494,7 +507,7 @@ class HeadFixedReversingCheckboard(fmEphys.Ephys):
             'dEye_dpf': self.dEye,
             'theta': self.theta,
             'phi': self.phi,
-            'ballspeed': self.ball_speed.values, 
+            'ballspeed': self.ball_speed, 
             'ballspeed_tuning_bins': self.ballspeed_tuning_bins,
             'ballspeed_tuning': self.ballspeed_tuning,
             'ballspeed_tuning_err': self.ballspeed_tuning_err,
@@ -571,7 +584,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
 
     def sort_lum(self, unit_stim, eventT, eyeT, flips):
         event_eyeT = np.zeros(len(eventT))
-        for i, t in enumerate(eventT):
+        for i, t in enumerate(eventT.values):
             event_eyeT[i] = eyeT[np.argmin(np.abs(t-eyeT))]
         gray = np.nanmedian(unit_stim)
         
@@ -597,7 +610,9 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
         return event_eyeT, offT, onT, backgroundT
     
     def calc_Sn_psth(self):
-        
+
+        _offset_time=(1/120)
+
         # Read it in again, since the origional will not still be held in memory
         self.Sn_world = xr.open_dataset(self.world_path)
         vid = self.Sn_world.WORLD_video.values.astype(np.uint8).astype(float)
@@ -621,11 +636,13 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             # spikes
             unit_spikeT = self.cells.loc[ind, 'spikeT']
             if len(unit_spikeT)<10: # if a unit never fired during revchecker
+                on_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
+                off_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
                 continue
             # on subunit
             all_eventT, offT, onT, backgroundT = self.sort_lum(on_stim_history, eventT, self.eyeT, flips)
             if len(offT)==0 or len(onT)==0:
-                on_Sn_psth[cell_i,:,:] = np.nan
+                on_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
                 continue
 
             _event_names = ['allT', 'darkT', 'lightT', 'bckgndT']
@@ -634,7 +651,6 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
                 unit_stim_eventT['onSubunit_eventT_{}'.format(n)] = [all_eventT, offT, onT, backgroundT][i] + _offset_time
 
             # print('all={} off={}, on={}, background={}'.format(len(all_eventT), len(offT), len(onT), len(backgroundT)))
-            _offset_time = (1/120)
             on_Sn_psth[cell_i,:,0] = self.calc_kde_PSTH(unit_spikeT, all_eventT+_offset_time)
             on_Sn_psth[cell_i,:,1] = self.calc_kde_PSTH(unit_spikeT, offT+_offset_time)
             on_Sn_psth[cell_i,:,2] = self.calc_kde_PSTH(unit_spikeT, onT+_offset_time)
@@ -643,7 +659,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             # off subunit
             all_eventT, offT, onT, backgroundT = self.sort_lum(off_stim_history, eventT, self.eyeT, flips)
             if len(offT)==0 or len(onT)==0:
-                on_Sn_psth[cell_i,:,:] = np.nan
+                off_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
                 continue
 
             for i, n in enumerate(_event_names):
@@ -663,6 +679,10 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
         self.all_stimT = eventT+_offset_time
 
     def save_as_df(self):
+
+        if type(self.ball_speed) != np.ndarray:
+            self.ball_speed = self.ball_speed.values
+
         unit_data = pd.DataFrame([])
         for unit_num, ind in enumerate(self.cells.index):
             cols = [
@@ -740,7 +760,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
                 self.dEye_dps,
                 self.theta,
                 self.phi,
-                self.ball_speed.values,
+                self.ball_speed,
                 self.ballspeed_tuning_bins,
                 self.ballspeed_tuning[unit_num],
                 self.ballspeed_tuning_err[unit_num],
@@ -755,14 +775,14 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
                 self.rf_xy[unit_num,:2],
                 self.rf_xy[unit_num,2:],
                 self.all_stimT,
-                self.unit_stim_eventT[unit_num]['offSubunit_eventT_allT'],
-                self.unit_stim_eventT[unit_num]['offSubunit_eventT_darkT'],
-                self.unit_stim_eventT[unit_num]['offSubunit_eventT_lightT'],
-                self.unit_stim_eventT[unit_num]['offSubunit_eventT_bckgndT'],
-                self.unit_stim_eventT[unit_num]['onSubunit_eventT_allT'],
-                self.unit_stim_eventT[unit_num]['onSubunit_eventT_darkT'],
-                self.unit_stim_eventT[unit_num]['onSubunit_eventT_lightT'],
-                self.unit_stim_eventT[unit_num]['onSubunit_eventT_bckgndT'],
+                self.unit_stim_eventT[ind]['offSubunit_eventT_allT'],
+                self.unit_stim_eventT[ind]['offSubunit_eventT_darkT'],
+                self.unit_stim_eventT[ind]['offSubunit_eventT_lightT'],
+                self.unit_stim_eventT[ind]['offSubunit_eventT_bckgndT'],
+                self.unit_stim_eventT[ind]['onSubunit_eventT_allT'],
+                self.unit_stim_eventT[ind]['onSubunit_eventT_darkT'],
+                self.unit_stim_eventT[ind]['onSubunit_eventT_lightT'],
+                self.unit_stim_eventT[ind]['onSubunit_eventT_bckgndT'],
                 self.worldT.values
             ]),dtype=object).T
             unit_df.columns = cols
@@ -780,6 +800,9 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
         data_out.to_hdf(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')), 'w')
 
     def save_as_dict(self):
+
+        if type(self.ball_speed) != np.ndarray:
+            self.ball_speed = self.ball_speed.values
 
         stim = 'Sn'
         save_dict = {
@@ -806,7 +829,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             'dEye_dpf': self.dEye,
             'theta': self.theta,
             'phi': self.phi,
-            'ballspeed': self.ball_speed.values, 
+            'ballspeed': self.ball_speed, 
             'ballspeed_tuning_bins': self.ballspeed_tuning_bins,
             'ballspeed_tuning': self.ballspeed_tuning,
             'ballspeed_tuning_err': self.ballspeed_tuning_err,
@@ -1075,6 +1098,10 @@ class HeadFixedGratings(fmEphys.Ephys):
             self.gt_kde_psth[i,:] = self.calc_kde_PSTH(_spikeT, self.stim_onsets_, edgedrop=30, win=1500)
 
     def save_as_df(self):
+
+        if type(self.ball_speed) != np.ndarray:
+            self.ball_speed = self.ball_speed.values
+
         unit_data = pd.DataFrame([])
         for unit_num, ind in enumerate(self.cells.index):
             cols = [
@@ -1143,7 +1170,7 @@ class HeadFixedGratings(fmEphys.Ephys):
                 self.dEye_dps,
                 self.theta,
                 self.phi,
-                self.ball_speed.values,
+                self.ball_speed,
                 self.ballspeed_tuning_bins,
                 self.ballspeed_tuning[unit_num],
                 self.ballspeed_tuning_err[unit_num],
@@ -1175,6 +1202,9 @@ class HeadFixedGratings(fmEphys.Ephys):
 
     def save_as_dict(self):
 
+        if type(self.ball_speed) != np.ndarray:
+            self.ball_speed = self.ball_speed.values
+
         stim = 'Gt'
         save_dict = {
             'CRF': self.contrast_tuning_bins,
@@ -1200,7 +1230,7 @@ class HeadFixedGratings(fmEphys.Ephys):
             'dEye_dpf': self.dEye,
             'theta': self.theta,
             'phi': self.phi,
-            'ballspeed': self.ball_speed.values, 
+            'ballspeed': self.ball_speed, 
             'ballspeed_tuning_bins': self.ballspeed_tuning_bins,
             'ballspeed_tuning': self.ballspeed_tuning,
             'ballspeed_tuning_err': self.ballspeed_tuning_err,

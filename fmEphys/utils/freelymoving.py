@@ -96,12 +96,12 @@ class FreelyMovingLight(fmEphys.Ephys):
                 self.contrast_tuning_err[unit_num],
                 self.sta[unit_num],
                 self.stv[unit_num],
-                self.all_eyeR[unit_num],
-                self.all_eyeL[unit_num],
-                self.compR[unit_num],
-                self.compL[unit_num],
-                self.gazeL[unit_num],
-                self.gazeR[unit_num],
+                self.all_eyeR,
+                self.all_eyeL,
+                self.compR,
+                self.compL,
+                self.gazeL,
+                self.gazeR,
                 self.rightsacc_avg[unit_num],
                 self.leftsacc_avg[unit_num],
                 self.rightsacc_avg_comp[unit_num],
@@ -263,8 +263,8 @@ class FreelyMovingLight(fmEphys.Ephys):
             os.remove(os.path.join(self.recording_path, (self.recording_name+'_ephys_props.h5')))
 
         # self.overview_pdf = PdfPages(os.path.join(self.recording_path, (self.recording_name + '_overview_analysis_figures.pdf')))
-        self.detail_pdf = PdfPages(os.path.join(self.recording_path, '_detailed_analysis_figures.pdf'.format(self.recording_name)))
-        self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, '_diagnostic_analysis_figures.pdf'.format(self.recording_name)))
+        self.detail_pdf = PdfPages(os.path.join(self.recording_path, '{}_detailed_analysis_figures.pdf'.format(self.recording_name)))
+        self.diagnostic_pdf = PdfPages(os.path.join(self.recording_path, '{}_diagnostic_analysis_figures.pdf'.format(self.recording_name)))
 
         print('starting ephys analysis for '+self.recording_name)
         self.base_ephys_analysis()
@@ -351,12 +351,12 @@ class FreelyMovingDark(fmEphys.Ephys):
                 self.contrast_tuning_err[unit_num],
                 self.sta[unit_num],
                 self.stv[unit_num],
-                self.all_eyeR[unit_num],
-                self.all_eyeL[unit_num],
-                self.compR[unit_num],
-                self.compL[unit_num],
-                self.gazeL[unit_num],
-                self.gazeR[unit_num],
+                self.all_eyeR,
+                self.all_eyeL,
+                self.compR,
+                self.compL,
+                self.gazeL,
+                self.gazeR,
                 self.rightsacc_avg[unit_num],
                 self.leftsacc_avg[unit_num],
                 self.rightsacc_avg_comp[unit_num],
