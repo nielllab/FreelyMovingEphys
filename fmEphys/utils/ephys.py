@@ -777,7 +777,7 @@ class Ephys(fmEphys.BaseInput):
             running_ball_data = running_ball_data.__xarray_dataarray_variable__
         
         # If the mouse was completely stationary and no samples were recorded...
-        if np.isnan(running_ball_data):
+        if np.isnan(running_ball_data).all():
             self.ballT = np.arange(0, self.worldT[-1], self.cfg['ball_samprate'])
             self.ball_speed = np.zeros(len(self.ballT))
         else:
