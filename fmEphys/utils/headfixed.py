@@ -585,7 +585,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
     def sort_lum(self, unit_stim, eventT, eyeT, flips):
         event_eyeT = np.zeros(len(eventT))
         for i, t in enumerate(eventT.values):
-            event_eyeT[i] = eyeT[np.argmin(np.abs(t-eyeT))]
+            event_eyeT[i] = eyeT[np.nanargmin(np.abs(t-eyeT))]
         gray = np.nanmedian(unit_stim)
         
         shifted_flips = flips+self.frameshift
@@ -608,7 +608,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
         # backgroundInds = flips[np.where(background_bool)[0]]
         
         return event_eyeT, offT, onT, backgroundT
-    
+
     def calc_Sn_psth(self):
 
         _offset_time=(1/120)
@@ -623,7 +623,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
         dStim = np.sum(np.abs(np.diff(vid, axis=0)), axis=(1,2))
         flips = np.argwhere((dStim[1:]>self.Sn_dStim_thresh) * (dStim[:-1]<self.Sn_dStim_thresh)).flatten()
 
-        eventT = self.worldT[flips+1] - self.ephysT0
+        eventT = self.worldT[flips+1]# - self.ephysT0
 
         rf_xy = np.zeros([len(self.cells.index.values),4]) # [unit#, on x, on y, off x, off y]
         on_Sn_psth = np.zeros([len(self.cells.index.values), 2001, 4]) # shape = [unit#, time, all/ltd/on/not_rf]
@@ -637,15 +637,18 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             _event_names = ['allT', 'darkT', 'lightT', 'bckgndT']
 
             unit_spikeT = self.cells.loc[ind, 'spikeT']
+
             if len(unit_spikeT)<10: # if a unit never fired during revchecker
                 on_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
                 off_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
                 continue
+
             # on subunit
             all_eventT, offT, onT, backgroundT = self.sort_lum(on_stim_history, eventT, self.eyeT, flips)
-            if len(offT)==0 or len(onT)==0:
-                on_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan
-                continue
+
+            # if len(offT)==0 or len(onT)==0:
+            #     on_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan
+            #     continue
 
             unit_stim_eventT = {}
             for i, n in enumerate(_event_names):
@@ -659,9 +662,10 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             
             # off subunit
             all_eventT, offT, onT, backgroundT = self.sort_lum(off_stim_history, eventT, self.eyeT, flips)
-            if len(offT)==0 or len(onT)==0:
-                off_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan
-                continue
+
+            # if len(offT)==0 or len(onT)==0:
+            #     off_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan
+            #     continue
 
             for i, n in enumerate(_event_names):
                 unit_stim_eventT['offSubunit_eventT_{}'.format(n)] = [all_eventT, offT, onT, backgroundT][i] + _offset_time
