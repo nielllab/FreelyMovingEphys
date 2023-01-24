@@ -1,37 +1,33 @@
 """
 FreelyMovingEphys/src/utils/log.py
 """
+import os
+import sys
 
-class Log:
-    def __init__(self, f, name="", PRINT=True, retrain=False):
-        text = ""
-        if type(name) == list:
-            text = "{}".format(name[0])
-            for x in name[1:]:
-                text += ",{}".format(x)
-        elif type(text) == str:
-            text = name
-        self.FNAME = f
-        if retrain:
-            F = open(self.FNAME,"a")
-        else: 
-            F = open(self.FNAME,"w+")
-        if len(text) != 0:
-            F.write(text + "\n")
-        F.close()
-        if PRINT:
-            print(text)
-            
-    def log(self, data, PRINT=True):
-        text = ""
-        if type(data) == list:
-            text = "{}".format(data[0])
-            for x in data[1:]:
-                text += ",{}".format(x) 
-        elif type(data) == str:
-            text = data
-        if PRINT:
-            print(text)
-        F = open(self.FNAME,"a")
-        F.write(str(text) + "\n")
-        F.close()
+import fmEphys
+
+class Logger(object):
+    """
+    call as
+
+    sys.stdout = fmEphys.Logger(os.path.split(cfg_path)[0])
+
+
+    """
+
+    def __init__(self, writepath):
+
+        date_str, time_str = fmEphys.fmt_now()
+
+        log_path = os.path.join(writepath,
+                        'errlog_{}_{}.log'.format(date_str, time_str))
+
+        self.terminal = sys.stdout
+        self.log = open(log_path, "a")
+   
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)  
+
+    def flush(self):
+        pass

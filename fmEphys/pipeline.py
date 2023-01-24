@@ -3,6 +3,7 @@
 
 """
 import os
+import sys
 import argparse
 import warnings
 import PySimpleGUI as sg
@@ -25,7 +26,7 @@ def pipeline():
         cfg_path = args.cfg
 
     if args.log is True:
-        fmEphys.start_log(os.path.split(cfg_path)[0])
+        sys.stdout = fmEphys.Logger(os.path.split(cfg_path)[0])
 
     sess = fmEphys.Session(cfg_path)
     sess.run_main()

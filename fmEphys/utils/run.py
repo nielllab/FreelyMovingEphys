@@ -13,8 +13,11 @@ class Session:
 
         """
         # read config file
-        with open(cfg_path, 'r') as infile:
-            _tmp_cfg = yaml.load(infile, Loader=yaml.FullLoader)
+        if type(cfg_path)==str:
+            with open(cfg_path, 'r') as infile:
+                _tmp_cfg = yaml.load(infile, Loader=yaml.FullLoader)
+        elif type(cfg_path)==dict:
+            _tmp_cfg = cfg_path.copy()
 
         internals_path = os.path.join(os.path.split(__file__)[0], 'internals.yml')
         
@@ -123,6 +126,9 @@ class Session:
             elif 'grat' in recording_name:
                 ephys = fmEphys.HeadFixedGratings(self.cfg, recording_name, recording_path)
                 ephys.analyze()
+            # elif ('sp' in recording_name) and ('noise' in recording_name) and ('ISI' in recording_name):
+            #     ephys = fmEphys.HeadFixedSparseNoiseISI(self.cfg, recording_name, recording_path)
+            #     ephys.analyze()
             elif 'sp' in recording_name and 'noise' in recording_name:
                 ephys = fmEphys.HeadFixedSparseNoise(self.cfg, recording_name, recording_path)
                 ephys.analyze()

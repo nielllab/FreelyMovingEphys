@@ -634,6 +634,8 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             rf_xy[cell_i,0] = on_xy[0]; rf_xy[cell_i,1] = on_xy[1]
             rf_xy[cell_i,2] = off_xy[0]; rf_xy[cell_i,3] = off_xy[1]
             # spikes
+            _event_names = ['allT', 'darkT', 'lightT', 'bckgndT']
+
             unit_spikeT = self.cells.loc[ind, 'spikeT']
             if len(unit_spikeT)<10: # if a unit never fired during revchecker
                 on_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
@@ -642,10 +644,9 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             # on subunit
             all_eventT, offT, onT, backgroundT = self.sort_lum(on_stim_history, eventT, self.eyeT, flips)
             if len(offT)==0 or len(onT)==0:
-                on_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
+                on_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan
                 continue
 
-            _event_names = ['allT', 'darkT', 'lightT', 'bckgndT']
             unit_stim_eventT = {}
             for i, n in enumerate(_event_names):
                 unit_stim_eventT['onSubunit_eventT_{}'.format(n)] = [all_eventT, offT, onT, backgroundT][i] + _offset_time
@@ -659,19 +660,33 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             # off subunit
             all_eventT, offT, onT, backgroundT = self.sort_lum(off_stim_history, eventT, self.eyeT, flips)
             if len(offT)==0 or len(onT)==0:
-                off_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
+                off_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan
                 continue
 
             for i, n in enumerate(_event_names):
                 unit_stim_eventT['offSubunit_eventT_{}'.format(n)] = [all_eventT, offT, onT, backgroundT][i] + _offset_time
 
             # print('all={} off={}, on={}, background={}'.format(len(all_eventT), len(offT), len(onT), len(backgroundT)))
-            off_Sn_psth[i,:,0] = self.calc_kde_PSTH(unit_spikeT, all_eventT+_offset_time)
-            off_Sn_psth[i,:,1] = self.calc_kde_PSTH(unit_spikeT, offT+_offset_time)
-            off_Sn_psth[i,:,2] = self.calc_kde_PSTH(unit_spikeT, onT+_offset_time)
-            off_Sn_psth[i,:,3] = self.calc_kde_PSTH(unit_spikeT, backgroundT+_offset_time)
+            off_Sn_psth[cell_i,:,0] = self.calc_kde_PSTH(unit_spikeT, all_eventT+_offset_time)
+            off_Sn_psth[cell_i,:,1] = self.calc_kde_PSTH(unit_spikeT, offT+_offset_time)
+            off_Sn_psth[cell_i,:,2] = self.calc_kde_PSTH(unit_spikeT, onT+_offset_time)
+            off_Sn_psth[cell_i,:,3] = self.calc_kde_PSTH(unit_spikeT, backgroundT+_offset_time)
 
-            self.unit_stim_eventT[cell_i] = unit_stim_eventT
+            self.unit_stim_eventT[ind] = unit_stim_eventT
+
+        _tmp_dict = {
+            'onSubunit_eventT_allT': np.nan,
+            'onSubunit_eventT_darkT': np.nan,
+            'onSubunit_eventT_lightT': np.nan,
+            'onSubunit_eventT_bckgndT': np.nan,
+            'offSubunit_eventT_allT': np.nan,
+            'offSubunit_eventT_darkT': np.nan,
+            'offSubunit_eventT_lightT': np.nan,
+            'offSubunit_eventT_bckgndT': np.nan
+        }
+        for ind in self.cells.index.values:
+            if ind not in self.unit_stim_eventT.keys():
+                self.unit_stim_eventT[ind] = _tmp_dict
 
         self.on_Sn_psth = on_Sn_psth
         self.off_Sn_psth = off_Sn_psth

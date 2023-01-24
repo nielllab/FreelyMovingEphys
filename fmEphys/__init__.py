@@ -1,6 +1,10 @@
 
 
 from .pipeline import pipeline
+from .pipelineBatch import (
+    pipelineBatch,
+    batch_cycle
+)
 from .splitRec import splitRec
 from .quickRF import quickRF
 from .makeCfg import makeCfg
@@ -24,7 +28,6 @@ from .utils.run import Session
 
 from .utils.auxiliary import (
     str_to_bool,
-    start_log,
     flatten_series,
     find_index_in_list
 )
@@ -82,7 +85,7 @@ from .utils.headfixed import (
     HeadFixedSparseNoise
 )
 
-from .utils.log import Log
+from .utils.log import Logger
 
 from .utils.video import (
     deinterlace,
