@@ -2,7 +2,7 @@
 import os
 import fnmatch
 import numpy as np
-from time import time
+import time
 
 def choose_most_recent(paths):
     
