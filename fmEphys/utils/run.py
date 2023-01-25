@@ -85,54 +85,83 @@ class Session:
                     recording_cams.append(p)
 
             for camname in recording_cams:
+
                 if camname.lower() in ['reye','leye']:
+                    
                     print(recording_name + ' for input: ' + camname)
                     ec = fmEphys.Eyecam(self.cfg, recording_name, recording_path, camname)
                     ec.safe_process(show=True)
+                
                 elif camname.lower() in ['world']:
+                    
                     print(recording_name + ' for input: ' + camname)
                     wc = fmEphys.Worldcam(self.cfg, recording_name, recording_path, camname)
                     wc.safe_process(show=True)
+                
                 elif camname.lower() in ['top1','top2','top3'] and 'dark' not in recording_name:
+                    
                     print(recording_name + ' for input: ' + camname)
                     tc = fmEphys.Topcam(self.cfg, recording_name, recording_path, camname)
                     tc.safe_process(show=True)
+                
                 elif camname.lower() in ['side']:
+                    
                     sc = fmEphys.Sidecam(self.cfg, recording_name, recording_path, camname)
                     sc.safe_process(show=True)
+
             if self.cfg['run']['parameters']:
+
                 if fmEphys.find(recording_name+'_IMU.bin', recording_path) != []:
-                    print(recording_name + ' for input: IMU')
-                    imu = fmEphys.Imu(self.cfg, recording_name, recording_path)
-                    imu.process()
+
+                    # For a freely moving recording, this will be the gyro/acc data
+                    if 'fm' in recording_name:
+                        print(recording_name + ' for input: IMU')
+                        fmEphys.Imu(self.cfg, recording_name, recording_path).process()
+
+                    # For head fixed, it is the TTL signal from stim computer
+                    elif 'hf' in recording_name:
+
+                        print(recording_name + ' for input: TTL')
+                        fmEphys.TTL(self.cfg, recording_name, recording_path).process()
+
                 if fmEphys.find(recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', recording_path) != []:
+
                     print(recording_name + ' for input: head-fixed running ball')
-                    rb = fmEphys.RunningBall(self.cfg, recording_name, recording_path)
-                    rb.process()
+                    fmEphys.RunningBall(self.cfg, recording_name, recording_path).process()
 
     def ephys_analysis(self):
+        
         self.get_session_recordings()
+        
         for _, recording_path in self.recordings_dict.items():
+
             recording_name = fmEphys.auto_recording_name(recording_path)
+            
             if ('fm' in recording_name and 'light' in recording_name) or ('fm' in recording_name and 'light' not in recording_name and 'dark' not in recording_name):
                 ephys = fmEphys.FreelyMovingLight(self.cfg, recording_name, recording_path)
                 ephys.analyze()
+            
             elif 'fm' in recording_name and 'dark' in recording_name:
                 ephys = fmEphys.FreelyMovingDark(self.cfg, recording_name, recording_path)
                 ephys.analyze()
+           
             elif 'wn' in recording_name:
                 ephys = fmEphys.HeadFixedWhiteNoise(self.cfg, recording_name, recording_path)
                 ephys.analyze()
+            
             elif 'grat' in recording_name:
+                # only drifting gratings
                 ephys = fmEphys.HeadFixedGratings(self.cfg, recording_name, recording_path)
                 ephys.analyze()
-            # elif ('sp' in recording_name) and ('noise' in recording_name) and ('ISI' in recording_name):
-            #     ephys = fmEphys.HeadFixedSparseNoiseISI(self.cfg, recording_name, recording_path)
-            #     ephys.analyze()
+            
             elif 'sp' in recording_name and 'noise' in recording_name:
+                # this works for sparse noise of constant or random dT
+                # also work w/ or w/out ISI
                 ephys = fmEphys.HeadFixedSparseNoise(self.cfg, recording_name, recording_path)
                 ephys.analyze()
+            
             elif 'revchecker' in recording_name:
+                # does not work for recordings with an ISI
                 ephys = fmEphys.HeadFixedReversingCheckboard(self.cfg, recording_name, recording_path)
                 ephys.analyze()
 
