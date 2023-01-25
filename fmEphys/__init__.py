@@ -29,7 +29,8 @@ from .utils.run import Session
 from .utils.auxiliary import (
     str_to_bool,
     flatten_series,
-    find_index_in_list
+    find_index_in_list,
+    write_dummy_cfg
 )
 from .utils.prelim import (
     RawEphys
@@ -45,9 +46,12 @@ from .utils.filter import (
 
 from .utils.path import (
     find,
+    choose_most_recent,
+    check_subdir,
     list_subdirs,
     auto_recording_name,
-    up_dir
+    up_dir,
+    filter_file_search
 )
 
 from .utils.file import (

@@ -339,8 +339,11 @@ class Topcam(fmEphys.Camera):
         
         self.safe_merge([self.xrpts, self.xrframes, self.xrprops])
         
-        self.data.to_netcdf(os.path.join(self.recording_path,str(self.recording_name+'_'+self.camname+'.nc')),
+        savepath = os.path.join(self.recording_path,str(self.recording_name+'_'+self.camname+'.nc'))
+        self.data.to_netcdf(savepath,
                 engine='netcdf4', encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
+
+        print('Saved {}'.format(savepath))
 
     def process(self):
         if self.cfg['run']['pose_estimation']:

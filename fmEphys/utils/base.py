@@ -169,6 +169,8 @@ class Camera(BaseInput):
         timestamps (list): list of timestamp csv files for each video in videos
         """
 
+        print('Deinterlacing {} video...'.format(self.camname))
+
         if 'EYE' in self.camname:
 
             if self.cfg['rotate_eyecam']:
@@ -224,6 +226,8 @@ class Camera(BaseInput):
             elif not do_rotation:
                 vf_val = 'yadif=1:-1:0, scale=640:480'
 
+            # could add a '-y' after 'ffmpeg' and before ''-i' so that it overwrites
+            # an existing file by default
             cmd = ['ffmpeg', '-i', vid, '-vf', vf_val, '-c:v', 'libx264',
                 '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a',
                 '256k', '-y', savepath]
@@ -333,6 +337,8 @@ class Camera(BaseInput):
 
     def undistort(self, mtxkey='worldcam_mtx', readcamkey='WORLDdeinter',
                     savecamkey='_WORLDcalib.avi', checkervid='worldcam_checkerboard'):
+
+        print('Removing worldcam lens distortion...')
 
         if not os.path.isfile(self.cfg[mtxkey]):
             self.define_distortion(checkervid, mtxkey)
@@ -619,7 +625,11 @@ class Camera(BaseInput):
             csv_paths = [x for x in fmEphys.find(('*BonsaiTS*.csv'), self.recording_path) if x != []]
             self.timestamp_path = next(i for i in csv_paths if self.camname in i)
 
+        print('Reading camera files for {} in recording {}\nFound:\nvideo = {}\ntimestamps = {}\n deeplabcut = {}\n'.format(self.camname, self.recording_name, self.video_path, self.timestamp_path, self.dlc_path))
+
     def pack_video_frames(self, usexr=True, dwnsmpl=None):
+
+        print('Packing video frames into array...')
         
         if dwnsmpl is None:
             dwnsmpl = self.cfg['video_dwnsmpl']

@@ -597,7 +597,7 @@ def prelimRF_sort(whitenoise_directory, probe):
             'world_checker_npz': 'E:/freely_moving_ephys/camera_calibration_params/world_checkerboard_calib.npz'
         },
         'parameters':{
-            'follow_strict_naming': True,
+            'strict_name': True,
             'outputs_and_visualization':{
                 'save_nc_vids': True,
                 'dwnsmpl': 0.25

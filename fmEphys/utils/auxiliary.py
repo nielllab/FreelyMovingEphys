@@ -3,10 +3,22 @@ FreelyMovingEphys/src/utils/auxiliary.py
 """
 import os
 import sys
+import yaml
 import numpy as np
 
 import fmEphys
 
+def write_dummy_cfg():
+    cfg_path = os.path.join(fmEphys.up_dir(__file__, 3), 'pipeline_cfg.yml')
+    internals_path = os.path.join(fmEphys.up_dir(__file__, 1), 'internals.yml')
+        
+    with open(cfg_path, 'r') as infile:
+        cfg_dict = yaml.load(infile, Loader=yaml.FullLoader)
+
+    with open(internals_path, 'r') as infile:
+        internals_dict = yaml.load(infile, Loader=yaml.FullLoader)
+
+    return {**internals_dict, **cfg_dict}
 
 def str_to_bool(value):
     """ Parse strings to read argparse flag entries in as bool.

@@ -1221,6 +1221,8 @@ class Eyecam(fmEphys.Camera):
                         self.camname+'_video': {"zlib": True,
                                                 "complevel": 4}})
 
+        print('Saved {}'.format(savepath))
+
     def process(self):
 
         if self.cfg['run']['deinterlace']:

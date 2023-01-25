@@ -1,6 +1,4 @@
-"""
-FreelyMovingEphys/src/utils/path.py
-"""
+
 import os
 import fnmatch
 import numpy as np
@@ -21,7 +19,7 @@ def up_dir(f, num=1):
         dir = os.path.split(dir)[0]
     return dir
 
-def find(pattern, path):
+def find(pattern, path, MR=False):
     """ Glob for subdirectories.
 
     Parameters
@@ -36,12 +34,38 @@ def find(pattern, path):
     result : list
         list of files matching pattern.
     """
-    result = [] # initialize the list as empty
-    for root, _, files in os.walk(path): # walk though the path directory, and files
-        for name in files:  # walk to the file in the directory
-            if fnmatch.fnmatch(name,pattern):  # if the file matches the filetype append to list
+    # initialize the list as empty
+    result = []
+    # walk though the path directory, and files
+    for root, _, files in os.walk(path): 
+        # walk to the file in the directory
+        for name in files:
+            # if the file matches the filetype append to list
+            if fnmatch.fnmatch(name,pattern):
                 result.append(os.path.join(root,name))
-    return result # return full list of file of a given type
+    
+    if MR is True:
+        return choose_most_recent(result)
+        
+    elif MR is False:
+        return result
+
+def filter_file_search(files, keep=[], toss=[], MR=False):
+    # Remove files that do not contain `keep` strings
+    if keep != []:
+        for k in keep:
+            files = [f for f in files if k in f]
+    # Remove files that contain `toss` strings
+    if toss != []:
+        for t in toss:
+            files = [f for f in files if t not in f]
+    # Return the remaining files. If th user wants to return the file
+    # written to disk most recently, just return that one file. Otherwise,
+    # return what remains of the list.
+    if MR is True:
+        return choose_most_recent(files)
+    elif MR is False:
+        return files
 
 def check_subdir(basepath, path):
     """ Check if subdirectory exists, and create it if it does not exist.
@@ -65,6 +89,7 @@ def check_subdir(basepath, path):
         return os.path.join(basepath, path)
     else:
         return os.path.join(basepath, path)
+
 
 def list_subdirs(rootdir, givepath=False):
     """ List subdirectories in a root directory.

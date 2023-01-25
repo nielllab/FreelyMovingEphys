@@ -27,7 +27,7 @@ def pipelineBatch():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--cfg', type=str)
     parser.add_argument('-j', '--recJson', type=str)
-    parser.add_argument('-i', '--iter', type=str)
+    parser.add_argument('-i', '--iter', type=str, default='all')
     parser.add_argument('-l', '--log', type=fmEphys.str_to_bool, default=False)
     args = parser.parse_args()
 
@@ -41,7 +41,8 @@ def pipelineBatch():
         cfg = yaml.load(infile, Loader=yaml.FullLoader)
 
     if args.iter == 'all':
-        for key, val in rec_dict.items():
+        for key in sorted(rec_dict.keys()):
+            val = rec_dict[key]
             _use_cfg = cfg.copy()
             batch_cycle(_use_cfg, val)
     else:

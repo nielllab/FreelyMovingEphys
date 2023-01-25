@@ -17,7 +17,11 @@ class Worldcam(fmEphys.Camera):
         merged_data = [self.xrpts, self.xrframes]
 
         self.safe_merge(merged_data)
-        self.data.to_netcdf(os.path.join(self.recording_path,str(self.recording_name+'_world.nc')),engine='netcdf4',encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
+        savepath = os.path.join(self.recording_path,str(self.recording_name+'_world.nc'))
+        self.data.to_netcdf(savepath, engine='netcdf4',
+                    encoding={self.camname+'_video':{"zlib": True, "complevel": 4}})
+
+        print('Saved {}'.format(savepath))
 
     def process(self):
         if self.cfg['run']['deinterlace']:
