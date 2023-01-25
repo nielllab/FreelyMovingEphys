@@ -784,7 +784,7 @@ class Ephys(fmEphys.BaseInput):
             try:
                 self.ball_speed = running_ball_data.sel(move_params='speed_cmpersec')
                 self.ballT = running_ball_data.sel(move_params='timestamps')
-            except ValueError:
+            except:
                 self.ball_speed = running_ball_data.sel(frame='speed_cmpersec')
                 self.ballT = running_ball_data.sel(frame='timestamps')
         plt.figure()

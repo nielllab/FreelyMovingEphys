@@ -157,7 +157,7 @@ class Camera(BaseInput):
         BaseInput.__init__(self, cfg, recording_name, recording_path)
         self.camname = camname
 
-    def deinterlace(self, videos=None, timestamps=None, exp_fps=30, quiet=True):
+    def deinterlace(self, videos=None, timestamps=None, exp_fps=30, quiet=False):
         """ Deinterlace videos and shift timestamps to match new video frames.
         If videos and timestamps are provided (as lists), only the provided
         filepaths will be processed. If lists are not provided, subdirectories
@@ -187,9 +187,9 @@ class Camera(BaseInput):
 
         # search subdirectories if both lists are not given
         if videos is None or timestamps is None:
-
-            videos = fmEphys.find('*'+self.camname+'*.avi', self.recording_path)
-            timestamps = fmEphys.find('*'+self.camname+'*.csv', self.recording_path)
+            
+            videos = fmEphys.find('*{}*{}*.avi'.format(self.recording_name, self.camname), self.recording_path)
+            timestamps = fmEphys.find('*{}*{}*.csv'.format(self.recording_name, self.camname), self.recording_path)
         
         # iterate through each video
         for vid in videos:
@@ -230,7 +230,12 @@ class Camera(BaseInput):
             # an existing file by default
             cmd = ['ffmpeg', '-i', vid, '-vf', vf_val, '-c:v', 'libx264',
                 '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a',
-                '256k', '-y', savepath]
+                '256k']
+
+            if self.cfg['allow_avi_overwrite'] is True:
+                cmd.extend(['-y'])
+
+            cmd.extend([savepath])
             
             if quiet is True:
                 cmd.extend(['-loglevel', 'quiet'])
@@ -264,7 +269,12 @@ class Camera(BaseInput):
 
             cmd = ['ffmpeg', '-i', vid, '-vf', vf_val, '-c:v',
                 'libx264', '-preset', 'slow', '-crf', '19',
-                '-c:a', 'aac', '-b:a', '256k', '-y', savepath]
+                '-c:a', 'aac', '-b:a', '256k']
+
+            if self.cfg['allow_avi_overwrite'] is True:
+                cmd.extend(['-y'])
+
+            cmd.extend([savepath])
 
             if quiet is True:
                 cmd.extend(['-loglevel', 'quiet'])
@@ -350,7 +360,8 @@ class Camera(BaseInput):
         mtx = checker_in['mtx']; dist = checker_in['dist']; rvecs = checker_in['rvecs']; tvecs = checker_in['tvecs']
         
         # iterate through eye videos and save out a copy which has had distortions removed
-        world_list = fmEphys.find('*'+readcamkey+'*.avi', self.cfg['animal_directory'])
+        
+        world_list = fmEphys.find('*{}*{}*.avi'.format(self.recording_name, readcamkey), self.recording_path)
         
         for world_vid in [x for x in world_list if 'plot' not in x and 'calib' not in x]:
             

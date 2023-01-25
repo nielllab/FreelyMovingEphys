@@ -17,7 +17,11 @@ function updateMatPaths(matpath)
 % Written by DMM, Feb 2022
 %
 
-loadmat(matpath);
+if ~exist(matpath, 'var')
+    matpath = uigetfile();
+end 
+
+load(matpath);
 [newpath, ~, ~] = fileparts(matpath);
 
 newPathList = strings(1,size(pathList,2));

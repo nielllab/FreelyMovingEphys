@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 def pipeline():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--cfg', type=str)
-    parser.add_argument('-l', '--log', type=fmEphys.str_to_bool, default=False)
+    parser.add_argument('-l', '--log', type=fmEphys.str_to_bool, default=True)
     args = parser.parse_args()
 
     if args.cfg is None:

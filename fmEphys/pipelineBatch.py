@@ -28,7 +28,7 @@ def pipelineBatch():
     parser.add_argument('-c', '--cfg', type=str)
     parser.add_argument('-j', '--recJson', type=str)
     parser.add_argument('-i', '--iter', type=str, default='all')
-    parser.add_argument('-l', '--log', type=fmEphys.str_to_bool, default=False)
+    parser.add_argument('-l', '--log', type=fmEphys.str_to_bool, default=True)
     args = parser.parse_args()
 
     if args.log is True:

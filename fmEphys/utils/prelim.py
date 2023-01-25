@@ -143,3 +143,5 @@ class RawEphys(fmEphys.BaseInput):
             fname = fname[0:-10] + '_ephys_merge.json'
             ephys_json_path = os.path.join(pathList[0,s][0],fname)
             ephys_data.to_json(ephys_json_path)
+
+            print('Saved {}'.format(ephys_json_path))

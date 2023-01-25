@@ -14,6 +14,8 @@ worldcam_checkerboard: E:/freely_moving_ephys/camera_calibration_params/betafpv_
 sidecam_checkerboard: E:/freely_moving_ephys/camera_calibration_params/012822_checkerboard_control_SIDE_0.avi
 sidecam_mtx: E:/freely_moving_ephys/camera_calibration_params/side_checkerboard_calib.npz
 
+
+allow_avi_overwrite: false
 # delete existing .h5 and .pickle files saved out from previous DLC analysis
 delete_DLC_h5s: false
 # flip eye and world cameras without deinterlacing
