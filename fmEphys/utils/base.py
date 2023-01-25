@@ -234,6 +234,8 @@ class Camera(BaseInput):
 
             if self.cfg['allow_avi_overwrite'] is True:
                 cmd.extend(['-y'])
+            else:
+                cmd.extend(['-n'])
 
             cmd.extend([savepath])
             
@@ -273,6 +275,8 @@ class Camera(BaseInput):
 
             if self.cfg['allow_avi_overwrite'] is True:
                 cmd.extend(['-y'])
+            else:
+                cmd.extend(['-n'])
 
             cmd.extend([savepath])
 

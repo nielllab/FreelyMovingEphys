@@ -154,7 +154,7 @@ class Session:
                 ephys = fmEphys.HeadFixedGratings(self.cfg, recording_name, recording_path)
                 ephys.analyze()
             
-            elif 'sp' in recording_name and 'noise' in recording_name:
+            elif 'sp' in recording_name and ('noise' in recording_name or 'flash'):
                 # this works for sparse noise of constant or random dT
                 # also work w/ or w/out ISI
                 ephys = fmEphys.HeadFixedSparseNoise(self.cfg, recording_name, recording_path)

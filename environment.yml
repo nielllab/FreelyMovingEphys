@@ -6,7 +6,7 @@
 # with
 #   - deeplabcut
 
-name: ephys1
+name: ephys2
 channels:
   - conda-forge
   - defaults
@@ -23,7 +23,7 @@ dependencies:
   - pytables
   - umap-learn
   - pip:
-    - deeplabcut==2.2.0.6
+    - deeplabcut[gui,tf]==2.3
     - astropy
     - wavio
     - pysimplegui

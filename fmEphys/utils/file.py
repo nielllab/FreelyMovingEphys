@@ -1,16 +1,12 @@
 """
 FreelyMovingEphys/src/utils/save.py
-Modified from https://codereview.stackexchange.com/a/121308
 """
-import os
-import PySimpleGUI as sg
 
 import h5py
 import numpy as np
 import pandas as pd
-import xarray as xr
-from scipy.io import savemat
 
+import fmEphys
 
 def read_DLC_data(path, multianimal=False):
 
@@ -26,12 +22,14 @@ def read_DLC_data(path, multianimal=False):
 
     return pts
 
+
 def write_h5(filename, dic):
     """
     Saves a python dictionary or list, with items that are themselves either
     dictionaries or lists or (in the case of tree-leaves) numpy arrays
     or basic scalar types (int/float/str/bytes) in a recursive
     manner to an hdf5 file, with an intact hierarchy.
+    Modified from https://codereview.stackexchange.com/a/121308
     """
     with h5py.File(filename, 'w') as h5file:
         recursively_save_dict_contents_to_group(h5file, '/', dic)
@@ -61,6 +59,7 @@ def read_h5(filename, ASLIST=False):
     if ASLIST is True: then it loads as a list (on in the first layer) and gives error if key's are not convertible
     to integers. Unlike io_dict_to_hdf5.save, a mixed dictionary/list hierarchical version is not implemented currently
     for .load
+    Modified from https://codereview.stackexchange.com/a/121308
     """
     with h5py.File(filename, 'r') as h5file:
         out = recursively_load_dict_contents_from_group(h5file, '/')
@@ -80,10 +79,45 @@ def recursively_load_dict_contents_from_group(h5file, path):
             ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
     return ans
 
-def nc2mat():
-    f = sg.popup_get_file('Choose .nc file.')
-    data = xr.open_dataset(f)
-    data_dict = dict(zip(list(data.REYE_ellipse_params['ellipse_params'].values), [data.REYE_ellipse_params.sel(ellipse_params=p).values for p in list(data.REYE_ellipse_params['ellipse_params'].values)]))
-    save_name = os.path.join(os.path.split(f)[0], os.path.splitext(os.path.split(f)[1])[0])+'.mat'
-    print('saving {}'.format(save_name))
-    savemat(save_name, data_dict)
+
+def write_group_h5(df, savepath, split_key='session'):
+    """
+    use pandas .to_hdf() method for multiple recordings
+    basiclly just a wrapper function to make sure it's handled in the same each time
+
+    split a full dataframe by the column 'session'. each session will be put into its own key
+    """
+
+    df = fmEphys.replace_xr_obj(df)
+
+    for _, sname in enumerate(df[split_key].unique()):
+        use_skey = '_'.join(sname.split('_')[:2])
+        
+        df[df[split_key]==sname].to_hdf(savepath, use_skey, mode='a')
+
+def get_group_h5_keys(savepath):
+
+    with pd.HDFStore(savepath) as hdf:
+        keys = [k.replace('/','') for k in hdf.keys()]
+
+    return keys
+
+def read_group_h5(savepath, keys=None):
+    """
+    if keys is None, it will read in all keys and stack them
+    """
+
+    if type(keys) == str:
+        df = pd.read_hdf(savepath, k)
+        return df
+    
+    if keys is None:
+        keys = get_group_h5_keys(savepath)
+
+    dfs = []
+    for k in sorted(keys):
+        _df = pd.read_hdf(savepath, k) 
+        dfs.append(_df)
+
+    df = pd.concat(dfs)
+    return df

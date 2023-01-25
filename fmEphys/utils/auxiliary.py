@@ -4,6 +4,7 @@ FreelyMovingEphys/src/utils/auxiliary.py
 import os
 import sys
 import yaml
+import xarray as xr
 import numpy as np
 
 import fmEphys
@@ -83,3 +84,16 @@ def find_index_in_list(a, subset):
         if item == first_val:
             if a[idx:idx+subset_len] == subset:
                 yield tuple(range(idx, idx+subset_len))
+
+def show_xr_objs(df):
+    ret = []
+    for col, ser in df.iteritems():
+        if type(ser.iloc[0]) == xr.core.dataarray.DataArray:
+            ret.append(col)
+    return ret
+
+def replace_xr_obj(df):
+    for x in show_xr_objs(df):
+        for i, val in df[x].iteritems():
+            df.at[i,x] = val.values
+    return df

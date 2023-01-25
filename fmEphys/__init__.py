@@ -30,7 +30,9 @@ from .utils.auxiliary import (
     str_to_bool,
     flatten_series,
     find_index_in_list,
-    write_dummy_cfg
+    write_dummy_cfg,
+    replace_xr_obj,
+    show_xr_objs
 )
 from .utils.prelim import (
     RawEphys
@@ -57,7 +59,10 @@ from .utils.path import (
 from .utils.file import (
     write_h5,
     read_h5,
-    read_DLC_data
+    read_DLC_data,
+    write_group_h5,
+    get_group_h5_keys,
+    read_group_h5
 )
 
 from .utils.base import (
