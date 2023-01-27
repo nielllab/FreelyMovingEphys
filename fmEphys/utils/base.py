@@ -379,6 +379,9 @@ class Camera(BaseInput):
                 head, tail = os.path.splitext(world_vid)
                 savepath = '_'.join(['_'.join(head.split('_')[:-2]), head.split('_')[-1], head.split('_')[-2]+'calib'])+tail
                 print('saving to '+savepath)
+
+            if os.path.isfile(savepath):
+                continue
             
             cap = cv2.VideoCapture(world_vid)
             real_fps = cap.get(cv2.CAP_PROP_FPS)

@@ -639,8 +639,8 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             unit_spikeT = self.cells.loc[ind, 'spikeT']
 
             if len(unit_spikeT)<10: # if a unit never fired during revchecker
-                on_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
-                off_Sn_psth[cell_i,:,:] = np.empty(2001)*np.nan
+                on_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan
+                off_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan
                 continue
 
             # on subunit
