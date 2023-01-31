@@ -57,7 +57,7 @@ class RunningBall(fmEphys.BaseInput):
         centX = screen_center['x']; centY = screen_center['y']
         # read in one csv file with timestamps, x position, and y position in three columns
         csv_data = pd.read_csv(self.running_ball_path)
-        if len(csv_data.index.values)==0:
+        if len(csv_data.index.values)<2:
             return
         # from this, we can get the timestamps, as seconds since midnight before the recording
         time = self.read_timestamp_series(csv_data['Timestamp.TimeOfDay'])

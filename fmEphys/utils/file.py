@@ -102,21 +102,21 @@ def get_group_h5_keys(savepath):
 
     return keys
 
-def read_group_h5(savepath, keys=None):
+def read_group_h5(path, keys=None):
     """
     if keys is None, it will read in all keys and stack them
     """
 
     if type(keys) == str:
-        df = pd.read_hdf(savepath, k)
+        df = pd.read_hdf(path, keys)
         return df
     
     if keys is None:
-        keys = get_group_h5_keys(savepath)
+        keys = get_group_h5_keys(path)
 
     dfs = []
     for k in sorted(keys):
-        _df = pd.read_hdf(savepath, k) 
+        _df = pd.read_hdf(path, k) 
         dfs.append(_df)
 
     df = pd.concat(dfs)

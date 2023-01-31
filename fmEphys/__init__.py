@@ -32,7 +32,8 @@ from .utils.auxiliary import (
     find_index_in_list,
     write_dummy_cfg,
     replace_xr_obj,
-    show_xr_objs
+    show_xr_objs,
+    fill_NaNs
 )
 from .utils.prelim import (
     RawEphys

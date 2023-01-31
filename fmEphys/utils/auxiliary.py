@@ -97,3 +97,11 @@ def replace_xr_obj(df):
         for i, val in df[x].iteritems():
             df.at[i,x] = val.values
     return df
+
+def fill_NaNs(x):
+
+    nans = np.isnan(x)
+    f = lambda z: z.nonzero()[0]
+    x[nans]= np.interp(f(nans), f(~nans), x[~nans])
+
+    return x

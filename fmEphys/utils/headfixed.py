@@ -584,7 +584,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
 
     def sort_lum(self, unit_stim, eventT, eyeT, flips):
         event_eyeT = np.zeros(len(eventT))
-        for i, t in enumerate(eventT.values):
+        for i, t in enumerate(eventT):
             event_eyeT[i] = eyeT[np.nanargmin(np.abs(t-eyeT))]
         gray = np.nanmedian(unit_stim)
         
@@ -623,7 +623,11 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
         dStim = np.sum(np.abs(np.diff(vid, axis=0)), axis=(1,2))
         flips = np.argwhere((dStim[1:]>self.Sn_dStim_thresh) * (dStim[:-1]<self.Sn_dStim_thresh)).flatten()
 
-        eventT = self.worldT[flips+1]# - self.ephysT0
+        # interpolate if there are any NaNs in the timestamps
+        _worldT = fmEphys.fill_NaNs(self.worldT.values)
+        _eyeT = fmEphys.fill_NaNs(self.eyeT)
+
+        eventT = _worldT[flips+1]# - self.ephysT0
 
         rf_xy = np.zeros([len(self.cells.index.values),4]) # [unit#, on x, on y, off x, off y]
         on_Sn_psth = np.zeros([len(self.cells.index.values), 2001, 4]) # shape = [unit#, time, all/ltd/on/not_rf]
@@ -644,7 +648,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
                 continue
 
             # on subunit
-            all_eventT, offT, onT, backgroundT = self.sort_lum(on_stim_history, eventT, self.eyeT, flips)
+            all_eventT, offT, onT, backgroundT = self.sort_lum(on_stim_history, eventT, _eyeT, flips)
 
             # if len(offT)==0 or len(onT)==0:
             #     on_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan
@@ -661,7 +665,7 @@ class HeadFixedSparseNoise(fmEphys.Ephys):
             on_Sn_psth[cell_i,:,3] = self.calc_kde_PSTH(unit_spikeT, backgroundT+_offset_time)
             
             # off subunit
-            all_eventT, offT, onT, backgroundT = self.sort_lum(off_stim_history, eventT, self.eyeT, flips)
+            all_eventT, offT, onT, backgroundT = self.sort_lum(off_stim_history, eventT,_eyeT, flips)
 
             # if len(offT)==0 or len(onT)==0:
             #     off_Sn_psth[cell_i,:,:] = np.empty([2001,4])*np.nan

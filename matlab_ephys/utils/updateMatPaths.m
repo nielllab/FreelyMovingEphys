@@ -17,10 +17,12 @@ function updateMatPaths(matpath)
 % Written by DMM, Feb 2022
 %
 
-if ~exist(matpath, 'var')
-    matpath = uigetfile();
+if ~exist('matpath', 'var')
+    [tmp_path, tmp_file] = matpath = uigetfile();
+    matpath = join([tmp_file, tmp_path], '\');
 end 
 
+display(matpath);
 load(matpath);
 [newpath, ~, ~] = fileparts(matpath);
 
