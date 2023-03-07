@@ -62,6 +62,8 @@ class Ephys(fmEphys.BaseInput):
         self.still_gaze = 120 # deg/sec
         self.shifted_gaze = 240 # deg/sec
 
+        self.psth_bins = np.linspace(-1000, 1000, 2001)
+
         self.default_ephys_offset = 0.1
         self.default_ephys_drift_rate = -0.000114
 
@@ -1144,6 +1146,37 @@ class Ephys(fmEphys.BaseInput):
 
         return psth
 
+    def psth_plot(self, right, left, title_str):
+
+        fig, axs = plt.subplots(np.ceil(self.n_cells/7).astype('int'), 7,
+                                figsize=(35, np.int(np.ceil(self.n_cells/3))),
+                                dpi=50)
+        axs = axs.flatten()
+
+        for i, ind in enumerate(self.cells.index.values):
+
+            axs[i].plot(self.psth_bins, right[i,:],
+                        color='tab:blue', label='right')
+            axs[i].plot(self.psth_bins, left[i,:],
+                        color='tab:red', label='left')
+            
+            maxval = np.max(np.maximum(right[i,:],
+                                       left[i,:]))
+            
+            axs[i].vlines(0, 0, maxval*1.5, linestyles='dotted', colors='k')
+            axs[i].set_xlim([-500, 500])
+            axs[i].set_ylim([0, maxval*1.2])
+            axs[i].set_ylabel('sp/sec')
+            axs[i].set_xlabel('ms')
+            axs[i].set_title(str(ind))
+            
+        axs[0].legend()
+        fig.suptitle(title_str)
+        fig.tight_layout()
+
+        self.detail_pdf.savefig()
+        plt.close()
+
     def head_and_eye_movements(self):
         plt.figure()
         plt.hist(self.dEye_dps, bins=21, density=True)
@@ -1189,6 +1222,7 @@ class Ephys(fmEphys.BaseInput):
 
         # only based on eye movement
         print('All eye movements')
+
         tmp_eyeT = self.eyeT.flatten()[:-1]
         self.all_eyeL = self.drop_repeat_events(tmp_eyeT[(self.dEye_dps > self.shifted_head)])
         self.all_eyeR = self.drop_repeat_events(tmp_eyeT[(self.dEye_dps < -self.shifted_head)])
@@ -1206,6 +1240,7 @@ class Ephys(fmEphys.BaseInput):
                 self.leftsacc_avg[i,:] = self.calc_kde_PSTH(_spikeT, self.all_eyeL)
                 self.rightsacc_avg[i,:] = self.calc_kde_PSTH(_spikeT, self.all_eyeR)
 
+        self.psth_plot(self.rightsacc_avg, self.leftsacc_avg, 'all movements')
 
         if self.fm:
             ### Define all head/eye movements using dHead
@@ -1246,27 +1281,10 @@ class Ephys(fmEphys.BaseInput):
                 self.rightsacc_avg_comp[i,:] = self.calc_kde_PSTH(_spikeT, self.compR)
                 self.leftsacc_avg_comp[i,:] = self.calc_kde_PSTH(_spikeT, self.compL)
 
-            # left = self.eyeT[(np.append(self.dEye_dps, 0) > self.high_sacc_thresh) & (np.append(self.dGaze,0) > self.high_sacc_thresh)]
-            # right = self.eyeT[(np.append(self.dEye_dps, 0) < -self.high_sacc_thresh) & (np.append(self.dGaze, 0) < -self.high_sacc_thresh)]
-            # self.rightsacc_avg_gaze_shift_dEye, self.leftsacc_avg_gaze_shift_dEye = self.saccade_psth(right, left, 'gaze-shift dEye')
-            
-            # print('comp deye')
-            # # plot compensatory eye movements    
-            # left = self.eyeT[(np.append(self.dEye_dps, 0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) < self.gaze_sacc_thresh)]
-            # right = self.eyeT[(np.append(self.dEye_dps, 0) < -self.low_sacc_thresh) & (np.append(self.dGaze, 0) > -self.gaze_sacc_thresh)]
-            # self.rightsacc_avg_comp_dEye, self.leftsacc_avg_comp_dEye = self.saccade_psth(right, left, 'comp dEye')
-            
-            # print('gaze-shift dhead')
-            # # plot gaze shifting head movements
-            # left = self.eyeT[(np.append(self.dHead, 0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) > self.low_sacc_thresh)]
-            # right = self.eyeT[(np.append(self.dHead, 0) < -self.low_sacc_thresh) & (np.append(self.dGaze, 0) < -self.low_sacc_thresh)]
-            # self.rightsacc_avg_gaze_shift_dHead, self.leftsacc_avg_gaze_shift_dHead = self.saccade_psth(right, left, 'gaze-shift dHead')
-            
-            # print('comp dhead')
-            # # plot compensatory head movements
-            # left = self.eyeT[(np.append(self.dHead,0) > self.low_sacc_thresh) & (np.append(self.dGaze, 0) < self.gaze_sacc_thresh)]
-            # right = self.eyeT[(np.append(self.dHead,0) < -self.low_sacc_thresh) & (np.append(self.dGaze,0) > -self.gaze_sacc_thresh)]
-            # self.rightsacc_avg_comp_dHead, self.leftsacc_avg_comp_dHead = self.saccade_psth(right, left, 'comp dHead')
+            self.psth_plot(self.rightsacc_avg_gaze_shift, self.leftsacc_avg_gaze_shift, 'gaze shift')
+
+            self.psth_plot(self.rightsacc_avg_comp, self.leftsacc_avg_comp, 'compensatory')
+
 
     def movement_tuning(self):
         if self.fm:
