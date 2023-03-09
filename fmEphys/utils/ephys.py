@@ -1159,10 +1159,11 @@ class Ephys(fmEphys.BaseInput):
                         color='tab:blue', label='right')
             axs[i].plot(self.psth_bins, left[i,:],
                         color='tab:red', label='left')
-            
             maxval = np.max(np.maximum(right[i,:],
                                        left[i,:]))
-            
+            if (not np.isfinite(maxval)) or (maxval == 0):
+                maxval = 1
+                
             axs[i].vlines(0, 0, maxval*1.5, linestyles='dotted', colors='k')
             axs[i].set_xlim([-500, 500])
             axs[i].set_ylim([0, maxval*1.2])
