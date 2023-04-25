@@ -23,6 +23,7 @@ dependencies:
   - pytables
   - umap-learn
   - pip:
+    - pydantic
     - deeplabcut[gui,tf]==2.3
     - astropy
     - wavio
