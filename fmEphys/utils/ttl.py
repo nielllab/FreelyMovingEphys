@@ -1,40 +1,74 @@
-""" TTL signal preprocessing
-TTL signals are written into the IMU binary file for head-fixed
-recordings ("..._IMU.bin"). They use the timestamps of the ephys
-board ("...BonsaiBoardTS.csv"). The binary file will have the
-shape (8, n_samples). Only channels 3 and 7 are used for the TTL,
-and channels 0:3 and 4:7 will be ignored.
+"""
+fmEphys/utils/ttl.py
 
-One of the TTL channels (ch 3) records the start of each stimulus
-frame. The other (ch 7) recordings the start of each stimulus repeat.
+TTL signal preprocessing.
 
-Niell lab - FreelyMovingEphys
-Written by DMM, Jan 2023
+Classes
+-------
+TTL
+    TTL signal preprocessing.
+
+
+Written by DMM, 2023
 """
 
-import os
-from tqdm import tqdm
 
+import os
 import numpy as np
 import pandas as pd
 
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
+import fmEphys as fme
 
-import fmEphys
 
 class TTL():
+    """ TTL signal preprocessing.
+
+    TTL signals are written into the IMU binary file for head-fixed
+    recordings ("..._IMU.bin"). They use the timestamps of the ephys
+    board ("...BonsaiBoardTS.csv"). The binary file will have the
+    shape (8, n_samples). Only channels 3 and 7 are used for the TTL,
+    and channels 0:3 and 4:7 will be ignored.
+
+    One of the TTL channels (ch 3) records the start of each stimulus
+    frame. The other (ch 7) recordings the start of each stimulus repeat.
+
+    Parameters
+    ----------
+    cfg: dict
+        Dictionary of pipeline options.
+    recording_name: str
+        Name of the recording.
+    recording_path: str
+        Path to the recording directory.
+    """
+
+
     def __init__(self, cfg, recording_name, recording_path):
+        """ Initialize the TTL object.
+        """
+
         self.cfg = cfg
         self.recording_name = recording_name
         self.recording_path = recording_path
         
+
     def gather_files(self):
-        csv_paths = fmEphys.find(('*BonsaiBoardTS*.csv'), self.recording_path)
-        self.imu_timestamps_path = fmEphys.filter_file_search(csv_paths, keep=['_Ephys'], MR=True)
-        self.imu_path = fmEphys.find(self.recording_name+'_IMU.bin', self.recording_path)[0]
+        """ Gather the files of TTL data.
+        """
+
+        # Timestamp file
+        csv_paths = fme.find(('*BonsaiBoardTS*.csv'), self.recording_path)
+        self.imu_timestamps_path = fme.filter_file_search(csv_paths,
+                                        keep=['_Ephys'], MR=True)
         
+        # IMU binary file
+        self.imu_path = fme.find(self.recording_name+'_IMU.bin',
+                                   self.recording_path)[0]
+        
+
     def process(self):
+        """ Process the TTL data.
+        """
 
         self.gather_files()
 
@@ -63,7 +97,7 @@ class TTL():
 
         # read in timestamps
         csv_data = pd.read_csv(self.imu_timestamps_path).squeeze()
-        pdtime = pd.DataFrame(fmEphys.fmt_time(csv_data))
+        pdtime = pd.DataFrame(fme.fmt_time(csv_data))
 
         # get first/last timepoint, num_samples
         t0 = pdtime.iloc[0,0]
@@ -80,7 +114,8 @@ class TTL():
         
         savename = '{}_preprocessed_TTL_data.h5'.format(self.recording_name)
         savepath  = os.path.join(self.recording_path, savename)
-        fmEphys.write_h5(savepath, self.data)
+        fme.write_h5(savepath, self.data)
         print('Saved {}'.format(savepath))
         
         return self.data
+

@@ -1,56 +1,153 @@
 """
-Video preprocessing.
-"""
-import os
-import argparse
-import subprocess
+fmEphys/utils/video.py
 
+Video processing functions.
+
+Functions
+---------
+make_avi_savepath
+    Make a savepath for an avi file.
+deinterlace
+    Deinterlace a video.
+rotate_video
+    Rotate a video along either or both axes.
+calc_distortion
+    Calculate the distortion in a camera image.
+fix_distortion
+    Apply the camera matrix to novel videos to correct distortion.
+fix_contrast
+    Rescale the contrast of a video.
+avi_to_arr
+    Convert an avi video to a numpy array.
+
+
+Written by DMM, 2021
+"""
+
+
+import os
 import cv2
+import subprocess
 import numpy as np
 from tqdm import tqdm
 
-import fmEphys
+import fmEphys as fme
+
 
 def make_avi_savepath(path, add_key):
+    """ Make a savepath for an avi file.
+
+    Optionally add an additional key to note modifications
+    to the video (e.g., 'deinter', 'rotate', etc.)
+
+    Parameters
+    ----------
+    path : str
+        File path to the original video file.
+    add_key : str
+        Additional key to add to the file name.
+        e.g., 'deinter', 'rotate', etc.
+
+    Returns
+    -------
+    savepath : str
+        File path to the new video file.
+
+    """
+
     savedir, _ = os.path.split(path)
     savename = '.'.join((os.path.split(path)[1]).split('.')[:-1])
-    savepath = os.path.join(savedir, ('{}-{}.avi'.format(savename, add_key)))
+    savepath = os.path.join(savedir,
+                    ('{}-{}.avi'.format(savename, add_key)))
+    
     return savepath
+
 
 def deinterlace(path, savepath=None, rotate=True,
                 exp_fps=30, quiet=True):
+    """ Deinterlace a video.
+
+    Parameters
+    ----------
+    path : str
+        Path to the video file.
+    savepath : str
+        Path to save the new video file. Default is None.
+    rotate : bool
+        Whether to rotate the video 180 degrees. Default is True.
+    exp_fps : int
+        Expected frame rate of the video. If the video matches
+        this frame rate (in Hz), it will be deinterlaced. Otherwise,
+        it will be skipped. Default is 30 Hz.
+    quiet : bool
+        Whether to suppress the output from ffmpeg. Default is True.
+    
+    Returns
+    -------
+    savepath : str
+        Path to the new video file.
+
     """
-    `expFps` is the expected frame rate of acquisition. deinterlacing should doublet his
-    """
+
+    # Make the savepath
     if savepath is None:
         savepath = make_avi_savepath(path, 'deinter')
 
     # Open video, get frame count and rate
     cap = cv2.VideoCapture(path)
-    # fs = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     fps = cap.get(cv2.CAP_PROP_FPS)
 
+    # Skip this video if it doesn't match the expected frame rate.
     if fps != exp_fps:
         return
         
+    # Create the FFMPEG commands for video rotation.
     if rotate:
         vf_val = 'yadif=1:-1:0, vflip, hflip, scale=640:480'
     elif not rotate:
         vf_val = 'yadif=1:-1:0, scale=640:480'
 
+    # Create the full FFMPEG command
     cmd = ['ffmpeg', '-i', path, '-vf', vf_val, '-c:v', 'libx264',
           '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a',
           '256k', '-y', savepath]
     
+    # Set the log level
     if quiet is True:
         cmd.extend(['-loglevel', 'quiet'])
 
+    # Run the FFMPEG command.
     subprocess.call(cmd)
 
     return savepath
 
+
 def rotate_video(path, savepath=None, h=False, v=False,
                  quiet=True):
+    """ Rotate a video along either or both axes.
+
+    Together, a horizontal and vertical flip are equivalent
+    to a 180 degree rotation.
+
+    Parameters
+    ----------
+    path : str
+        Path to the video file.
+    savepath : str
+        Path to save the new video file. Default is None.
+    h : bool
+        Whether to flip the video horizontally. Default is False.
+    v : bool
+        Whether to flip the video vertically. Default is False.
+    quiet : bool
+        Whether to suppress the output from ffmpeg. Default is True.
+    
+    Results
+    -------
+    savepath : str
+        Path to the new video file.
+        
+    """
     
     if savepath is None:
         savepath = make_avi_savepath(path, 'rotate')
@@ -77,11 +174,28 @@ def rotate_video(path, savepath=None, h=False, v=False,
 
     return savepath
  
+
 def calc_distortion(path, savepath,
                     board_w=7, board_h=5):
-    """
-    path is the path to a video of the checkerboard moving (an .avi)
-    savepath needs to be a .npz
+    """ Calculate the distortion in a camera image.
+
+    Parameters
+    ----------
+    path : str
+        File path of an .avi video showing a printed-out
+        checkerboard moving in the view of the camera at
+        different positions and orientations.
+    savepath : str
+        Path to save a .npz matrix of parameters to correct
+        the image distortions. This needs to include the
+        desired file name and end with the .npz extension.
+    board_w : int
+        Number of horizontal squares in the checkerboard.
+        Default is 7.
+    board_h : int
+        Number of vertical squares in the checkerboard. Default
+        is 5.
+
     """
 
     # Arrays to store object points and image points from all the images.
@@ -134,13 +248,32 @@ def calc_distortion(path, savepath,
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints,
                                                 gray.shape[::-1], None, None)
 
-    date, time = fmEphys.fmt_now()
+    date, time = fme.fmt_now()
     np.savez(savepath,
              mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs,
              source_video=os.path.split(path)[1],
              written='{}_{}'.format(date, time))
 
+
 def fix_distortion(path, proppath, savepath=None):
+    """ Apply the camera matrix to novel videos to correct distortion.
+    
+    Parameters
+    ----------
+    path : str
+        Path to the video file.
+    proppath : str
+        Path to the .npz file containing the camera matrix.
+    savepath : str
+        Path to save the new video file. Default is None, in which
+        case the video will be named with the added key 'unwarp'.
+
+    Returns
+    -------
+    savepath : str
+        Path to the new video file.
+    
+    """
 
     if savepath is None:
         savepath = make_avi_savepath(path, 'unwarp')
@@ -183,7 +316,23 @@ def fix_distortion(path, proppath, savepath=None):
 
     return savepath
 
+
 def fix_contrast(path, savepath):
+    """ Rescale the contrast of a video.
+
+    Parameters
+    ----------
+    path : str
+        Path to the video file.
+    savepath : str
+        Path to save the new video file.
+
+    Returns
+    -------
+    savepath : str
+        Path to the new video file.
+
+    """
 
     if savepath is None:
         savepath = make_avi_savepath(path, 'fixcontrast')
@@ -225,7 +374,28 @@ def fix_contrast(path, savepath):
 
     return savepath
 
+
 def avi_to_arr(path, ds=0.25):
+    """ Convert an avi video to a numpy array.
+
+    Parameters
+    ----------
+    path : str
+        Path to the video file.
+    ds : float
+        Downsampling factor. Default is 0.25. This will
+        scale the video in x and y by this factor, so that a
+        value of 1 returns the video at its original dimensions,
+        and a value of 0.5 returns the video at half its origional
+        resolution in the x and y dimensions. It does not rescale
+        the video in z (time).
+
+    Returns
+    -------
+    arr : np.ndarray
+        Array of video frames with shape (frames, height, width).
+
+    """
 
     vid = cv2.VideoCapture(path)
 

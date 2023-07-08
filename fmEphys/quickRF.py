@@ -1,6 +1,33 @@
-"""
+""" Quickly map receptive fields.
+fmEphys/quickRF.py
+
+Split recordings into individual ephys files. Files for all stimuli
+were merged before spike sorting.
+
+Command Line Arguments
+----------------------
+--dir
+    Path to the white noise directory.
+--probe
+    Name of the probe layout to use. Must be a key in the
+    dictionary from fmEphys/utils/probes.json.
+--sorted
+    Whether ephys data is spike-sorted. If False, the raw
+    ephys binary file will be used, and approximate spikes
+    will be measured from the LFP of each channel. If true,
+    the spike-sorted data from Kilosort and Phy2 will be
+    used instead of the ephys binary file.
+
+Example use
+-----------
+Running from a terminal:
+    $ python -m fmEphys.quickRF --dir T:/Path/to/hf1_wn
+        --probe DB_P128_6 --sorted False
+Or, choosing the parameters in a popup window:
+    $ python -m fmEphys.quickRF
 
 
+Written by DMM, 2021
 """
 
 
@@ -9,10 +36,27 @@ import json
 import argparse
 import PySimpleGUI as sg
 
-import fmEphys
+import fmEphys as fme
+
 
 def set_window_layout(probe_opts):
+    """ Create the window layout to select recording parameters.
+
+    Parameters
+    ----------
+    probe_opts: list
+        List of probe names to display in the dropdown menu.
+        e.g., ['default16', 'NN_H16',... ]
+
+    Returns
+    -------
+    sg.Window
+        PySimpleGUI window object.
+
+    """
+    
     sg.theme('Default1')
+
     opt_layout =  [[sg.Text('Probe layout')],
                    [sg.Combo(values=(probe_opts), default_value=probe_opts[0],
                              readonly=True, k='k_probe', enable_events=True)],
@@ -27,11 +71,32 @@ def set_window_layout(probe_opts):
 
     return sg.Window('FreelyMovingEphys: Preliminary Modules', opt_layout)
 
-def make_window(probes_path):
 
+def make_window(probes_path):
+    """ Run the GUI to select recording parameters.
+
+    Parameters
+    ----------
+    probes_path: str
+        Path to the probes.json file.
+    
+    Returns
+    -------
+    wn_dir: str
+        Path to the white noise directory.
+    use_probe: str
+        Name of the probe layout to use.
+    spike_sorted: bool
+        Whether ephys data is spike-sorted. If False, the raw
+        ephys binary file will be used, and approximate spikes
+        will be measured from the LFP of each channel.
+
+    """
+
+    # Read the probes.json file
     with open(probes_path, 'r') as fp:
         mappings = json.load(fp)
-    
+    # Get the names from the dictionary keys
     probe_opts = mappings.keys()
 
     sg.theme('Default1')
@@ -73,7 +138,7 @@ def quickRF():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir', type=str, default=None)
     parser.add_argument('--probe', type=str, default=None)
-    parser.add_argument('--sorted', type=fmEphys.str_to_bool, default=False)
+    parser.add_argument('--sorted', type=fme.str_to_bool, default=False)
     args = parser.parse_args()
 
     if (args.dir is not None) or (args.probe is not None):
@@ -91,11 +156,11 @@ def quickRF():
     
     if spike_sorted is False:
 
-        fmEphys.prelimRF_raw(wn_dir, use_probe)
+        fme.prelimRF_raw(wn_dir, use_probe)
 
     elif spike_sorted is True:
 
-        fmEphys.prelimRF_sort(wn_dir, use_probe)
+        fme.prelimRF_sort(wn_dir, use_probe)
 
 if __name__ == '__main__':
 
