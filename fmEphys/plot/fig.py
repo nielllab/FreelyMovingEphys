@@ -1,22 +1,20 @@
+"""
+fmEphys/plot/fig.py
+
+Figure plotting functions.
+
+
+Written by DMM, 2023
+"""
 
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-def jitter(c, sz, maxdist=0.2):
-    """
+import fmEphys as fme
 
-    Args:
-        c: int of center.
-        sz: int of size.
-        maxdist: Maximum distance that a value can be jittered
-            from the center point, `c`.
 
-    Returns:
-    """
-    return np.ones(sz)+np.random.uniform(c-maxdist, c+maxdist, sz)
-
-def plot_all_tuning(bins, tuning, error, pdf=None, label=None):
+def tuning_fig(bins, tuning, error, pdf=None, label=None):
 
     n_cells = np.size(tuning, 0)
 
@@ -31,6 +29,8 @@ def plot_all_tuning(bins, tuning, error, pdf=None, label=None):
     axs = axs_.flatten()
 
     for i in range(n_cells):
+
+        fme.plot.tuning(bins, tuning[i,:], error[i,:])
         
         axs[i].errorbar(bins, tuning[i,:], yerr=error[i,:])
 
@@ -53,7 +53,48 @@ def plot_all_tuning(bins, tuning, error, pdf=None, label=None):
     elif pdf is None:
         fig.show()
 
-def plot_all_STA(sta, pdf=None, lag=2):
+
+def psth_plot(right, left, title_str, psth_bins):
+    """ Plot PSTHs for all units.
+
+    For PSTHs calculated with KDE (not hist based)
+    """
+
+    n_cells = np.size(right, 0)
+
+    fig, axs = plt.subplots(np.ceil(n_cells/7).astype('int'), 7,
+                            figsize=(35, np.int(np.ceil(n_cells/3))),
+                            dpi=50)
+    axs = axs.flatten()
+
+    for i in range(np.size(right,0)):
+
+        axs[i].plot(psth_bins, right[i,:],
+                    color='tab:blue', label='right')
+        
+        axs[i].plot(psth_bins, left[i,:],
+                    color='tab:red', label='left')
+        maxval = np.max(np.maximum(right[i,:],
+                                    left[i,:]))
+        
+        if (not np.isfinite(maxval)) or (maxval == 0):
+            maxval = 1
+            
+        axs[i].vlines(0, 0, maxval*1.5, linestyles='dotted', colors='k')
+        axs[i].set_xlim([-500, 500])
+        axs[i].set_ylim([0, maxval*1.2])
+        axs[i].set_ylabel('sp/sec')
+        axs[i].set_xlabel('ms')
+        axs[i].set_title(i)
+        
+    axs[0].legend()
+    fig.suptitle(title_str)
+    fig.tight_layout()
+
+    return fig
+
+
+def STA_fig(sta, pdf=None, lag=2):
 
     # Get lag index
     lag_range = np.arange(-2,8,2)
@@ -81,7 +122,13 @@ def plot_all_STA(sta, pdf=None, lag=2):
     elif pdf is None:
         fig.show()
 
-def plot_all_STV(stv, pdf=None):
+
+def plot_all_STV(stv, pdf=None, use_cmap='STA'):
+
+    if use_cmap == 'STA':
+        use_cmap == 'seismic'
+    elif use_cmap == 'STV':
+        use_cmap == 'cividis'
 
     n_cells = np.size(stv,0)
 
@@ -103,3 +150,4 @@ def plot_all_STV(stv, pdf=None):
 
     elif pdf is None:
         fig.show()
+

@@ -107,6 +107,14 @@ from .utils.video import (
     avi_to_arr
 )
 
+# PSTH calculations (as seperate funcs)
+from .utils.psth import (
+    drop_nearby_events,
+    drop_repeat_events,
+    calc_PSTH,
+    calc_hist_PSTH
+)
+
 
 #---------------------------------
 ### BASE CLASSES
