@@ -1,14 +1,30 @@
 """
-Calculate distortion in a camera image.
+fmEphys/calcWarp.py
 
-Assumes a board w/ width=7 and height=5 checkerboard.
+Calculate distortion in a camera image.
+Assumes the input video will use a board with width=7 and
+height=5 checkerboard.
+
+Command line arguments
+----------------------
+--vidpath
+    Path to the video file.
+--savedir
+    Path to the directory where the warp matrix will be saved.
+--cam
+    Name of the camera (e.g., 'TOP1').
+
+
+Written by DMM, 2021
 """
+
 
 import os
 import argparse
 import PySimpleGUI as sg
 
-import fmEphys
+import fmEphys as fme
+
 
 def calcWarp():
 
@@ -30,12 +46,13 @@ def calcWarp():
     if camname is None:
         camname = sg.popup_get_text('Camera name (e.g. REYE)')
 
-    str_date, _ = fmEphys.fmt_now()
+    str_date, _ = fme.fmt_now()
     savedir = os.path.join(savedir, '{}_cam_warp_mtx_{}.h5'.format(camname, str_date))
 
-    fmEphys.calc_distortion(vidpath, savedir)
+    fme.calc_distortion(vidpath, savedir)
 
 
 if __name__ == '__main__':
     
     calcWarp()
+

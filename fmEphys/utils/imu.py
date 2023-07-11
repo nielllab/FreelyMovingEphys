@@ -1,42 +1,73 @@
+""" 
+fmEphys/utils/imu.py
+
+IMU preprocessing.
+
+
+Written by DMM, 2021
 """
-FreelyMovingEphys/src/imu.py
-"""
+
+
 import os
-
-from time import time
-
 import numpy as np
 import pandas as pd
 import xarray as xr
+from time import time
 
-import fmEphys
+import fmEphys as fme
 
-class Imu(fmEphys.BaseInput):
+
+class Imu(fme.BaseInput):
+    """ IMU preprocessing
+
+    The gyroscope ('gyro') and accelerometer ('acc') of the head-mounted
+    Intertial Measurement Unit (IMU) measure head velocity and acceleration,
+    each on three axes. It is read in from an 8-channel binary file with
+    the first dimension of variable size (based on length of time).
+
+    Channel sequence is
+        0 : gyro x
+        1 : gyro y
+        2 : gyro z
+        3 : [empty]
+        4 : acc x
+        5 : acc y
+        6 : acc z
+        7 : [empty]
+    """
+
+
     def __init__(self, cfg, recording_name, recording_path):
-        fmEphys.BaseInput.__init__(self, cfg, recording_name, recording_path)
+        """Initialize Imu.
+        """
+        fme.BaseInput.__init__(self, cfg, recording_name, recording_path)
+
 
     def gather_imu_files(self):
-        csv_paths = [x for x in fmEphys.find(('*BonsaiBoardTS*.csv'), self.recording_path) if x != []]
+        """ Gather the raw files.
+        """
+        
+        # Timestamps
+        csv_paths = [x for x in fme.find(('*BonsaiBoardTS*.csv'), self.recording_path) if x != []]
         self.imu_timestamps_path = next(i for i in csv_paths if 'Ephys_' in i)
-        self.imu_path = fmEphys.find(self.recording_name+'_IMU.bin', self.recording_path)[0]
+        
+        # Binary file
+        self.imu_path = fme.find(self.recording_name+'_IMU.bin', self.recording_path)[0]
+
 
     def process(self):
-        """ Read an 8-channel binary file of variable length
-        only channels 0-3, 4-7 will be saved out, channels, 3 and 7 are thrown out
-        expected binary channel order: acc first, empty channel, then gyro, then empty channel
-        returns a dataarray of constructed timestamps and imu readings from -5V to 5V
-        dataarray values are downsampled by value in input dictionary config
-        
-        Parameters:
-        imupath (str): imu binary file
-        timepath (str): timestamp csv file to imu data
-        cfg (dict): options
-        
-        Returns:
-        imu_out (xr.DataArray): xarray of IMU data
+        """ Process IMU raw data.
+
+        Write an .nc file containing a dataarray of constructed
+        timestamps and IMU readings from -5 to +5 Volts. he
+        values are downsampled in the time dimension by a vaue
+        in the cfg dict.
         """
+
+        # Gather files
         self.gather_imu_files()
-        # set up datatypes and names for each channel
+        
+        # Set up datatypes and names for each channel
         dtypes = np.dtype([
             ("acc_x",np.uint16),
             ("acc_y",np.uint16),
@@ -47,49 +78,88 @@ class Imu(fmEphys.BaseInput):
             ("gyro_z",np.uint16),
             ("none2",np.uint16)
         ])
-        # read in binary file
+        
+        # Read in binary file
         binary_in = pd.DataFrame(np.fromfile(self.imu_path, dtypes, -1, ''))
         binary_in = binary_in.drop(columns=['none1','none2'])
+        
+        # Flip x/y orientations when the IMU is mounted
+        # at an orientation rotated 90 deg from usual.
         # if self.cfg['flip_gyro_xy']:
         #     temp = binary_in.iloc[:,3].copy()
         #     binary_in.iloc[:,3] = binary_in.iloc[:,4].copy()
         #     binary_in.iloc[:,4] = temp
-            # binary_in.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
-        # convert to -5V to 5V
+        #     binary_in.columns = ['acc_x','acc_y','acc_z',
+        #                          'gyro_x','gyro_y','gyro_z']
+        
+        # Convert to - 5V to + 5V (from ints)
         data = 10 * (binary_in.astype(float)/(2**16) - 0.5)
-        # downsample
+        
+        # Downsample in time dimension
         data = data.iloc[::self.cfg['imu_dwnsmpl']]
-        data = data.reindex(sorted(data.columns), axis=1) # alphabetize columns
+        
+        # Alphabetize columns
+        data = data.reindex(sorted(data.columns), axis=1)
+
+        # Calculate new sample rate
         samp_freq = self.cfg['imu_samprate'] / self.cfg['imu_dwnsmpl']
-        # read in timestamps
+        
+        # Read in timestamps
         csv_data = pd.read_csv(self.imu_timestamps_path).squeeze()
         pdtime = pd.DataFrame(self.read_timestamp_series(csv_data))
-        # get first/last timepoint, num_samples
-        t0 = pdtime.iloc[0,0]; num_samp = np.size(data,0)
-        # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
+        
+        # Get first/last timepoint, num_samples
+        t0 = pdtime.iloc[0,0]
+        num_samp = np.size(data,0)
+        
+        # Samples start at t0, and are acquired at rate of
+        # 'ephys_sample_rate'/ 'imu_downsample'
         newtime = list(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
         IMU = ImuOrientation()
-        # convert accelerometer to g
-        zero_reading = 2.9; sensitivity = 1.6
+        
+        # Convert accelerometer to g
+        zero_reading = 2.9
+        sensitivity = 1.6
         acc = pd.DataFrame.to_numpy((data[['acc_x', 'acc_y', 'acc_z']]-zero_reading)*sensitivity)
-        # convert gyro to deg/sec
-        gyro = pd.DataFrame.to_numpy((data[['gyro_x', 'gyro_y', 'gyro_z']]-pd.DataFrame.mean(data[['gyro_x', 'gyro_y', 'gyro_z']]))*400)
-        # collect roll & pitch
+        
+        # Convert gyro to deg/sec
+        gyro = pd.DataFrame.to_numpy((data[['gyro_x', 'gyro_y', 'gyro_z']] - pd.DataFrame.mean(data[['gyro_x', 'gyro_y', 'gyro_z']]))*400)
+        
+        # Collect roll & pitch
         roll_pitch = np.zeros([len(acc),2])
         for x in range(len(acc)):
             roll_pitch[x,:] = IMU.process((acc[x],gyro[x])) # update by row
         roll_pitch = pd.DataFrame(roll_pitch, columns=['roll','pitch'])
-        # collect the data together to return
-        all_data = pd.concat([data.reset_index(), pd.DataFrame(acc).reset_index(), pd.DataFrame(gyro).reset_index(), roll_pitch], axis=1).drop(labels='index',axis=1)
-        all_data.columns = ['acc_x_raw', 'acc_y_raw', 'acc_z_raw', 'gyro_x_raw', 'gyro_y_raw', 'gyro_z_raw','acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z', 'roll', 'pitch']
+        
+        # Collect the data together
+        all_data = pd.concat([
+            data.reset_index(),
+            pd.DataFrame(acc).reset_index(),
+            pd.DataFrame(gyro).reset_index(),
+            roll_pitch
+        ], axis=1).drop(labels='index',axis=1)
+
+        # Set up column names
+        all_data.columns = [
+            'acc_x_raw','acc_y_raw','acc_z_raw',
+            'gyro_x_raw','gyro_y_raw','gyro_z_raw',
+            'acc_x','acc_y','acc_z',
+            'gyro_x', 'gyro_y', 'gyro_z',
+            'roll', 'pitch'
+        ]
+
+        # Write the .NC file.
         output_data = xr.DataArray(all_data, dims=['sample','channel'])
         self.data = output_data.assign_coords({'sample':newtime})
         self.data.to_netcdf(os.path.join(self.recording_path, str(self.recording_name + '_imu.nc')))
 
+
 class Kalman():
+    """ Kalman filter.
+
+    From https://github.com/wehr-lab/autopilot/tree/parallax
     """
-    https://github.com/wehr-lab/autopilot/tree/parallax
-    """
+
     def __init__(self, dim_state: int, dim_measurement: int = None, dim_control: int=0,
                  *args, **kwargs):
 
@@ -356,8 +426,12 @@ class Kalman():
 
         self._alpha_sq = value**2
 
+
 class ImuOrientation():
-    """
+    """ IMU sensor fusion
+
+    From https://github.com/wehr-lab/autopilot/tree/parallax
+
     Compute absolute orientation (roll, pitch) from accelerometer and gyroscope measurements
     (eg from :class:`.hardware.i2c.I2C_9DOF` )
 
@@ -379,8 +453,6 @@ class ImuOrientation():
     References:
         :cite:`patonisFusionMethodCombining2018a`
         :cite:`abyarjooImplementingSensorFusion2015`
-    
-    https://github.com/wehr-lab/autopilot/tree/parallax
     """
 
     def __init__(self, use_kalman:bool = True, invert_gyro:bool=False, *args, **kwargs):
@@ -456,3 +528,4 @@ class ImuOrientation():
                 self.orientation[:] = np.squeeze(self.kalman.update(self._orientation))
 
         return self.orientation.copy()
+

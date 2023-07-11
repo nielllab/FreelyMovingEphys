@@ -1,41 +1,54 @@
 """
-FreelyMovingEphys/src/prelim.py
+fmEphys/utils/prelim.py
+
+Written by DMM, 2021
 """
+
+
 import os
+import numpy as np
+import pandas as pd
 from glob import glob
 from tqdm import tqdm
 
-import numpy as np
-import pandas as pd
-
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-
 import scipy.io
 
-import fmEphys
+import fmEphys as fme
 
-class PrelimRF(fmEphys.Ephys):
+
+class PrelimRF(fme.Ephys):
+    """ Preliminary receptive field mapping.
+    """
+
     def __init__(self, binary_path, probe):
+
         head, _ = os.path.split(binary_path)
         self.recording_path = head
-        self.recording_name = fmEphys.auto_recording_name(head)
+        self.recording_name = fme.auto_recording_name(head)
+
         self.probe = probe
         self.num_channels = next(int(num) for num in ['128','64','16'] if num in self.probe)
         self.n_cells = self.num_channels
+
         self.generic_config = {
             'animal_directory': self.recording_path
         }
+
         self.ephys_samprate = 30000
         self.ephys_offset = 0.1
         self.ephys_drift_rate = -0.1/1000
         self.model_dt = 0.025
         self.spike_thresh = -350
+
         # this will be applied to the worldcam twice
         # once when avi is packed into a np array, and again when it is put into new bins for spike times
         self.vid_dwnsmpl = 0.25
 
+
     def prelim_video_setup(self):
+
         cam_gamma = 2
         world_norm = (self.world_vid / 255) ** cam_gamma
         std_im = np.std(world_norm, 0)
@@ -44,10 +57,12 @@ class PrelimRF(fmEphys.Ephys):
         self.img_norm = self.img_norm * (std_im > 20 / 255)
         self.small_world_vid[self.img_norm < -2] = -2
 
+
     def minimal_process(self):
+
         self.detail_pdf = PdfPages(os.path.join(self.recording_name, 'prelim_raw_whitenoise.pdf'))
 
-        wc = fmEphys.Worldcam(self.generic_config, self.recording_name, self.recording_path, 'WORLD')
+        wc = fme.Worldcam(self.generic_config, self.recording_name, self.recording_path, 'WORLD')
         self.worldT = wc.read_timestamp_file()
         self.world_vid = wc.pack_video_frames(usexr=False, dwsmpl=0.25)
         
@@ -86,10 +101,18 @@ class PrelimRF(fmEphys.Ephys):
 
         self.detail_pdf.close()
 
-class RawEphys(fmEphys.BaseInput):
+
+
+class RawEphys(fme.BaseInput):
+    """ Read raw ephys data from Phy2 and
+    format for use in fmEphys.
+    """
+
+
     def __init__(self, merge_file):
         self.merge_file = merge_file
         self.ephys_samprate = 30000
+
 
     def format_spikes(self):
         # open 
@@ -145,3 +168,4 @@ class RawEphys(fmEphys.BaseInput):
             ephys_data.to_json(ephys_json_path)
 
             print('Saved {}'.format(ephys_json_path))
+

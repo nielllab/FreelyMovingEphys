@@ -1,20 +1,50 @@
+"""
+fmEphys/utils/time.py
+
+Timestamp helper functions.
+
+Functions
+---------
+fmt_time
+    String formatting for timestamps.
+interp_time
+    Interpolate timestamps for deinterlaced video.
+read_time
+    Read timestamps from a .csv file.
+fmt_now
+    Format today's date and time.
+
+
+Written by DMM, 2021
+"""
+
 
 import sys
 import numpy as np
 import pandas as pd
 from datetime import datetime
- 
+
+
 def fmt_time(s):
     """ String formatting for timestamps.
+
     Input must be a pd.Series, so a filepath to a .csv
     should be used with time.read() not time.format()
  
-    :param s: Timestamps as a single column. No header, so that the first value is the first timestamp. Expected to be formated as hours : minutes : seconds . microsecond
-    :type s: pd.Series
-    :return: Number of seconds that have passed since the previous midnight, with microescond precision, e.g. 700.000000
-    :rtype: np.array
- 
+    Parameters
+    ----------
+    s : pd.Series
+        Timestamps as a single column. No header, so that the first
+        value is the first timestamp. Expected to be formated as
+        hours : minutes : seconds . microsecond
+    
+    Returns
+    -------
+    t_out : np.array
+        Number of seconds that have passed since the previous midnight,
+        with microescond precision, e.g. 700.000000
     """
+
     t_out = []
     fmt = '%H:%M:%S.%f'
 
@@ -41,9 +71,10 @@ def fmt_time(s):
         t_out = s.values
 
     return t_out
- 
+
+
 def interp_time(t_in, use_medstep=False):
-    """ Interpolate timestamps for double the number of frames. Compensates for video deinterlacing.
+    """ Interpolate timestamps for deinterlaced video.
     
     Parameters
     --------
@@ -80,7 +111,8 @@ def interp_time(t_in, use_medstep=False):
         t_out[1::2] = t_in + 0.5 * steps
 
     return t_out
- 
+
+
 def read_time(path, dlen=None, shift=False):
     """ Read timestamps from a .csv file.
 
@@ -116,6 +148,7 @@ def read_time(path, dlen=None, shift=False):
 
     return t_out
 
+
 def fmt_now():
     """Format today's date and time.
 
@@ -139,5 +172,7 @@ def fmt_now():
 
     return str_date, str_time
 
+
 if __name__ == '__main__':
     globals()[sys.argv[1]]()
+

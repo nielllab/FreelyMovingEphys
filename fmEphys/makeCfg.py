@@ -1,9 +1,33 @@
+"""
+fmEphys/makeCfg.py
+
+Make a pipeline configuration file for ephys data.
+Uses the default options in the fiel pipeline_cfg.yml.
+
+Command line arguments
+----------------------
+-dir, --savedir
+    Path to the directory where the config file will be saved.
+
+Example use
+-----------
+Running from a terminal:
+    $ python -m fmEphys.makeCfg --savedir T:/Path/to/animal
+Or, choosing the parameters in a popup window:
+    $ python -m fmEphys.makeCfg
+
+
+Written by DMM, 2021
+"""
+
+
 import os
 import shutil
 import argparse
 import PySimpleGUI as sg
 
-import fmEphys
+import fmEphys as fme
+
 
 def makeCfg():
     parser = argparse.ArgumentParser()
@@ -18,10 +42,11 @@ def makeCfg():
     else:
         savedir = args.savedir
 
-    readpath = os.path.join(fmEphys.up_dir(__file__, 2), 'pipeline_cfg.yml')
+    readpath = os.path.join(fme.up_dir(__file__, 2), 'pipeline_cfg.yml')
     savepath = os.path.join(savedir, 'pipeline_cfg.yml')
 
     shutil.copyfile(readpath, savepath)
+
 
 if __name__ == '__main__':
 
