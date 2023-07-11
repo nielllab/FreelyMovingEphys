@@ -15,7 +15,7 @@ imu_channels = ncread(NC_path,'__xarray_dataarray_variable__');
 imu_ch_names = string(ncread(NC_path,'channel'));
 
 for i = 1:14
-    n = imu_ch_names(i,1);
+    n = imu_ch_names(i, 1);
     imuData.(n) = imu_channels(i,:)';
 end
 

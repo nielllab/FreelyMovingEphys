@@ -19,7 +19,7 @@ for i = 1:size(ball_prop_names, 1)
         param_name = "ballT_raw";
     end
 
-    ballData.(param_name) = ball_props(i);
+    ballData.(param_name) = ball_props(i,:);
 
 end
 

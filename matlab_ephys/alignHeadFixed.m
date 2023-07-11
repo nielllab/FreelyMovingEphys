@@ -7,7 +7,7 @@ function alignHeadFixed(rpath, skipImu)
 % should == 0). By default, skipImu == 1 which ignores that file.
 %
 % rpath is the path for a particular recording (meaning the directory
-% specific to that stimulus, e.g., "010101/AnimalName/hf1_wn". Run the
+% specific to that stimulus, e.g., "010101/AnimalName/hf1_wn"). Run the
 % preprocessing pipeline through the "parameters" step so that the Ephys
 % .JSON already exists and the .NC files for the other inputs are also
 % already written in that recoridng direcory.
@@ -15,7 +15,7 @@ function alignHeadFixed(rpath, skipImu)
 % This returns nothing, but writes a single .mat file, named
 % "aligned_data.mat" that will contain the data for all of the aligned
 % data. When reading this back in, make sure to use the videos as the type
-% uint8, and to not use the "raw" timestamps (e.g., "eyeT_raw" which are
+% uint8, and to not use the "raw" timestamps (e.g., "eyeT_raw") which are
 % not aligned to ephys timestamps (and in the case of the IMU and Ephys
 % files, not corrected for the offset and drift).
 %
@@ -52,13 +52,13 @@ end
 
 %%% Load as structs and correct timing drifts
 
-sprintf("Reading ephys.")
+display(sprintf("Reading ephys."));
 ephysData = readEphys(ephys_path);
 
-sprintf("Reading eyecam.")
+display(sprintf("Reading eyecam."));
 eyeData = readEyecam(eye_path);
 
-sprintf("Reading treadmill.")
+display(sprintf("Reading treadmill."));
 ballData = readTreadmill(ball_path);
 
 if (skipImu == 0)
@@ -90,12 +90,12 @@ ballData.ballT = ballData.ballT_raw - T0;
 
 savepath = rpath + "/aligned_data.mat";
 
-sprintf("Writing data to %s", savepath)
+display(sprintf("Writing data to %s", savepath));
 
-if (skipImu == 0)
+if (skipImu == 1)
     save(savepath, 'eyeData', 'ballData', 'ephysData');
 
-elseif (skipImu == 1)
+elseif (skipImu == 0)
     save(savepath, "eyeData", "ballData", "ephysData", "imuData");
 
 end

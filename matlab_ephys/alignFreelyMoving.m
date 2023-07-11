@@ -38,22 +38,24 @@ imu_path = getPath(rpath, "*imu.nc");
 
 %%% Load structs and correct timing drifts
 
-sprintf("Reading ephys.")
+display(sprintf("Reading ephys."));
 ephysData = readEphys(ephys_path);
 
-sprintf("Reading eyecam.")
+display(sprintf("Reading eyecam."));
 eyeData = readEyecam(eye_path);
 
-sprintf("Reading IMU.")
+display(sprintf("Reading IMU."));
 imuData = readIMU(imu_path);
 
-sprintf("Reading topcam.")
+display(sprintf("Reading topcam."));
 topData = readTopcam(top_path);
 
 
 %%% Align timing
 
 % Start time for ephys
+
+display(sprintf("Aligning to ephys T0."));
 T0 = ephysData.t0.x1;
 
 topData.topT = topData.topT_raw - T0;
@@ -75,7 +77,7 @@ imuData.imuT = imuData.imuT_raw - T0;
 
 savepath = rpath + "/aligned_data.mat";
 
-sprintf("Writing data to %s", savepath)
+display(sprintf("Writing data to %s", savepath));
 
 save(savepath, "eyeData", "topData", "ephysData", "imuData");
 
