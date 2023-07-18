@@ -23,6 +23,7 @@ import sys
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from scipy.interpolate import interp1d
 
 
 def fmt_time(s):
@@ -171,6 +172,150 @@ def fmt_now():
     str_time = '{}h-{}m-{}s'.format(h,m,s)
 
     return str_date, str_time
+
+
+
+def time2str(time_array):
+    """ Convert datetime to string.
+
+    The datetime values cannot be written into a hdf5
+    file, so we convert them to strings before writing.
+
+    Parameters
+    ----------
+    time_array : np.array, datetime.datetime
+        If np.array with the shape (n,) where n is the
+        number of samples in the recording. If datetime,
+        the value will be converted to a single string.
+
+    Returns
+    -------
+    out : str, list
+        If time_array was a datetime, the returned value
+        is a single string. Otherwise, it will be a list
+        of strings with the same length as the input array.
+        Str timestamps are use the format '%Y-%m-%d-%H-%M-%S-%f'.
+
+    """
+
+    fmt = '%Y-%m-%d-%H-%M-%S-%f'
+
+    if type(time_array) == datetime:
+        return time_array.strftime(fmt)
+
+
+    out = []
+
+    for t in time_array:
+        tstr = t.strftime(fmt)
+        out.append(tstr)
+
+    return out
+
+
+def str2time(input_str):
+    """ Convert string to datetime.
+
+    Need to convert the strings back to datetime objects
+    after they are read back in from the hdf5 file.
+
+    Parameters
+    ----------
+    input_str : str, byte, list, dict
+        If str or byte, the value will be converted to a single
+        datetime object. If list or dict, the values will be
+        converted to an array of datetime objects. Datetime
+        objects are returned with the format '%Y-%m-%d-%H-%M-%S-%f'.
+
+    Returns
+    -------
+    out : datetime.datetime, np.array
+        If input_str was a str or byte, the returned value is a single
+        datetime object. Otherwise, it will be a np.array of datetime
+        objects with the same length as the list or dict given for
+        str_list.
+    
+    """
+
+    fmt = '%Y-%m-%d-%H-%M-%S-%f'
+    out = np.zeros(len(input_str), dtype=datetime)
+
+    if type(input_str)==str:
+        out = datetime.strptime(input_str, fmt)
+
+    elif type(input_str)=='byte':
+        out = datetime.strptime(input_str.decode('utf-8'), fmt)
+
+    elif type(input_str)==list:
+
+        for i,t in enumerate(input_str):
+            out[i] = datetime.strptime(t, fmt)
+
+    elif type(input_str)==dict:
+
+        for k,v in input_str.items():
+
+            out[int(k)] = datetime.strptime(v.decode('utf-8'), fmt)
+
+    return out
+
+
+def time2float(timearr, rel=None):
+    """ Convert datetime to float.
+
+    Parameters
+    ----------
+    timearr : np.array
+        Array of datetime objects.
+    rel : datetime.datetime, optional
+        If not None, the returned array will be relative
+        to this time. The default is None, in which case the
+        returned float values will be relative to the first
+        time in timearr (i.e. start at 0 sec).
+    
+    Returns
+    -------
+    out : np.array
+        Array of float values representing the time in seconds.
+    
+    """
+    if rel is None:
+        return [t.total_seconds() for t in (timearr - timearr[0])]
+    elif rel is not None:
+        if type(rel)==list or type(rel)==np.ndarray:
+            rel = rel[0]
+            rel = datetime(year=rel.year, month=rel.month, day=rel.day)
+        return [t.total_seconds() for t in timearr - rel]
+    
+
+def interpT(x, xT, toT):
+    """ Interpolate timestamps.
+    
+    Parameters
+    ----------
+    x : np.array
+        Array of values to interpolate.
+    xT : np.array
+        Array of datetime objects corresponding to x.
+    toT : np.array
+        Array of datetime objects to interpolate to.
+
+    Returns
+    -------
+    out : np.array
+        Array of interpolated values.
+
+    """
+
+    # Convert timestamps to float values.
+    if (type(xT[0]) == datetime) and (type(toT[0]) == datetime):
+        xT = time2float(xT)
+        toT = time2float(toT)
+
+    out = interp1d(xT, x,
+                   bounds_error=False)(toT)
+    
+    return out
 
 
 if __name__ == '__main__':

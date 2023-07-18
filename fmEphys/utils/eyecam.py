@@ -302,6 +302,7 @@ class Eyecam(fme.Camera):
         else:
             likelihood = likelihood_in
 
+        pupil_count = np.sum(likelihood >= self.cfg['Lthresh'], 1)
 
         # Get bools of when a frame is usable with the right number of
         # points above liklelihood threshold
@@ -310,7 +311,6 @@ class Eyecam(fme.Camera):
             # If spot subtraction is being done, we should only include frames
             # where all five pts marked around the ir spot are good (centroid
             # would be off otherwise)
-            pupil_count = np.sum(likelihood >= self.cfg['Lthresh'], 1)
             spot_count = np.sum(spot_likelihood >= self.cfg['Lthresh'], 1)
 
             usegood_eye = (pupil_count >= self.cfg['eye_useN']) &               \
