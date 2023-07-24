@@ -260,13 +260,16 @@ def z_score(A):
     return z
 
 
-def stderr(A):
+def stderr(A, axis=0):
     """ Calculate standard error of an array.
 
     Parameters
     ----------
     A : np.array
         Array to calculate standard error of.
+    axis: int
+        Axis of A to calculate standard error along.
+        Default is 0.
     
     Returns
     -------
@@ -275,7 +278,7 @@ def stderr(A):
     
     """
 
-    err = np.std(A) / np.sqrt(len(A))
+    err = np.nanstd(a, axis=axis) / np.sqrt(np.size(a,axis=axis))
 
     return err
 
