@@ -255,7 +255,7 @@ def z_score(A):
     
     """
 
-    z = (np.max(np.abs(A))-np.mean(A)) / np.std(A)
+    z = (np.max(np.abs(A)) - np.mean(A)) / np.std(A)
 
     return z
 
@@ -278,7 +278,7 @@ def stderr(A, axis=0):
     
     """
 
-    err = np.nanstd(a, axis=axis) / np.sqrt(np.size(a,axis=axis))
+    err = np.nanstd(A, axis=axis) / np.sqrt(np.size(A, axis=axis))
 
     return err
 
