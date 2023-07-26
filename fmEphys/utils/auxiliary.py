@@ -27,6 +27,8 @@ std_err
     Calculate the standard error of an array.
 blank_col
     Create a blank column to be appended to a DataFrame.
+invert_dict
+    Invert keys in dict so they become values and vice versa.
 
 
 Written by DMM, 2021
@@ -315,3 +317,21 @@ def blank_col(length, size):
 
     return tmp_series
 
+
+def invert_dict(a):
+    """ Invert keys in dict so they become values and vice versa.
+
+    Parameters
+    ----------
+    a : dict
+        Dictionary to invert.
+    
+    Returns
+    -------
+    flipped : dict
+        Inverted dictionary.
+    """
+
+    flipped = dict((v,k) for k,v in a.iteritems())
+
+    return flipped
