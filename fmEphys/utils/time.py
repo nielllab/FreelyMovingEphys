@@ -150,7 +150,7 @@ def read_time(path, dlen=None, shift=False):
     return t_out
 
 
-def fmt_now():
+def fmt_now(c=False):
     """Format today's date and time.
 
     Returns
@@ -170,6 +170,10 @@ def fmt_now():
     m = datetime.today().strftime('%M')
     s = datetime.today().strftime('%S')
     str_time = '{}h-{}m-{}s'.format(h,m,s)
+
+    if c==True:
+        out = '{}_{}'.format(str_date, str_time)
+        return out
 
     return str_date, str_time
 
