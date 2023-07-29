@@ -335,6 +335,6 @@ def invert_dict(a):
         Inverted dictionary.
     """
 
-    flipped = dict((v,k) for k,v in a.iteritems())
+    flipped = dict((v,k) for k,v in a.items())
 
     return flipped
