@@ -64,7 +64,8 @@ from .utils.auxiliary import (
     drop_nan_along,
     z_score,
     stderr,
-    blank_col
+    blank_col,
+    invert_dict
 )
 
 # File paths
