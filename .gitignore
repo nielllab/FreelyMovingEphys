@@ -151,6 +151,10 @@ dmypy.json
 *.tif
 *.tiff
 *.mov
+*.doc
+*.docx
+*.xls
+*.xlsx
 
 # Windows default autosave extension
 *.asv
