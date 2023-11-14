@@ -885,7 +885,38 @@ class Ephys(fme.BaseInput):
         return rightavg, leftavg
 
 
-    def fit_glm_rfs(self, nks):
+    def fit_glm_rfs(self):
+
+        downsamp = 0.25
+
+        testimg = self.img_norm[0,:,:]
+        testimg = cv2.resize(testimg,
+                             (int(np.shape(testimg)[1]*downsamp),
+                              int(np.shape(testimg)[0]*downsamp)))
+
+        # remove area affected by eye movement correction
+        testimg = testimg[5:-5, 5:-5]
+        
+        resize_img_norm = np.zeros([
+            np.size(self.img_norm,0),
+            np.int(np.shape(testimg)[0] * np.shape(testimg)[1])])
+
+        for i in tqdm(range(np.size(self.img_norm, 0))):
+
+            smallvid = cv2.resize(self.img_norm[i,:,:],
+                                 (np.int(np.shape(self.img_norm)[2]*downsamp),
+                                  np.int(np.shape(self.img_norm)[1]*downsamp)),
+                                 interpolation=cv2.INTER_LINEAR_EXACT)
+
+            smallvid = smallvid[5:-5, 5:-5]
+
+            resize_img_norm[i,:] = np.reshape(smallvid,
+                                              np.shape(smallvid)[0] * np.shape(smallvid)[1])
+
+        self.glm_model_vid = scipy.interpolate.interp1d(self.worldT, resize_img_norm,
+                                    'nearest', axis=0, bounds_error=False)(self.model_t)
+
+        nks = np.shape(smallvid)
 
         nT = np.shape(self.model_nsp)[1]
         x = self.glm_model_vid.copy()
