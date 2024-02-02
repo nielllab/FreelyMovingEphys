@@ -40,7 +40,8 @@ import yaml
 import xarray as xr
 import numpy as np
 import pandas as pd
-
+import sys
+sys.path.insert(0,r'c:\Users\Niell Lab\Documents\GitHub\FreelyMovingEphys')
 import fmEphys as fme
 
 
