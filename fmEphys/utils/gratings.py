@@ -200,13 +200,30 @@ class HeadFixedGratings(fme.Ephys):
         grating_th = np.zeros(len(self.stim_start))
         grating_mag = np.zeros(len(self.stim_start))
         grating_dir = np.zeros(len(self.stim_start))
-
         dI = np.zeros(len(self.stim_start))
 
         for i in range(len(self.stim_start)):
+            
+            if i >= len(self.stim_start):
+                continue
 
             tpts = np.where((self.worldT > self.stim_start[i] + 0.025)
                           & (self.worldT < stim_end[i] - 0.025))
+            
+            if np.size(tpts)==0:
+                
+                # if a spurious stimulus start, with no presented frames in the worldcam video, was
+                # included as a stim presentation, throw it out and shorten the returned arrays by one
+                # stimulus event
+
+                grating_th = grating_th[:-1]
+                grating_mag = grating_mag[:-1]
+                grating_dir = grating_dir[:-1]
+                dI = dI[:-1]
+
+                self.stim_start = np.delete(self.stim_start, obj=i, axis=0)
+                continue
+
             
             mag = np.sqrt(sx_mn[tpts]**2 + sy_mn[tpts]**2)
 
