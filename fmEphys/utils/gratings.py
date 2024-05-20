@@ -258,6 +258,9 @@ class HeadFixedGratings(fme.Ephys):
 
         # Category of orientations
         ori_cat = np.floor((self.grating_ori+np.pi/16) / (np.pi/4))
+
+        self.ori_cat = ori_cat.copy()
+        self.grating_tf = grating_tf.copy()
         
         plt.figure()
         plt.plot(range(15), ori_cat[:15])
@@ -476,7 +479,10 @@ class HeadFixedGratings(fme.Ephys):
                 'sf_cat',
                 'stim_PSTH',
                 'stimT',
-                'worldT'
+                'worldT',
+                'ori_sequence',
+                'tf_seqeunce',
+                'sf_sequence'
             ]
             unit_df = pd.DataFrame(pd.Series([
                 self.contrast,
@@ -517,7 +523,10 @@ class HeadFixedGratings(fme.Ephys):
                 self.sf_cat[unit_num],
                 self.gt_kde_psth[unit_num],
                 self.stim_onsets_,
-                self.worldT.values
+                self.worldT.values,
+                self.ori_cat,
+                self.grating_tf,
+                self.sf_cat
                 ]),
                 dtype=object).T
             
