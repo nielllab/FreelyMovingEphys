@@ -1,0 +1,61 @@
+    # Project definitions (do not edit)
+Task: SC_eyetracking_040723_J630RT
+scorer: SS
+date: Aug29
+multianimalproject: false
+identity:
+
+    # Project path (change when moving around)
+project_path: C:\Users\Niell Lab\Documents\GitHub\FreelyMovingEphys\Full path of the
+  working directory\SC_eyetracking_040723_J630RT-SS-2023-08-29
+
+    # Annotation data set configuration (and individual video cropping parameters)
+video_sets:
+  ? C:\Users\Niell Lab\Documents\GitHub\FreelyMovingEphys\Full path of the working
+    directory\SC_eyetracking_040723_J630RT-SS-2023-08-29\videos\040723_J630RT_control_Rig2_fm1_REYEdeinter.avi
+  : crop: 0, 640, 0, 480
+bodyparts:
+- bodypart1
+- bodypart2
+- bodypart3
+- objectA
+
+    # Fraction of video to start/stop when extracting frames for labeling/refinement
+start: 0
+stop: 1
+numframes2pick: 20
+
+    # Plotting configuration
+skeleton:
+- - bodypart1
+  - bodypart2
+- - objectA
+  - bodypart3
+skeleton_color: black
+pcutoff: 0.6
+dotsize: 12
+alphavalue: 0.7
+colormap: rainbow
+
+    # Training,Evaluation and Analysis configuration
+TrainingFraction:
+- 0.95
+iteration: 0
+default_net_type: resnet_50
+default_augmenter: default
+snapshotindex: -1
+batch_size: 8
+
+    # Cropping Parameters (for analysis and outlier frame detection)
+cropping: false
+    #if cropping is true for analysis, then set the values here:
+x1: 0
+x2: 640
+y1: 277
+y2: 624
+
+    # Refinement configuration (parameters from annotation dataset configuration also relevant in this stage)
+corner2move2:
+- 50
+- 50
+move2corner: true
