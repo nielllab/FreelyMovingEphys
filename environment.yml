@@ -28,7 +28,6 @@ dependencies:
     - deeplabcut[gui,tf]==2.3
     - astropy
     - wavio
-    - pysimplegui==4.60.5
     - netcdf4
     - opencv-python
     - scipy==1.6.2

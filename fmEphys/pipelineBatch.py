@@ -48,7 +48,6 @@ import json
 import yaml
 import argparse
 import warnings
-import PySimpleGUI as sg
 
 import fmEphys as fme
 

@@ -120,6 +120,12 @@ from .utils.psth import (
     calc_hist_PSTH
 )
 
+from .utils.gui_funcs import (
+    select_file,
+    select_directory,
+    get_string_input
+)
+
 
 #---------------------------------
 ### BASE CLASSES

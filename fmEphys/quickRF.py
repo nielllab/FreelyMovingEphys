@@ -30,14 +30,14 @@ Or, choosing the parameters in a popup window:
 Written by DMM, 2021
 """
 
-
+import sys
 import os
 import json
 import argparse
-import PySimpleGUI as sg
+import tkinter as tk
+from tkinter import filedialog
 
 import fmEphys as fme
-
 
 def set_window_layout(probe_opts):
     """ Create the window layout to select recording parameters.
@@ -50,88 +50,105 @@ def set_window_layout(probe_opts):
 
     Returns
     -------
-    sg.Window
-        PySimpleGUI window object.
+    run_opts: dict
+        Dictionary of run options.
 
     """
     
-    sg.theme('Default1')
+    run_opts = {
+        'probe': None,
+        'dir': None,
+        'isSorted': None,
 
-    opt_layout =  [[sg.Text('Probe layout')],
-                   [sg.Combo(values=(probe_opts), default_value=probe_opts[0],
-                             readonly=True, k='k_probe', enable_events=True)],
+    }
 
-                   [sg.Text('White noise directory')],
-                   [sg.Button('Open directory', k='k_dir')],
+    # Function to open directory selection dialog
+    def open_directory_dialog():
+        directory = filedialog.askdirectory()
+        if directory:
+            run_opts['dir'] = directory
+            print(f"Selected directory: {directory}")
 
-                   [sg.Radio('Raw', group_id='code_type', k='k_raw', default=True)],
-                   [sg.Radio('Spike-sorted', group_id='code_type', k='k_sorted')],
-                
-                   [sg.Button('Start', k='k_start')]]
+    # Function to handle radio button selection
+    def on_radio_button_selected():
+        selected_option = var.get()
+        run_opts['isSorted'] = selected_option
+        print(f"Selected spike-sort status: {selected_option}")
 
-    return sg.Window('FreelyMovingEphys: Preliminary Modules', opt_layout)
+    def get_dropdown_value():
+        selected_option = dropdown.get()
+        print(f"Selected probe: {selected_option}")
+        run_opts['probe'] = selected_option
+
+    def close_win():
+        global ret_run_opts
+        get_dropdown_value()
+        print('Closing window.')
+        root.destroy()
+        ret_run_opts = run_opts
+
+    # Create the main window
+    root = tk.Tk()
+    root.title("Quick receptive field mapping")
+    root.minsize(width=500, height= 40)
+    # Dropdown menu
+    dropdown_label = tk.Label(root, text="Select probe:")
+    dropdown_label.pack(padx=10, pady=5)
+    dropdown = tk.StringVar()
+    dropdown.set(probe_opts[0])  # Set default value
+    dropdown_menu = tk.OptionMenu(root, dropdown, *probe_opts)
+    dropdown_menu.pack(padx=10, pady=5)
+
+    # Button to open directory dialog
+    directory_button = tk.Button(root, text="White noise directory", command=open_directory_dialog)
+    directory_button.pack(padx=10, pady=5)
+
+    # Radio buttons
+    var = tk.StringVar(value="Raw")  # Default selection
+
+    radio_button1 = tk.Radiobutton(root, text="Raw", variable=var, value="raw", command=on_radio_button_selected)
+    radio_button1.pack(padx=10, pady=5)
+
+    radio_button2 = tk.Radiobutton(root, text="Spike-sorted", variable=var, value="spike-sorted", command=on_radio_button_selected)
+    radio_button2.pack(padx=10, pady=5)
+
+    # Button
+    button = tk.Button(root, text="Start", command=lambda: close_win())
+    button.pack(padx=10, pady=5)
+
+    # Run the application
+    root.mainloop()
+
+    return ret_run_opts
 
 
 def make_window(probes_path):
-    """ Run the GUI to select recording parameters.
-
-    Parameters
-    ----------
-    probes_path: str
-        Path to the probes.json file.
     
-    Returns
-    -------
-    wn_dir: str
-        Path to the white noise directory.
-    use_probe: str
-        Name of the probe layout to use.
-    spike_sorted: bool
-        Whether ephys data is spike-sorted. If False, the raw
-        ephys binary file will be used, and approximate spikes
-        will be measured from the LFP of each channel.
-
-    """
-
     # Read the probes.json file
     with open(probes_path, 'r') as fp:
         mappings = json.load(fp)
     # Get the names from the dictionary keys
     probe_opts = mappings.keys()
 
-    sg.theme('Default1')
+    run_opts = set_window_layout(list(probe_opts))
 
-    ready = False
-    w = set_window_layout(list(probe_opts))
-
-    while True:
-
-        event, values = w.read(timeout=100)
-
-        if event in (None, 'Exit'):
-            break
-
-        elif event == 'k_dir':
-            wn_dir = sg.popup_get_folder('Open directory')
-            print('Set {} as white noise directory'.format(wn_dir))
-
-        elif event == 'k_start':
-            
-            use_probe = values['k_probe']
-
-            if values['k_raw'] is True:
-                spike_sorted = False
-            elif values['k_sorted'] is True:
-                spike_sorted = True
-
-            ready = True
-            break
-
-    w.close()
-    if ready:
-        return wn_dir, use_probe, spike_sorted
+    if type(run_opts['probe']) == str:
+        use_probe = run_opts['probe']
     else:
-        return None, None, None
+        sys.exit('No probe selected.')
+    if type(run_opts['dir']) == str:
+        wn_dir = run_opts['dir']
+    else:
+        sys.exit('No white noise directory selected.')
+    if run_opts['isSorted'] == 'spike-sorted':
+        spike_sorted = True
+    elif run_opts['isSorted'] == 'raw':
+        spike_sorted = False
+    elif run_opts['isSorted'] is None:
+        sys.exit('No spike-sorting status given.')
+
+    return wn_dir, use_probe, spike_sorted
+
 
 def quickRF():
 

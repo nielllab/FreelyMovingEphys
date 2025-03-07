@@ -31,8 +31,6 @@ import os
 import sys
 import argparse
 import warnings
-import PySimpleGUI as sg
-sg.theme('Default1')
 
 import fmEphys as fme
 
@@ -57,7 +55,11 @@ def pipeline():
     # If no config file path is specified, ask the user to choose
     # one in a popup window
     if args.cfg is None:
-        cfg_path = sg.popup_get_file('Choose animal ephys_cfg.yaml')
+        print('Choose animal ephys_cfg.yaml file.')
+        cfg_path = fme.select_file(
+            title='Choose animal ephys_cfg.yaml',
+            filetypes=[('YAML','.yaml'),('YML','.yml'),]
+        )
     # Otherwise, use the path specified by the user as an argument
     else:
         cfg_path = args.cfg

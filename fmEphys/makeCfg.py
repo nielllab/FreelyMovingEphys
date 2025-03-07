@@ -24,7 +24,6 @@ Written by DMM, 2021
 import os
 import shutil
 import argparse
-import PySimpleGUI as sg
 
 import fmEphys as fme
 
@@ -36,9 +35,7 @@ def makeCfg():
 
     if args.savedir is None:
         # if no path was given as an argument, open a dialog box
-        sg.theme('Default1')
-        savedir = sg.popup_get_folder('Choose animal directory.')
-        # usetemplate = sg.popup_get_text('Use template', default_text='ephys_cfg')
+        savedir = fme.select_directory('Choose animal directory.')
     else:
         savedir = args.savedir
 

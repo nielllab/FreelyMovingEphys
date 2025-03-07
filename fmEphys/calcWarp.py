@@ -21,7 +21,6 @@ Written by DMM, 2021
 
 import os
 import argparse
-import PySimpleGUI as sg
 
 import fmEphys as fme
 
@@ -38,13 +37,22 @@ def calcWarp():
     savedir = args.savedir
     camname = args.cam
 
-    sg.theme('Default1')
     if vidpath is None:
-        vidpath = sg.popup_get_file('Checkerboard video file')
+        print('Select checkerboard video file.')
+        vidpath = fme.select_file(
+            title='Select checkerboard video file.',
+            filetypes=[('AVI','.avi'),]
+        )
     if savedir is None:
-        savedir = sg.popup_get_folder('Save folder')
+        print('Select save directory.')
+        savedir = fme.select_directory(
+            title='Select save directory.'
+        )
     if camname is None:
-        camname = sg.popup_get_text('Camera name (e.g. REYE)')
+        print('Specify camera name (e.g., TOP1, WORLD).')
+        camname = fme.get_string_input(
+            title='Specify camera name (e.g., TOP1, WORLD).'
+        )
 
     str_date, _ = fme.fmt_now()
     savedir = os.path.join(savedir, '{}_cam_warp_mtx_{}.h5'.format(camname, str_date))

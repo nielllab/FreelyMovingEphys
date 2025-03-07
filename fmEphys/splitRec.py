@@ -23,7 +23,6 @@ Written by DMM, 2021
 
 
 import argparse
-import PySimpleGUI as sg
 
 import fmEphys as fme
 
@@ -45,8 +44,11 @@ def splitRec():
 
     if args.matfile is None:
         # If no path was given as an argument, open a dialog box
-        sg.theme('Default1')
-        matfile = sg.popup_get_file('Choose .mat file.')
+        print('Choose .mat file.')
+        matfile = fme.select_file(
+            title='Choose .mat file.',
+            filetypes=[('MAT','.mat'),]
+        )
     else:
         matfile = args.matfile
 

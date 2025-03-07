@@ -3,7 +3,6 @@ import shutil
 import argparse
 import pandas as pd
 import numpy as np
-import PySimpleGUI as sg
 import fmEphys as fme
 
 
@@ -54,10 +53,11 @@ def main(bin_path):
 
     if bin_path is None:
 
-        bin_path = sg.popup_get_file('Pick IMU binary file',
-                    title='Pick IMU binary file',
-                    file_types=(('BIN,','*.bin'),),
-                    no_window=True)
+        print('Pick IMU binary file.')
+        bin_path = fme.select_file(
+            title='Pick IMU binary file.',
+            filetypes=[('BIN,','*.bin'),]
+        )
         
     moved_bin_path = setup_paths(bin_path)
 
